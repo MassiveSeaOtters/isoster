@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.optimize import leastsq
 from .sampling import extract_isophote_data
+from .config import IsosterConfig
 
 def fit_first_and_second_harmonics(phi, intensity):
     """
@@ -257,25 +258,38 @@ def compute_aperture_photometry(image, mask, x0, y0, sma, eps, pa):
     return tflux_e, tflux_c, npix_e, npix_c
 
 def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
-    """Fit a single isophote with quality control."""
-    maxit = config.get('maxit', 50)
-    conver = config.get('conver', 0.05)
-    minit = config.get('minit', 10)
-    astep = config.get('astep', 0.1)
-    linear_growth = config.get('linear_growth', False)
-    fix_center = config.get('fix_center', False)
-    fix_pa = config.get('fix_pa', False)
-    fix_eps = config.get('fix_eps', False)
-    sclip = config.get('sclip', 3.0)
-    nclip = config.get('nclip', 0)
-    sclip_low = config.get('sclip_low', None)
-    sclip_high = config.get('sclip_high', None)
-    fflag = config.get('fflag', 0.5)
-    maxgerr = config.get('maxgerr', 0.5)
-    debug = config.get('debug', False)
-    full_photometry = config.get('full_photometry', False) or debug
-    compute_errors = config.get('compute_errors', True)
-    compute_deviations_flag = config.get('compute_deviations', True)
+    """
+    Fit a single isophote with quality control.
+    
+    Parameters
+    ----------
+    config : dict or IsosterConfig
+        Configuration object. If dict, converted to IsosterConfig.
+    """
+    # Normalize configuration
+    if isinstance(config, IsosterConfig):
+        cfg = config
+    else:
+        cfg = IsosterConfig(**(config or {}))
+
+    maxit = cfg.maxit
+    conver = cfg.conver
+    minit = cfg.minit
+    astep = cfg.astep
+    linear_growth = cfg.linear_growth
+    fix_center = cfg.fix_center
+    fix_pa = cfg.fix_pa
+    fix_eps = cfg.fix_eps
+    sclip = cfg.sclip
+    nclip = cfg.nclip
+    sclip_low = cfg.sclip_low
+    sclip_high = cfg.sclip_high
+    fflag = cfg.fflag
+    maxgerr = cfg.maxgerr
+    debug = cfg.debug
+    full_photometry = cfg.full_photometry or debug
+    compute_errors = cfg.compute_errors
+    compute_deviations_flag = cfg.compute_deviations
     
     x0, y0, eps, pa = start_geometry['x0'], start_geometry['y0'], start_geometry['eps'], start_geometry['pa']
     stop_code, niter, best_geometry = 0, 0, None
