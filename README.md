@@ -1,74 +1,60 @@
-# ISOSTER (ISOphote on STERoid)
+# ISOSTER: ISOphote fitting with Speedy Templated Extraction and Regression
 
-ISOSTER is an accelerated Python library for isophote fitting, optimized for performance while maintaining compatibility with `photutils.isophote`. It provides significant speedups (10-15x on synthetic images) by replacing area-based integration with vectorized path-based sampling.
+ISOSTER is an accelerated Python library for elliptical isophote fitting in galaxy images. It provides a significant performance boost over standard implementations while maintaining scientific accuracy and compatibility.
 
-## Features
+## Key Features
 
-- **High Performance**: Vectorized implementation using `scipy.ndimage`.
-- **Function-Based API**: Streamlined functional approach.
-- **Photutils Compatibility**: Logic and algorithms align with `photutils` for consistent results.
-- **CLI Tool**: Ready-to-use command line interface.
+- **High Performance**: 10-15x faster than `photutils.isophote` using vectorized path-based sampling.
+- **Modular Design**: Refactored into specialized modules for sampling, fitting, and model building.
+- **Enhanced Photometry**: Includes local flux integration metrics (`tflux_e`, `tflux_c`, `npix_e`, `npix_c`).
+- **Model Building**: Reconstruct 2D galaxy images from isophote profiles.
+- **Photutils Compatibility**: Logical and algorithmic consistency with industry standards.
+- **Function-based API**: Simple, stateless API for easier integration and testing.
 
 ## Installation
 
-To install ISOSTER, clone the repository and install it using pip:
-
 ```bash
-git clone <repository_url>
-cd isoster
 pip install .
 ```
 
-## Usage
-
-### Command Line Interface
-
-ISOSTER comes with a built-in CLI for processing FITS images:
-
-```bash
-isoster image.fits --output results.csv --config config.yaml
-```
-
-Configuration parameters (optional) can be provided in a YAML file or via command line arguments.
+## Basic Usage
 
 ### Python API
 
 ```python
+import isoster
 from astropy.io import fits
-from isoster.optimize import fit_image
 
-# Load data
-image = fits.getdata('galaxy.fits')
+image = fits.getdata("galaxy.fits")
+config = {
+    'sma0': 10.0,
+    'minsma': 0.0,
+    'maxsma': 100.0,
+    'full_photometry': True  # Enable flux integration metrics
+}
 
-# Run fitting
-results = fit_image(image, mask=None, config={
-    'x0': 100, 'y0': 100,
-    'sma0': 10,
-    'minsma': 0, 'maxsma': 200
-})
+# Run optimized fitting
+results = isoster.fit_image(image, None, config)
 
-# Access results
-isophotes = results['isophotes']
+# Save results to FITS
+isoster.isophote_results_to_fits(results, "isophotes.fits")
+
+# Build 2D model
+model = isoster.build_ellipse_model(image.shape, results['isophotes'])
+fits.writeto("model.fits", model, overwrite=True)
 ```
 
-## Structure
+## Repository Structure
 
-- `isoster/`: Main package source code.
-  - `optimize.py`: Core fitting algorithms.
-  - `utils.py`: Utility functions.
-  - `plotting.py`: Visualization tools.
-- `reference/`: Original `photutils.isophote` code (for reference/validation).
-- `benchmarks/`: Performance tests and comparison scripts.
-- `tests/`: Unit tests.
+- `isoster/`:
+    - `sampling.py`: Vectorized elliptical coordinate sampling.
+    - `fitting.py`: Iterative harmonic fitting and error estimation.
+    - `driver.py`: High-level image fitting loops.
+    - `model.py`: 2D image reconstruction.
+    - `plotting.py`: Comparison and analysis visualization.
+- `examples/`: Comprehensive benchmarks and usage examples.
+- `tests/`: Unit and regression tests.
 
-## Development
+## Acknowledgments
 
-Run tests:
-```bash
-pytest
-```
-
-Run benchmarks:
-```bash
-python benchmarks/benchmark_real_galaxy_m51.py
-```
+ISOSTER began as an optimization of the `photutils.isophote` package. We thank the photutils contributors for their robust foundational algorithms.

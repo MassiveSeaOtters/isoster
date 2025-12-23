@@ -18,3 +18,7 @@ dependencies = [
 
 [project.scripts]
 isoster = "isoster.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["isoster*"]
+exclude = ["reference*"]

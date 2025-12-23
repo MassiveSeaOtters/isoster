@@ -54,7 +54,7 @@ def run_optimized(image, x0, y0, sma0=10.0, step=0.1):
     t1 = time.time()
     
     # Filter valid results
-    valid = [r for r in results if r['stop_code'] in [0, 1, 2]]
+    valid = [r for r in results['isophotes'] if r['stop_code'] in [0, 1, 2]]
     return valid, t1 - t0
 
 

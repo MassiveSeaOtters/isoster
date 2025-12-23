@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+isoster/__init__.py
+isoster/cli.py
+isoster/optimize.py
+isoster/optimize_backup.py
+isoster/plotting.py
+isoster/utils.py
+isoster.egg-info/PKG-INFO
+isoster.egg-info/SOURCES.txt
+isoster.egg-info/dependency_links.txt
+isoster.egg-info/entry_points.txt
+isoster.egg-info/requires.txt
+isoster.egg-info/top_level.txt
