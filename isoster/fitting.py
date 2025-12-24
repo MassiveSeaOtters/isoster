@@ -300,6 +300,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
     compute_errors = cfg.compute_errors
     compute_deviations_flag = cfg.compute_deviations
     integrator = cfg.integrator
+    lsb_sma_threshold = cfg.lsb_sma_threshold
 
     
     x0, y0, eps, pa = start_geometry['x0'], start_geometry['y0'], start_geometry['eps'], start_geometry['pa']
@@ -331,10 +332,18 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
             stop_code = 3
             break
             
+        # Determine effective integrator for this isophote
+        eff_integrator = integrator
+        if integrator == 'adaptive':
+            if lsb_sma_threshold is not None and sma > lsb_sma_threshold:
+                eff_integrator = 'median'
+            else:
+                eff_integrator = 'mean'
+            
         coeffs, cov_matrix = fit_first_and_second_harmonics(phi, intens)
         y0_fit, A1, B1, A2, B2 = coeffs
         gradient, gradient_error = compute_gradient(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, 
-                                                   previous_gradient, current_data=(phi, intens), integrator=integrator)
+                                                   previous_gradient, current_data=(phi, intens), integrator=eff_integrator)
         if gradient_error is not None:
             previous_gradient = gradient
         
@@ -365,7 +374,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
             min_amplitude = abs(max_amp)
             intens_err = rms / np.sqrt(len(intens))
             x0_err, y0_err, eps_err, pa_err = compute_parameter_errors(phi, intens, x0, y0, sma, eps, pa, gradient, cov_matrix) if compute_errors else (0.0, 0.0, 0.0, 0.0)
-            if integrator == 'median':
+            if eff_integrator == 'median':
                 reported_intens = np.median(intens)
             else:
                 reported_intens = y0_fit

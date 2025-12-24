@@ -29,7 +29,8 @@ config = IsosterConfig(
     maxit=50,
     sclip=3.0,
     fflag=0.7,      # Fit quality flag (fraction of usable pixels)
-    integrator='mean', # 'mean' (default) or 'median' for robust intensity
+    integrator='mean', # 'mean' (default), 'median', or 'adaptive'
+    lsb_sma_threshold=100.0, # Required if integrator='adaptive'
     full_photometry=False # Compute flux metrics (tflux_e, etc)
 )
 

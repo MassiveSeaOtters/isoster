@@ -33,7 +33,7 @@ except ImportError:
 
 def run_benchmark():
     print("=" * 80)
-    print("ISOSTER M51 Benchmark & QA (Median Integrator)")
+    print("ISOSTER M51 Benchmark & QA (Adaptive Integrator)")
     print("=" * 80)
     
     # 1. Load Data
@@ -82,7 +82,7 @@ def run_benchmark():
         # Suppress warnings for cleaner output
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            p_res = ellipse.fit_image(sma0=sma0, minsma=minsma, maxsma=maxsma, step=astep, integrmode='median')
+            p_res = ellipse.fit_image(sma0=sma0, minsma=minsma, maxsma=maxsma, step=astep)
         t1 = time.time()
         p_time = t1 - t0
         print(f"   Done in {p_time:.4f}s. Fitted {len(p_res)} isophotes.")
@@ -107,7 +107,8 @@ def run_benchmark():
         compute_deviations=True,
 
         full_photometry=False, # Not strictly needed for QA comparison, keep fast
-        integrator='median'
+        integrator='adaptive',
+        lsb_sma_threshold=100.0
     )
     
     t0 = time.time()
@@ -144,7 +145,7 @@ def run_benchmark():
     qa_path = os.path.join(os.path.dirname(__file__), 'm51_qa_summary.png')
     
     plot_qa_summary(
-        title=f"M51 Isophote Analysis (Median Integrator, Speedup: {p_time/i_time:.1f}x)",
+        title=f"M51 Isophote Analysis (Adaptive, Speedup: {p_time/i_time:.1f}x)",
         image=image,
         isoster_model=i_model,
         isoster_res=i_res,

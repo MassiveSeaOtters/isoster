@@ -45,10 +45,14 @@ class IsosterConfig(BaseModel):
     debug: bool = Field(False, description="Include debug info in results and enable verbose calculation.")
 
     # Integration Mode
-    integrator: str = Field(default='mean', pattern='^(mean|median)$', description="Integration method for flux calculation.")
+    # Integration Mode
+    integrator: str = Field(default='mean', pattern='^(mean|median|adaptive)$', description="Integration method for flux calculation.")
+    lsb_sma_threshold: Optional[float] = Field(None, gt=0.0, description="SMA threshold for switching to median integrator in adaptive mode.")
 
     @model_validator(mode='after')
     def check_sma_consistency(self):
         if self.maxsma is not None and self.maxsma < self.minsma:
             raise ValueError(f"maxsma ({self.maxsma}) must be greater than minsma ({self.minsma})")
+        if self.integrator == 'adaptive' and self.lsb_sma_threshold is None:
+            raise ValueError("lsb_sma_threshold must be provided when integrator='adaptive'")
         return self
