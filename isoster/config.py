@@ -45,7 +45,7 @@ class IsosterConfig(BaseModel):
     debug: bool = Field(False, description="Include debug info in results and enable verbose calculation.")
 
     # Integration Mode
-    integrator: str = Field(default='mean', pattern='^(mean|median|bilinear|nearest_neighbor)$', description="Integration method for flux calculation.")
+    integrator: str = Field(default='mean', pattern='^(mean|median)$', description="Integration method for flux calculation.")
 
     @model_validator(mode='after')
     def check_sma_consistency(self):
