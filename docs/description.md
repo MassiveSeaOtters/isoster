@@ -38,7 +38,7 @@ A decoupled model builder allows for efficient image reconstruction, including s
 
 ## Future Improvements
 
-### 1. Configuration Management
+### 1. Configuration Management (Implemented)
 The `config.yaml` approach is flexible but passing raw dictionaries can be error-prone (typos in keys).
 *   **Recommendation**: Use Python dataclasses or `pydantic` models for configuration. This provides type safety, validation (e.g., ensuring `maxit > 0`), and auto-completion in IDEs.
 
