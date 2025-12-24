@@ -44,6 +44,9 @@ class IsosterConfig(BaseModel):
     full_photometry: bool = Field(False, description="Calculate flux integration metrics (tflux_e, etc.).")
     debug: bool = Field(False, description="Include debug info in results and enable verbose calculation.")
 
+    # Integration Mode
+    integrator: str = Field(default='mean', pattern='^(mean|median|bilinear|nearest_neighbor)$', description="Integration method for flux calculation.")
+
     @model_validator(mode='after')
     def check_sma_consistency(self):
         if self.maxsma is not None and self.maxsma < self.minsma:

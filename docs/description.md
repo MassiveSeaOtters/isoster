@@ -34,3 +34,25 @@ Conditional implementation of `tflux_e`, `tflux_c`, `npix_e`, and `npix_c` provi
 
 ### 2D Model Building
 A decoupled model builder allows for efficient image reconstruction, including support for higher-order harmonic deviations (a3, b3, a4, b4).
+
+
+## Future Improvements
+
+### 1. Configuration Management
+The `config.yaml` approach is flexible but passing raw dictionaries can be error-prone (typos in keys).
+*   **Recommendation**: Use Python dataclasses or `pydantic` models for configuration. This provides type safety, validation (e.g., ensuring `maxit > 0`), and auto-completion in IDEs.
+
+### 2. Testing Strategy
+Benchmarks are present, but granular unit tests are needed for the new functional components.
+*   **Recommendation**: Add unit tests for specific functions like `extract_isophote_data` (checking sampling accuracy) and `harmonic_function` (checking math correctness) in isolation, separate from the full image fit.
+
+### 3. API Expansion
+The current API focuses on batch processing an entire image.
+*   **Recommendation**: Expose the single-isophote fitter `fit_isophote` more prominently. This allows users to fit specific regions or interactively adjust fits without re-running the whole chain.
+
+### 4. Documentation System
+*   **Recommendation**: Set up Sphinx or MkDocs to auto-generate API documentation from the improved docstrings. The "Description" document should be part of a larger user guide.
+
+### 5. Parallelization
+
+*   **Recommendation**: Implement parallelization for the isophote fitting loop, especially for large images.

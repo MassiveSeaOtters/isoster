@@ -28,7 +28,9 @@ config = IsosterConfig(
     sma0=15.0,
     maxit=50,
     sclip=3.0,
-    full_photometry=True
+    fflag=0.7,      # Fit quality flag (fraction of usable pixels)
+    integrator='mean', # 'mean' (default) or 'median' for robust intensity
+    full_photometry=False # Compute flux metrics (tflux_e, etc)
 )
 
 # Invalid values will raise an error immediately:

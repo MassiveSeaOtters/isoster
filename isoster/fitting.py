@@ -152,7 +152,7 @@ def compute_deviations(phi, intens, sma, gradient, order):
     except Exception:
         return 0.0, 0.0, 0.0, 0.0
 
-def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=False, previous_gradient=None, current_data=None):
+def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=False, previous_gradient=None, current_data=None, integrator='mean'):
     """Compute the radial intensity gradient."""
     if current_data is not None:
         phi_c, intens_c = current_data
@@ -162,7 +162,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
     if len(intens_c) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
         
-    mean_c = np.mean(intens_c)
+    if integrator == 'median':
+        mean_c = np.median(intens_c)
+    else:
+        mean_c = np.mean(intens_c)
     
     if linear_growth:
         gradient_sma = sma + step
@@ -174,7 +177,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
     if len(intens_g) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
         
-    mean_g = np.mean(intens_g)
+    if integrator == 'median':
+        mean_g = np.median(intens_g)
+    else:
+        mean_g = np.mean(intens_g)
     gradient = (mean_g - mean_c) / sma / step
     
     sigma_c = np.std(intens_c)
@@ -194,7 +200,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
         phi_g2, intens_g2, _ = extract_isophote_data(image, mask, x0, y0, gradient_sma_2, eps, pa, step, linear_growth)
         
         if len(intens_g2) > 0:
-            mean_g2 = np.mean(intens_g2)
+            if integrator == 'median':
+                mean_g2 = np.median(intens_g2)
+            else:
+                mean_g2 = np.mean(intens_g2)
             gradient = (mean_g2 - mean_c) / sma / (2 * step)
             sigma_g2 = np.std(intens_g2)
             gradient_error = (np.sqrt(sigma_c**2 / len(intens_c) + sigma_g2**2 / len(intens_g2))
@@ -290,6 +299,8 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
     full_photometry = cfg.full_photometry or debug
     compute_errors = cfg.compute_errors
     compute_deviations_flag = cfg.compute_deviations
+    integrator = cfg.integrator
+
     
     x0, y0, eps, pa = start_geometry['x0'], start_geometry['y0'], start_geometry['eps'], start_geometry['pa']
     stop_code, niter, best_geometry = 0, 0, None
@@ -323,7 +334,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
         coeffs, cov_matrix = fit_first_and_second_harmonics(phi, intens)
         y0_fit, A1, B1, A2, B2 = coeffs
         gradient, gradient_error = compute_gradient(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, 
-                                                   previous_gradient, current_data=(phi, intens))
+                                                   previous_gradient, current_data=(phi, intens), integrator=integrator)
         if gradient_error is not None:
             previous_gradient = gradient
         
@@ -354,7 +365,12 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
             min_amplitude = abs(max_amp)
             intens_err = rms / np.sqrt(len(intens))
             x0_err, y0_err, eps_err, pa_err = compute_parameter_errors(phi, intens, x0, y0, sma, eps, pa, gradient, cov_matrix) if compute_errors else (0.0, 0.0, 0.0, 0.0)
-            best_geometry = {'x0': x0, 'y0': y0, 'eps': eps, 'pa': pa, 'sma': sma, 'intens': y0_fit, 'rms': rms, 'intens_err': intens_err,
+            if integrator == 'median':
+                reported_intens = np.median(intens)
+            else:
+                reported_intens = y0_fit
+                
+            best_geometry = {'x0': x0, 'y0': y0, 'eps': eps, 'pa': pa, 'sma': sma, 'intens': reported_intens, 'rms': rms, 'intens_err': intens_err,
                              'x0_err': x0_err, 'y0_err': y0_err, 'eps_err': eps_err, 'pa_err': pa_err,
                              'a3': 0.0, 'b3': 0.0, 'a3_err': 0.0, 'b3_err': 0.0, 'a4': 0.0, 'b4': 0.0, 'a4_err': 0.0, 'b4_err': 0.0,
                              'tflux_e': np.nan, 'tflux_c': np.nan, 'npix_e': 0, 'npix_c': 0}
