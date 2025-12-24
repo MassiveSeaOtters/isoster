@@ -18,7 +18,7 @@ def normalize_angle(angle_rad):
     deg = np.degrees(angle_rad)
     return np.mod(deg, 180.0)
 
-def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None, filename="qa_summary.png"):
+def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None, mask=None, filename="qa_summary.png"):
     """
     Generate a detailed QA figure comparing isoster results with input and photutils.
 
@@ -54,9 +54,17 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     def norm(img):
         return np.arcsinh((img - vmin) / (vmax - vmin))
 
-    # 1. Input Image + Isophotes
+    # 1. Input Image + Isophotes (and Mask)
     ax_img = fig.add_subplot(left_gs[0])
     ax_img.imshow(norm(image), origin='lower', cmap='viridis')
+    
+    if mask is not None:
+        # Overlay mask in red with transparency
+        # distinct color for bad pixels
+        masked_img = np.zeros((*image.shape, 4))
+        masked_img[mask] = [1, 0, 0, 0.4] # Red, alpha=0.4
+        ax_img.imshow(masked_img, origin='lower')
+        
     ax_img.set_ylabel('Y (pixels)', fontsize=16)
     # Overplot isophotes (sparse)
     sorted_iso = sorted(isoster_res, key=lambda x: x['sma'])
@@ -71,7 +79,7 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
                          edgecolor='white', facecolor='none', linewidth=0.7, alpha=0.8)
         ax_img.add_patch(ell)
     
-    ax_img.text(0.05, 0.95, "Input + Isophotes", transform=ax_img.transAxes, color='white', weight='bold', va='top', fontsize=20)
+    ax_img.text(0.05, 0.95, "Input + Mask + Isophotes", transform=ax_img.transAxes, color='white', weight='bold', va='top', fontsize=20)
     ax_img.set_xticks([])
 
     # 2. Model Image

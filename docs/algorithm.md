@@ -50,6 +50,19 @@ The fitting process follows the classic logic:
 *   **Median**: Uses `np.median` of the sampled points. More robust against unmasked outliers (stars, defects) but slightly slower.
 *   **Adaptive**: Uses `Mean` for inner, bright regions ($SMA \le \text{Threshold}$) and switches to `Median` for outer, faint regions where outliers dominate the noise budget.
 
+## Handling Masks
+
+Handling masked pixels (e.g., bad pixels, stars, gaps) is a critical component of isophote fitting.
+
+### The Problem with Masked Arrays
+Standard libraries often rely on `numpy.ma.MaskedArray`. While robust, masked arrays introduce significant computational overhead because every operation involves checking and propagating the mask state, often inhibiting low-level compiler optimizations in numpy/scipy functions.
+
+### The Isoster Solution: Vectorized Sampling
+`isoster` treats the mask as a separate boolean image and samples it simultaneously with the data:
+1.  **Nearest Neighbor Sampling**: The mask is sampled using `map_coordinates(..., order=0)` along the elliptical path. This assigns a boolean `True` (bad) or `False` (good) to each sample point based on the nearest pixel center.
+2.  **Filter**: The 1D intensity profile is filtered to exclude these bad points: `intens = intens[~mask_samples]`.
+3.  **Efficiency**: This operation is fully vectorized and avoids the creation of heavy `MaskedArray` objects. Benchmarks show this approach maintains high speed (only ~2x slowdown purely due to extra sampling) compared to the >10x slowdown often seen when enabling masks in other codes.
+
 ## Weaknesses and Caveats
 
 While `isoster` typically achieves 5-10x magnitude speedups, users should be aware of the trade-offs:

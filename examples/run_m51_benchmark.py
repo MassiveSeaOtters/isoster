@@ -54,7 +54,29 @@ def run_benchmark():
     with fits.open(fits_path) as hdul:
         image = hdul[0].data
         
+    # Generate Synthetic Mask
     h, w = image.shape
+    mask = np.zeros_like(image, dtype=bool)
+    rng = np.random.RandomState(42) # Fixed seed for reproducibility
+    
+    # Add 5 random masked blobs (avoiding center r < 20)
+    cx, cy = w/2, h/2
+    for _ in range(5):
+        # Random position
+        while True:
+            mx, my = rng.randint(0, w), rng.randint(0, h)
+            dist = np.sqrt((mx - cx)**2 + (my - cy)**2)
+            if dist > 20: # Ensure distance > 20 pixels
+                break
+        
+        # Random size 10-30 pixels
+        r_blob = rng.randint(10, 30)
+        y, x = np.mgrid[0:h, 0:w]
+        blob = ((x - mx)**2 + (y - my)**2) < r_blob**2
+        mask |= blob
+        
+    print(f"Generated synthetic mask with {np.sum(mask)} bad pixels.")
+        
     x0, y0 = w / 2.0, h / 2.0
     
     # Shared Control Parameters
@@ -74,9 +96,11 @@ def run_benchmark():
     p_time = np.nan
     
     if PHOTUTILS_AVAIL:
-        print(f"\n[Photutils] Running fit on {w}x{h} image...")
+        print(f"\n[Photutils] Running fit on {w}x{h} image (with mask)...")
         geometry = EllipseGeometry(x0=x0, y0=y0, sma=sma0, eps=eps, pa=pa)
-        ellipse = Ellipse(image, geometry=geometry)
+        # Photutils expects image as MaskedArray to handle masks
+        masked_image = np.ma.masked_array(image, mask=mask)
+        ellipse = Ellipse(masked_image, geometry=geometry)
         
         t0 = time.time()
         # Suppress warnings for cleaner output
@@ -94,7 +118,7 @@ def run_benchmark():
     # ---------------------------------------------------------
     # 3. Run ISOSTER (Optimized)
     # ---------------------------------------------------------
-    print(f"\n[ISOSTER] Running fit on {w}x{h} image...")
+    print(f"\n[ISOSTER] Running fit on {w}x{h} image (with mask)...")
     
     # Use Pydantic Config to be "close to photutils"
     # Photutils defaults: conver=0.05, minit=10, maxit=50, fflag=0.7
@@ -112,8 +136,9 @@ def run_benchmark():
     )
     
     t0 = time.time()
-    i_results_dict = fit_image(image, None, cfg)
+    i_results_dict = fit_image(image, mask=mask, config=cfg)
     t1 = time.time()
+    i_results_dict['mask'] = mask # Store for potential future use or debugging
     i_time = t1 - t0
     
     i_res = i_results_dict['isophotes']
@@ -145,8 +170,9 @@ def run_benchmark():
     qa_path = os.path.join(os.path.dirname(__file__), 'm51_qa_summary.png')
     
     plot_qa_summary(
-        title=f"M51 Isophote Analysis (Adaptive, Speedup: {p_time/i_time:.1f}x)",
+        title=f"M51 Isophote Analysis (Adaptive+Mask, Speedup: {p_time/i_time:.1f}x)",
         image=image,
+        mask=mask,
         isoster_model=i_model,
         isoster_res=i_res,
         photutils_res=p_res,
