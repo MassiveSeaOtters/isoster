@@ -3,7 +3,19 @@ from .fitting import fit_isophote
 from .config import IsosterConfig
 
 def fit_central_pixel(image, mask, x0, y0, debug=False):
-    """Fit the central pixel (SMA=0)."""
+    """
+    Fit the central pixel (SMA=0).
+
+    Args:
+        image (np.ndarray): Input image.
+        mask (np.ndarray, optional): Boolean mask (True=bad).
+        x0 (float): Center x coordinate.
+        y0 (float): Center y coordinate.
+        debug (bool): If True, include extra debug fields.
+
+    Returns:
+        dict: A dictionary containing the fitting result for the central pixel.
+    """
     # Simple estimation for center
     val = image[int(y0), int(x0)]
     valid = True
@@ -26,20 +38,20 @@ def fit_central_pixel(image, mask, x0, y0, debug=False):
 def fit_image(image, mask=None, config=None):
     """
     Main driver to fit isophotes to an entire image.
-    
-    Parameters
-    ----------
-    image : 2D array
-        Input image.
-    mask : 2D array, optional
-        Bad pixel mask (True=bad).
-    config : dict or IsosterConfig, optional
-        Configuration parameters.
-        
-    Returns
-    -------
-    results : dict
-        List of fitted isophotes and other metadata.
+
+    This function orchestrates the fitting process, starting from a central guess,
+    fitting outward to the edge, and optionally inward to the center.
+
+    Args:
+        image (np.ndarray): 2D Input image.
+        mask (np.ndarray, optional): 2D Bad pixel mask (True=bad).
+        config (dict or IsosterConfig, optional): Configuration parameters.
+            If None, default configuration is used.
+
+    Returns:
+        dict: A dictionary containing:
+            - 'isophotes': List of dictionaries, each representing a fitted isophote.
+            - 'config': The IsosterConfig object used for the fit.
     """
     if config is None:
         cfg = IsosterConfig()

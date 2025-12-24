@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field, model_validator
 class IsosterConfig(BaseModel):
     """
     Configuration for isoster fitting.
-    
-    Provides type safety and validation for fitting parameters.
+
+    This Pydantic model defines all tunable parameters for the isophote fitting algorithm,
+    including geometry initialization, fitting control, quality control, and output options.
     """
     # Geometry initialization
     x0: Optional[float] = Field(None, description="Initial center x coordinate. If None, uses image center.")
@@ -44,7 +45,6 @@ class IsosterConfig(BaseModel):
     full_photometry: bool = Field(False, description="Calculate flux integration metrics (tflux_e, etc.).")
     debug: bool = Field(False, description="Include debug info in results and enable verbose calculation.")
 
-    # Integration Mode
     # Integration Mode
     integrator: str = Field(default='mean', pattern='^(mean|median|adaptive)$', description="Integration method for flux calculation.")
     lsb_sma_threshold: Optional[float] = Field(None, gt=0.0, description="SMA threshold for switching to median integrator in adaptive mode.")

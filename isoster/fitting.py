@@ -6,7 +6,18 @@ from .config import IsosterConfig
 def fit_first_and_second_harmonics(phi, intensity):
     """
     Fit the 1st and 2nd harmonics to the intensity profile.
+    
+    The model is:
     y = y0 + A1*sin(E) + B1*cos(E) + A2*sin(2E) + B2*cos(2E)
+
+    Args:
+        phi (np.ndarray): eccentric anomaly angles.
+        intensity (np.ndarray): sampled intensity values.
+
+    Returns:
+        tuple: (coeffs, ata_inv)
+            coeffs: array of [y0, A1, B1, A2, B2]
+            ata_inv: inverse covariance matrix (A^T A)^-1
     """
     s1 = np.sin(phi)
     c1 = np.cos(phi)
@@ -269,11 +280,19 @@ def compute_aperture_photometry(image, mask, x0, y0, sma, eps, pa):
 def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
     """
     Fit a single isophote with quality control.
-    
-    Parameters
-    ----------
-    config : dict or IsosterConfig
-        Configuration object. If dict, converted to IsosterConfig.
+
+    This function performs the iterative harmonic fitting for a single semi-major axis (SMA).
+
+    Args:
+        image (np.ndarray): Input image.
+        mask (np.ndarray): Bad pixel mask.
+        sma (float): Semi-major axis length to fit.
+        start_geometry (dict): Initial guess for {'x0', 'y0', 'eps', 'pa'}.
+        config (dict or IsosterConfig): Configuration object.
+        going_inwards (bool): Flag indicating if the fitting is progressing inwards (affecting gradient checks).
+
+    Returns:
+        dict: The best fitted geometry and metadata for this isophote.
     """
     # Normalize configuration
     if isinstance(config, IsosterConfig):

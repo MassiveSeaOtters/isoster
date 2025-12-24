@@ -1,0 +1,26 @@
+site_name: Isoster Documentation
+site_description: Fast isophote fitting for galaxy images.
+site_author: Shuang
+repo_url: https://github.com/shuang-stat/isoster
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - User Guide: guide.md
+  - Algorithm: algorithm.md
+  - API Reference:
+      - Core Fitting: api/optimize.md
+      - Configuration: api/config.md
+      - Fitting Logic: api/fitting.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
