@@ -70,7 +70,17 @@ def isophote_results_to_fits(results, filename, overwrite=True):
     if isinstance(results, dict):
         config = results.get('config', {})
         
-        for key, value in config.items():
+        # Convert config object to dict if needed
+        if hasattr(config, 'model_dump'):
+            config_dict = config.model_dump()
+        elif hasattr(config, 'dict'):
+            config_dict = config.dict()
+        elif isinstance(config, dict):
+            config_dict = config
+        else:
+            config_dict = getattr(config, '__dict__', {})
+
+        for key, value in config_dict.items():
             # FITS keywords should be short. We'll use the key as is, astropy handles it.
             # We filter out None values as they can't be written to FITS header easily
             if value is None:

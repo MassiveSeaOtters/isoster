@@ -108,8 +108,10 @@ def fit_image(image, mask=None, config=None):
                 next_sma = current_sma - astep
             else:
                 next_sma = current_sma / (1.0 + astep)
-                
-            if next_sma < minsma or next_sma <= 0:
+            
+            # Stop if smaller than minsma or effectively too small (e.g. 0.5 pixel)
+            limit_sma = max(minsma, 0.5) 
+            if next_sma < limit_sma:
                 break
             
             current_sma = next_sma
