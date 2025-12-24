@@ -38,11 +38,11 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
         Output filename.
     """
     # Create Figure with constrained layout for better spacing control
-    fig = plt.figure(figsize=(20, 14))
+    fig = plt.figure(figsize=(20, 17))
     
     # Outer GridSpec: 1 row, 2 columns (Images vs Profiles)
     # Adjust top margin to bring title closer - user layout preserved
-    outer_gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1.2], wspace=0.05, top=0.93, bottom=0.05, left=0.05, right=0.95)
+    outer_gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1.3], wspace=0.04, top=0.93, bottom=0.07, left=0.05, right=0.95)
     
     fig.suptitle(title, fontsize=25, weight='bold', y=0.98) 
     
@@ -71,15 +71,15 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
                          edgecolor='white', facecolor='none', linewidth=0.7, alpha=0.8)
         ax_img.add_patch(ell)
     
-    ax_img.text(0.05, 0.95, "Input + Isophotes", transform=ax_img.transAxes, color='white', weight='bold', va='top', fontsize=16)
+    ax_img.text(0.05, 0.95, "Input + Isophotes", transform=ax_img.transAxes, color='white', weight='bold', va='top', fontsize=20)
     ax_img.set_xticks([])
 
     # 2. Model Image
     ax_mod = fig.add_subplot(left_gs[1], sharex=ax_img, sharey=ax_img)
     ax_mod.imshow(norm(isoster_model), origin='lower', cmap='viridis')
-    ax_mod.text(0.05, 0.95, "Isoster Model", transform=ax_mod.transAxes, color='white', weight='bold', va='top', fontsize=16)
+    ax_mod.text(0.05, 0.95, "Isoster Model", transform=ax_mod.transAxes, color='white', weight='bold', va='top', fontsize=20)
     ax_mod.set_xticks([])
-    ax_mod.set_ylabel('Y (pixels)', fontsize=16)
+    ax_mod.set_ylabel('Y (pixels)', fontsize=20)
 
     # 3. Residual Image
     ax_res = fig.add_subplot(left_gs[2], sharex=ax_img, sharey=ax_img)
@@ -87,9 +87,9 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     # Residual scaling
     res_std = np.std(residual[~np.isnan(residual)])
     ax_res.imshow(residual, origin='lower', cmap='viridis', vmin=-3*res_std, vmax=3*res_std)
-    ax_res.text(0.05, 0.95, "Residual", transform=ax_res.transAxes, color='white', weight='bold', va='top', fontsize=16)
-    ax_res.set_xlabel('X (pixels)', fontsize=16)
-    ax_res.set_ylabel('Y (pixels)', fontsize=16)
+    ax_res.text(0.05, 0.95, "Residual", transform=ax_res.transAxes, color='white', weight='bold', va='top', fontsize=20)
+    ax_res.set_xlabel('X (pixels)', fontsize=20)
+    ax_res.set_ylabel('Y (pixels)', fontsize=20)
 
     # --- Right Column: 1D Profiles (7 rows) ---
     right_gs = gridspec.GridSpecFromSubplotSpec(7, 1, subplot_spec=outer_gs[1], 
@@ -147,8 +147,9 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     axes_profiles = []
     
     # Common plot settings
-    scatter_kwargs_iso = {'fmt': 'o', 'color': 'red', 'markersize': 5, 'label': 'Isoster', 'elinewidth': 1}
-    scatter_kwargs_phot = {'fmt': 'o', 'markerfacecolor': 'none', 'markeredgecolor': 'black', 'color': 'black', 'markersize': 5, 'label': 'Photutils', 'elinewidth': 1, 'alpha': 0.6}
+    scatter_kwargs_iso = {'fmt': 'o', 'color': 'red', 'markersize': 6, 'label': 'Isoster', 'elinewidth': 1}
+    scatter_kwargs_phot = {'fmt': 'o', 'markerfacecolor': 'none', 'markeredgecolor': 'black', 'color': 'black', 'markersize': 6,
+                           'label': 'Photutils', 'elinewidth': 1, 'linewidth': 2, 'alpha': 0.8}
     
     # Helper to set Y limits based on data points only (ignoring errorbars)
     def set_ylim_data(ax, data1, data2=None, pad=0.1):
@@ -178,9 +179,9 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
         yerr_phot = p_intens_err[p_mask] / (p_intens[p_mask] * np.log(10))
         ax1.errorbar(p_x_axis, y_phot, yerr=yerr_phot, **scatter_kwargs_phot)
         
-    ax1.set_ylabel(r'$\log_{10}(I)$', fontsize=16)
-    ax1.legend(loc='upper right', fontsize=14)
-    ax1.grid(True, alpha=0.3)
+    ax1.set_ylabel(r'$\log_{10}(I)$', fontsize=20)
+    ax1.legend(loc='upper right', fontsize=20)
+    ax1.grid(True, alpha=0.5)
     ax1.set_xticklabels([])
     axes_profiles.append(ax1)
 
@@ -188,17 +189,17 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     ax2 = fig.add_subplot(right_gs[1], sharex=ax1)
     if photutils_res:
         diff = ((i_intens - p_intens_interp) / p_intens_interp) * 100.0
-        ax2.plot(x_axis, diff, 'b-', lw=1)
+        ax2.plot(x_axis, diff, 'b-', lw=2)
         ax2.axhline(0, color='gray', ls=':')
-    ax2.set_ylabel(r'$\Delta I/I$ (%)', fontsize=14)
-    ax2.grid(True, alpha=0.3)
+    ax2.set_ylabel(r'$\Delta I/I$ (%)', fontsize=20)
+    ax2.grid(True, alpha=0.5)
     ax2.set_xticklabels([])
     axes_profiles.append(ax2)
 
     # 3. Center X & Y
     ax3 = fig.add_subplot(right_gs[2], sharex=ax1)
-    ax3.errorbar(x_axis, i_x0, yerr=i_x0_err, fmt='o', color='red', markersize=5, label='X', elinewidth=1)
-    ax3.errorbar(x_axis, i_y0, yerr=i_y0_err, fmt='s', color='blue', markersize=5, label='Y', elinewidth=1)
+    ax3.errorbar(x_axis, i_x0, yerr=i_x0_err, fmt='o', color='red', markersize=6, label='X', elinewidth=1)
+    ax3.errorbar(x_axis, i_y0, yerr=i_y0_err, fmt='s', color='blue', markersize=6, label='Y', elinewidth=1)
     
     if photutils_res:
         ax3.errorbar(p_x_axis, p_x0[p_mask], yerr=p_x0_err[p_mask], fmt='o', markerfacecolor='none', markeredgecolor='black', color='black', alpha=0.5, markersize=5)
@@ -208,9 +209,9 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     set_ylim_data(ax3, np.concatenate([i_x0, i_y0]), 
                  np.concatenate([p_x0[p_mask], p_y0[p_mask]]) if photutils_res else None)
         
-    ax3.set_ylabel('Center', fontsize=14)
-    ax3.legend(fontsize=12, loc='best')
-    ax3.grid(True, alpha=0.3)
+    ax3.set_ylabel('Center', fontsize=20)
+    ax3.legend(fontsize=20, loc='best')
+    ax3.grid(True, alpha=0.5)
     ax3.set_xticklabels([])
 
     # 4. Axis Ratio (1 - eps)
@@ -226,8 +227,8 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
     
     set_ylim_data(ax4, y_ba_iso, y_ba_phot)
         
-    ax4.set_ylabel('b/a', fontsize=14)
-    ax4.grid(True, alpha=0.3)
+    ax4.set_ylabel('b/a', fontsize=20)
+    ax4.grid(True, alpha=0.5)
     ax4.set_xticklabels([])
 
     # 5. Position Angle
@@ -245,8 +246,8 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
 
     set_ylim_data(ax5, y_pa_iso, y_pa_phot)
 
-    ax5.set_ylabel('PA (deg)', fontsize=14)
-    ax5.grid(True, alpha=0.3)
+    ax5.set_ylabel('PA (deg)', fontsize=20)
+    ax5.grid(True, alpha=0.5)
     ax5.set_xticklabels([])
 
     # 6. A3 / B3
@@ -262,9 +263,9 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
         
     set_ylim_data(ax6, np.concatenate([i_a3, i_b3]), phot_harm3)
     
-    ax6.set_ylabel('Harmonics 3', fontsize=12)
-    ax6.legend(fontsize=10, loc='best')
-    ax6.grid(True, alpha=0.3)
+    ax6.set_ylabel('A3/B3', fontsize=20)
+    ax6.legend(fontsize=20, loc='best')
+    ax6.grid(True, alpha=0.5)
     ax6.set_xticklabels([])
 
     # 7. A4 / B4
@@ -280,10 +281,10 @@ def plot_qa_summary(title, image, isoster_model, isoster_res, photutils_res=None
 
     set_ylim_data(ax7, np.concatenate([i_a4, i_b4]), phot_harm4)
 
-    ax7.set_ylabel('Harmonics 4', fontsize=12)
-    ax7.legend(fontsize=10, loc='best')
-    ax7.grid(True, alpha=0.3)
-    ax7.set_xlabel(r'SMA$^{0.25}$ (pixel$^{0.25}$)', fontsize=16)
+    ax7.set_ylabel('A4/B4', fontsize=20)
+    ax7.legend(fontsize=20, loc='best')
+    ax7.grid(True, alpha=0.5)
+    ax7.set_xlabel(r'SMA$^{0.25}$ (pixel$^{0.25}$)', fontsize=20)
     
     # Ensure tick labels are visible - Force it
     plt.setp(ax7.get_xticklabels(), visible=True)
