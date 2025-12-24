@@ -61,7 +61,7 @@ def run_benchmark():
     # Using float values to be compatible with both
     sma0 = 10.0
     minsma = 0.0
-    maxsma = 100.0
+    maxsma = 275.0
     astep = 0.1
     eps = 0.2
     pa = 0.0
