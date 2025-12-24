@@ -59,14 +59,14 @@ def run_benchmark():
     mask = np.zeros_like(image, dtype=bool)
     rng = np.random.RandomState(42) # Fixed seed for reproducibility
     
-    # Add 5 random masked blobs (avoiding center r < 20)
+    # Add 20 random masked blobs (avoiding center r < 10)
     cx, cy = w/2, h/2
-    for _ in range(5):
+    for _ in range(20):
         # Random position
         while True:
             mx, my = rng.randint(0, w), rng.randint(0, h)
             dist = np.sqrt((mx - cx)**2 + (my - cy)**2)
-            if dist > 20: # Ensure distance > 20 pixels
+            if dist > 10: # Ensure distance > 10 pixels
                 break
         
         # Random size 10-30 pixels

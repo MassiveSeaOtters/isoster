@@ -35,6 +35,9 @@ Conditional implementation of `tflux_e`, `tflux_c`, `npix_e`, and `npix_c` provi
 ### 2D Model Building
 A decoupled model builder allows for efficient image reconstruction, including support for higher-order harmonic deviations (a3, b3, a4, b4).
 
+### Robust Mask Handling
+`isoster` includes optimized mask handling using vectorized Nearest Neighbor sampling. This avoids the significant performance penalty associated with standard `numpy.ma.MaskedArray` operations, maintaining >10x speedups even in heavily masked fields (e.g., crowded star fields).
+
 
 ## Future Improvements
 
