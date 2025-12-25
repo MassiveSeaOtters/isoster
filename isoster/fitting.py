@@ -3,6 +3,64 @@ from scipy.optimize import leastsq
 from .sampling import extract_isophote_data
 from .config import IsosterConfig
 
+def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mean', sclip=3.0, nclip=0):
+    """
+    Extract forced photometry at a single SMA without fitting.
+    
+    This is used for pure forced mode where geometry is predetermined.
+    
+    Args:
+        image (np.ndarray): Input image.
+        mask (np.ndarray): Bad pixel mask.
+        sma (float): Semi-major axis length.
+        x0, y0 (float): Center coordinates.
+        eps (float): Ellipticity.
+        pa (float): Position angle in radians.
+        integrator (str): 'mean' or 'median'.
+        sclip (float): Sigma clipping threshold.
+        nclip (int): Number of sigma clipping iterations.
+        
+    Returns:
+        dict: Fake isophote structure with only intensity meaningful.
+    """
+    # Sample along the ellipse
+    phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa)
+    
+    if len(intens) == 0:
+        return {
+            'x0': x0, 'y0': y0, 'eps': eps, 'pa': pa, 'sma': sma,
+            'intens': np.nan, 'rms': np.nan, 'intens_err': np.nan,
+            'x0_err': 0.0, 'y0_err': 0.0, 'eps_err': 0.0, 'pa_err': 0.0,
+            'a3': 0.0, 'b3': 0.0, 'a3_err': 0.0, 'b3_err': 0.0,
+            'a4': 0.0, 'b4': 0.0, 'a4_err': 0.0, 'b4_err': 0.0,
+            'tflux_e': np.nan, 'tflux_c': np.nan, 'npix_e': 0, 'npix_c': 0,
+            'stop_code': -1, 'niter': 0
+        }
+    
+    # Sigma clipping
+    if nclip > 0:
+        phi, intens, _ = sigma_clip(phi, intens, sclip, nclip)
+    
+    # Compute intensity
+    if integrator == 'median':
+        intensity = np.median(intens)
+    else:
+        intensity = np.mean(intens)
+    
+    rms = np.std(intens)
+    intens_err = rms / np.sqrt(len(intens))
+    
+    # Return fake isophote structure
+    return {
+        'x0': x0, 'y0': y0, 'eps': eps, 'pa': pa, 'sma': sma,
+        'intens': intensity, 'rms': rms, 'intens_err': intens_err,
+        'x0_err': 0.0, 'y0_err': 0.0, 'eps_err': 0.0, 'pa_err': 0.0,
+        'a3': 0.0, 'b3': 0.0, 'a3_err': 0.0, 'b3_err': 0.0,
+        'a4': 0.0, 'b4': 0.0, 'a4_err': 0.0, 'b4_err': 0.0,
+        'tflux_e': np.nan, 'tflux_c': np.nan, 'npix_e': 0, 'npix_c': 0,
+        'stop_code': 0, 'niter': 0
+    }
+
 def fit_first_and_second_harmonics(phi, intensity):
     """
     Fit the 1st and 2nd harmonics to the intensity profile.

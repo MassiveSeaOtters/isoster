@@ -60,6 +60,26 @@ def fit_image(image, mask=None, config=None):
     else:
         cfg = config
     
+    # Handle forced mode
+    if cfg.forced:
+        from .fitting import extract_forced_photometry
+        
+        isophotes = []
+        for sma in cfg.forced_sma:
+            iso = extract_forced_photometry(
+                image, mask, sma,
+                cfg.x0 if cfg.x0 is not None else image.shape[1]/2,
+                cfg.y0 if cfg.y0 is not None else image.shape[0]/2,
+                cfg.eps, cfg.pa,
+                integrator=cfg.integrator,
+                sclip=cfg.sclip,
+                nclip=cfg.nclip
+            )
+            isophotes.append(iso)
+        
+        return {'isophotes': isophotes, 'config': cfg}
+    
+    # Regular fitting mode
     h, w = image.shape
     
     # Initial Parameters

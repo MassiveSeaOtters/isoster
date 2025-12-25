@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, model_validator
 
 class IsosterConfig(BaseModel):
@@ -48,6 +48,10 @@ class IsosterConfig(BaseModel):
     # Integration Mode
     integrator: str = Field(default='mean', pattern='^(mean|median|adaptive)$', description="Integration method for flux calculation.")
     lsb_sma_threshold: Optional[float] = Field(None, gt=0.0, description="SMA threshold for switching to median integrator in adaptive mode.")
+    
+    # Forced Mode
+    forced: bool = Field(False, description="Enable pure forced photometry mode (no fitting, just sampling).")
+    forced_sma: Optional[List[float]] = Field(None, description="List of SMA values for forced mode. Required if forced=True.")
 
     @model_validator(mode='after')
     def check_sma_consistency(self):
@@ -55,4 +59,6 @@ class IsosterConfig(BaseModel):
             raise ValueError(f"maxsma ({self.maxsma}) must be greater than minsma ({self.minsma})")
         if self.integrator == 'adaptive' and self.lsb_sma_threshold is None:
             raise ValueError("lsb_sma_threshold must be provided when integrator='adaptive'")
+        if self.forced and (self.forced_sma is None or len(self.forced_sma) == 0):
+            raise ValueError("forced_sma must be provided when forced=True")
         return self
