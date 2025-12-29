@@ -27,16 +27,16 @@ The package is organized into several independent modules to improve maintainabi
 - **Real Galaxy Images**: 2-10x speedup depending on noise levels and convergence speed.
 - **Accuracy**: Maintains <1% fractional error compared to `photutils` for SMA > 2 pixels.
 
-## New Features
+## Key Features
 
-### Flux Integration Metrics
-Conditional implementation of `tflux_e`, `tflux_c`, `npix_e`, and `npix_c` provides compatible photometry without overhead in standard analysis. Enabled via `config['full_photometry']`.
-
-### 2D Model Building
-A decoupled model builder allows for efficient image reconstruction, including support for higher-order harmonic deviations (a3, b3, a4, b4).
-
-### Robust Mask Handling
-`isoster` includes optimized mask handling using vectorized Nearest Neighbor sampling. This avoids the significant performance penalty associated with standard `numpy.ma.MaskedArray` operations, maintaining >10x speedups even in heavily masked fields (e.g., crowded star fields).
+- **Adaptive Integration**: Choose between mean, median, or adaptive integration for robust photometry
+- **Forced Photometry**: Ultra-fast mode for large surveys with predetermined geometry (40x speedup)
+- **Robust Mask Handling**: Efficient vectorized mask sampling using nearest-neighbor interpolation
+- **Curve-of-Growth**: Cumulative flux calculation with crossing detection and proper mask handling
+- **Full Error Propagation**: Comprehensive uncertainty estimates for all fitted parameters
+- **Higher-Order Harmonics**: Detect deviations from perfect ellipses (a3, b3, a4, b4)
+- **Flexible Configuration**: Pydantic-based configuration with validation
+- **Production Ready**: Extensively tested against photutils with comprehensive benchmarks
 
 
 ## Future Improvements
