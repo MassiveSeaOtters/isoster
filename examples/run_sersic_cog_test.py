@@ -231,7 +231,7 @@ def run_sersic_cog_test():
     cog_analytical = sersic_analytical_cog(I_e, r_e, n, eps, sma_arr)
     
     # Compute true CoG using aperture photometry on the mock image
-    print(f"Computing aperture CoG (photutils subpixel method)...")
+    print(f"Computing aperture CoG (SEP subpixel method)...")
     cog_aperture = compute_aperture_cog(image, params['x0'], params['y0'], 
                                         sma_arr, params['eps'], pa)
     
@@ -275,7 +275,7 @@ def run_sersic_cog_test():
     ax1.plot(x_axis, np.log10(cog_analytical_plot), 's-', markersize=3, 
              label='Analytical CoG', color='green', alpha=0.7)
     ax1.plot(x_axis, np.log10(cog_aperture_plot), '^-', markersize=3, 
-             label='Aperture CoG (photutils)', color='red', alpha=0.7)
+             label='Aperture CoG (SEP)', color='red', alpha=0.7)
     
     # Mark maximum
     max_idx = np.argmax(cog_plot)
