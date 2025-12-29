@@ -114,9 +114,13 @@ def compute_aperture_cog(image, x0, y0, sma_array, eps, pa_deg):
     
     return flux
 
-def generate_sersic_image(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.2, pa=30.0):
+def generate_sersic_image(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.2, pa=30.0, oversample=10):
     """
-    Generate a 2D Sersic profile image.
+    Generate a 2D Sersic profile image with proper oversampling.
+    
+    For steep profiles (high n), simple pixel-center sampling is inadequate.
+    This function renders the model on an oversampled grid and rebins to
+    the final pixel grid for accurate flux conservation.
     
     Args:
         size: Image size (square)
@@ -125,18 +129,26 @@ def generate_sersic_image(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.2, pa=30.
         n: Sersic index
         eps: Ellipticity
         pa: Position angle in degrees
+        oversample: Oversampling factor (default: 10)
         
     Returns:
         image: 2D array
         params: dict with true parameters
     """
-    y, x = np.mgrid[0:size, 0:size]
+    # Create oversampled grid
+    size_over = size * oversample
+    y_over, x_over = np.mgrid[0:size_over, 0:size_over]
+    
+    # Convert to pixel coordinates (center of final pixels)
+    x_over = (x_over + 0.5) / oversample - 0.5
+    y_over = (y_over + 0.5) / oversample - 0.5
+    
     x0, y0 = size / 2.0, size / 2.0
     
     # Rotate coordinates
     pa_rad = np.radians(pa)
-    dx = x - x0
-    dy = y - y0
+    dx = x_over - x0
+    dy = y_over - y0
     
     x_rot = dx * np.cos(pa_rad) + dy * np.sin(pa_rad)
     y_rot = -dx * np.sin(pa_rad) + dy * np.cos(pa_rad)
@@ -145,8 +157,12 @@ def generate_sersic_image(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.2, pa=30.
     b_over_a = 1.0 - eps
     r = np.sqrt(x_rot**2 + (y_rot / b_over_a)**2)
     
-    # Sersic profile
-    image = sersic_profile(r, I_e, r_e, n)
+    # Sersic profile on oversampled grid
+    image_over = sersic_profile(r, I_e, r_e, n)
+    
+    # Rebin to final pixel grid by averaging
+    # Reshape to (size, oversample, size, oversample) and average over oversample dimensions
+    image_rebinned = image_over.reshape(size, oversample, size, oversample).mean(axis=(1, 3))
     
     params = {
         'x0': x0,
@@ -158,7 +174,7 @@ def generate_sersic_image(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.2, pa=30.
         'pa': pa_rad
     }
     
-    return image, params
+    return image_rebinned, params
 
 def run_sersic_cog_test():
     print("=" * 80)
