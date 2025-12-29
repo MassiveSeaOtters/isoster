@@ -162,6 +162,20 @@ def fit_image(image, mask=None, config=None):
         final_list = [central_result] + inwards_results[::-1] + outwards_results
     else:
         final_list = inwards_results[::-1] + outwards_results
+    
+    # Compute Curve-of-Growth if requested
+    if cfg.compute_cog:
+        from .cog import compute_cog, add_cog_to_isophotes
+        
+        # Determine if geometry was fixed
+        fix_geometry = cfg.fix_center and cfg.fix_pa and cfg.fix_eps
+        
+        cog_results = compute_cog(final_list, 
+                                  fix_center=cfg.fix_center, 
+                                  fix_geometry=fix_geometry)
+        
+        # Add CoG data to isophotes
+        add_cog_to_isophotes(final_list, cog_results)
             
     # Return as dict matching legacy structure + config object
     return {'isophotes': final_list, 'config': cfg}

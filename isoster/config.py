@@ -43,6 +43,7 @@ class IsosterConfig(BaseModel):
     compute_errors: bool = Field(True, description="Calculate parameter errors.")
     compute_deviations: bool = Field(True, description="Calculate higher-order harmonic deviations (a3, b3, etc.).")
     full_photometry: bool = Field(False, description="Calculate flux integration metrics (tflux_e, etc.).")
+    compute_cog: bool = Field(False, description="Calculate curve-of-growth photometry.")
     debug: bool = Field(False, description="Include debug info in results and enable verbose calculation.")
 
     # Integration Mode
