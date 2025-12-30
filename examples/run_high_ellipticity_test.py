@@ -297,28 +297,30 @@ def run_comprehensive_test():
         ax_intens.semilogy(phot_sma, phot_intens, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens.set_xlabel('SMA (pixels)', fontsize=10)
     ax_intens.set_ylabel('Intensity', fontsize=10)
+    ax_intens.set_xlim(left=1.1)
     ax_intens.legend(fontsize=9, loc='best')
     ax_intens.grid(True, alpha=0.3)
     ax_intens.set_title('Intensity Profiles', fontsize=11, weight='bold')
     
-    # Absolute deviation vs theoretical
+    # Absolute deviation vs theoretical (fractional)
     reg_intens_interp = np.interp(common_sma, reg_sma, reg_intens)
     ea_intens_interp = np.interp(common_sma, ea_sma, ea_intens)
-    reg_abs_dev = np.abs(reg_intens_interp - theoretical_intens)
-    ea_abs_dev = np.abs(ea_intens_interp - theoretical_intens)
+    reg_abs_dev = np.abs(reg_intens_interp - theoretical_intens) / theoretical_intens * 100
+    ea_abs_dev = np.abs(ea_intens_interp - theoretical_intens) / theoretical_intens * 100
     if photutils_iso:
         phot_intens_interp = np.interp(common_sma, phot_sma, phot_intens)
-        phot_abs_dev = np.abs(phot_intens_interp - theoretical_intens)
+        phot_abs_dev = np.abs(phot_intens_interp - theoretical_intens) / theoretical_intens * 100
     
     ax_intens_resid.semilogy(common_sma, reg_abs_dev, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_intens_resid.semilogy(common_sma, ea_abs_dev, 's-', markersize=3, label='EA', alpha=0.7)
     if photutils_iso:
         ax_intens_resid.semilogy(common_sma, phot_abs_dev, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens_resid.set_xlabel('SMA (pixels)', fontsize=10)
-    ax_intens_resid.set_ylabel('Absolute Deviation', fontsize=10)
+    ax_intens_resid.set_ylabel('Fractional Deviation (%)', fontsize=10)
+    ax_intens_resid.set_xlim(left=1.1)
     ax_intens_resid.legend(fontsize=9)
     ax_intens_resid.grid(True, alpha=0.3)
-    ax_intens_resid.set_title('Absolute Deviation vs Theory', fontsize=11, weight='bold')
+    ax_intens_resid.set_title('Fractional Deviation vs Theory', fontsize=11, weight='bold')
     
     # Row 3: Geometry parameters
     ax_eps = fig.add_subplot(gs[2, 0])
@@ -333,6 +335,7 @@ def run_comprehensive_test():
         ax_eps.plot(phot_sma, phot_eps, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_eps.set_xlabel('SMA (pixels)', fontsize=10)
     ax_eps.set_ylabel('Ellipticity (ε)', fontsize=10)
+    ax_eps.set_xlim(left=1.1)
     ax_eps.legend(fontsize=9)
     ax_eps.grid(True, alpha=0.3)
     ax_eps.set_title('Ellipticity', fontsize=11, weight='bold')
@@ -344,6 +347,7 @@ def run_comprehensive_test():
         ax_pa.plot(phot_sma, np.degrees(phot_pa), '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_pa.set_xlabel('SMA (pixels)', fontsize=10)
     ax_pa.set_ylabel('PA (degrees)', fontsize=10)
+    ax_pa.set_xlim(left=1.1)
     ax_pa.legend(fontsize=9)
     ax_pa.grid(True, alpha=0.3)
     ax_pa.set_title('Position Angle', fontsize=11, weight='bold')
@@ -355,6 +359,7 @@ def run_comprehensive_test():
         ax_x0.plot(phot_sma, phot_x0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_x0.set_xlabel('SMA (pixels)', fontsize=10)
     ax_x0.set_ylabel('X Center', fontsize=10)
+    ax_x0.set_xlim(left=1.1)
     ax_x0.legend(fontsize=9)
     ax_x0.grid(True, alpha=0.3)
     ax_x0.set_title('X Center', fontsize=11, weight='bold')
@@ -366,6 +371,7 @@ def run_comprehensive_test():
         ax_y0.plot(phot_sma, phot_y0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_y0.set_xlabel('SMA (pixels)', fontsize=10)
     ax_y0.set_ylabel('Y Center', fontsize=10)
+    ax_y0.set_xlim(left=1.1)
     ax_y0.legend(fontsize=9)
     ax_y0.grid(True, alpha=0.3)
     ax_y0.set_title('Y Center', fontsize=11, weight='bold')
