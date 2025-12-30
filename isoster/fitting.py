@@ -24,7 +24,7 @@ def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mea
         dict: Fake isophote structure with only intensity meaningful.
     """
     # Sample along the ellipse
-    phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa)
+    phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly)
     
     if len(intens) == 0:
         return {
@@ -374,6 +374,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
     maxgerr = cfg.maxgerr
     debug = cfg.debug
     full_photometry = cfg.full_photometry or debug
+    use_eccentric_anomaly = cfg.use_eccentric_anomaly
     compute_errors = cfg.compute_errors
     compute_deviations_flag = cfg.compute_deviations
     integrator = cfg.integrator
@@ -386,7 +387,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
     
     for i in range(maxit):
         niter = i + 1
-        phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep, linear_growth)
+        phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, use_eccentric_anomaly)
         total_points = len(phi)
         phi, intens, n_clipped = sigma_clip(phi, intens, sclip, nclip, sclip_low, sclip_high)
         actual_points = len(phi)

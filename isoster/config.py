@@ -53,6 +53,13 @@ class IsosterConfig(BaseModel):
     # Forced Mode
     forced: bool = Field(False, description="Enable pure forced photometry mode (no fitting, just sampling).")
     forced_sma: Optional[List[float]] = Field(None, description="List of SMA values for forced mode. Required if forced=True.")
+    
+    # Eccentric Anomaly Sampling
+    use_eccentric_anomaly: bool = Field(
+        False, 
+        description="Use eccentric anomaly for uniform ellipse sampling (recommended for ε > 0.3). "
+                    "Provides better sampling for high-ellipticity cases. ε = 1 - b/a."
+    )
 
     @model_validator(mode='after')
     def check_sma_consistency(self):
