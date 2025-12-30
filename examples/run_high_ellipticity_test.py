@@ -48,12 +48,12 @@ def sersic_1d_profile_major_axis(sma_array, I_e, r_e, n, eps):
     """
     return sersic_profile(sma_array, I_e, r_e, n)
 
-def generate_high_ellipticity_sersic(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.7, pa=30.0, oversample=30):
+def generate_high_ellipticity_sersic(size=512, I_e=1000.0, r_e=50.0, n=4.0, eps=0.7, pa=30.0, oversample=50):
     """
-    Generate high-ellipticity Sersic profile with high oversampling.
+    Generate high-ellipticity Sersic profile with very high oversampling.
     
     Args:
-        oversample: Oversampling factor (30 for accuracy with steep gradients)
+        oversample: Oversampling factor (50 for accuracy with high n and high ε)
     """
     # Create oversampled grid
     size_over = size * oversample
@@ -139,13 +139,13 @@ def run_comprehensive_test():
     pa = 30.0
     
     image, params = generate_high_ellipticity_sersic(
-        size=512, I_e=I_e, r_e=r_e, n=n, eps=eps, pa=pa, oversample=30
+        size=512, I_e=I_e, r_e=r_e, n=n, eps=eps, pa=pa, oversample=50
     )
     
     print(f"   Size: {image.shape[0]}x{image.shape[1]}")
     print(f"   I_e: {I_e}, r_e: {r_e}, n: {n}")
     print(f"   eps: {eps} (b/a = {1-eps:.2f}), PA: {pa}°")
-    print(f"   Oversample: 30x for accurate rendering")
+    print(f"   Oversample: 50x for accurate rendering")
     
     # Shared configuration - FREE GEOMETRY
     base_config = dict(
@@ -243,6 +243,15 @@ def run_comprehensive_test():
     ea_x0 = np.array([iso['x0'] for iso in ea_iso])
     ea_y0 = np.array([iso['y0'] for iso in ea_iso])
     
+    # Photutils data
+    if photutils_iso:
+        phot_sma = np.array([iso['sma'] for iso in photutils_iso])
+        phot_intens = np.array([iso['intens'] for iso in photutils_iso])
+        phot_eps = np.array([iso['eps'] for iso in photutils_iso])
+        phot_pa = np.array([iso['pa'] for iso in photutils_iso])
+        phot_x0 = np.array([iso['x0'] for iso in photutils_iso])
+        phot_y0 = np.array([iso['y0'] for iso in photutils_iso])
+    
     # Theoretical profile
     common_sma = np.linspace(0, 200, 200)
     theoretical_intens = sersic_1d_profile_major_axis(common_sma, I_e, r_e, n, eps)
@@ -281,12 +290,10 @@ def run_comprehensive_test():
     ax_intens = fig.add_subplot(gs[1, :2])
     ax_intens_resid = fig.add_subplot(gs[1, 2:])
     
-    ax_intens.semilogy(common_sma, theoretical_intens, 'k-', linewidth=2, label='Theoretical', zorder=10)
+    ax_intens.semilogy(common_sma, theoretical_intens, '--', color='grey', linewidth=2, label='Theoretical', zorder=0)
     ax_intens.semilogy(reg_sma, reg_intens, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_intens.semilogy(ea_sma, ea_intens, 's-', markersize=3, label='EA', alpha=0.7)
     if photutils_iso:
-        phot_sma = np.array([iso['sma'] for iso in photutils_iso])
-        phot_intens = np.array([iso['intens'] for iso in photutils_iso])
         ax_intens.semilogy(phot_sma, phot_intens, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens.set_xlabel('SMA (pixels)', fontsize=10)
     ax_intens.set_ylabel('Intensity', fontsize=10)
@@ -294,20 +301,24 @@ def run_comprehensive_test():
     ax_intens.grid(True, alpha=0.3)
     ax_intens.set_title('Intensity Profiles', fontsize=11, weight='bold')
     
-    # Intensity residuals vs theoretical
+    # Absolute deviation vs theoretical
     reg_intens_interp = np.interp(common_sma, reg_sma, reg_intens)
     ea_intens_interp = np.interp(common_sma, ea_sma, ea_intens)
-    reg_resid = (reg_intens_interp - theoretical_intens) / theoretical_intens * 100
-    ea_resid = (ea_intens_interp - theoretical_intens) / theoretical_intens * 100
+    reg_abs_dev = np.abs(reg_intens_interp - theoretical_intens)
+    ea_abs_dev = np.abs(ea_intens_interp - theoretical_intens)
+    if photutils_iso:
+        phot_intens_interp = np.interp(common_sma, phot_sma, phot_intens)
+        phot_abs_dev = np.abs(phot_intens_interp - theoretical_intens)
     
-    ax_intens_resid.plot(common_sma, reg_resid, 'o-', markersize=3, label='Regular', alpha=0.7)
-    ax_intens_resid.plot(common_sma, ea_resid, 's-', markersize=3, label='EA', alpha=0.7)
-    ax_intens_resid.axhline(0, color='k', linestyle='--', alpha=0.5)
+    ax_intens_resid.semilogy(common_sma, reg_abs_dev, 'o-', markersize=3, label='Regular', alpha=0.7)
+    ax_intens_resid.semilogy(common_sma, ea_abs_dev, 's-', markersize=3, label='EA', alpha=0.7)
+    if photutils_iso:
+        ax_intens_resid.semilogy(common_sma, phot_abs_dev, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens_resid.set_xlabel('SMA (pixels)', fontsize=10)
-    ax_intens_resid.set_ylabel('Residual (%)', fontsize=10)
+    ax_intens_resid.set_ylabel('Absolute Deviation', fontsize=10)
     ax_intens_resid.legend(fontsize=9)
     ax_intens_resid.grid(True, alpha=0.3)
-    ax_intens_resid.set_title('Intensity Residuals vs Theory', fontsize=11, weight='bold')
+    ax_intens_resid.set_title('Absolute Deviation vs Theory', fontsize=11, weight='bold')
     
     # Row 3: Geometry parameters
     ax_eps = fig.add_subplot(gs[2, 0])
@@ -315,36 +326,44 @@ def run_comprehensive_test():
     ax_x0 = fig.add_subplot(gs[2, 2])
     ax_y0 = fig.add_subplot(gs[2, 3])
     
+    ax_eps.axhline(eps, color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_eps.plot(reg_sma, reg_eps, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_eps.plot(ea_sma, ea_eps, 's-', markersize=3, label='EA', alpha=0.7)
-    ax_eps.axhline(eps, color='k', linestyle='--', label='True', linewidth=2)
+    if photutils_iso:
+        ax_eps.plot(phot_sma, phot_eps, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_eps.set_xlabel('SMA (pixels)', fontsize=10)
     ax_eps.set_ylabel('Ellipticity (ε)', fontsize=10)
     ax_eps.legend(fontsize=9)
     ax_eps.grid(True, alpha=0.3)
     ax_eps.set_title('Ellipticity', fontsize=11, weight='bold')
     
+    ax_pa.axhline(pa, color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_pa.plot(reg_sma, np.degrees(reg_pa), 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_pa.plot(ea_sma, np.degrees(ea_pa), 's-', markersize=3, label='EA', alpha=0.7)
-    ax_pa.axhline(pa, color='k', linestyle='--', label='True', linewidth=2)
+    if photutils_iso:
+        ax_pa.plot(phot_sma, np.degrees(phot_pa), '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_pa.set_xlabel('SMA (pixels)', fontsize=10)
     ax_pa.set_ylabel('PA (degrees)', fontsize=10)
     ax_pa.legend(fontsize=9)
     ax_pa.grid(True, alpha=0.3)
     ax_pa.set_title('Position Angle', fontsize=11, weight='bold')
     
+    ax_x0.axhline(params['x0'], color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_x0.plot(reg_sma, reg_x0, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_x0.plot(ea_sma, ea_x0, 's-', markersize=3, label='EA', alpha=0.7)
-    ax_x0.axhline(params['x0'], color='k', linestyle='--', label='True', linewidth=2)
+    if photutils_iso:
+        ax_x0.plot(phot_sma, phot_x0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_x0.set_xlabel('SMA (pixels)', fontsize=10)
     ax_x0.set_ylabel('X Center', fontsize=10)
     ax_x0.legend(fontsize=9)
     ax_x0.grid(True, alpha=0.3)
     ax_x0.set_title('X Center', fontsize=11, weight='bold')
     
+    ax_y0.axhline(params['y0'], color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_y0.plot(reg_sma, reg_y0, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_y0.plot(ea_sma, ea_y0, 's-', markersize=3, label='EA', alpha=0.7)
-    ax_y0.axhline(params['y0'], color='k', linestyle='--', label='True', linewidth=2)
+    if photutils_iso:
+        ax_y0.plot(phot_sma, phot_y0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_y0.set_xlabel('SMA (pixels)', fontsize=10)
     ax_y0.set_ylabel('Y Center', fontsize=10)
     ax_y0.legend(fontsize=9)
