@@ -96,3 +96,70 @@ model = isoster.build_ellipse_model(image.shape, results['isophotes'])
 *   **Convergence Issues**: Try increasing `maxit` or adjusting `sma0` to a region with higher signal-to-noise.
 *   **Performance**: Ensure you are not running `full_photometry` unless needed, as it adds computation time.
 *   **Validation Errors**: Pydantic will tell you exactly which field is invalid. Check your parameter types and ranges.
+
+## 4. Eccentric Anomaly Sampling
+
+For galaxies with **high ellipticity** (ε > 0.3), the standard polar angle sampling can lead to biased fits due to uneven sampling along the ellipse. ISOSTER implements the **Eccentric Anomaly (EA) method** from Ciambur (2015, ApJ 810 120) to address this.
+
+### What is Eccentric Anomaly?
+
+- **Standard method**: Sample uniformly in φ (position angle) → points cluster near major axis
+- **EA method**: Sample uniformly in ψ (eccentric anomaly) → uniform arc-length coverage
+- **Key**: Fit harmonics in ψ space: I(ψ) = Ī + A₁sin(ψ) + B₁cos(ψ) + ...
+
+### When to Use EA
+
+✓ **Recommended for:**
+- Ellipticity ε > 0.3
+- Edge-on or highly inclined galaxies
+- Precise geometry fitting in high-ε regimes
+
+✗ **Not needed for:**
+- Nearly circular galaxies (ε < 0.2)
+- Fixed geometry fitting
+- Low S/N data (regularization more important)
+
+### Usage
+
+```python
+from isoster.config import IsosterConfig
+from isoster.optimize import fit_image
+
+# Enable Eccentric Anomaly sampling
+config = IsosterConfig(
+    sma0=10.0,
+    maxsma=200.0,
+    use_eccentric_anomaly=True,  # Enable EA method
+    # Free geometry to benefit from EA
+    fix_center=False,
+    fix_pa=False,
+    fix_eps=False
+)
+
+results = fit_image(image, config=config)
+```
+
+### Performance Notes
+
+- **Overhead**: ~50-60% slower than regular sampling (due to ψ→φ conversion overhead)
+- **Benefit**: More accurate geometry fitting for high-ε galaxies
+- **Trade-off**: Speed vs accuracy - use when geometry accuracy is critical
+
+### Combining with Central Regularization
+
+For optimal results on high-ellipticity galaxies with noisy centers:
+
+```python
+config = IsosterConfig(
+    use_eccentric_anomaly=True,
+    # Add moderate central regularization
+    use_central_regularization=True,
+    central_reg_sma_threshold=3.0,
+    central_reg_strength=1.0,
+    central_reg_weights={'eps': 1.5, 'pa': 1.0, 'center': 1.0}
+)
+```
+
+## 5. Central Region Geometry Regularization
+
+(Section continues from previous...)
