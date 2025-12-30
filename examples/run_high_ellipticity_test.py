@@ -205,12 +205,14 @@ def run_comprehensive_test():
     # 4. Isoster EA + Central Regularization
     # ---------------------------------------------------------
     print("\n[4/4] Running ISOSTER with EA + CENTRAL REGULARIZATION...")
+    print("   Config: strength=5.0, threshold=5.0, eps_weight=3.0")
     cfg_ea_reg = IsosterConfig(
         **base_config,
         use_eccentric_anomaly=True,
         use_central_regularization=True,
         central_reg_sma_threshold=5.0,
-        central_reg_strength=1.0
+        central_reg_strength=5.0,  # Stronger regularization
+        central_reg_weights={'eps': 3.0, 'pa': 1.0, 'center': 1.0}  # Emphasize ellipticity stability
     )
     
     start_time = time.time()
@@ -324,6 +326,7 @@ def run_comprehensive_test():
     ax_intens.semilogy(common_sma, theoretical_intens, '--', color='grey', linewidth=2, label='Theoretical', zorder=0)
     ax_intens.semilogy(reg_sma, reg_intens, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_intens.semilogy(ea_sma, ea_intens, 's-', markersize=3, label='EA', alpha=0.7)
+    ax_intens.semilogy(ea_reg_sma, ea_reg_intens, 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_intens.semilogy(phot_sma, phot_intens, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens.set_xlabel('SMA (pixels)', fontsize=10)
@@ -336,14 +339,17 @@ def run_comprehensive_test():
     # Absolute deviation vs theoretical (fractional)
     reg_intens_interp = np.interp(common_sma, reg_sma, reg_intens)
     ea_intens_interp = np.interp(common_sma, ea_sma, ea_intens)
+    ea_reg_intens_interp = np.interp(common_sma, ea_reg_sma, ea_reg_intens)
     reg_abs_dev = np.abs(reg_intens_interp - theoretical_intens) / theoretical_intens * 100
     ea_abs_dev = np.abs(ea_intens_interp - theoretical_intens) / theoretical_intens * 100
+    ea_reg_abs_dev = np.abs(ea_reg_intens_interp - theoretical_intens) / theoretical_intens * 100
     if photutils_iso:
         phot_intens_interp = np.interp(common_sma, phot_sma, phot_intens)
         phot_abs_dev = np.abs(phot_intens_interp - theoretical_intens) / theoretical_intens * 100
     
     ax_intens_resid.semilogy(common_sma, reg_abs_dev, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_intens_resid.semilogy(common_sma, ea_abs_dev, 's-', markersize=3, label='EA', alpha=0.7)
+    ax_intens_resid.semilogy(common_sma, ea_reg_abs_dev, 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_intens_resid.semilogy(common_sma, phot_abs_dev, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_intens_resid.set_xlabel('SMA (pixels)', fontsize=10)
