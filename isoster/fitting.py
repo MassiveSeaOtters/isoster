@@ -80,7 +80,10 @@ def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mea
         dict: Fake isophote structure with only intensity meaningful.
     """
     # Sample along the ellipse
-    phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly)
+    # Extract data - use .angles for harmonics fitting (will be φ since EA not used here)
+    data = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly)
+    phi = data.angles  # φ (EA not applicable at central pixel)
+    intens = data.intens
     
     if len(intens) == 0:
         return {
@@ -282,7 +285,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
     if current_data is not None:
         phi_c, intens_c = current_data
     else:
-        phi_c, intens_c, _ = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, step, linear_growth)
+        # Extract current SMA data
+        data_c = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, step, linear_growth)
+        phi_c = data_c.angles  # Use angles for fitting (φ in this case)
+        intens_c = data_c.intens
     
     if len(intens_c) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
@@ -297,7 +303,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
     else:
         gradient_sma = sma * (1.0 + step)
         
-    phi_g, intens_g, _ = extract_isophote_data(image, mask, x0, y0, gradient_sma, eps, pa, step, linear_growth)
+    # Extract gradient SMA data
+    data_g = extract_isophote_data(image, mask, x0, y0, gradient_sma, eps, pa, step, linear_growth)
+    phi_g = data_g.angles
+    intens_g = data_g.intens
     
     if len(intens_g) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
@@ -322,7 +331,10 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
         else:
             gradient_sma_2 = sma * (1.0 + 2 * step)
             
-        phi_g2, intens_g2, _ = extract_isophote_data(image, mask, x0, y0, gradient_sma_2, eps, pa, step, linear_growth)
+        # Extract second gradient SMA
+        data_g2 = extract_isophote_data(image, mask, x0, y0, gradient_sma_2, eps, pa, step, linear_growth)
+        phi_g2 = data_g2.angles
+        intens_g2 = data_g2.intens
         
         if len(intens_g2) > 0:
             if integrator == 'median':
@@ -444,10 +456,21 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False, 
     
     for i in range(maxit):
         niter = i + 1
-        phi, intens, radii = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, use_eccentric_anomaly)
-        total_points = len(phi)
-        phi, intens, n_clipped = sigma_clip(phi, intens, sclip, nclip, sclip_low, sclip_high)
-        actual_points = len(phi)
+        
+        # Extract isophote data - returns named tuple
+        # For EA mode: angles=ψ (for harmonics), phi=φ (for geometry)
+        # For regular: angles=φ (for harmonics), phi=φ (same)
+        data = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, use_eccentric_anomaly)
+        
+        angles = data.angles  # ψ for EA mode, φ for regular mode
+        phi = data.phi        # φ (always available for geometry updates)
+        intens = data.intens
+        
+        total_points = len(angles)
+        
+        # Sigma clipping operates on (angle, intensity) pairs
+        angles, intens, n_clipped = sigma_clip(angles, intens, sclip, nclip, sclip_low, sclip_high)
+        actual_points = len(angles)
         
         if actual_points < (total_points * fflag):
             if best_geometry is not None:
@@ -475,8 +498,13 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False, 
             else:
                 eff_integrator = 'mean'
             
-        coeffs, cov_matrix = fit_first_and_second_harmonics(phi, intens)
+        # FIT HARMONICS in appropriate angle space
+        # EA mode: fit I(ψ) = Ī + A₁sin(ψ) + B₁cos(ψ) + A₂sin(2ψ) + B₂cos(2ψ)
+        # Regular:  fit I(φ) = Ī + A₁sin(φ) + B₁cos(φ) + A₂sin(2φ) + B₂cos(2φ)
+        coeffs, cov_matrix = fit_first_and_second_harmonics(angles, intens)
         y0_fit, A1, B1, A2, B2 = coeffs
+        
+        # GRADIENT computed using φ and current geometry
         gradient, gradient_error = compute_gradient(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, 
                                                    previous_gradient, current_data=(phi, intens), integrator=eff_integrator)
         if gradient_error is not None:
@@ -495,7 +523,8 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False, 
             stop_code = -1
             break
             
-        model = harmonic_function(phi, coeffs)
+        # Evaluate model in angle space used for fitting
+        model = harmonic_function(angles, coeffs)
         rms = np.std(intens - model)
         harmonics = [A1, B1, A2, B2]
         if fix_center: harmonics[0] = harmonics[1] = 0
