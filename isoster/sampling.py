@@ -1,5 +1,50 @@
 import numpy as np
 from scipy.ndimage import map_coordinates
+from numba import njit
+from collections import namedtuple
+
+# Named tuple for isophote data with clear ψ/φ separation
+IsophoteData = namedtuple('IsophoteData', [
+    'angles',      # ψ (EA mode) or φ (regular mode) - for harmonic fitting
+    'phi',         # φ (position angles) - for geometry updates
+    'intens',      # Intensity values
+    'radii'        # Semi-major axis values
+])
+def eccentric_anomaly_to_position_angle(eccentric_anomaly, ellipticity):
+    """
+    Convert eccentric anomaly to position angle for ellipse sampling.
+    
+    Reference: B. C. Ciambur 2015 ApJ 810 120, Equation 4
+    
+    Ciambur Eq. 4: ψ = -arctan(tan(φ) / (1 - ε))
+    
+    Solving for φ:
+        tan(φ) = -(1 - ε) * tan(ψ)
+        tan(φ) = (ε - 1) * tan(ψ)
+    
+    Given uniform sampling in ψ (eccentric anomaly), this computes φ (position angle)
+    for coordinate calculation, providing uniform arc-length sampling along the ellipse.
+    
+    Args:
+        eccentric_anomaly (np.ndarray): ψ values, uniformly sampled in [0, 2π)
+        ellipticity (float): ε = 1 - b/a, where b is semi-minor axis, a is semi-major axis
+        
+    Returns:
+        np.ndarray: φ values (position angles) for coordinate calculation
+        
+    Note:
+        For ε = 0 (circular), ψ = φ (transformation is identity).
+        For ε > 0 (elliptical), φ sampling becomes non-uniform.
+    """
+    # tan(φ) = -(1 - ε) * tan(ψ) = (ε - 1) * tan(ψ)
+    # Use atan2 for proper quadrant handling
+    position_angle = np.arctan2(
+        -(1 - ellipticity) * np.sin(eccentric_anomaly),
+        np.cos(eccentric_anomaly)
+    )
+    # Ensure result is in [0, 2π)
+    position_angle = position_angle % (2 * np.pi)
+    return position_angle
 
 def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     """
@@ -41,12 +86,15 @@ def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     
     return sma, phi
 
-def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep=0.1, linear_growth=False):
+def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep=0.1, linear_growth=False, use_eccentric_anomaly=False):
     """
     Extract image pixels along an elliptical path using vectorized sampling.
     
     This is the core performance optimization - replacing photutils' area-based integration
     (integrator.BILINEAR or MEDIAN) with direct path-based sampling via map_coordinates.
+    
+    Per Ciambur (2015), when use_eccentric_anomaly=True, harmonics should be fitted in
+    ψ (eccentric anomaly) space, NOT φ (position angle) space.
     
     Parameters
     ----------
@@ -66,23 +114,33 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep=0.1, linear_g
         Not used for sampling (kept for API compatibility).
     linear_growth : bool
         Not used here (kept for API compatibility).
+    use_eccentric_anomaly : bool
+        If True, sample uniformly in ψ and fit harmonics in ψ space (Ciambur 2015).
+        If False, sample uniformly in φ and fit harmonics in φ space (traditional).
         
     Returns
     -------
-    phi : 1D array
-        Polar angles (theta) of valid sample points.
-    intens : 1D array
-        Intensity values at sample points.
-    radii : 1D array
-        Semi-major axis values (constant = sma).
+    IsophoteData : namedtuple
+        - angles: ψ (if use_eccentric_anomaly) or φ (if not) - for harmonic fitting
+        - phi: φ (position angles) - always present, for geometry updates
+        - intens: Intensity values
+        - radii: Semi-major axis values (constant = sma)
     """
     h, w = image.shape
     
     # SAMPLING DENSITY
     n_samples = max(64, int(2 * np.pi * sma))
     
-    # POLAR ANGLE SAMPLING
-    phi = np.linspace(0, 2 * np.pi, n_samples, endpoint=False)
+    # ANGLE SAMPLING
+    if use_eccentric_anomaly:
+        # Sample uniformly in ψ (eccentric anomaly) for uniform arc-length coverage
+        psi = np.linspace(0, 2 * np.pi, n_samples, endpoint=False)
+        # Convert ψ → φ for coordinate calculation
+        phi = eccentric_anomaly_to_position_angle(psi, eps)
+    else:
+        # Traditional: sample uniformly in φ (position angle)
+        phi = np.linspace(0, 2 * np.pi, n_samples, endpoint=False)
+        psi = phi  # In regular mode, ψ = φ
     
     # ELLIPSE EQUATION IN POLAR COORDINATES
     cos_phi = np.cos(phi)
@@ -115,4 +173,18 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, astep=0.1, linear_g
         
     valid &= ~np.isnan(intens)
     
-    return phi[valid], intens[valid], np.full(np.sum(valid), sma)
+    # Return named tuple with appropriate angles
+    if use_eccentric_anomaly:
+        return IsophoteData(
+            angles=psi[valid],      # ψ for harmonic fitting (Ciambur 2015)
+            phi=phi[valid],          # φ for geometry updates
+            intens=intens[valid],
+            radii=np.full(np.sum(valid), sma)
+        )
+    else:
+        return IsophoteData(
+            angles=phi[valid],       # φ for harmonic fitting (traditional)
+            phi=phi[valid],          # φ for geometry (same as angles)
+            intens=intens[valid],
+            radii=np.full(np.sum(valid), sma)
+        )
