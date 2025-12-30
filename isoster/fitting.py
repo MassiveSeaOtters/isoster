@@ -3,6 +3,62 @@ from scipy.optimize import leastsq
 from .sampling import extract_isophote_data
 from .config import IsosterConfig
 
+def compute_central_regularization_penalty(current_geom, previous_geom, sma, config):
+    """
+    Compute regularization penalty for geometry changes in central region.
+    
+    Adds penalty to discourage large geometry changes at low SMA, helping stabilize
+    fits in low S/N central regions.
+    
+    Args:
+        current_geom (dict): Current geometry {'x0', 'y0', 'eps', 'pa'}
+        previous_geom (dict): Previous isophote geometry (or None)
+        sma (float): Current semi-major axis
+        config (IsosterConfig): Configuration with regularization parameters
+        
+    Returns:
+        float: Regularization penalty value
+    """
+    if not config.use_central_regularization:
+        return 0.0
+    
+    if previous_geom is None:
+        return 0.0
+    
+    # Regularization strength decays exponentially from center
+    # λ(sma) = max_strength * exp(-(sma/threshold)²)
+    lambda_sma = config.central_reg_strength * np.exp(
+        -(sma / config.central_reg_sma_threshold)**2
+    )
+    
+    # No regularization beyond 3× threshold
+    if lambda_sma < 1e-6:
+        return 0.0
+    
+    weights = config.central_reg_weights
+    
+    # Compute changes from previous isophote
+    delta_eps = current_geom['eps'] - previous_geom['eps']
+    delta_pa = current_geom['pa'] - previous_geom['pa']
+    
+    # Handle PA wrap-around (force to [-π, π])
+    while delta_pa > np.pi:
+        delta_pa -= 2 * np.pi
+    while delta_pa < -np.pi:
+        delta_pa += 2 * np.pi
+    
+    delta_x0 = current_geom['x0'] - previous_geom['x0']
+    delta_y0 = current_geom['y0'] - previous_geom['y0']
+    
+    # Penalty: λ(sma) * weighted sum of squared changes
+    penalty = lambda_sma * (
+        weights.get('eps', 1.0) * delta_eps**2 +
+        weights.get('pa', 1.0) * delta_pa**2 +
+        weights.get('center', 1.0) * (delta_x0**2 + delta_y0**2)
+    )
+    
+    return penalty
+
 def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mean', sclip=3.0, nclip=0):
     """
     Extract forced photometry at a single SMA without fitting.
@@ -335,7 +391,7 @@ def compute_aperture_photometry(image, mask, x0, y0, sma, eps, pa):
     
     return tflux_e, tflux_c, npix_e, npix_c
 
-def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
+def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False, previous_geometry=None):
     """
     Fit a single isophote with quality control.
 
@@ -348,6 +404,7 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
         start_geometry (dict): Initial guess for {'x0', 'y0', 'eps', 'pa'}.
         config (dict or IsosterConfig): Configuration object.
         going_inwards (bool): Flag indicating if the fitting is progressing inwards (affecting gradient checks).
+        previous_geometry (dict): Previous isophote geometry for regularization (optional).
 
     Returns:
         dict: The best fitted geometry and metadata for this isophote.
@@ -448,8 +505,16 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False):
         max_idx = np.argmax(np.abs(harmonics))
         max_amp = harmonics[max_idx]
         
-        if abs(max_amp) < min_amplitude:
-            min_amplitude = abs(max_amp)
+        # Apply central region regularization penalty if enabled
+        current_geom = {'x0': x0, 'y0': y0, 'eps': eps, 'pa': pa}
+        reg_penalty = compute_central_regularization_penalty(current_geom, previous_geometry, sma, cfg)
+        
+        # Effective amplitude includes regularization penalty
+        # This discourages large geometry changes in the central region
+        effective_amp = abs(max_amp) + reg_penalty
+        
+        if effective_amp < min_amplitude:
+            min_amplitude = effective_amp
             intens_err = rms / np.sqrt(len(intens))
             x0_err, y0_err, eps_err, pa_err = compute_parameter_errors(phi, intens, x0, y0, sma, eps, pa, gradient, cov_matrix) if compute_errors else (0.0, 0.0, 0.0, 0.0)
             if eff_integrator == 'median':

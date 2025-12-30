@@ -60,6 +60,33 @@ class IsosterConfig(BaseModel):
         description="Use eccentric anomaly for uniform ellipse sampling (recommended for ε > 0.3). "
                     "Provides better sampling for high-ellipticity cases. ε = 1 - b/a."
     )
+    
+    # Central Region Geometry Regularization
+    use_central_regularization: bool = Field(
+        False,
+        description="Enable geometry regularization for central region to stabilize fitting at low SMA. "
+                    "Adds penalty for large geometry changes at SMA < threshold."
+    )
+    
+    central_reg_sma_threshold: float = Field(
+        5.0,
+        gt=0.0,
+        description="SMA threshold for central regularization (pixels). "
+                    "Regularization strength decays exponentially with distance from center."
+    )
+    
+    central_reg_strength: float = Field(
+        1.0,
+        ge=0.0,
+        description="Maximum regularization strength at SMA=0. "
+                    "0=no regularization, 1=moderate, 10=strong. Typical range: 0.1-10."
+    )
+    
+    central_reg_weights: dict = Field(
+        default_factory=lambda: {'eps': 1.0, 'pa': 1.0, 'center': 1.0},
+        description="Relative weights for regularization penalties on ellipticity, PA, and center. "
+                    "Dict with keys: 'eps', 'pa', 'center'."
+    )
 
     @model_validator(mode='after')
     def check_sma_consistency(self):
