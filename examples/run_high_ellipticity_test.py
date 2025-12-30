@@ -202,24 +202,47 @@ def run_comprehensive_test():
     print(f"   Runtime: {ea_time:.2f}s")
     
     # ---------------------------------------------------------
-    # 4. Comparison
+    # 4. Isoster EA + Central Regularization
+    # ---------------------------------------------------------
+    print("\n[4/4] Running ISOSTER with EA + CENTRAL REGULARIZATION...")
+    cfg_ea_reg = IsosterConfig(
+        **base_config,
+        use_eccentric_anomaly=True,
+        use_central_regularization=True,
+        central_reg_sma_threshold=5.0,
+        central_reg_strength=1.0
+    )
+    
+    start_time = time.time()
+    ea_reg_results = fit_image(image, mask=None, config=cfg_ea_reg)
+    ea_reg_time = time.time() - start_time
+    ea_reg_iso = ea_reg_results['isophotes']
+    
+    print(f"   Fitted {len(ea_reg_iso)} isophotes")
+    print(f"   Runtime: {ea_reg_time:.2f}s")
+    
+    # ---------------------------------------------------------
+    # 5. Comparison
     # ---------------------------------------------------------
     print("\n" + "=" * 80)
     print("PERFORMANCE COMPARISON")
     print("=" * 80)
     
     if photutils_time:
-        print(f"Photutils:      {photutils_time:.2f}s (baseline)")
+        print(f"Photutils:       {photutils_time:.2f}s (baseline)")
         print(f"Isoster Regular: {regular_time:.2f}s ({regular_time/photutils_time:.2f}x)")
         print(f"Isoster EA:      {ea_time:.2f}s ({ea_time/photutils_time:.2f}x)")
+        print(f"Isoster EA+Reg:  {ea_reg_time:.2f}s ({ea_reg_time/photutils_time:.2f}x)")
         speedup_vs_photutils = photutils_time / ea_time
         print(f"\nIsoster EA speedup vs Photutils: {speedup_vs_photutils:.2f}x")
     
     speedup_ea_vs_regular = regular_time / ea_time
     print(f"EA speedup vs Regular: {speedup_ea_vs_regular:.2f}x")
+    speedup_reg_vs_ea = ea_time / ea_reg_time
+    print(f"EA+Reg vs EA: {speedup_reg_vs_ea:.2f}x")
     
     # ---------------------------------------------------------
-    # 5. Generate Comprehensive QA Plot
+    # 6. Generate Comprehensive QA Plot
     # ---------------------------------------------------------
     print("\nGenerating comprehensive QA plot...")
     
@@ -227,6 +250,7 @@ def run_comprehensive_test():
     from isoster.model import build_ellipse_model
     regular_model = build_ellipse_model(image.shape, regular_iso)
     ea_model = build_ellipse_model(image.shape, ea_iso)
+    ea_reg_model = build_ellipse_model(image.shape, ea_reg_iso)
     
     # Extract data
     reg_sma = np.array([iso['sma'] for iso in regular_iso])
@@ -242,6 +266,13 @@ def run_comprehensive_test():
     ea_pa = np.array([iso['pa'] for iso in ea_iso])
     ea_x0 = np.array([iso['x0'] for iso in ea_iso])
     ea_y0 = np.array([iso['y0'] for iso in ea_iso])
+    
+    ea_reg_sma = np.array([iso['sma'] for iso in ea_reg_iso])
+    ea_reg_intens = np.array([iso['intens'] for iso in ea_reg_iso])
+    ea_reg_eps = np.array([iso['eps'] for iso in ea_reg_iso])
+    ea_reg_pa = np.array([iso['pa'] for iso in ea_reg_iso])
+    ea_reg_x0 = np.array([iso['x0'] for iso in ea_reg_iso])
+    ea_reg_y0 = np.array([iso['y0'] for iso in ea_reg_iso])
     
     # Photutils data
     if photutils_iso:
@@ -331,6 +362,7 @@ def run_comprehensive_test():
     ax_eps.axhline(eps, color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_eps.plot(reg_sma, reg_eps, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_eps.plot(ea_sma, ea_eps, 's-', markersize=3, label='EA', alpha=0.7)
+    ax_eps.plot(ea_reg_sma, ea_reg_eps, 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_eps.plot(phot_sma, phot_eps, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_eps.set_xlabel('SMA (pixels)', fontsize=10)
@@ -343,6 +375,7 @@ def run_comprehensive_test():
     ax_pa.axhline(pa, color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_pa.plot(reg_sma, np.degrees(reg_pa), 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_pa.plot(ea_sma, np.degrees(ea_pa), 's-', markersize=3, label='EA', alpha=0.7)
+    ax_pa.plot(ea_reg_sma, np.degrees(ea_reg_pa), 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_pa.plot(phot_sma, np.degrees(phot_pa), '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_pa.set_xlabel('SMA (pixels)', fontsize=10)
@@ -355,6 +388,7 @@ def run_comprehensive_test():
     ax_x0.axhline(params['x0'], color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_x0.plot(reg_sma, reg_x0, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_x0.plot(ea_sma, ea_x0, 's-', markersize=3, label='EA', alpha=0.7)
+    ax_x0.plot(ea_reg_sma, ea_reg_x0, 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_x0.plot(phot_sma, phot_x0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_x0.set_xlabel('SMA (pixels)', fontsize=10)
@@ -367,6 +401,7 @@ def run_comprehensive_test():
     ax_y0.axhline(params['y0'], color='grey', linestyle='--', label='True', linewidth=2, zorder=0)
     ax_y0.plot(reg_sma, reg_y0, 'o-', markersize=3, label='Regular', alpha=0.7)
     ax_y0.plot(ea_sma, ea_y0, 's-', markersize=3, label='EA', alpha=0.7)
+    ax_y0.plot(ea_reg_sma, ea_reg_y0, 'd-', markersize=3, label='EA+Reg', alpha=0.7, color='purple')
     if photutils_iso:
         ax_y0.plot(phot_sma, phot_y0, '^-', markersize=3, label='Photutils', alpha=0.7)
     ax_y0.set_xlabel('SMA (pixels)', fontsize=10)
