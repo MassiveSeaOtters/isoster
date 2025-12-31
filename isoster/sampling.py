@@ -14,16 +14,15 @@ def eccentric_anomaly_to_position_angle(eccentric_anomaly, ellipticity):
     """
     Convert eccentric anomaly to position angle for ellipse sampling.
     
-    Reference: B. C. Ciambur 2015 ApJ 810 120, Equation 4
+    Reference: B. C. Ciambur 2015 ApJ 810 120, Equation 4 (Modified)
     
-    Ciambur Eq. 4: ψ = -arctan(tan(φ) / (1 - ε))
+    Standard EA definition: x = a cos ψ, y = b sin ψ
+    tan φ = (b/a) tan ψ = (1-ε) tan ψ
     
-    Solving for φ:
-        tan(φ) = -(1 - ε) * tan(ψ)
-        tan(φ) = (ε - 1) * tan(ψ)
-    
-    Given uniform sampling in ψ (eccentric anomaly), this computes φ (position angle)
-    for coordinate calculation, providing uniform arc-length sampling along the ellipse.
+    NOTE: Ciambur (2015) uses ψ = -arctan(...), which makes ψ run opposite to φ.
+    We use the standard definition here to ensure ψ and φ align (rotate in same direction).
+    This allows us to use standard Jedrzejewski (1987) geometry updates which expect
+    harmonics to index angle in the standard counter-clockwise direction.
     
     Args:
         eccentric_anomaly (np.ndarray): ψ values, uniformly sampled in [0, 2π)
@@ -31,15 +30,11 @@ def eccentric_anomaly_to_position_angle(eccentric_anomaly, ellipticity):
         
     Returns:
         np.ndarray: φ values (position angles) for coordinate calculation
-        
-    Note:
-        For ε = 0 (circular), ψ = φ (transformation is identity).
-        For ε > 0 (elliptical), φ sampling becomes non-uniform.
     """
-    # tan(φ) = -(1 - ε) * tan(ψ) = (ε - 1) * tan(ψ)
+    # Standard: tan(φ) = (1 - ε) * tan(ψ)
     # Use atan2 for proper quadrant handling
     position_angle = np.arctan2(
-        -(1 - ellipticity) * np.sin(eccentric_anomaly),
+        (1 - ellipticity) * np.sin(eccentric_anomaly),
         np.cos(eccentric_anomaly)
     )
     # Ensure result is in [0, 2π)

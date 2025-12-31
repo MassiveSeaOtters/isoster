@@ -280,13 +280,13 @@ def compute_deviations(phi, intens, sma, gradient, order):
     except Exception:
         return 0.0, 0.0, 0.0, 0.0
 
-def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=False, previous_gradient=None, current_data=None, integrator='mean'):
+def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=False, previous_gradient=None, current_data=None, integrator='mean', use_eccentric_anomaly=False):
     """Compute the radial intensity gradient."""
     if current_data is not None:
         phi_c, intens_c = current_data
     else:
         # Extract current SMA data
-        data_c = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, step, linear_growth)
+        data_c = extract_isophote_data(image, mask, x0, y0, sma, eps, pa, step, linear_growth, use_eccentric_anomaly)
         phi_c = data_c.angles  # Use angles for fitting (φ in this case)
         intens_c = data_c.intens
     
@@ -304,7 +304,7 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
         gradient_sma = sma * (1.0 + step)
         
     # Extract gradient SMA data
-    data_g = extract_isophote_data(image, mask, x0, y0, gradient_sma, eps, pa, step, linear_growth)
+    data_g = extract_isophote_data(image, mask, x0, y0, gradient_sma, eps, pa, step, linear_growth, use_eccentric_anomaly)
     phi_g = data_g.angles
     intens_g = data_g.intens
     
@@ -332,7 +332,7 @@ def compute_gradient(image, mask, x0, y0, sma, eps, pa, step=0.1, linear_growth=
             gradient_sma_2 = sma * (1.0 + 2 * step)
             
         # Extract second gradient SMA
-        data_g2 = extract_isophote_data(image, mask, x0, y0, gradient_sma_2, eps, pa, step, linear_growth)
+        data_g2 = extract_isophote_data(image, mask, x0, y0, gradient_sma_2, eps, pa, step, linear_growth, use_eccentric_anomaly)
         phi_g2 = data_g2.angles
         intens_g2 = data_g2.intens
         
@@ -506,7 +506,8 @@ def fit_isophote(image, mask, sma, start_geometry, config, going_inwards=False, 
         
         # GRADIENT computed using φ and current geometry
         gradient, gradient_error = compute_gradient(image, mask, x0, y0, sma, eps, pa, astep, linear_growth, 
-                                                   previous_gradient, current_data=(phi, intens), integrator=eff_integrator)
+                                                   previous_gradient, current_data=(phi, intens), integrator=eff_integrator,
+                                                   use_eccentric_anomaly=use_eccentric_anomaly)
         if gradient_error is not None:
             previous_gradient = gradient
         
