@@ -73,7 +73,8 @@ def fit_image(image, mask=None, config=None):
                 cfg.eps, cfg.pa,
                 integrator=cfg.integrator,
                 sclip=cfg.sclip,
-                nclip=cfg.nclip
+                nclip=cfg.nclip,
+                use_eccentric_anomaly=cfg.use_eccentric_anomaly
             )
             isophotes.append(iso)
         

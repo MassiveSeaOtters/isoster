@@ -59,7 +59,7 @@ def compute_central_regularization_penalty(current_geom, previous_geom, sma, con
     
     return penalty
 
-def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mean', sclip=3.0, nclip=0):
+def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mean', sclip=3.0, nclip=0, use_eccentric_anomaly=False):
     """
     Extract forced photometry at a single SMA without fitting.
     
@@ -75,6 +75,7 @@ def extract_forced_photometry(image, mask, sma, x0, y0, eps, pa, integrator='mea
         integrator (str): 'mean' or 'median'.
         sclip (float): Sigma clipping threshold.
         nclip (int): Number of sigma clipping iterations.
+        use_eccentric_anomaly (bool): Whether to use eccentric anomaly sampling mode.
         
     Returns:
         dict: Fake isophote structure with only intensity meaningful.
