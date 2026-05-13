@@ -9,6 +9,9 @@ AGENTS.md
 # Agent-internal development docs (kept on disk, not tracked)
 docs/agent/
 
+# Publication drafting workspace (papers, references, figures — kept on disk, not tracked)
+docs/publication/
+
 # Generated site (mkdocs build output)
 site/
 
