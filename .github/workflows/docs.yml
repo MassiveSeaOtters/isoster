@@ -1,0 +1,51 @@
+name: Publish docs site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "docs-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gh-deploy needs full history to push to gh-pages
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync docs environment
+        run: uv sync --extra docs
+
+      - name: Build site (strict)
+        run: uv run mkdocs build --strict
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy to gh-pages branch
+        run: uv run mkdocs gh-deploy --force --no-history

@@ -28,8 +28,9 @@ config.yaml
 examples/example_hsc_edgecases/data/
 examples/example_hsc_edge_real/data/
 
-# Reference implementation (excluded from install)
-reference/
+# Reference implementation (excluded from install) — anchored to repo
+# root so it does not catch `docs/reference/` or other nested folders.
+/reference/
 
 # Scratch directories
 vibe/
