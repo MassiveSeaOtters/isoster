@@ -15,7 +15,7 @@
 
 ---
 
-ISOSTER is a Python library for elliptical isophote fitting that provides **10-15x faster performance** compared to `photutils.isophote`. It uses vectorized path-based sampling via scipy's `map_coordinates` while maintaining scientific accuracy and full compatibility with the photutils isophote analysis workflow.
+ISOSTER is a Python library for elliptical isophote fitting that provides **10-15x faster performance** compared to `photutils.isophote` (measured on the HSC/asteris benchmark set; see [docs/09-exhausted-benchmark.md](docs/09-exhausted-benchmark.md)). It uses vectorized path-based sampling via scipy's `map_coordinates` while maintaining scientific accuracy and full compatibility with the photutils isophote analysis workflow.
 
 ## Installation
 
