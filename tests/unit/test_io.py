@@ -92,16 +92,17 @@ class TestFitsWriter:
         )
 
     def test_hdu_structure(self, tmp_path):
-        """Output FITS has 3 HDUs: PRIMARY, ISOPHOTES, CONFIG."""
+        """Output FITS has 4 HDUs: PRIMARY, ISOPHOTES, CONFIG, META."""
         results = _make_results()
         fpath = str(tmp_path / "test.fits")
         isophote_results_to_fits(results, fpath)
 
         with fits.open(fpath) as hdulist:
-            assert len(hdulist) == 3
+            assert len(hdulist) == 4
             assert hdulist[0].name == "PRIMARY"
             assert hdulist[1].name == "ISOPHOTES"
             assert hdulist[2].name == "CONFIG"
+            assert hdulist[3].name == "META"
 
     def test_round_trip_with_config_recovery(self, tmp_path):
         """Write → read recovers isophotes and an IsosterConfig with matching values."""
@@ -172,8 +173,9 @@ class TestFitsWriter:
         isophote_results_to_fits(results, fpath)
 
         with fits.open(fpath) as hdulist:
-            assert len(hdulist) == 3
+            assert len(hdulist) == 4
             assert hdulist[2].name == "CONFIG"
+            assert hdulist[3].name == "META"
 
 
 class TestFitsReaderBackwardCompat:

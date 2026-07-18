@@ -46,9 +46,7 @@ def detect_crossing(isophotes, fix_center=False, fix_geometry=False):
     n_iso = len(isophotes)
 
     # If geometry is fixed, no crossing is possible
-    if fix_geometry or (
-        fix_center and all(iso.get("fix_eps", False) and iso.get("fix_pa", False) for iso in isophotes)
-    ):
+    if fix_geometry:
         return {"flag_cross": np.zeros(n_iso, dtype=bool), "flag_negative_area": np.zeros(n_iso, dtype=bool)}
 
     # Extract parameters

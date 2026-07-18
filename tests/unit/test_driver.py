@@ -367,3 +367,73 @@ def test_fit_image_raises_on_negative_error_in_template_forced_mode(monkeypatch)
 
     with pytest.raises(ValueError, match="negative error value"):
         fit_image(image, mask=None, config=config, template=template)
+
+
+def _make_exponential(size=80, seed=1):
+    """Small noisy exponential mock for end-to-end driver tests."""
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[:size, :size]
+    cx = cy = size / 2.0
+    image = np.exp(-np.hypot(x - cx, y - cy) / 8.0)
+    return image + rng.normal(0.0, 0.005, image.shape)
+
+
+def test_central_pixel_follows_harmonic_orders():
+    """Regression test for B5: central-pixel harmonic keys follow config.
+
+    The central pixel used to always get a3/b3/a4/b4 regardless of
+    config.harmonic_orders, so a fit with orders [3, 4, 5, 6] produced two
+    distinct key sets in one result list (and masked FITS cells for the
+    central pixel's a5 columns).
+    """
+    image = _make_exponential()
+    cfg = IsosterConfig(
+        x0=40.0,
+        y0=40.0,
+        eps=0.2,
+        pa=0.0,
+        sma0=8.0,
+        minsma=0.0,
+        maxsma=25.0,
+        harmonic_orders=[3, 4, 5, 6],
+    )
+    isophotes = fit_image(image, config=cfg)["isophotes"]
+    central = next(iso for iso in isophotes if iso["sma"] == 0.0)
+    fitted = next(iso for iso in isophotes if iso["sma"] > 0.0)
+
+    expected = {f"{p}{n}{s}" for n in (3, 4, 5, 6) for p in ("a", "b") for s in ("", "_err")}
+    assert expected <= set(central), f"central pixel missing {sorted(expected - set(central))}"
+    assert expected <= set(fitted), f"fitted isophote missing {sorted(expected - set(fitted))}"
+
+
+def test_central_pixel_omits_harmonics_when_disabled():
+    """B5 counterpart: with compute_deviations=False the central pixel
+    carries no harmonic keys, matching the fitted rows' schema."""
+    image = _make_exponential()
+    cfg = IsosterConfig(
+        x0=40.0,
+        y0=40.0,
+        eps=0.2,
+        pa=0.0,
+        sma0=8.0,
+        minsma=0.0,
+        maxsma=25.0,
+        compute_deviations=False,
+    )
+    isophotes = fit_image(image, config=cfg)["isophotes"]
+    central = next(iso for iso in isophotes if iso["sma"] == 0.0)
+    fitted = next(iso for iso in isophotes if iso["sma"] > 0.0)
+    for row in (central, fitted):
+        assert "a3" not in row and "b4" not in row
+
+
+def test_central_pixel_wls_error_from_variance_map():
+    """M12 parity: central pixel reports sqrt(var) under WLS, 0.0 under OLS."""
+    image = _make_exponential()
+    var = np.full_like(image, 0.25)
+    cfg = IsosterConfig(x0=40.0, y0=40.0, eps=0.2, pa=0.0, sma0=8.0, minsma=0.0, maxsma=25.0)
+    central_wls = next(iso for iso in fit_image(image, config=cfg, variance_map=var)["isophotes"] if iso["sma"] == 0.0)
+    assert central_wls["intens_err"] == pytest.approx(0.5, rel=1e-9)
+
+    central_ols = next(iso for iso in fit_image(image, config=cfg)["isophotes"] if iso["sma"] == 0.0)
+    assert central_ols["intens_err"] == 0.0

@@ -1,13 +1,12 @@
 import warnings
 
 import numpy as np
-from scipy.optimize import leastsq
 
 # Shared helpers (re-imported here for backward compatibility — historical
 # call sites and external code continue to access them at the original
 # ``isoster.fitting._prepare_mask_float`` / ``._tikhonov_alpha`` paths).
 # Single source of truth lives in ``isoster._shared``.
-from ._shared import _prepare_mask_float, _tikhonov_alpha  # noqa: F401
+from ._shared import _prepare_mask_float, _tikhonov_alpha, _weighted_mean_variance  # noqa: F401
 from .config import IsosterConfig
 
 # Import numba-accelerated kernels (with numpy fallback)
@@ -250,6 +249,11 @@ def extract_forced_photometry(
     rms = np.std(intens)
     if variances is None:
         intens_err = rms / np.sqrt(len(intens))
+        if integrator == "median":
+            # The median's standard error is sqrt(pi/2) larger than the
+            # mean's for Gaussian noise (Gaussian-asymptotic factor,
+            # mirroring the multiband H4 formula; review M12)
+            intens_err *= np.sqrt(np.pi / 2.0)
 
     result = {
         "x0": x0,
@@ -504,21 +508,15 @@ def compute_parameter_errors(
             RuntimeWarning,
         )
         return 0.0, 0.0, 0.0, 0.0
-    except (np.linalg.LinAlgError, ValueError) as e:
-        # Singular matrix or numerical instability - return zero errors
-        warnings.warn(
-            f"compute_parameter_errors failed (singular matrix or numerical issue): {e}. Returning zero errors.",
-            RuntimeWarning,
-        )
-        return 0.0, 0.0, 0.0, 0.0
     # Note: Removed broad 'except Exception' - unexpected errors should be raised for debugging
 
 
 def compute_deviations(phi, intens, sma, gradient, order, variances=None):
     """Compute deviations from perfect ellipticity (higher order harmonics).
 
-    When variances are provided, uses WLS with exact covariance instead of
-    scipy.optimize.leastsq with residual-scaled covariance.
+    Both paths use an explicit design-matrix solve: WLS with the exact
+    covariance when variances are provided, otherwise OLS with the inverse
+    normal equations scaled by the residual variance.
     """
     try:
         s_n = np.sin(order * phi)
@@ -535,26 +533,19 @@ def compute_deviations(phi, intens, sma, gradient, order, variances=None):
             ata_inv = np.linalg.inv(ATWA)
             errors = np.sqrt(np.diagonal(ata_inv))
         else:
-            # OLS: scipy leastsq with residual-scaled covariance
-            y0_init = np.mean(intens)
-            params_init = [y0_init, 0.0, 0.0]
-
-            def residual(params):
-                model = params[0] + params[1] * s_n + params[2] * c_n
-                return intens - model
-
-            solution = leastsq(residual, params_init, full_output=True)
-            coeffs = solution[0]
-            cov_matrix = solution[1]
-
-            if cov_matrix is None:
-                return 0.0, 0.0, 0.0, 0.0
+            # OLS: explicit design-matrix solve with residual-scaled covariance.
+            # (Same construction as the WLS branch. Review finding B1:
+            # scipy leastsq returns cov_x=None on noise-free data, which used
+            # to silently zero out correct coefficients.)
+            A = np.column_stack([np.ones_like(phi), s_n, c_n])
+            coeffs, _, _, _ = np.linalg.lstsq(A, intens, rcond=None)
+            ata_inv = np.linalg.inv(A.T @ A)
 
             model = coeffs[0] + coeffs[1] * s_n + coeffs[2] * c_n
             if len(intens) <= len(coeffs):
                 return 0.0, 0.0, 0.0, 0.0
-            var_residual = np.std(intens - model, ddof=len(coeffs)) ** 2
-            covariance = cov_matrix * var_residual
+            var_residual = np.var(intens - model, ddof=len(coeffs))
+            covariance = ata_inv * var_residual
             errors = np.sqrt(np.diagonal(covariance))
 
         factor = sma * abs(gradient)
@@ -869,10 +860,14 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     gradient = (mean_g - mean_c) / delta_r
 
     if var_c is not None and var_g is not None:
-        # WLS: exact variance of the mean from per-pixel variances
-        var_mean_c = np.sum(var_c) / len(var_c) ** 2
-        var_mean_g = np.sum(var_g) / len(var_g) ** 2
-        gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
+        # WLS: per-annulus mean error from inverse-variance weights
+        # (sentinel-immune; equals sigma^2/N for uniform variances)
+        var_mean_c = _weighted_mean_variance(var_c)
+        var_mean_g = _weighted_mean_variance(var_g)
+        if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
+            gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
+        else:
+            gradient_error = None  # no usable variances: error unknown
     else:
         # OLS: scatter-based error estimate
         sigma_c = np.std(intens_c)
@@ -880,11 +875,15 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
         gradient_error = np.sqrt(sigma_c**2 / len(intens_c) + sigma_g**2 / len(intens_g)) / delta_r
 
     if previous_gradient is None:
-        previous_gradient = gradient + gradient_error
+        previous_gradient = gradient + gradient_error if gradient_error is not None else gradient
 
     # EFF-1: Early termination if first gradient is reliable
     # Compute relative error to decide if second gradient SMA is needed
-    relative_error = abs(gradient_error / gradient) if (gradient is not None and gradient != 0) else np.inf
+    relative_error = (
+        abs(gradient_error / gradient)
+        if (gradient_error is not None and gradient is not None and gradient != 0)
+        else np.inf
+    )
 
     # Skip second gradient if:
     # 1. First gradient looks good (< previous_gradient / 3)
@@ -920,9 +919,12 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
             delta_r_2 = 2 * step if linear_growth else sma * 2 * step
             gradient = (mean_g2 - mean_c) / delta_r_2
             if var_c is not None and var_g2 is not None:
-                var_mean_c = np.sum(var_c) / len(var_c) ** 2
-                var_mean_g2 = np.sum(var_g2) / len(var_g2) ** 2
-                gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
+                var_mean_c = _weighted_mean_variance(var_c)
+                var_mean_g2 = _weighted_mean_variance(var_g2)
+                if np.isfinite(var_mean_c) and np.isfinite(var_mean_g2):
+                    gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
+                else:
+                    gradient_error = None  # no usable variances: error unknown
             else:
                 sigma_c = np.std(intens_c)
                 sigma_g2 = np.std(intens_g2)
@@ -1425,11 +1427,21 @@ def fit_isophote(
         if effective_amp < min_amplitude:
             min_amplitude = effective_amp
             no_improvement_count = 0
-            # WLS: exact Var(mean) from per-pixel variances; OLS: rms/sqrt(N)
+            # WLS: exact variance of the fitted (weighted) mean intensity from
+            # the fit's own covariance (weighted-mean form as a fallback); OLS:
+            # rms/sqrt(N). Both WLS forms are immune to the driver's variance
+            # sentinels, whose weight is ~0 (review B2).
             if variances is not None:
-                intens_err = np.sqrt(np.sum(variances) / len(variances) ** 2)
+                if cov_matrix is not None and cov_matrix[0, 0] > 0:
+                    intens_err = np.sqrt(cov_matrix[0, 0])
+                else:
+                    intens_err = np.sqrt(_weighted_mean_variance(variances))
             else:
                 intens_err = rms / np.sqrt(len(intens))
+                if eff_integrator == "median":
+                    # The median's standard error is sqrt(pi/2) larger than
+                    # the mean's for Gaussian noise (multiband parity, M12)
+                    intens_err *= np.sqrt(np.pi / 2.0)
             # For ISOFIT in_loop, pass 5x5 sub-matrix and first 5 coefficients
             # so compute_parameter_errors uses correct dimensions
             wls_mode = variances is not None
@@ -1593,7 +1605,11 @@ def fit_isophote(
                         aux_minor = (1.0 - alpha_minor) * aux_minor
                         aux_major = (1.0 - alpha_major) * aux_major
 
-                # Safety: Clip large jumps in a single iteration
+                # Safety: Clip large jumps in a single iteration. The
+                # simultaneous (both-axes) update clips the total shift
+                # vector with a radius-scaled floor so outer isophotes are
+                # not frozen by the absolute clip; the single-axis
+                # ('largest') path below uses the plain clip_max_shift.
                 if cfg.clip_max_shift is not None:
                     max_iter_shift = max(cfg.clip_max_shift, 0.05 * sma)
                     shift_len = np.sqrt(aux_minor**2 + aux_major**2)

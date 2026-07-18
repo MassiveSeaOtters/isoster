@@ -411,58 +411,6 @@ def build_harmonic_matrix(phi: NDArray[np.floating]) -> NDArray[np.floating]:
 
 
 # =============================================================================
-# Sigma Clipping (kept as numpy - profiling shows negligible time)
-# =============================================================================
-
-
-def sigma_clip_fast(phi, intens, sclip_low, sclip_high, nclip):
-    """
-    Perform iterative sigma clipping.
-
-    Note: Profiling shows sigma_clip takes negligible time (<0.001s),
-    so we keep the numpy implementation for simplicity.
-
-    Args:
-        phi: Array of angles
-        intens: Array of intensities
-        sclip_low: Lower sigma threshold
-        sclip_high: Upper sigma threshold
-        nclip: Number of clipping iterations
-
-    Returns:
-        Tuple of (clipped_phi, clipped_intens, n_clipped)
-    """
-    if nclip <= 0:
-        return phi, intens, 0
-
-    phi_c = phi.copy()
-    intens_c = intens.copy()
-    total_clipped = 0
-
-    for _ in range(nclip):
-        if len(intens_c) < 3:
-            break
-
-        mean = np.mean(intens_c)
-        std = np.std(intens_c)
-
-        lower = mean - sclip_low * std
-        upper = mean + sclip_high * std
-
-        mask = (intens_c >= lower) & (intens_c <= upper)
-        n_clipped = len(intens_c) - np.sum(mask)
-
-        if n_clipped == 0:
-            break
-
-        total_clipped += n_clipped
-        phi_c = phi_c[mask]
-        intens_c = intens_c[mask]
-
-    return phi_c, intens_c, total_clipped
-
-
-# =============================================================================
 # Utility Functions
 # =============================================================================
 

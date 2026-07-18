@@ -118,7 +118,7 @@ def test_stop_code_2_computes_harmonic_deviations():
     radius = np.hypot(x_coords - center_x, y_coords - center_y)
     # Add a boxy/disky perturbation so a4 is non-zero
     theta = np.arctan2(y_coords - center_y, x_coords - center_x)
-    # Add noise so leastsq returns a non-None covariance matrix
+    # Add small noise to make the ring realistic
     np.random.seed(42)
     image = np.exp(-radius / 8.0) * (1.0 + 0.1 * np.cos(4 * theta))
     image += np.random.normal(0, 0.005, image.shape)
@@ -312,6 +312,31 @@ def test_compute_deviations_normal_case():
         assert len(compute_dev_warnings) == 0, (
             f"Expected no warnings for normal case, got: {[str(warn.message) for warn in compute_dev_warnings]}"
         )
+
+
+def test_compute_deviations_noise_free():
+    """Regression test for B1: noise-free data must not zero the coefficients.
+
+    The OLS branch used scipy leastsq, which returns cov_x=None when the fit
+    is exact (noise-free or very-low-noise data); the code treated that as
+    total failure and silently returned a_n=b_n=0. The explicit design-matrix
+    solve must recover a planted harmonic on noise-free data.
+    """
+    sma, gradient = 20.0, -13.5
+    b4_planted = 0.03
+    phi = np.linspace(0, 2 * np.pi, 200, endpoint=False)
+    intens = 100.0 + b4_planted * sma * abs(gradient) * np.cos(4 * phi)
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        a4, b4, a4_err, b4_err = compute_deviations(phi, intens, sma, gradient, 4)
+
+    assert b4 == pytest.approx(b4_planted, abs=1e-10), f"Expected b4≈{b4_planted}, got {b4}"
+    assert a4 == pytest.approx(0.0, abs=1e-10), f"Expected a4≈0, got {a4}"
+    compute_dev_warnings = [warn for warn in w if "compute_deviations" in str(warn.message)]
+    assert len(compute_dev_warnings) == 0, (
+        f"Expected no warnings for noise-free case, got: {[str(warn.message) for warn in compute_dev_warnings]}"
+    )
 
 
 def test_pa_wraparound_vectorized():

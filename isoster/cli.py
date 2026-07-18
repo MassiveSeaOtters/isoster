@@ -91,22 +91,25 @@ def main():
     # Load data
     with fits.open(args.image) as hdul:
         image = hdul[0].data
-        if image is None:  # Maybe in extension 1?
+        if image is None and len(hdul) > 1:  # Maybe in extension 1?
             image = hdul[1].data
+        if image is None:
+            raise ValueError(f"No image data found in {args.image} (primary HDU has no data)")
     image = image.astype(np.float64)
 
     mask = None
     if args.mask:
         with fits.open(args.mask) as hdul:
             mask = hdul[0].data
-            if mask is None:
+            if mask is None and len(hdul) > 1:
                 mask = hdul[1].data
+            if mask is None:
+                raise ValueError(f"No image data found in {args.mask} (primary HDU has no data)")
             mask = mask.astype(bool)
 
     # Run
     print("Running isophote analysis...")
-    template = args.template if args.template else None
-    results = fit_image(image, mask, config, template=template)
+    results = fit_image(image, mask, config, template=args.template)
 
     # Save results
     if args.output.endswith(".fits"):

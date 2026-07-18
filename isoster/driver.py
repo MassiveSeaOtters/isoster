@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ._shared import VARIANCE_SENTINEL
 from .config import IsosterConfig
 from .fitting import fit_isophote
 
@@ -108,12 +109,12 @@ def _mark_lsb_lock_state(iso, locked, is_anchor=False):
     """Attach the LSB auto-lock state keys to an isophote dict.
 
     Centralized so future loop reorders cannot accidentally mutate an
-    isophote before the correct flag is known. Writes ``lsb_locked`` and,
-    for the committing trigger isophote, ``lsb_auto_lock_anchor=True``.
+    isophote before the correct flag is known. Always writes both
+    ``lsb_locked`` and ``lsb_auto_lock_anchor`` so the per-isophote schema
+    stays uniform and FITS round-trips cannot corrupt the flags (review B3).
     """
     iso["lsb_locked"] = bool(locked)
-    if is_anchor:
-        iso["lsb_auto_lock_anchor"] = True
+    iso["lsb_auto_lock_anchor"] = bool(is_anchor)
 
 
 def _build_outer_reference(inwards_results, anchor_iso, cfg):
@@ -300,7 +301,7 @@ def _resolve_template(template):
     return sorted(iso_list, key=lambda x: x["sma"])
 
 
-def fit_central_pixel(image, mask, x0, y0, debug=False):
+def fit_central_pixel(image, mask, x0, y0, debug=False, config=None, variance_map=None):
     """
     Fit the central pixel (SMA=0).
 
@@ -310,6 +311,16 @@ def fit_central_pixel(image, mask, x0, y0, debug=False):
         x0 (float): Center x coordinate.
         y0 (float): Center y coordinate.
         debug (bool): If True, include extra debug fields.
+        config (IsosterConfig, optional): When provided, harmonic keys are
+            only included if compute_deviations or simultaneous_harmonics is
+            enabled, using config.harmonic_orders for key names — matching
+            the fitted-isophote schema (review B5). When None, orders [3, 4]
+            are always included for backward compatibility.
+        variance_map (np.ndarray, optional): Per-pixel variance map. When
+            provided, ``intens_err`` is ``sqrt(variance_map[iy, ix])`` —
+            the per-pixel standard error (multiband parity, review M12).
+            In OLS mode it stays 0.0: a single sample admits no internal
+            error estimate.
 
     Returns:
         dict: A dictionary containing the fitting result for the central pixel.
@@ -329,6 +340,21 @@ def fit_central_pixel(image, mask, x0, y0, debug=False):
         if mask is not None and mask[iy, ix]:
             valid = False
 
+    if config is not None:
+        include_harmonics = config.compute_deviations or config.simultaneous_harmonics
+        harmonic_orders = config.harmonic_orders if include_harmonics else []
+    else:
+        harmonic_orders = [3, 4]
+
+    # WLS: per-pixel standard error from the variance map (multiband
+    # parity, review M12). OLS: 0.0 (a single sample admits no internal
+    # error estimate).
+    intens_err = 0.0
+    if valid and variance_map is not None:
+        v = float(np.asarray(variance_map)[iy, ix])
+        if np.isfinite(v) and v > 0.0:
+            intens_err = float(np.sqrt(v))
+
     result = {
         "x0": x0,
         "y0": y0,
@@ -337,19 +363,11 @@ def fit_central_pixel(image, mask, x0, y0, debug=False):
         "sma": 0.0,
         "intens": val if valid else np.nan,
         "rms": 0.0,
-        "intens_err": 0.0,
+        "intens_err": intens_err,
         "x0_err": 0.0,
         "y0_err": 0.0,
         "eps_err": 0.0,
         "pa_err": 0.0,
-        "a3": 0.0,
-        "b3": 0.0,
-        "a3_err": 0.0,
-        "b3_err": 0.0,
-        "a4": 0.0,
-        "b4": 0.0,
-        "a4_err": 0.0,
-        "b4_err": 0.0,
         "tflux_e": np.nan,
         "tflux_c": np.nan,
         "npix_e": 0,
@@ -358,6 +376,11 @@ def fit_central_pixel(image, mask, x0, y0, debug=False):
         "niter": 0,
         "valid": valid,
     }
+    for order in harmonic_orders:
+        result[f"a{order}"] = 0.0
+        result[f"b{order}"] = 0.0
+        result[f"a{order}_err"] = 0.0
+        result[f"b{order}_err"] = 0.0
     if debug:
         result.update(
             {"ndata": 1 if valid else 0, "nflag": 0, "grad": np.nan, "grad_error": np.nan, "grad_r_error": np.nan}
@@ -449,12 +472,11 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         variance_map = variance_map.copy()
 
         # Replace NaN with large sentinel (effectively zero weight)
-        _VARIANCE_SENTINEL = 1e30
         n_nan = np.sum(np.isnan(variance_map))
         if n_nan > 0:
-            variance_map[np.isnan(variance_map)] = _VARIANCE_SENTINEL
+            variance_map[np.isnan(variance_map)] = VARIANCE_SENTINEL
             warnings.warn(
-                f"variance_map contains {n_nan} NaN values; replaced with {_VARIANCE_SENTINEL:.0e} (near-zero weight).",
+                f"variance_map contains {n_nan} NaN values; replaced with {VARIANCE_SENTINEL:.0e} (near-zero weight).",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -462,10 +484,10 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         # Replace inf with large sentinel (effectively zero weight)
         n_inf = np.sum(np.isinf(variance_map))
         if n_inf > 0:
-            variance_map[np.isinf(variance_map)] = _VARIANCE_SENTINEL
+            variance_map[np.isinf(variance_map)] = VARIANCE_SENTINEL
             warnings.warn(
                 f"variance_map contains {n_inf} infinite values; "
-                f"replaced with {_VARIANCE_SENTINEL:.0e} (near-zero weight).",
+                f"replaced with {VARIANCE_SENTINEL:.0e} (near-zero weight).",
                 RuntimeWarning,
                 stacklevel=2,
             )
@@ -524,7 +546,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     linear_growth = cfg.linear_growth
 
     # 1. Fit Central Pixel (Approximation)
-    central_result = fit_central_pixel(image, mask, x0, y0, debug=cfg.debug)
+    central_result = fit_central_pixel(image, mask, x0, y0, debug=cfg.debug, config=cfg, variance_map=variance_map)
 
     # 2. Fit First Isophote at SMA0 (with optional retry)
     start_geometry = {"x0": x0, "y0": y0, "eps": cfg.eps, "pa": cfg.pa}
@@ -650,6 +672,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         "consec": 0,
         "transition_sma": None,
         "anchor_index": None,
+        "anchor_sma": None,
     }
     active_cfg = cfg
 
@@ -710,6 +733,11 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                         lsb_state["locked"] = True
                         lsb_state["transition_sma"] = float(next_iso["sma"])
                         lsb_state["anchor_index"] = anchor_local_idx
+                        # Record the true geometry anchor's identity (U1/Q2):
+                        # the marker below goes on the committing trigger, so
+                        # without this the anchor isophote is not identifiable
+                        # in the output at all.
+                        lsb_state["anchor_sma"] = float(lock_anchor["sma"])
                         _mark_lsb_lock_state(next_iso, locked=True, is_anchor=True)
                         # Restart the geometry carry-forward from the clean
                         # anchor so the next isophote is seeded by it, not by
@@ -725,6 +753,16 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         final_list = [central_result] + inwards_results[::-1] + outwards_results
     else:
         final_list = inwards_results[::-1] + outwards_results
+
+    if cfg.lsb_auto_lock:
+        # Inward isophotes and the central pixel never pass through the
+        # outward lock machinery; stamp them explicitly so every row carries
+        # the same lock keys. A heterogeneous schema makes Table(rows=...)
+        # mask the missing cells, and FITS fills masked bools with True,
+        # destroying the flags on save/load (review B3).
+        for iso in final_list:
+            iso.setdefault("lsb_locked", False)
+            iso.setdefault("lsb_auto_lock_anchor", False)
 
     # Compute Curve-of-Growth if requested
     if cfg.compute_cog:
@@ -747,6 +785,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     if cfg.lsb_auto_lock:
         result["lsb_auto_lock"] = True
         result["lsb_auto_lock_sma"] = lsb_state["transition_sma"]
+        result["lsb_auto_lock_anchor_sma"] = lsb_state["anchor_sma"]
         result["lsb_auto_lock_count"] = sum(1 for iso in final_list if iso.get("lsb_locked", False))
     if cfg.use_outer_center_regularization and outer_ref_geom is not None:
         result["use_outer_center_regularization"] = True
@@ -799,7 +838,15 @@ def _fit_image_template_forced(image, mask, config, template_isophotes, variance
 
         # Handle central pixel (sma=0) specially
         if sma == 0:
-            iso = fit_central_pixel(image, mask, template_iso["x0"], template_iso["y0"], debug=config.debug)
+            iso = fit_central_pixel(
+                image,
+                mask,
+                template_iso["x0"],
+                template_iso["y0"],
+                debug=config.debug,
+                config=config,
+                variance_map=variance_map,
+            )
         else:
             iso = extract_forced_photometry(
                 image,

@@ -250,3 +250,6 @@ def test_optimize_facade_importable() -> None:
 
     mod = importlib.import_module("isoster.optimize")
     assert mod is not None
+    # The facade re-exports the driver/fitting APIs (review R1)
+    for name in ("fit_image", "fit_isophote", "compute_deviations", "compute_gradient", "extract_isophote_data"):
+        assert hasattr(mod, name), f"isoster.optimize facade missing {name}"

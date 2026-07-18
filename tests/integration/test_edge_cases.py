@@ -141,6 +141,21 @@ class TestForcedMode:
         assert result["valid"] is False
         assert result["stop_code"] == 3
 
+    def test_forced_photometry_median_sem_factor(self):
+        """Regression test for M12: the median-integrator SEM carries the
+        Gaussian-asymptotic sqrt(pi/2) factor (the mean path keeps the
+        photutils-compatible rms/sqrt(N))."""
+        rng = np.random.default_rng(0)
+        image = 100.0 + rng.normal(0.0, 1.0, (128, 128))
+
+        out_mean = extract_forced_photometry(image, None, 64.0, 64.0, 30.0, 0.0, 0.0, integrator="mean", nclip=0)
+        out_median = extract_forced_photometry(image, None, 64.0, 64.0, 30.0, 0.0, 0.0, integrator="median", nclip=0)
+
+        # Same ring, same samples: median SEM must exceed the mean SEM by sqrt(pi/2)
+        assert out_mean["intens_err"] > 0.0
+        ratio = out_median["intens_err"] / out_mean["intens_err"]
+        assert ratio == pytest.approx(np.sqrt(np.pi / 2.0), rel=1e-9)
+
 
 class TestCoGMode:
     """Test curve-of-growth (CoG) photometry mode."""

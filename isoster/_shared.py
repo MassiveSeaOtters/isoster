@@ -29,10 +29,38 @@ Membership criteria for adding a new helper here:
 from __future__ import annotations
 
 import json
+import logging
 
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
+
+logger = logging.getLogger(__name__)
+
+# Sentinel written into variance maps for NaN/inf entries (driver.py): large
+# enough to give the sample effectively zero weight in WLS solves. Error
+# formulas must be built from inverse-variance weights so the sentinel (and
+# values smeared into neighboring samples by interpolation) contribute ~zero
+# weight; plain sums of variances would explode (review finding B2).
+VARIANCE_SENTINEL = 1e30
+
+
+def _weighted_mean_variance(variances):
+    """Variance of an inverse-variance-weighted mean, 1/sum(1/var_i).
+
+    Exact for the inverse-variance-weighted mean estimator; equals
+    ``sum(var_i)/N^2`` (the unweighted mean's variance) for uniform
+    variances. Sentinel-immune by construction: the driver's unknown-variance
+    sentinel (and values smeared into neighboring samples by interpolation)
+    contribute ~zero weight, so one bad variance-map pixel cannot blow up
+    the error (review finding B2). Returns np.inf when no sample carries
+    finite weight.
+    """
+    wsum = np.sum(1.0 / variances)
+    if not np.isfinite(wsum) or wsum <= 0:
+        return np.inf
+    return float(1.0 / wsum)
+
 
 # ---------------------------------------------------------------------------
 # Mask / Tikhonov helpers (originally in isoster.fitting)
@@ -216,3 +244,41 @@ def _build_config_hdu(results) -> fits.BinTableHDU:
     config_hdu = fits.table_to_hdu(config_tbl)
     config_hdu.name = "CONFIG"
     return config_hdu
+
+
+def _build_meta_hdu(meta: dict) -> fits.BinTableHDU:
+    """Build a META BinTableHDU with PARAM/VALUE rows from a plain dict.
+
+    Same JSON pattern as :func:`_build_config_hdu`, for non-structural
+    top-level result keys (lock-state metadata, first-isophote
+    diagnostics, sky offsets, outer-reg references). Non-serializable
+    values are skipped with a warning.
+    """
+    params: list = []
+    values: list = []
+    for key, value in meta.items():
+        try:
+            values.append(json.dumps(value, cls=_NumpyEncoder))
+        except (TypeError, ValueError):
+            logger.warning("Skipping non-serializable META key %r", key)
+            continue
+        params.append(key)
+    tbl = Table()
+    tbl["PARAM"] = params if params else np.array([], dtype="U1")
+    tbl["VALUE"] = values if values else np.array([], dtype="U1")
+    hdu = fits.table_to_hdu(tbl)
+    hdu.name = "META"
+    return hdu
+
+
+def _parse_meta_hdu(hdu: fits.BinTableHDU) -> dict:
+    """Parse a META HDU (JSON PARAM/VALUE rows) back into a plain dict."""
+    meta: dict = {}
+    tbl = Table.read(hdu)
+    for row in tbl:
+        key = str(row["PARAM"])
+        try:
+            meta[key] = json.loads(row["VALUE"])
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Skipping unparseable META key '%s'", key)
+    return meta

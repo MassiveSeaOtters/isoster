@@ -19,7 +19,7 @@ class IsosterConfig(BaseModel):
     - 3: Too few points (<6)
     - -1: Gradient error (invalid or unreliable)
 
-    See docs/user-guide.md (Stop Codes (Canonical Reference)) for detailed documentation.
+    See docs/01-user-guide.md (Stop Codes (Canonical Reference)) for detailed documentation.
     """
 
     # Geometry initialization
@@ -117,7 +117,12 @@ class IsosterConfig(BaseModel):
     nclip: int = Field(1, ge=0, description="Number of sigma clipping iterations.")
     sclip_low: Optional[float] = Field(None, description="Lower sigma clipping threshold.")
     sclip_high: Optional[float] = Field(None, description="Upper sigma clipping threshold.")
-    fflag: float = Field(0.5, ge=0.0, le=1.0, description="Maximum fraction of flagged data (masked + clipped).")
+    fflag: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Maximum fraction of sigma-clipped data points. Masked points are removed during sampling and do not count.",
+    )
     maxgerr: float = Field(0.5, gt=0.0, description="Maximum relative error in local radial gradient.")
 
     # Constraints
@@ -236,7 +241,7 @@ class IsosterConfig(BaseModel):
         ge=0.0,
         description="Peak strength of the outer regularization. Controls how "
         "aggressively the Tikhonov term shrinks per-iteration geometry steps "
-        "in the outer region. Typical range: 2-8 for real LSB data. "
+        "in the outer region. Typical range: 1-3. "
         "Default 2.0 was the benchmark winner on the HSC edge-case and "
         "edge-real BCG suites.",
     )

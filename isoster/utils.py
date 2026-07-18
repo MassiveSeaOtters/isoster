@@ -11,8 +11,10 @@ from astropy.table import Table
 # lives in ``isoster._shared``.
 from ._shared import (  # noqa: F401
     _build_config_hdu,
+    _build_meta_hdu,
     _config_to_dict,
     _NumpyEncoder,
+    _parse_meta_hdu,
 )
 
 logger = logging.getLogger(__name__)
@@ -102,6 +104,9 @@ def isophote_results_to_fits(results, filename, overwrite=True):
     - HDU 0: PrimaryHDU (empty)
     - HDU 1: BinTableHDU 'ISOPHOTES' (isophote data columns)
     - HDU 2: BinTableHDU 'CONFIG' (two columns: PARAM, VALUE with JSON-serialized config)
+    - HDU 3: BinTableHDU 'META' (JSON PARAM/VALUE rows for the remaining
+      top-level result keys: lsb_auto_lock*, first_isophote_*, outer-reg
+      references, ...)
 
     Config is stored in a dedicated table extension rather than as header
     keywords, avoiding HIERARCH promotion warnings for long parameter names.
@@ -122,7 +127,13 @@ def isophote_results_to_fits(results, filename, overwrite=True):
 
     config_hdu = _build_config_hdu(results)
 
-    hdulist = fits.HDUList([fits.PrimaryHDU(), isophote_hdu, config_hdu])
+    # Non-structural top-level keys (lsb_auto_lock*, first_isophote_*,
+    # outer-reg references) ride in a META HDU so the round-trip preserves
+    # them (same pattern as the multi-band writer, M13/Q2).
+    meta = {k: v for k, v in results.items() if k not in ("isophotes", "config")}
+    meta_hdu = _build_meta_hdu(meta)
+
+    hdulist = fits.HDUList([fits.PrimaryHDU(), isophote_hdu, config_hdu, meta_hdu])
     hdulist.writeto(filename, overwrite=overwrite)
 
 
@@ -155,7 +166,7 @@ def isophote_results_from_fits(filename):
     --------
     >>> template = isophote_results_from_fits('galaxy_gband.fits')
     >>> results_r = fit_image(image_r, mask_r, config,
-    ...                       template_isophotes=template['isophotes'])
+    ...                       template=template)
     """
     with fits.open(filename) as hdulist:
         # Read isophotes: try named HDU first, fall back to index 1
@@ -169,12 +180,23 @@ def isophote_results_from_fits(filename):
         if "CONFIG" in hdulist:
             config = _parse_config_hdu(hdulist["CONFIG"])
 
+        # Non-structural top-level keys (lsb_auto_lock*, first_isophote_*,
+        # outer-reg references); absent in files written before the META
+        # HDU existed.
+        meta = {}
+        if "META" in hdulist:
+            meta = _parse_meta_hdu(hdulist["META"])
+
     # Convert table rows to list of dicts
     isophotes = []
     for row in iso_tbl:
         iso_dict = {}
         for colname in iso_tbl.colnames:
             value = row[colname]
+            # Heterogeneous row keys produce masked cells; skip them so the
+            # loaded dict keeps the original "key absent" shape (review B3).
+            if value is np.ma.masked:
+                continue
             # Convert numpy types to Python types for consistency
             if isinstance(value, np.integer):
                 value = int(value)
@@ -185,7 +207,9 @@ def isophote_results_from_fits(filename):
             iso_dict[colname] = value
         isophotes.append(iso_dict)
 
-    return {"isophotes": isophotes, "config": config}
+    result = {"isophotes": isophotes, "config": config}
+    result.update(meta)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +256,13 @@ def isophote_results_to_asdf(results, filename):
         "isophotes": isophotes,
         "config": config_dict,
     }
+    # Preserve non-structural top-level keys (lsb_auto_lock*,
+    # first_isophote_*, outer-reg references) so the round-trip is
+    # lossless (Q2).
+    if isinstance(results, dict):
+        for key, value in results.items():
+            if key not in ("isophotes", "config") and key not in tree:
+                tree[key] = value
 
     af = asdf.AsdfFile(tree)
     af.write_to(filename)
@@ -271,6 +302,9 @@ def isophote_results_from_asdf(filename):
     with asdf.open(filename) as af:
         isophotes = list(af.tree.get("isophotes", []))
         config_dict = dict(af.tree.get("config", {}))
+        # Non-structural top-level keys (lsb_auto_lock*, first_isophote_*,
+        # outer-reg references) written by isophote_results_to_asdf (Q2).
+        extra = {k: v for k, v in af.tree.items() if k not in ("format_version", "isophotes", "config")}
 
     # Convert isophote values from numpy to native Python types
     clean_isophotes = []
@@ -295,4 +329,6 @@ def isophote_results_from_asdf(filename):
         except Exception:
             logger.warning("Could not reconstruct IsosterConfig from ASDF; returning None")
 
-    return {"isophotes": clean_isophotes, "config": config}
+    result = {"isophotes": clean_isophotes, "config": config}
+    result.update(extra)
+    return result

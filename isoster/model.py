@@ -76,8 +76,11 @@ def build_isoster_model(
     - For pixels outside the outermost isophote or inside the innermost,
       uses the boundary isophote's parameters with no extrapolation.
     - Harmonic deviations are applied as radial corrections:
-      r_corrected = r * (1 + Σₙ [aₙ·sin(nθ) + bₙ·cos(nθ)])
-      where θ is the position angle on the ellipse.
+      r_corrected = r * (1 - Σₙ [aₙ·sin(nθ) + bₙ·cos(nθ)])
+      where θ is the position angle on the ellipse. A positive
+      deviation (the isophote bulges outward) shrinks the corrected
+      radius, so the pixel samples the higher intensity of the
+      bulging isophote.
     - The function uses local geometry interpolation at each radius to
       handle varying ellipticity and position angle profiles.
 
