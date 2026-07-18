@@ -339,7 +339,11 @@ Each isophote row carries shared columns and per-band-suffixed columns:
 
 - Shared: `sma, x0, y0, eps, pa, x0_err, y0_err, eps_err, pa_err,
   stop_code, niter, rms, valid, use_eccentric_anomaly, ndata, nflag,
-  tflux_e, tflux_c, npix_e, npix_c`.
+  tflux_e, tflux_c, npix_e, npix_c`. Under shared validity `ndata` is
+  the per-ring kept-sample count and `nflag` the sigma-clipped count.
+  Under loose validity the per-band kept sets differ, so both are sums
+  over bands: `ndata` is the total kept samples used by the joint solve
+  and `nflag` the total sigma-clipped samples (never negative).
 - Per band `<b>`: `intens_<b>, intens_err_<b>, rms_<b>,
   n_valid_<b>` (the last is the per-band surviving-sample count after
   sigma clipping; under shared validity it equals the shared `ndata`).
@@ -355,11 +359,16 @@ Each isophote row carries shared columns and per-band-suffixed columns:
 - Debug-only per band: `grad_<b>, grad_error_<b>, grad_r_error_<b>`
   when `debug=True`.
 
-The FITS writer (`isophote_results_to_fits`) uses the existing 3-HDU
-layout (`PrimaryHDU`, `ISOPHOTES`, `CONFIG`), with the CONFIG HDU
-recording multi-band parameters (`BANDS`, `REFERENCE_BAND`, `BAND_WEIGHTS`,
-`HARMONIC_COMBINATION`, `VARIANCE_MODE`, `MULTIBAND`) alongside the usual
-single-band fields.
+The FITS writer (`isophote_results_mb_to_fits`) uses a 4-HDU layout
+(`PrimaryHDU`, `ISOPHOTES`, `CONFIG`, `META`). The primary header
+carries the multi-band identifiers (`MULTIBND`, `BANDS`, `REFBAND`,
+`HARMCMB`, `VARMODE`). The CONFIG HDU mirrors the single-band layout:
+the full `IsosterConfigMB` dump as JSON PARAM/VALUE rows keyed by
+pydantic field name. The META HDU stores the remaining top-level
+result keys (`forced_photometry_mode`, `template_n_isophotes`,
+`sky_offsets`, `lsb_auto_lock*`, `first_isophote_*`) as JSON
+PARAM/VALUE rows so they survive the round trip;
+`isophote_results_mb_from_fits` merges them back into the result dict.
 
 **ASDF I/O symmetry:** `isophote_results_mb_to_asdf(result, filename)` and
 `isophote_results_mb_from_asdf(filename)` mirror the single-band ASDF
@@ -624,7 +633,7 @@ Six fields, mirroring single-band semantics:
 | ``use_outer_center_regularization`` | ``False`` | Master toggle. |
 | ``outer_reg_sma_onset`` | ``50.0`` | Sigmoid midpoint (pixels). |
 | ``outer_reg_strength`` | ``2.0`` | Saturation amplitude of the ramp. |
-| ``outer_reg_weights`` | ``{center: 1, eps: 1, pa: 1}`` | Per-axis weights; default ``{1,1,1}`` damps all four geometry parameters and prevents the selector-asymmetry failure mode. |
+| ``outer_reg_weights`` | ``{center: 1, eps: 0, pa: 0}`` | Per-axis weights; the multi-band default ``{1,0,0}`` damps the center only — the joint solve already stabilizes eps / pa across bands (see the callout below). |
 | ``outer_reg_sma_width`` | ``None`` (auto = ``0.4 * onset``) | Sigmoid slope width. |
 | ``outer_reg_ref_sma_factor`` | ``2.0`` | Inward isophotes within ``sma0 × factor`` feed the flux-weighted reference. |
 
@@ -761,15 +770,20 @@ under debug.
 - ``result['lsb_auto_lock']`` — ``True``.
 - ``result['lsb_auto_lock_sma']`` — SMA of the trigger isophote
   (``None`` if the lock never committed).
+- ``result['lsb_auto_lock_anchor_sma']`` — SMA of the true geometry
+  anchor (the last clean isophote before the debounce streak, whose
+  geometry the lock froze to); ``None`` if the lock never committed.
 - ``result['lsb_auto_lock_count']`` — number of isophotes carrying
   ``lsb_locked=True`` in their row dict.
 
-**Per-isophote keys** (when ``lsb_auto_lock=True``):
+**Per-isophote keys** (present on every isophote when ``lsb_auto_lock=True``;
+inward isophotes and the central pixel always carry ``False``, keeping the
+schema uniform for FITS round-trips):
 
 - ``iso['lsb_locked']`` — ``True`` for outward isophotes after the
   lock fires (the trigger isophote and all subsequent), ``False``
   for the anchor and earlier isophotes.
-- ``iso['lsb_auto_lock_anchor']`` — only set on the trigger isophote
+- ``iso['lsb_auto_lock_anchor']`` — ``True`` only on the trigger isophote
   itself, marks the SMA at which the lock committed.
 
 **Asteris benchmark.**

@@ -201,7 +201,20 @@ def _set_ylim_from_data(
 def _isophotes_to_per_band_singleband_lists(
     isophotes: Sequence[dict],
     bands: Sequence[str],
+    harmonic_orders: Optional[Sequence[int]] = None,
 ) -> Dict[str, List[dict]]:
+    # Orders were hardcoded to (3, 4), silently dropping higher orders from
+    # the residual mosaic (review M11). Prefer the explicit list; otherwise
+    # detect from the row keys (a{n}_<b>) of the first row that has any.
+    if harmonic_orders is None:
+        harmonic_orders = []
+        for iso in isophotes:
+            detected = sorted({int(k[1:].split("_")[0]) for k in iso if k.startswith("a") and k[1:2].isdigit()})
+            if detected:
+                harmonic_orders = detected
+                break
+        if not harmonic_orders:
+            harmonic_orders = [3, 4]
     out: Dict[str, List[dict]] = {b: [] for b in bands}
     for iso in isophotes:
         if not bool(iso.get("valid", True)):
@@ -215,7 +228,7 @@ def _isophotes_to_per_band_singleband_lists(
                 "pa": float(iso["pa"]),
                 "intens": float(iso.get(f"intens_{b}", float("nan"))),
             }
-            for n in (3, 4):
+            for n in harmonic_orders:
                 row[f"a{n}"] = float(iso.get(f"a{n}_{b}", 0.0))
                 row[f"b{n}"] = float(iso.get(f"b{n}_{b}", 0.0))
             if "use_eccentric_anomaly" in iso:
@@ -276,7 +289,6 @@ def _annotate_sky_offsets(
     # Anchor in the upper-right of the SB panel; one text per line so each
     # color renders independently. Keep the box small and unobtrusive so it
     # does not eat into the plot area.
-    n = len(lines)
     line_h = 0.038
     y0 = 0.985
     for i, (text, color) in enumerate(zip(lines, colors)):
@@ -292,10 +304,6 @@ def _annotate_sky_offsets(
             family="monospace",
             bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="0.7", alpha=0.85) if i == 0 else None,
         )
-    # Small bounding rectangle around the whole block via a single bbox on
-    # the header text only (children appear inside it visually because of
-    # the consistent line height).
-    _ = n
 
 
 def _plot_sb_profile(
@@ -396,6 +404,7 @@ def _plot_harmonic(
     isophotes: Sequence[dict],
     bands: Sequence[str],
     pixel_scale_arcsec: float,
+    normalize: bool = False,
 ) -> None:
     sma = np.array([float(iso["sma"]) for iso in isophotes])
     valid = np.array([bool(iso.get("valid", True)) for iso in isophotes])
@@ -405,22 +414,30 @@ def _plot_harmonic(
         intens = np.array([float(iso.get(f"intens_{b}", np.nan)) for iso in isophotes])
         grad = np.array([float(iso.get(f"grad_{b}", np.nan)) for iso in isophotes])
         harm = np.array([float(iso.get(f"{harm_key}_{b}", np.nan)) for iso in isophotes])
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            normalized = _normalize_harmonic_for_plot(harm, sma, grad, intens)
-        m = valid & np.isfinite(normalized) & np.isfinite(x)
+        # normalize=True only for raw shared coefficients (D16: the joint
+        # modes store one raw value per order; per-band normalization by
+        # sma*|grad_b| makes the curves separate). The per-band post-hoc
+        # path stores Bender-normalized values already — a second division
+        # here shrank them by 1/(sma*|grad|) (review P1).
+        if normalize:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                yvals = _normalize_harmonic_for_plot(harm, sma, grad, intens)
+        else:
+            yvals = harm
+        m = valid & np.isfinite(yvals) & np.isfinite(x)
         if m.sum() == 0:
             continue
         ax.plot(
             x[m],
-            normalized[m],
+            yvals[m],
             color=_band_color(b_idx),
             marker="o",
             ms=5.0,
             lw=0,
             alpha=0.9,
         )
-        all_y_for_ylim.append(np.asarray(normalized[m], dtype=np.float64))
+        all_y_for_ylim.append(np.asarray(yvals[m], dtype=np.float64))
     ax.axhline(0.0, color="#666", lw=0.5, alpha=0.5)
     ax.set_ylabel(ylabel, fontsize=12)
     ax.grid(True, alpha=0.3)
@@ -496,15 +513,13 @@ def _plot_n_valid_per_band(
     A value of 1.0 means every sample on the ellipse path passed the
     band's validity rule + sigma clip; lower values flag radii where
     the band is contributing partial coverage. ``n_attempted`` is the
-    isophote's ``ndata + nflag`` total (the same denominator the
-    sampler uses internally).
+    ellipse-path sample grid ``max(64, int(2*pi*sma))`` — the same
+    denominator the sampler's drop fraction uses, re-derived from sma so
+    the panel needs no debug fields and fractions never exceed 1 (M8).
     """
     sma = np.array([float(iso["sma"]) for iso in isophotes])
     valid = np.array([bool(iso.get("valid", True)) for iso in isophotes])
-    n_attempted = np.array(
-        [max(int(iso.get("ndata", 0)) + int(iso.get("nflag", 0)), 1) for iso in isophotes],
-        dtype=np.float64,
-    )
+    n_attempted = np.maximum(64.0, np.floor(2.0 * np.pi * np.maximum(sma, 0.0)))
     x = _xaxis_arcsec_pow(sma, pixel_scale_arcsec)
     plotted_anything = False
     for b_idx, b in enumerate(bands):
@@ -766,7 +781,7 @@ def plot_qa_summary_mb(
     # 2x3 mosaic has exactly one image cell + 5 residual cells; for
     # B != 5 the empty cells are simply skipped.
     cell_iter = iter([(0, 1), (0, 2), (1, 0), (1, 1), (1, 2)])
-    per_band_lists = _isophotes_to_per_band_singleband_lists(isophotes, bands)
+    per_band_lists = _isophotes_to_per_band_singleband_lists(isophotes, bands, result.get("harmonic_orders"))
     h, w = np.asarray(images[0]).shape
     for b_idx, b in enumerate(bands):
         try:
@@ -791,15 +806,19 @@ def plot_qa_summary_mb(
         _plot_residual_panel(ax_r, images[b_idx], model, b, mask=object_mask)
 
     # --- Bottom-left: harmonics stack (4 panels, share x, no gap) -----------
+    # Shared/joint modes store RAW shared coefficients that need per-band
+    # normalization at plot time (D16); the per-band post-hoc path stores
+    # Bender-normalized values already and must not be re-normalized (P1).
+    harm_normalize = bool(result.get("harmonics_shared", False))
     gs_harm = outer[1, 0].subgridspec(4, 1, hspace=0.0)
     ax_a3 = fig.add_subplot(gs_harm[0])
     ax_b3 = fig.add_subplot(gs_harm[1], sharex=ax_a3)
     ax_a4 = fig.add_subplot(gs_harm[2], sharex=ax_a3)
     ax_b4 = fig.add_subplot(gs_harm[3], sharex=ax_a3)
-    _plot_harmonic(ax_a3, "a3", r"$A_3 / (a\,dI/da)$", isophotes, bands, pix)
-    _plot_harmonic(ax_b3, "b3", r"$B_3 / (a\,dI/da)$", isophotes, bands, pix)
-    _plot_harmonic(ax_a4, "a4", r"$A_4 / (a\,dI/da)$", isophotes, bands, pix)
-    _plot_harmonic(ax_b4, "b4", r"$B_4 / (a\,dI/da)$", isophotes, bands, pix)
+    _plot_harmonic(ax_a3, "a3", r"$A_3 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_b3, "b3", r"$B_3 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_a4, "a4", r"$A_4 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_b4, "b4", r"$B_4 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
     for ax in (ax_a3, ax_b3, ax_a4):
         plt.setp(ax.get_xticklabels(), visible=False)
     # Prune the tick labels at panel boundaries so stacked panels look

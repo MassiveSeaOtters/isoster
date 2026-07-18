@@ -113,8 +113,10 @@ driver:
    integrator to `lsb_auto_lock_integrator` (default `"median"`, more
    robust against contamination).
 3. Re-runs the remaining outward schedule under the locked clone.
-4. Marks each locked isophote with `lsb_locked=True`, and the anchor
-   isophote with `lsb_auto_lock_anchor=True`.
+4. Marks each locked isophote with `lsb_locked=True`, and the
+   *committing trigger* isophote — the last of the debounce streak,
+   which was itself fit free — with `lsb_auto_lock_anchor=True`. The
+   geometry anchor selected in step 1 is not marked.
 
 All four clone flags collectively disable geometry solvers for the locked
 tail, so the remaining isophotes are effectively forced-photometry slices
@@ -299,12 +301,12 @@ when the outer fit would otherwise drift off-source due to heavy
 contamination). The mode flattens genuine outer PA/eps structure by
 design.
 
-**Selector layer (`outer_reg_use_selector`).** Orthogonal to
-`outer_reg_mode`. Default `True`. When enabled, the selector-level
-penalty described in §2.2 is also applied on top of the chosen
-solver-level mode; it acts as a cumulative anchor that the selector
-uses to score candidate iterations. Setting it to `False` isolates
-the pure solver-level mechanism.
+**Selector layer (always on).** Orthogonal to `outer_reg_mode`. The
+selector-level penalty described in §2.2 is always applied on top of
+the chosen solver-level mode whenever
+`use_outer_center_regularization=True`; there is no independent
+toggle for it. It acts as a cumulative anchor that the selector uses
+to score candidate iterations.
 
 **`geometry_convergence` auto-enable.** Both solver-level modes cause
 `|max_amp|` to stay somewhat above the harmonic convergence threshold
@@ -321,8 +323,8 @@ within a few percent of the no-regularization baseline.
 **Removed: `outer_reg_mode='selector'`.** The original selector-only
 mode was dropped from the valid values in the same change that
 introduced damping/solver. The selector-level penalty still exists as
-the `outer_reg_use_selector` layer, composable on top of any
-`outer_reg_mode`. Users whose old configs set `outer_reg_mode="selector"`
+an always-on layer on top of any `outer_reg_mode`. Users whose old
+configs set `outer_reg_mode="selector"`
 will see a pydantic `ValidationError` at config time listing the
 accepted values.
 
@@ -398,6 +400,10 @@ them keep working. New keys:
 
 - `results["lsb_auto_lock"]` — bool, whether the detector fired.
 - `results["lsb_auto_lock_sma"]` — commit sma, or None.
+- `results["lsb_auto_lock_anchor_sma"]` — sma of the true geometry
+  anchor (the last clean isophote before the debounce streak, whose
+  geometry the lock froze to), or None. The per-row
+  `lsb_auto_lock_anchor` marker goes on the committing trigger instead.
 - `results["lsb_auto_lock_count"]` — locked tail length.
 - `results["outer_reg_x0_ref"], ["outer_reg_y0_ref"],
   ["outer_reg_eps_ref"], ["outer_reg_pa_ref"]` — frozen reference
@@ -539,10 +545,8 @@ define the config fields. Key pieces:
   - `outer_reg_mode: str = "damping"` — solver-level variant. Accepts
     `"damping"` (default, step shrink only) or `"solver"` (full
     Tikhonov with ref pull). The historical `"selector"` value was
-    removed; see §2.4.
-  - `outer_reg_use_selector: bool = True` — orthogonal selector-layer
-    penalty on top of the solver-level mode. Kept on by default to
-    provide cumulative center anchoring.
+    removed; see §2.4. The selector-level penalty has no config field
+    of its own; it is always active when the feature is enabled.
 
 - Section 13 fields:
   - `lsb_auto_lock: bool = False`
@@ -589,7 +593,7 @@ helpers. Key symbols:
   `_build_outer_center_reference`). Returns a full geom dict
   `{x0, y0, eps, pa}`; pa uses a circular mean on `2·pa`.
 
-In `_fit_image_free` (the regular-mode driver):
+In `fit_image` (the regular-mode path is inline in the driver):
 
 1. After the inward loop, compute `outer_ref_geom` via
    `_build_outer_reference`. Pass it into the outward fit as
@@ -623,8 +627,8 @@ solver-level Tikhonov blend.
 
 - `compute_outer_center_regularization_penalty(current_geom,
   reference_geom, sma, config)` — the selector-level penalty. Returns
-  0.0 when the feature is off, when `outer_reg_use_selector=False`,
-  when `reference_geom is None`, or when `λ(sma) < 1e-6`.
+  0.0 when the feature is off, when `reference_geom is None`, or when
+  `λ(sma) < 1e-6`.
 
 - `_tikhonov_alpha(coeff, lambda_sma, weight)` — closed-form blend
   fraction for the solver-level Tikhonov update. See §2.4 for the
@@ -674,7 +678,11 @@ solver-level Tikhonov blend.
 
   The selector penalty still feeds the best-iteration picker; it does
   not enter the convergence criterion (`|max_amp| < conver·rms`),
-  which uses the raw harmonic amplitude.
+  which uses the raw harmonic amplitude. Note that `effective_amp` is
+  a deliberate heuristic that mixes units: `abs(max_amp)` is a
+  harmonic amplitude in intensity units while the two penalty terms
+  are squared geometry offsets (px², rad²), so the relative
+  weighting of the terms depends on the image's flux scale.
 
 ### `tests/integration/test_lsb_auto_lock.py`
 
@@ -685,8 +693,7 @@ compatibility with existing modes. Sibling test
 shape, reference building, fallback on `minsma >= sma0`, `fix_center`
 warning, forced-photo guard.
 
-The full suite is 347 passing as of the rename pass (handover
-`docs/journal/2026-04-14_handover_2.md`).
+The full suite is 700 passing (5 deselected) as of 2026-07-19.
 
 ## 7. Future work
 
@@ -697,7 +704,7 @@ The full suite is 347 passing as of the rename pass (handover
   investigating for deep DES/LSST fits.
 - **Penalty form ablation for DES/LSST.** The `"absolute"` form was picked
   because it dominated the `"normalized"` form at equivalent strength on
-  HSC edge cases (see `docs/journal/2026-04-14_handover.md`). A deeper,
+  HSC edge cases. A deeper,
   lower-S/N survey might invert the ordering; the ablation should be
   repeated when that dataset lands.
 - **Auto-tuned `outer_reg_strength`.** The `strength=2.0` default was

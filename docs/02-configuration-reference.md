@@ -3,7 +3,7 @@
 ## Overview
 
 `IsosterConfig` is a Pydantic model that defines all tunable parameters for the isophote
-fitting algorithm. It contains 43 parameters organized into 11 functional groups covering
+fitting algorithm. It contains 62 parameters organized into the 14 sections below, covering
 geometry initialization, fitting control, quality control, output options, and advanced
 algorithm modes.
 
@@ -12,6 +12,24 @@ Source: `isoster/config.py` (`IsosterConfig`)
 Pydantic validation enforces type constraints, value ranges, and cross-parameter
 consistency (e.g., `minit <= maxit`, `integrator='adaptive'` requires `lsb_sma_threshold`,
 all `harmonic_orders >= 3`).
+
+---
+
+## Units and Conventions
+
+Quantities in result dicts and per-isophote rows use the following units throughout:
+
+| Quantity | Units | Notes |
+|----------|-------|-------|
+| `sma`, `minsma`, `maxsma`, `sma0` | pixels | Semi-major axis lengths. |
+| `x0`, `y0` (and `x0_err`, `y0_err`) | pixels | Image center coordinates. |
+| `pa` (and `pa_err`) | radians | `0 <= pa < pi`; QA figures display PA in degrees. |
+| `eps` (and `eps_err`) | dimensionless | `0 <= eps < 1`. |
+| `intens`, `intens_err`, `rms` | image flux units | Same units as the input image pixels. |
+| `a{n}`, `b{n}` (and errors) | dimensionless | Bender-style fractional-radius perturbations: raw harmonic amplitudes divided by `sma * \|gradient\|` (see the User Guide output reference for the sign convention). |
+| `grad`, `grad_error` | flux per pixel | Radial intensity gradient `dI/da`; `grad_r_error` is dimensionless. |
+| `tflux_e`, `tflux_c`, `cog`, `cog_annulus` | image flux units | Integrated fluxes. |
+| `npix_e`, `npix_c`, `ndata`, `nflag` | counts | Pixel/point counts. |
 
 ---
 
@@ -52,8 +70,8 @@ Semi-major axis stepping and bounds.
 
 **Interaction notes:**
 
-- The driver fits at `sma0` first, then grows outward to `maxsma`, then inward from
-  `sma0` to `max(minsma, 0.5)`.
+- The driver fits at `sma0` first, then grows inward from `sma0` to
+  `max(minsma, 0.5)`, then outward to `maxsma`.
 - When `minsma <= 0.0`, a central pixel (SMA=0) result is prepended automatically.
 - Geometric growth (default) gives denser sampling near the center and sparser sampling
   at large radii. Linear growth gives uniform spacing.
@@ -68,7 +86,7 @@ Iteration limits and convergence criteria.
 | Parameter | Default | Type | Description |
 |-----------|---------|------|-------------|
 | `maxit` | `50` | `int` (> 0) | Maximum iterations per isophote. |
-| `minit` | `10` | `int` (> 0) | Minimum iterations before convergence check. |
+| `minit` | `6` | `int` (> 0) | Minimum iterations before convergence check. |
 | `conver` | `0.05` | `float` (> 0) | Convergence threshold: `max_harmonic_amplitude / rms`. |
 | `convergence_scaling` | `'sector_area'` | `str` | Scale convergence threshold with SMA. Options: `'none'`, `'sector_area'`, `'sqrt_sma'`. |
 | `sigma_bg` | `None` | `Optional[float]` (> 0) | Explicit background noise level (sigma). |
@@ -142,7 +160,7 @@ Sigma clipping and data quality thresholds.
 | Parameter | Default | Type | Description |
 |-----------|---------|------|-------------|
 | `sclip` | `3.0` | `float` (> 0) | Symmetric sigma clipping threshold. |
-| `nclip` | `0` | `int` (>= 0) | Number of sigma clipping iterations. `0` disables clipping. |
+| `nclip` | `1` | `int` (>= 0) | Number of sigma clipping iterations. `0` disables clipping. |
 | `sclip_low` | `None` | `Optional[float]` | Lower (negative) sigma clipping threshold. Overrides `sclip` on the low side when set. |
 | `sclip_high` | `None` | `Optional[float]` | Upper (positive) sigma clipping threshold. Overrides `sclip` on the high side when set. |
 | `fflag` | `0.5` | `float` (0-1) | Maximum fraction of flagged data points (masked + sigma-clipped). Exceeding this triggers stop_code=1. |
@@ -331,12 +349,13 @@ Result dict additions when `lsb_auto_lock=True`:
 
 - `result["lsb_auto_lock"]` (`bool`): echoes that the auto-lock was used.
 - `result["lsb_auto_lock_sma"]` (`float` or `None`): SMA at which the lock committed, or `None` if it never triggered.
+- `result["lsb_auto_lock_anchor_sma"]` (`float` or `None`): SMA of the true geometry anchor — the last clean isophote before the debounce streak whose geometry the lock froze to (the `lsb_auto_lock_anchor` per-row marker, in contrast, goes on the committing trigger isophote). `None` if the lock never committed.
 - `result["lsb_auto_lock_count"]` (`int`): number of outward isophotes fit under locked geometry.
 
-Per-isophote additions (outward only):
+Per-isophote additions (every isophote when `lsb_auto_lock=True`; inward isophotes and the central pixel always carry `False`, keeping the schema uniform for FITS round-trips):
 
 - `iso["lsb_locked"]` (`bool`): fit under locked geometry.
-- `iso["lsb_auto_lock_anchor"]` (`bool`): present only on the first locked isophote.
+- `iso["lsb_auto_lock_anchor"]` (`bool`): `True` only on the first locked isophote.
 
 ---
 
@@ -379,6 +398,33 @@ Result dict additions when `use_outer_center_regularization=True`:
 - `result["outer_reg_pa_ref"]` (`float`): frozen inner reference PA.
 
 No per-isophote fields are added.
+
+---
+
+### 14. First Isophote Robustness
+
+Retry and failure detection for the first isophote at `sma0`. When the first isophote
+fails and cannot be recovered, the fit returns only the central pixel; these options let
+the driver retry with perturbed starting conditions before declaring failure.
+
+| Parameter | Default | Type | Description |
+|-----------|---------|------|-------------|
+| `max_retry_first_isophote` | `3` | `int` (0-20) | Maximum retry attempts for the first isophote when it fails (stop code not in `{0, 1, 2}`). Each attempt perturbs `sma0` and/or the initial geometry (`eps`, `pa`). `0` disables retry. |
+| `first_isophote_fail_count` | `3` | `int` (1-10) | Number of consecutive initial isophotes that must all fail before declaring `FIRST_FEW_ISOPHOTE_FAILURE`. Default 3 means the first isophote at `sma0` plus the next 2 growth steps must all have unacceptable stop codes. |
+
+**Interaction notes:**
+
+- Retries run only when the first isophote at `sma0` fails, so the default adds near-zero
+  overhead when it already succeeds. The fixed schedule tries `(0.8 * sma0, same
+  geometry)`, `(1.3 * sma0, same geometry)`, `(0.6 * sma0, near-circular eps=0.05)`,
+  `(1.5 * sma0, pa + pi/4)`, `(0.5 * sma0, eps=0.05, pa + pi/2)`, then an extended cycle,
+  stopping at the first acceptable isophote.
+- The probe loop runs only when the anchor and all retries failed: the driver tries
+  `first_isophote_fail_count - 1` further growth steps, and the first acceptable probe
+  becomes the anchor. `result["first_isophote_failure"]` is set to `True` (with a
+  `FIRST_FEW_ISOPHOTE_FAILURE` warning) only when the anchor and every retry/probe
+  attempt failed.
+- Each retry attempt is logged in `result["first_isophote_retry_log"]`.
 
 ---
 
@@ -451,11 +497,6 @@ config parameters have no effect in forced mode:
 ---
 
 ## Photometry Outputs
-...
-
----
-
-## Photometry Outputs
 
 ### `full_photometry` -- Aperture Photometry
 
@@ -515,7 +556,9 @@ outliers through the least-squares objective.
 
 Reports `np.median(intens)` of the sigma-clipped intensity samples. More robust to
 contamination from bright foreground objects or cosmic rays, but discards the harmonic
-model information.
+model information. Its error bar is the mean's `rms/√N` scaled by the
+Gaussian-asymptotic median factor `√(π/2) ≈ 1.25` (the median is a noisier
+estimator than the mean for Gaussian noise).
 
 ### Adaptive Integrator (`integrator='adaptive'`)
 
@@ -540,7 +583,8 @@ the annular width.
 ## Known Limitations
 
 The following limitations are documented based on the current implementation state.
-Cross-references point to `docs/agent/future.md` for planned improvements.
+Cross-references point to `future.md`, an internal planning document that is not part
+of the public docs tree.
 
 1. **Template-based forced mode drops most output fields.** The `template` mode
    produces isophote dicts with zero-valued errors, zero deviations, and no aperture
@@ -548,8 +592,10 @@ Cross-references point to `docs/agent/future.md` for planned improvements.
    (See future.md: "Typed isophote result schema".)
 
 2. **No stop-code filtering in model builder.** `build_isoster_model()` accepts all
-   rows with `sma > 0` regardless of stop code or NaN content. Users must pre-filter
-   isophotes before model reconstruction for best results.
+   rows with `sma > 0` and finite intensity/geometry values regardless of stop code.
+   Rows with non-finite `intens`, `x0`, `y0`, `eps`, or `pa` are dropped automatically,
+   but stop codes are not consulted; users should pre-filter isophotes by stop code
+   before model reconstruction for best results.
    (See future.md: "Model builder robustness against low-quality rows".)
 
 3. **CLI exposes only a subset of config.** Advanced options (eccentric anomaly, ISOFIT

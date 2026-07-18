@@ -50,7 +50,7 @@ def eccentric_anomaly_to_position_angle(eccentric_anomaly, ellipticity):
 
 def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     """
-    Convert image coordinates (x, y) to elliptical coordinates (sma, phi).
+    Convert image coordinates (x, y) to elliptical coordinates (sma, psi).
 
     Parameters
     ----------
@@ -67,8 +67,11 @@ def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     -------
     sma : float or array-like
         The semi-major axis of the ellipse passing through (x, y).
-    phi : float or array-like
-        The elliptical angle (eccentric anomaly) in radians.
+    psi : float or array-like
+        The eccentric anomaly of the point on that ellipse, in radians.
+        NOTE: this is the eccentric anomaly (psi), NOT the position angle
+        phi used elsewhere in the package; they are related by
+        ``tan(phi) = (1 - eps) * tan(psi)``.
     """
     # Shift to center
     dx = x - x0
@@ -84,9 +87,9 @@ def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     # Ellipse equation: (x/a)^2 + (y/b)^2 = 1
     # r^2 = x^2 + (y / (1-eps))^2
     sma = np.sqrt(x_rot**2 + (y_rot / (1.0 - eps)) ** 2)
-    phi = np.arctan2(y_rot / (1.0 - eps), x_rot)
+    psi = np.arctan2(y_rot / (1.0 - eps), x_rot)
 
-    return sma, phi
+    return sma, psi
 
 
 def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=False, variance_map=None):

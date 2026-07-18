@@ -103,11 +103,7 @@ def load_galaxy_manifest(galaxy_dir: Path) -> GalaxyManifest:
         image_sigma_adu=float(data["image_sigma"]["image_sigma_adu"]),
         initial_x0=float(data["initial_geometry"]["x0"]),
         initial_y0=float(data["initial_geometry"]["y0"]),
-        effective_Re_pix=(
-            float(data["effective_Re_pix"])
-            if data.get("effective_Re_pix") is not None
-            else None
-        ),
+        effective_Re_pix=(float(data["effective_Re_pix"]) if data.get("effective_Re_pix") is not None else None),
         truth_components=truth,
         re_outer_pix=re_outer,
     )
@@ -234,85 +230,6 @@ def _col_or_nan(profile: Table, name: str) -> np.ndarray:
     if name in profile.colnames:
         return np.asarray(profile[name], dtype=float)
     return np.full(len(profile), np.nan, dtype=float)
-
-
-def profile_local_grad(sma: np.ndarray, intens: np.ndarray) -> np.ndarray:
-    """Finite-difference ``dI/da`` from a 1-D profile.
-
-    Used as a fallback when a fitter's ``grad`` column is missing or
-    entirely NaN. ``np.gradient`` handles non-uniform ``sma`` spacing.
-    """
-    sma = np.asarray(sma, dtype=float)
-    intens = np.asarray(intens, dtype=float)
-    if sma.size < 2:
-        return np.full_like(sma, np.nan, dtype=float)
-    good = np.isfinite(sma) & np.isfinite(intens)
-    if good.sum() < 2:
-        return np.full_like(sma, np.nan, dtype=float)
-    out = np.full_like(sma, np.nan, dtype=float)
-    order = np.argsort(sma[good])
-    s = sma[good][order]
-    v = intens[good][order]
-    # Guard strict monotonicity
-    uniq = np.concatenate(([True], np.diff(s) > 0))
-    s = s[uniq]
-    v = v[uniq]
-    if s.size < 2:
-        return out
-    g = np.gradient(v, s)
-    # Map back to original index space
-    idx = np.where(good)[0][order][uniq]
-    out[idx] = g
-    return out
-
-
-def effective_grad(
-    profile: Table,
-    *,
-    prefer_column: str = "grad",
-) -> np.ndarray:
-    """Return the intensity gradient with on-the-fly fallback.
-
-    Uses the profile's ``grad`` column where it is finite; falls back
-    to :func:`profile_local_grad` on rows where the column is missing
-    or NaN. This is the gradient consumed by the harmonic-normalization
-    step.
-    """
-    sma = _col_or_nan(profile, "sma")
-    intens = _col_or_nan(profile, "intens")
-    grad = _col_or_nan(profile, prefer_column)
-    fallback = profile_local_grad(sma, intens)
-    out = np.where(np.isfinite(grad), grad, fallback)
-    return out
-
-
-def normalize_harmonic(
-    harm: np.ndarray,
-    sma: np.ndarray,
-    grad: np.ndarray,
-    *,
-    min_abs_agrad_frac: float = 1e-3,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return ``(-harm / (sma * grad), valid_mask)`` per Bender convention.
-
-    Points where ``|sma * grad|`` is below ``min_abs_agrad_frac`` of its
-    zone-wise peak (or where the quantities are non-finite) are masked
-    to NaN to avoid blowing up near profile turnovers.
-    """
-    sma = np.asarray(sma, dtype=float)
-    grad = np.asarray(grad, dtype=float)
-    harm = np.asarray(harm, dtype=float)
-    denom = sma * grad
-    abs_denom = np.abs(denom)
-    finite = np.isfinite(denom) & np.isfinite(harm) & (abs_denom > 0)
-    if not finite.any():
-        return np.full_like(harm, np.nan), finite
-    peak = float(np.nanmax(abs_denom[finite])) if finite.any() else 0.0
-    floor = max(peak * min_abs_agrad_frac, np.finfo(float).tiny)
-    valid = finite & (abs_denom > floor)
-    out = np.full_like(harm, np.nan, dtype=float)
-    out[valid] = -harm[valid] / denom[valid]
-    return out, valid
 
 
 # ---------------------------------------------------------------------------
@@ -459,28 +376,24 @@ def compute_prior_metrics(
     drift_outer = zone_iw_centroid_drift(x0, y0, intens, zones.outer, true_x, true_y)
 
     # ---- Prior 2: normalized harmonics in outer zone ----------------
-    grad = effective_grad(profile)
+    # All three tools store Bender-normalized coefficients (isoster and
+    # photutils divide by sma*|grad| at fit time; AutoProf reports photutils
+    # coefficients), so the stored values and their errors are used directly.
+    # Re-normalizing here divided them by sma*|grad| a second time (review P1).
     harm_fields = ("a3", "b3", "a4", "b4")
     harm_norm: dict[str, np.ndarray] = {}
     harm_norm_valid: dict[str, np.ndarray] = {}
     harm_norm_err: dict[str, np.ndarray] = {}
     for name in harm_fields:
-        raw = _col_or_nan(profile, name)
-        err = _col_or_nan(profile, f"{name}_err")
-        norm_val, valid = normalize_harmonic(raw, sma, grad)
-        # Normalized error propagates with the same 1 / |a*grad| factor.
-        denom_abs = np.abs(sma * grad)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            norm_err = np.where(valid & (denom_abs > 0), err / denom_abs, np.nan)
+        norm_val = _col_or_nan(profile, name)
+        norm_err = _col_or_nan(profile, f"{name}_err")
         harm_norm[name] = norm_val
-        harm_norm_valid[name] = valid
+        harm_norm_valid[name] = np.isfinite(norm_val)
         harm_norm_err[name] = norm_err
 
     def _harm_stat(name: str) -> dict[str, float]:
         valid = harm_norm_valid[name] & zones.outer
-        ratio = _err_ratio(
-            np.abs(harm_norm[name]), harm_norm_err[name], valid
-        )
+        ratio = _err_ratio(np.abs(harm_norm[name]), harm_norm_err[name], valid)
         vals = harm_norm[name][valid]
         vals = vals[np.isfinite(vals)]
         abs_median = float(np.median(np.abs(vals))) if vals.size else float("nan")
@@ -493,9 +406,7 @@ def compute_prior_metrics(
     # there (e.g. `harm_disabled`, or sweeps that replace the default
     # [3, 4] orders). Mark Prior 2 N/A so the arm is neither credited
     # with a clean pass nor flagged as violating.
-    prior2_applicable = bool(
-        (harm_stats["a3"]["n"] > 0) or (harm_stats["a4"]["n"] > 0)
-    )
+    prior2_applicable = bool((harm_stats["a3"]["n"] > 0) or (harm_stats["a4"]["n"] > 0))
 
     # ---- Prior 3: 3-point local residual in outer zone --------------
     # Use only outer-zone rows so the triplet is built over contiguous
@@ -632,7 +543,8 @@ def flag_prior2_regularization_induced(
         except (TypeError, ValueError):
             continue
         if (
-            np.isfinite(er_f) and np.isfinite(am_f)
+            np.isfinite(er_f)
+            and np.isfinite(am_f)
             and er_f > th[f"{name}_err_ratio_outer"]
             and am_f > th[f"abs_{name}_median_outer"]
         ):
@@ -700,30 +612,19 @@ def classify_violations(
     harmonics_viol: bool | None
     if prior2_applicable:
         harmonics_viol = any(
-            _gt(f"{name}_err_ratio_outer")
-            and _gt(f"abs_{name}_median_outer")
-            for name in ("a3n", "b3n", "a4n", "b4n")
+            _gt(f"{name}_err_ratio_outer") and _gt(f"abs_{name}_median_outer") for name in ("a3n", "b3n", "a4n", "b4n")
         )
     else:
         harmonics_viol = None
 
-    reg_induced = flag_prior2_regularization_induced(
-        metrics, reference_metrics
-    )
+    reg_induced = flag_prior2_regularization_induced(metrics, reference_metrics)
 
     return {
         "violates_drift_inner": _gt("drift_iw_inner_pix"),
         "violates_drift_mid": _gt("drift_iw_mid_pix"),
         "violates_drift_outer": _gt("drift_iw_outer_pix"),
-        "violates_drift_any": (
-            _gt("drift_iw_inner_pix")
-            or _gt("drift_iw_mid_pix")
-            or _gt("drift_iw_outer_pix")
-        ),
+        "violates_drift_any": (_gt("drift_iw_inner_pix") or _gt("drift_iw_mid_pix") or _gt("drift_iw_outer_pix")),
         "violates_harmonics_outer": harmonics_viol,
         "prior2_regularization_induced": reg_induced,
-        "violates_geometry_outer": (
-            _gt("max_local_resid_eps_outer")
-            or _gt("max_local_resid_pa_outer_deg")
-        ),
+        "violates_geometry_outer": (_gt("max_local_resid_eps_outer") or _gt("max_local_resid_pa_outer_deg")),
     }

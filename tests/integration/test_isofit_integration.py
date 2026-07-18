@@ -138,6 +138,74 @@ def test_isofit_mock_sersic_boxy():
 
 
 # ============================================================================
+# Test 1b: default (post-hoc) path recovers b4 on noise-free data (B1)
+# ============================================================================
+
+
+def test_default_path_noise_free_recovers_b4():
+    """Regression test for B1: the default path must recover b4 on noise-free data.
+
+    Same noise-free boxy mock as test_isofit_mock_sersic_boxy, but fit with the
+    default configuration (compute_deviations=True, simultaneous_harmonics=False,
+    no variance map). That path used scipy leastsq, which reports a None
+    covariance when the fit is exact, so every converged isophote silently got
+    a_n=b_n=0. The r->r*(1+0.04*cos(4*theta)) perturbation maps to b4=-0.04 in
+    the stored Bender normalization (b_n = B_n/(sma*|grad|), grad<0).
+    """
+    r_eff = 30.0
+    image, cx, cy = _make_boxy_sersic_image(
+        size=401,
+        n=1.0,
+        r_eff=r_eff,
+        intens_eff=500.0,
+        eps=0.3,
+        pa=0.5,
+        a4_amp=0.04,
+        oversample=5,
+    )
+
+    config = IsosterConfig(
+        x0=cx,
+        y0=cy,
+        sma0=6.0,
+        minsma=3.0,
+        maxsma=150.0,
+        astep=0.12,
+        eps=0.3,
+        pa=0.5,
+        minit=10,
+        maxit=60,
+        conver=0.05,
+        fix_center=True,
+        harmonic_orders=[3, 4],
+    )
+
+    results = fit_image(image, mask=None, config=config)
+    isophotes = results["isophotes"]
+
+    sma = np.array([iso["sma"] for iso in isophotes])
+    b4 = np.array([iso["b4"] for iso in isophotes])
+    stop_codes = np.array([iso["stop_code"] for iso in isophotes])
+
+    # Valid range: converged, within 0.5*R_e to 4*R_e
+    valid = (stop_codes == 0) & (sma >= 0.5 * r_eff) & (sma <= 4.0 * r_eff)
+    n_valid = int(valid.sum())
+    assert n_valid >= 5, f"Need at least 5 valid isophotes in range, got {n_valid}"
+
+    # Planted perturbation maps to b4=-0.04; every converged isophote must
+    # carry a non-zero b4 of the right sign (B1 returned exactly 0.0)
+    median_b4 = np.median(b4[valid])
+    assert median_b4 < -0.02, f"Median b4 = {median_b4:.4f}, expected near -0.04 from injected a4_amp=0.04"
+    nonzero_frac = np.mean(b4[valid] < -1e-4)
+    assert nonzero_frac > 0.8, f"Only {nonzero_frac:.0%} of valid points have non-zero b4 (B1 regime: all zero)"
+
+    print("\nDefault-path noise-free b4 recovery (B1):")
+    print(f"  Valid isophotes in range: {n_valid}")
+    print(f"  Median b4: {median_b4:.4f} (expected near -0.04)")
+    print(f"  Non-zero b4 fraction: {nonzero_frac:.0%}")
+
+
+# ============================================================================
 # Test 2: ISOFIT vs post-hoc coefficient comparison
 # ============================================================================
 

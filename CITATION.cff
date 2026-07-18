@@ -3,7 +3,8 @@ title: "ISOSTER: ISOphote on STERoid"
 message: "If you use this software, please cite it using the metadata below."
 type: software
 license: BSD-3-Clause
-version: 0.1.0
+version: 1.0.0
+date-released: 2026-07-18
 repository-code: "https://github.com/shuang-stat/isoster"
 abstract: >-
   Accelerated Python library for elliptical isophote fitting in galaxy images.

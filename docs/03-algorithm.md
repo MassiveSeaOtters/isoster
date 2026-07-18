@@ -109,7 +109,7 @@ When `variance_map` is provided to `fit_image`, all harmonic fits switch to WLS:
 
 The OLS path is byte-identical when `variance_map=None`. All WLS branches are gated by `if variances is not None`.
 
-Reference: `docs/archive/review/autoprof-3-variance-map-error-propagation.md`.
+The WLS error propagation above was cross-checked against the autoprof variance-map derivation (internal review record, not part of the public docs tree).
 
 ## Forced and Template Modes
 
@@ -137,4 +137,4 @@ Canonical user-facing reference: `docs/01-user-guide.md`.
 
 - Central regularization uses `previous_geometry` propagated by regular `fit_image` outward/inward growth when enabled.
 - In `compute_gradient`, both linear and multiplicative growth use `/ delta_r` normalization (where `delta_r = step` for linear or `sma * step` for multiplicative).
-- `build_isoster_model` currently filters only on `sma > 0`, not by stop-code quality.
+- `build_isoster_model` filters on `sma > 0` and drops rows with non-finite intensity/geometry values, but does not filter by stop-code quality.

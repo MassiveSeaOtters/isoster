@@ -10,17 +10,22 @@ stable single-band path. See
 ``docs/agent/plan-2026-04-29-multiband-feasibility.md`` (decision D23)
 for the rationale.
 
-Excluded fields (deliberately not copied; Stage 2+ may add multi-band
-variants):
+Excluded fields (deliberately not copied):
 
 - ``simultaneous_harmonics`` and ``isofit_mode`` (single-band ISOFIT
-  API; the multi-band lift uses the ``multiband_higher_harmonics``
+  API; the multi-band path uses the ``multiband_higher_harmonics``
   enum instead, see plan section 6).
-- All ``lsb_auto_lock_*`` fields
-- All ``outer_reg_*`` and ``use_outer_center_regularization`` fields
-- ``compute_cog`` (multi-band CoG attachment is out of Stage-1 scope)
-- ``central_reg_*`` (single-band-only LSB knobs)
 - ``lsb_sma_threshold`` and the ``adaptive`` integrator option
+  (single-band switches to the median integrator below an SMA
+  threshold; the multi-band path instead switches integrator on the
+  LSB auto-lock via ``lsb_auto_lock_integrator``).
+
+All other single-band feature families are implemented here with
+multi-band semantics: LSB auto-lock (``lsb_auto_lock_*``), outer-center
+regularization (``use_outer_center_regularization`` and
+``outer_reg_*``), central regularization (``central_reg_*``), and
+curve-of-growth photometry (``compute_cog``). See the field
+descriptions below.
 """
 
 import re
@@ -38,7 +43,7 @@ _BAND_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
 class IsosterConfigMB(BaseModel):
     """
-    Configuration for multi-band isoster (Stage-1, experimental).
+    Configuration for multi-band isoster (experimental).
 
     The fitter consumes multiple aligned same-pixel-grid images of the
     same target, fits a single shared geometry per SMA, and reports
@@ -118,15 +123,17 @@ class IsosterConfigMB(BaseModel):
         "fit. Mutually exclusive with ``harmonic_combination='ref'`` "
         "(ref-mode side-steps the joint solve entirely)."
         "\n\n"
-        "**Note on integrator scope (Stage-2):** the multi-band path "
-        "currently always uses an inverse-variance-weighted mean (WLS) "
-        "or simple mean (OLS) for ``intens_<b>``, in both modes. The "
-        "``integrator`` field on this config does NOT affect "
-        "``intens_<b>`` reporting at converged isophotes — it only "
-        "applies to per-band gradient computation and the forced-"
-        "photometry fallback. Median-integrator support for "
-        "``intens_<b>`` will land when the single-band integrator "
-        "features are backported (Stage-3).",
+        "**Note on integrator scope:** with ``integrator='mean'`` "
+        "(default), both modes report a (weighted) ring mean for "
+        "``intens_<b>`` — full rings are numerically identical since "
+        "``sin(nφ)``/``cos(nφ)`` are orthogonal to the constant "
+        "column over ``[0, 2π]``. With ``integrator='median'``, "
+        "``intens_<b>`` is the per-band ring median — but only in "
+        "this decoupled mode: the median is non-linear and cannot "
+        "ride inside the joint matrix solve, so the validator "
+        "hard-errors on ``integrator='median'`` combined with "
+        "``fit_per_band_intens_jointly=True``. See the ``integrator`` "
+        "field description for the full scope.",
     )
 
     # --- D9 backport: per-band loose validity ---
@@ -318,12 +325,16 @@ class IsosterConfigMB(BaseModel):
     )
     debug: bool = Field(False, description="Include debug info in results (per-band grad columns, ndata, nflag).")
 
-    # --- Integrator (restricted: no 'adaptive' since LSB auto-lock is out) ---
+    # --- Integrator (restricted: no 'adaptive'; the multi-band path switches
+    # --- integrator on the LSB auto-lock via lsb_auto_lock_integrator instead) ---
     integrator: Literal["mean", "median"] = Field(
         default="mean",
         description="Integration method for flux statistics derived from a "
         "single ring of pixels. ``'adaptive'`` is intentionally not "
-        "supported in Stage 1 because LSB auto-lock is out of scope.\n"
+        "supported: single-band's SMA-threshold switch "
+        "(``lsb_sma_threshold``) has no multi-band counterpart — the "
+        "locked-region integrator is set by ``lsb_auto_lock_integrator`` "
+        "instead.\n"
         "\n"
         "**Affects three distinct quantities** (Stage-3, plan Section 7 S1–S2):\n"
         "  (a) per-band gradient computation (``compute_joint_gradient``);\n"

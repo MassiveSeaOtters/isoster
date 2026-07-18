@@ -4,7 +4,6 @@
 .cursor/
 .trae
 .github/agents/
-AGENTS.md
 
 # Agent-internal development docs (kept on disk, not tracked)
 docs/agent/

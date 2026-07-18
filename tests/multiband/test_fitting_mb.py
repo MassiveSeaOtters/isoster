@@ -2707,6 +2707,7 @@ def test_h4_forced_mode_ols_mean_sem_uses_unbiased_sample_std():
         bands=["g", "r"],
         reference_band="g",
         integrator="mean",
+        nclip=0,  # formula check on the full ring; M4 clipping is tested separately
     )
     geom = extract_forced_photometry_mb(
         images=[img_g, img_r],
@@ -2776,6 +2777,7 @@ def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
         reference_band="g",
         integrator="median",
         fit_per_band_intens_jointly=False,
+        nclip=0,  # formula check on the full ring; M4 clipping is tested separately
     )
     geom = extract_forced_photometry_mb(
         images=[img_g, img_r],
@@ -2830,7 +2832,7 @@ def test_h4_forced_mode_wls_intens_err_unchanged():
     var_g = np.full_like(img_g, sigma**2)
     var_r = np.full_like(img_r, sigma**2)
 
-    cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g")
+    cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g", nclip=0)  # nclip=0: WLS formula check
     geom = extract_forced_photometry_mb(
         images=[img_g, img_r],
         masks=None,
@@ -2900,3 +2902,478 @@ def test_h3_central_pixel_masked_wls_keeps_zero_error():
     assert central["intens_err_g"] == 0.0
     # Unmasked band: the WLS error is set from the variance map.
     assert central["intens_err_r"] == pytest.approx(0.05, rel=1e-9)
+
+
+def test_m4_forced_mode_sigma_clips_outliers():
+    """Regression test for M4: multiband forced photometry must sigma-clip.
+
+    Single-band extract_forced_photometry applies sigma_clip with the
+    caller's sclip/nclip before computing intensities; the multiband path
+    used all valid samples directly, letting ~3-sigma outliers (unmasked
+    companions, cosmic rays) into intens_<b>/rms_<b>. The same ring with a
+    bright outlier must come out clean through both paths.
+    """
+    from isoster.fitting import extract_forced_photometry
+    from isoster.multiband.fitting_mb import extract_forced_photometry_mb
+
+    h = w = 256
+    x0 = y0 = 128.0
+    rng = np.random.default_rng(21_000)
+    img = 100.0 + rng.normal(0.0, 0.2, (h, w))
+    # Bright cosmic ray exactly on the sma=40 ring (angle 0)
+    img[128, 168] = 500.0
+
+    out_sb = extract_forced_photometry(img, None, x0, y0, 40.0, 0.0, 0.0, sclip=3.0, nclip=2)
+    cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g", sclip=3.0, nclip=2)
+    out_mb = extract_forced_photometry_mb(
+        images=[img, img],
+        masks=None,
+        x0=x0,
+        y0=y0,
+        sma=40.0,
+        eps=0.0,
+        pa=0.0,
+        bands=["g", "r"],
+        config=cfg,
+    )
+
+    # Both paths must reject the 500-count outlier and land on the ~100 level.
+    # Pre-fix, intens_<b> included it (mean inflated by 400/251 ~ 1.6 counts).
+    assert out_sb["intens"] == pytest.approx(100.0, abs=0.2)
+    assert out_mb["intens_g"] == pytest.approx(100.0, abs=0.2)
+    assert out_mb["intens_r"] == pytest.approx(100.0, abs=0.2)
+    # rms_<b> must stay at the noise scale (pre-fix ~25 from the outlier)
+    assert out_mb["rms_g"] < 1.0
+    assert out_mb["rms_r"] < 1.0
+
+
+def test_m2_ols_band_weights_errors_weight_invariant():
+    """Regression test for M2: OLS joint parameter errors must not shrink
+    under non-unit band weights.
+
+    The OLS covariance (A^T W A)^-1 scales as 1/w, but the old unweighted
+    residual-variance rescale ignored w entirely, so uniform w=4 shrank the
+    reported errors by sqrt(4)=2. The weight-aware rescale cancels the
+    arbitrary weight scale exactly.
+    """
+    from isoster.multiband.fitting_mb import _compute_parameter_errors_from_joint
+
+    rng = np.random.default_rng(3)
+    n = 200
+    angles = np.linspace(0.0, 2 * np.pi, n, endpoint=False)
+    A1, B1, A2, B2 = 0.5, -0.3, 0.2, 0.1
+    model = A1 * np.sin(angles) + B1 * np.cos(angles) + A2 * np.sin(2 * angles) + B2 * np.cos(2 * angles)
+    intens = np.array(
+        [
+            100.0 + model + rng.normal(0.0, 2.0, n),
+            200.0 + model + rng.normal(0.0, 2.0, n),
+        ]
+    )
+
+    errs = {}
+    for w in (1.0, 4.0):
+        weights = np.full(2, w)
+        coeffs, cov, _ = fit_first_and_second_harmonics_joint(angles, intens, weights, None)
+        errs[w] = _compute_parameter_errors_from_joint(
+            coeffs=coeffs,
+            cov_full=cov,
+            n_bands=2,
+            sma=20.0,
+            eps=0.3,
+            pa=0.5,
+            gradient=-2.0,
+            gradient_error=None,
+            angles=angles,
+            intens_per_band=intens,
+            use_exact_covariance=False,
+            var_residual_floor=None,
+            band_weights_arr=weights,
+        )
+    # Uniform weight scaling must leave the reported errors unchanged
+    np.testing.assert_allclose(errs[1.0], errs[4.0], rtol=1e-10)
+    assert all(e > 0.0 for e in errs[1.0])
+
+
+def test_m2_intens_err_weight_invariant_end_to_end():
+    """M2 (coupled branch): per-band intens_err must not shrink under
+    uniform non-unit band weights."""
+    img_g = _planted_galaxy(amplitude=100.0, noise_sigma=0.05, seed=1)
+    img_r = _planted_galaxy(amplitude=200.0, noise_sigma=0.05, seed=2)
+    start = {"x0": 128.0, "y0": 128.0, "eps": 0.3, "pa": 0.5}
+
+    outs = {}
+    for w in (1.0, 4.0):
+        cfg = IsosterConfigMB(
+            bands=["g", "r"],
+            reference_band="g",
+            band_weights={"g": w, "r": w},
+            sma0=20.0,
+            debug=True,
+            compute_errors=True,
+            nclip=0,
+        )
+        outs[w] = fit_isophote_mb(images=[img_g, img_r], masks=None, sma=30.0, start_geometry=start, config=cfg)
+
+    for b in ("g", "r"):
+        assert outs[4.0][f"intens_err_{b}"] == pytest.approx(outs[1.0][f"intens_err_{b}"], rel=1e-6)
+        assert outs[4.0][f"intens_err_{b}"] > 0.0
+
+
+def test_m3_ols_loose_validity_rescales_geometric_errors():
+    """Regression test for M3: OLS x loose validity must rescale geometric errors.
+
+    The loose branch used the as-built (A^T A)^-1 with no residual-variance
+    scaling, making x0_err/y0_err/eps_err/pa_err orders of magnitude too
+    small. On identical data with no dropped bands the loose result must
+    match the shared-validity one.
+    """
+    rng = np.random.default_rng(9)
+    img_g = _planted_galaxy(amplitude=100.0, noise_sigma=0.05, seed=1)
+    img_r = _planted_galaxy(amplitude=200.0, noise_sigma=0.05, seed=2)
+    # Scale up the noise so the missing sigma^2 factor is obvious pre-fix
+    img_g = img_g + rng.normal(0.0, 10.0, img_g.shape)
+    img_r = img_r + rng.normal(0.0, 10.0, img_r.shape)
+    start = {"x0": 128.0, "y0": 128.0, "eps": 0.3, "pa": 0.5}
+
+    outs = {}
+    for loose in (False, True):
+        cfg = IsosterConfigMB(
+            bands=["g", "r"],
+            reference_band="g",
+            sma0=20.0,
+            debug=True,
+            compute_errors=True,
+            nclip=0,
+            loose_validity=loose,
+        )
+        outs[loose] = fit_isophote_mb(images=[img_g, img_r], masks=None, sma=30.0, start_geometry=start, config=cfg)
+
+    for key in ("x0_err", "y0_err", "eps_err", "pa_err"):
+        shared = float(outs[False][key])
+        loose = float(outs[True][key])
+        assert shared > 0.0 and loose > 0.0, f"{key}: shared={shared}, loose={loose}"
+        # Same scale (pre-fix the loose value was ~1/sigma smaller, i.e. ~10x)
+        assert 0.5 < loose / shared < 2.0, f"{key}: loose/shared={loose / shared:.3f}"
+
+
+def test_m3_simultaneous_stamper_rescales_with_dropped_band():
+    """M3 (family): simultaneous_in_loop harmonic errors must be rescaled
+    even when loose validity dropped a band.
+
+    The stamper's OLS rescale used to silently no-op when a dropped band's
+    NaN intercept poisoned the residual sum, leaving the raw (A^T A)^-1
+    diagonal (orders of magnitude too small) in a{n}_err_<b>.
+    """
+    from isoster.multiband.fitting_mb import (
+        _attach_simultaneous_higher_harmonics_from_coeffs,
+        fit_simultaneous_joint,
+    )
+
+    rng = np.random.default_rng(11)
+    n = 120
+    angles = np.linspace(0.0, 2 * np.pi, n, endpoint=False)
+    sigma = 10.0
+    A1, B1, A2, B2 = 0.4, -0.2, 0.15, 0.05
+    model = A1 * np.sin(angles) + B1 * np.cos(angles) + A2 * np.sin(2 * angles) + B2 * np.cos(2 * angles)
+    intens = np.array(
+        [
+            100.0 + model + rng.normal(0.0, sigma, n),
+            200.0 + model + rng.normal(0.0, sigma, n),
+        ]
+    )
+    coeffs_sub, cov_sub, _ = fit_simultaneous_joint(angles, intens, np.ones(2), [4], None)
+
+    # Widen to a full 3-band layout with band 0 "dropped" (NaN intercept)
+    n_full = 3
+    width = n_full + 4 + 2
+    coeffs = np.full(width, np.nan)
+    coeffs[1:3] = coeffs_sub[:2]
+    coeffs[n_full:] = coeffs_sub[2:]
+    cov = np.zeros((width, width))
+    cov[1:3, 1:3] = cov_sub[:2, :2]
+    cov[1:3, n_full:] = cov_sub[:2, 2:]
+    cov[n_full:, 1:3] = cov_sub[2:, :2]
+    cov[n_full:, n_full:] = cov_sub[2:, 2:]
+
+    geom: dict = {}
+    _attach_simultaneous_higher_harmonics_from_coeffs(
+        geom,
+        ["g", "r", "i"],
+        coeffs,
+        cov,
+        harmonic_orders=[4],
+        dropped_band_indices={0},
+        wls_mode=False,
+        angles=[np.array([]), angles, angles],
+        intens_per_band=[np.array([]), intens[0], intens[1]],
+        band_weights_arr=np.ones(3),
+        jagged=True,
+    )
+    a4_err = float(geom["a4_err_r"])
+    raw = float(np.sqrt(cov_sub[6, 6]))  # unscaled (A^T A)^-1 diagonal
+    assert np.isfinite(a4_err) and a4_err > 0.0
+    # With sigma=10 the correct rescale is ~sigma=10x the raw diagonal
+    assert a4_err > 5.0 * raw, f"a4_err={a4_err:.4g} not rescaled (raw diag {raw:.4g})"
+
+
+def test_m5_dropped_band_harmonic_columns_are_nan():
+    """Regression test for M5: dropped bands must report NaN, not 0.0.
+
+    docs/10-multiband.md promises NaN harmonic columns for dropped bands;
+    the code wrote 0.0, which downstream drop-detection reads as a real
+    measurement.
+    """
+    from isoster.multiband import fit_image_multiband
+
+    imgs = [_planted_galaxy(amplitude=a, noise_sigma=0.05, seed=s) for a, s in ((1000.0, 1), (2000.0, 2), (1500.0, 3))]
+    y, x = np.mgrid[: imgs[0].shape[0], : imgs[0].shape[1]]
+    r = np.hypot(x - 128.0, y - 128.0)
+    theta = np.arctan2(y - 128.0, x - 128.0)
+    # Band g keeps only a narrow wedge (~11% of samples) outside 15 px, so it
+    # falls below the loose-validity keep fraction and is dropped there while
+    # the gradient path still has data and isophotes converge.
+    mask_g = (r > 15.0) & (np.abs(theta) > 0.35)
+
+    cfg = IsosterConfigMB(
+        bands=["g", "r", "i"],
+        reference_band="r",
+        sma0=10.0,
+        maxsma=50.0,
+        astep=0.2,
+        debug=True,
+        compute_deviations=True,
+        nclip=0,
+        loose_validity=True,
+    )
+    res = fit_image_multiband(imgs, [mask_g, None, None], cfg)
+
+    dropped = [
+        iso
+        for iso in res["isophotes"]
+        if iso["stop_code"] == 0 and isinstance(iso.get("intens_g"), float) and np.isnan(iso["intens_g"])
+    ]
+    assert dropped, "no converged isophotes with band g dropped"
+    for iso in dropped:
+        assert np.isnan(iso["intens_g"])
+        for key in ("a3_g", "b3_g", "a4_g", "b4_g", "a3_err_g", "b3_err_g", "a4_err_g", "b4_err_g"):
+            assert np.isnan(iso[key]), f"{key}={iso[key]} should be NaN for dropped band g"
+        # Surviving bands still carry real (finite) harmonics
+        assert np.isfinite(iso["a4_r"]) and np.isfinite(iso["a4_i"])
+
+
+def test_m8_ndata_nflag_sane_under_loose_validity():
+    """Regression test for M8: ndata/nflag must be consistent sums over bands.
+
+    Under loose validity the code mixed an intersection count (total) with
+    a per-band kept sum (actual), producing negative nflag and disabling
+    the fflag guard. Both are now sums over bands: ndata = kept samples
+    (equals the sum of n_valid_<b>), nflag = clipped (never negative).
+    """
+    from isoster.multiband import fit_image_multiband
+
+    imgs = [_planted_galaxy(amplitude=a, noise_sigma=0.05, seed=s) for a, s in ((1000.0, 1), (2000.0, 2))]
+    # Bright outliers on mid-radius rings so sigma clipping has work to do
+    imgs[1][128, 158] = 1e5  # r = 30
+    imgs[1][148, 128] = 1e5  # r = 20
+
+    cfg = IsosterConfigMB(
+        bands=["g", "r"],
+        reference_band="g",
+        sma0=10.0,
+        maxsma=45.0,
+        astep=0.25,
+        debug=True,
+        compute_deviations=True,
+        nclip=2,
+        sclip=3.0,
+        loose_validity=True,
+    )
+    res = fit_image_multiband(imgs, None, cfg)
+
+    saw_clipped = False
+    for iso in res["isophotes"]:
+        ndata = int(iso["ndata"])
+        nflag = int(iso["nflag"])
+        assert ndata > 0, f"ndata={ndata} at sma={iso['sma']}"
+        assert nflag >= 0, f"negative nflag={nflag} at sma={iso['sma']}"
+        if iso["sma"] > 0.0 and "n_valid_g" in iso and "n_valid_r" in iso:
+            n_valid_sum = int(iso["n_valid_g"]) + int(iso["n_valid_r"])
+            assert ndata == n_valid_sum, f"ndata={ndata} != sum(n_valid_<b>)={n_valid_sum} at sma={iso['sma']}"
+        saw_clipped |= nflag > 0
+    assert saw_clipped, "expected some sigma-clipped samples with planted outliers"
+
+
+def test_m7_stop2_posthoc_harmonics_use_clipped_data():
+    """Regression test for M7: stop_code=2 post-hoc harmonics must use the
+    post-clip samples, not the raw sampler output.
+
+    The stop-2 fallback passed last_data (pre-clip) to the harmonic solve
+    while the fit itself ran on clipped data, so the exact outliers the
+    pipeline removed leaked back into a_n_<b>/b_n_<b>.
+    """
+    img_g = _planted_galaxy(amplitude=100.0, noise_sigma=0.01, seed=1)
+    img_r = _planted_galaxy(amplitude=200.0, noise_sigma=0.01, seed=2)
+    img_r_outlier = img_r.copy()
+    img_r_outlier[128, 158] = 1e4  # cosmic ray on the sma=30 ring
+
+    # Start from a wrong eps so the fit cannot converge in maxit=1 (stop 2)
+    start = {"x0": 128.0, "y0": 128.0, "eps": 0.1, "pa": 0.5}
+    cfg = IsosterConfigMB(
+        bands=["g", "r"],
+        reference_band="g",
+        debug=True,
+        nclip=2,
+        sclip=3.0,
+        minit=1,
+        maxit=1,
+        conver=1e-12,
+        compute_deviations=True,
+    )
+    out_dirty = fit_isophote_mb(images=[img_g, img_r_outlier], masks=None, sma=30.0, start_geometry=start, config=cfg)
+    out_clean = fit_isophote_mb(images=[img_g, img_r], masks=None, sma=30.0, start_geometry=start, config=cfg)
+    assert out_dirty["stop_code"] == 2 and out_clean["stop_code"] == 2
+    # The outlier's direct impact if it entered the solve is ~0.03-0.08
+    # (measured with nclip=0); clip-set differences between the two runs
+    # bound the agreement at ~0.006. A 0.01 tolerance separates the two.
+    for key in ("a3_r", "b3_r", "a4_r", "b4_r"):
+        assert float(out_dirty[key]) == pytest.approx(float(out_clean[key]), abs=1e-2), (
+            f"{key}: dirty={out_dirty[key]}, clean={out_clean[key]} — pre-clip data leaked into harmonics"
+        )
+
+
+def test_m10_decoupled_wls_intercept_cov_is_exact():
+    """Regression test for M10: the decoupled (ring-mean) WLS intercept
+    covariance must be the exact 1/sum(1/var_i), not mean(var)/n.
+
+    The decoupled paths pair an inverse-variance-weighted mean with what
+    was the *unweighted* mean's variance, overestimating errors when
+    per-pixel variances are non-uniform.
+    """
+    n = 100
+    angles = np.linspace(0.0, 2 * np.pi, n, endpoint=False)
+    rng = np.random.default_rng(0)
+    intens = np.array([100.0 + rng.normal(0.0, 1.0, n), 200.0 + rng.normal(0.0, 1.0, n)])
+    # Non-uniform variances: half the samples at var=1, half at var=100
+    var = np.tile(np.concatenate([np.ones(n // 2), np.full(n // 2, 100.0)]), (2, 1))
+
+    _coeffs, cov, wls_mode = fit_first_and_second_harmonics_joint(
+        angles, intens, np.ones(2), var, fit_per_band_intens_jointly=False
+    )
+    assert wls_mode is True
+    exact = 1.0 / np.sum(1.0 / var[0])
+    old_unweighted = float(np.mean(var[0]) / n)
+    for b in range(2):
+        assert cov[b, b] == pytest.approx(exact, rel=1e-12)
+    assert exact < 0.2 * old_unweighted, "test setup cannot distinguish the formulas"
+
+
+def test_m10_intens_err_decoupled_wls_exact():
+    """M10 (direct-SEM branch): decoupled WLS intens_err_<b> must be the
+    exact 1/sqrt(sum(1/var_i)) of the ring samples."""
+    from isoster.multiband.sampling_mb import extract_isophote_data_multi
+
+    h = w = 256
+    x0 = y0 = 128.0
+    rng = np.random.default_rng(16_000)
+    img_g = 100.0 + rng.normal(0.0, 0.4, (h, w))
+    img_r = 200.0 + rng.normal(0.0, 0.4, (h, w))
+    # Non-uniform variance map: left half 0.16, right half 16.0
+    var = np.full((h, w), 0.16)
+    var[:, w // 2 :] = 16.0
+
+    cfg = IsosterConfigMB(
+        bands=["g", "r"],
+        reference_band="g",
+        fit_per_band_intens_jointly=False,
+        nclip=0,
+    )
+    out = fit_isophote_mb(
+        images=[img_g, img_r],
+        masks=None,
+        sma=40.0,
+        start_geometry={"x0": x0, "y0": y0, "eps": 0.0, "pa": 0.0},
+        config=cfg,
+        variance_maps=[var, var],
+    )
+    # Sample at the returned geometry (should equal the start on a flat image)
+    data = extract_isophote_data_multi(
+        [img_g, img_r],
+        None,
+        float(out["x0"]),
+        float(out["y0"]),
+        40.0,
+        float(out["eps"]),
+        float(out["pa"]),
+        use_eccentric_anomaly=False,
+        variance_maps=[var, var],
+    )
+    for b_idx, b in enumerate(("g", "r")):
+        exact = 1.0 / np.sqrt(np.sum(1.0 / data.variances[b_idx]))
+        old = float(np.sqrt(np.mean(data.variances[b_idx]) / data.variances[b_idx].size))
+        assert out[f"intens_err_{b}"] == pytest.approx(exact, rel=1e-2)
+        assert out[f"intens_err_{b}"] != pytest.approx(old, rel=1e-3)
+
+
+def test_m9_runaway_gradient_decayed():
+    """Regression test for M9: a runaway joint gradient decays to
+    0.8 * previous_gradient with the error cleared (single-band parity)."""
+    from isoster.multiband.fitting_mb import compute_joint_gradient
+
+    h = w = 256
+    rng = np.random.default_rng(31_000)
+    img = 100.0 * np.ones((h, w)) + rng.normal(0.0, 0.5, (h, w))  # flat: grad ~ 0
+    cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g", astep=0.1)
+    geometry = {"x0": 128.0, "y0": 128.0, "sma": 40.0, "eps": 0.0, "pa": 0.0}
+    grad, grad_err, _pb, _pbe = compute_joint_gradient(
+        np.stack([img, img]),
+        [None, None],
+        None,
+        geometry,
+        cfg,
+        np.ones(2),
+        previous_gradient=-5.0,
+    )
+    assert grad == pytest.approx(-4.0)  # 0.8 * previous
+    assert grad_err is None
+
+
+def test_m9_anomalous_first_gradient_resamples_at_double_step():
+    """Regression test for M9: an anomalous first joint gradient triggers
+    the 2x-step resample and uses the longer baseline (single-band parity).
+
+    Profile plateau at r<45 hides the slope from the 1x annulus (40->44 px),
+    so the first gradient is anomalously shallow; the 2x annulus (40->48 px)
+    crosses the drop and must win. previous_gradient is small enough that the
+    steeper 2x value survives the runaway decay.
+    """
+    from isoster.multiband.fitting_mb import compute_joint_gradient
+    from isoster.multiband.sampling_mb import extract_isophote_data_multi_prepared
+
+    h = w = 256
+    x0 = y0 = 128.0
+    yy, xx = np.mgrid[:h, :w]
+    r = np.hypot(xx - x0, yy - y0)
+    rng = np.random.default_rng(32_000)
+    img = np.where(r < 45.0, 100.0, 100.0 * np.exp(-(r - 45.0) / 10.0)) + rng.normal(0.0, 0.1, (h, w))
+    stack = np.stack([img, img])
+    cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g", astep=0.1, linear_growth=False)
+    geometry = {"x0": x0, "y0": y0, "sma": 40.0, "eps": 0.0, "pa": 0.0}
+
+    grad, grad_err, _pb, _pbe = compute_joint_gradient(
+        stack,
+        [None, None],
+        None,
+        geometry,
+        cfg,
+        np.ones(2),
+        previous_gradient=-5.0,
+    )
+
+    data_c = extract_isophote_data_multi_prepared(stack, [None, None], None, x0, y0, 40.0, 0.0, 0.0)
+    data_g2 = extract_isophote_data_multi_prepared(stack, [None, None], None, x0, y0, 48.0, 0.0, 0.0)
+    expected_grad = (float(np.mean(data_g2.intens[0])) - float(np.mean(data_c.intens[0]))) / (40.0 * 0.2)
+
+    # The 2x baseline value is returned (not the shallow 1x one, not the decay)
+    assert grad == pytest.approx(expected_grad, rel=0.10)
+    assert grad < -1.0, f"expected a steep 2x gradient, got {grad}"
+    assert grad_err is not None, "the surviving 2x gradient must keep its error"

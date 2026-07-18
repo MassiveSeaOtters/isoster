@@ -1,5 +1,5 @@
 """
-Multi-band isoster (Stage-1, experimental).
+Multi-band isoster (experimental).
 
 Joint elliptical isophote fitting on multiple aligned same-pixel-grid
 images. Produces a single shared geometry per SMA with per-band

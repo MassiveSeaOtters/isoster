@@ -21,6 +21,12 @@ from pydantic import ValidationError
 
 from isoster.config import IsosterConfig
 from isoster.driver import fit_image
+from isoster.utils import (
+    isophote_results_from_asdf,
+    isophote_results_from_fits,
+    isophote_results_to_asdf,
+    isophote_results_to_fits,
+)
 
 
 def _make_exponential_galaxy(
@@ -173,7 +179,7 @@ class TestLockedGeometryConstant:
 
 
 class TestInwardGrowthUnaffected:
-    def test_inward_isophotes_do_not_carry_hybrid_keys(self):
+    def test_inward_isophotes_carry_false_lock_keys(self):
         image = _make_exponential_galaxy(scale=20.0, peak=10000.0)
         cfg = IsosterConfig(
             x0=100.0,
@@ -188,14 +194,14 @@ class TestInwardGrowthUnaffected:
         result = fit_image(image, None, cfg)
 
         # Find isophotes strictly inside sma0 (the inward grown ones). The
-        # anchor isophote at sma0 is marked lsb_locked=False; further-in
-        # isophotes should not carry the key at all, because the inward
-        # loop does not participate in hybrid mode.
+        # inward loop does not participate in the auto-lock, so these carry
+        # lsb_locked=False explicitly: every row must have the same keys or
+        # FITS round-trips corrupt the flags (B3).
         inward_isos = [iso for iso in result["isophotes"] if 0.0 < iso["sma"] < 15.0]
         assert len(inward_isos) >= 1
         for iso in inward_isos:
-            assert "lsb_locked" not in iso
-            assert "lsb_auto_lock_anchor" not in iso
+            assert iso["lsb_locked"] is False
+            assert iso["lsb_auto_lock_anchor"] is False
 
 
 class TestConfigValidation:
@@ -269,3 +275,97 @@ class TestForcedPhotometryGuard:
         )
         assert "lsb_auto_lock" not in result
         assert "lsb_auto_lock_sma" not in result
+
+
+class TestFitsRoundTrip:
+    """Regression test for B3: FITS save/load must preserve the lock flags.
+
+    FITS logical columns cannot represent masked values, so heterogeneous row
+    keys made numpy fill the missing cells with its default bool fill (True):
+    every isophote read back as locked and as the anchor. With the uniform
+    schema the flags must round-trip exactly.
+    """
+
+    def test_lock_flags_survive_fits_round_trip(self, tmp_path):
+        image = _make_truncated_galaxy()
+        cfg = IsosterConfig(
+            x0=100.0,
+            y0=100.0,
+            sma0=8.0,
+            minsma=0.0,
+            maxsma=90.0,
+            astep=0.15,
+            lsb_auto_lock=True,
+            lsb_auto_lock_debounce=2,
+            lsb_auto_lock_maxgerr=0.3,
+            debug=True,
+        )
+        result = fit_image(image, None, cfg)
+        if result["lsb_auto_lock_sma"] is None:
+            pytest.skip("lock did not commit in this synthetic run")
+
+        fpath = str(tmp_path / "lsb_lock.fits")
+        isophote_results_to_fits(result, fpath)
+        loaded = isophote_results_from_fits(fpath)
+
+        original = result["isophotes"]
+        loaded_isos = loaded["isophotes"]
+        assert len(loaded_isos) == len(original)
+        for orig, back in zip(original, loaded_isos):
+            assert bool(back["lsb_locked"]) == bool(orig["lsb_locked"])
+            assert bool(back["lsb_auto_lock_anchor"]) == bool(orig["lsb_auto_lock_anchor"])
+
+        # Exactly one anchor marker survives; inward rows read back unlocked
+        assert sum(1 for iso in loaded_isos if iso["lsb_auto_lock_anchor"]) == 1
+        inward = [iso for iso in loaded_isos if 0.0 < iso["sma"] < 8.0]
+        assert inward and all(not iso["lsb_locked"] for iso in inward)
+
+    def test_anchor_sma_recorded_and_round_trips(self, tmp_path):
+        """Q2: lsb_auto_lock_anchor_sma records the true geometry anchor.
+
+        The per-row marker goes on the committing trigger; the anchor
+        (whose geometry the lock enforces) is a different isophote,
+        debounce steps earlier in the outward sequence.
+        """
+        image = _make_truncated_galaxy()
+        cfg = IsosterConfig(
+            x0=100.0,
+            y0=100.0,
+            sma0=8.0,
+            minsma=0.0,
+            maxsma=90.0,
+            astep=0.15,
+            lsb_auto_lock=True,
+            lsb_auto_lock_debounce=2,
+            lsb_auto_lock_maxgerr=0.3,
+            debug=True,
+        )
+        result = fit_image(image, None, cfg)
+        transition = result["lsb_auto_lock_sma"]
+        if transition is None:
+            pytest.skip("lock did not commit in this synthetic run")
+
+        anchor_sma = result["lsb_auto_lock_anchor_sma"]
+        assert anchor_sma is not None and np.isfinite(anchor_sma)
+        assert anchor_sma < transition
+
+        # The anchor is the isophote debounce steps before the trigger
+        outward = [iso for iso in result["isophotes"] if iso["sma"] >= 8.0]
+        trigger_idx = next(i for i, iso in enumerate(outward) if iso["lsb_auto_lock_anchor"])
+        assert outward[trigger_idx]["sma"] == pytest.approx(transition)
+        assert outward[trigger_idx - 2]["sma"] == pytest.approx(anchor_sma)
+
+        # FITS round-trip preserves all lock metadata (META HDU)
+        fpath = str(tmp_path / "lsb_anchor.fits")
+        isophote_results_to_fits(result, fpath)
+        loaded = isophote_results_from_fits(fpath)
+        assert loaded["lsb_auto_lock"] is True
+        assert loaded["lsb_auto_lock_sma"] == pytest.approx(transition)
+        assert loaded["lsb_auto_lock_anchor_sma"] == pytest.approx(anchor_sma)
+        assert loaded["lsb_auto_lock_count"] == result["lsb_auto_lock_count"]
+
+        # ASDF round-trip preserves them too
+        fpath2 = str(tmp_path / "lsb_anchor.asdf")
+        isophote_results_to_asdf(result, fpath2)
+        loaded2 = isophote_results_from_asdf(fpath2)
+        assert loaded2["lsb_auto_lock_anchor_sma"] == pytest.approx(anchor_sma)

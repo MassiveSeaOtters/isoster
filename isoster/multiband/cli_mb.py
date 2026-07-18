@@ -119,8 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--reference-band",
         dest="reference_band",
         help=(
-            "Diagnostic reference band; must appear in --bands. Required "
-            "if the YAML config does not provide ``reference_band``."
+            "Diagnostic reference band; must appear in --bands. "
+            "Defaults to the first band when unset (overrides the YAML "
+            "config's ``reference_band``)."
         ),
     )
     parser.add_argument(

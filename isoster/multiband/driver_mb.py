@@ -10,8 +10,12 @@ single-band :func:`isoster.driver.fit_image` orchestration:
 - Outward growth from the anchor out to ``maxsma``.
 - Final result list assembled in ascending-SMA order.
 
-Stage-1 omits LSB auto-lock and outer-center regularization (see
-``docs/agent/plan-2026-04-29-multiband-feasibility.md`` decision D13).
+LSB auto-lock and outer-center regularization are ported from the
+single-band driver with multi-band semantics: the lock trigger surface
+is the joint combined gradient, the lock anchor is the converged shared
+geometry, and the outer-reference geometry is a flux-weighted mean over
+inward isophotes (weights = reference-band intensity, circular mean on
+``2*pa`` for the PA; see ``docs/10-multiband.md``).
 B=1 input delegates to the existing :func:`isoster.driver.fit_image`
 and returns the legacy single-band schema unmodified (decision D14).
 """
@@ -98,12 +102,13 @@ def _mark_lsb_lock_state_mb(
     locked: bool,
     is_anchor: bool = False,
 ) -> None:
-    """Stamp ``lsb_locked`` and (optionally) ``lsb_auto_lock_anchor``
-    onto a multi-band result row. Centralized so future loop reorders
-    cannot accidentally write the wrong flag."""
+    """Stamp ``lsb_locked`` and ``lsb_auto_lock_anchor`` onto a multi-band
+    result row. Always writes both keys so the per-isophote schema stays
+    uniform and FITS round-trips cannot corrupt the flags (review B3).
+    Centralized so future loop reorders cannot accidentally write the
+    wrong flag."""
     iso["lsb_locked"] = bool(locked)
-    if is_anchor:
-        iso["lsb_auto_lock_anchor"] = True
+    iso["lsb_auto_lock_anchor"] = bool(is_anchor)
 
 
 def _build_locked_cfg_mb(
@@ -338,6 +343,7 @@ def _delegate_single_band(
     masks: Union[None, NDArray[np.bool_], Sequence[Optional[NDArray[np.bool_]]]],
     variance_maps: Union[None, NDArray[np.floating], Sequence[NDArray[np.floating]]],
     config_mb: IsosterConfigMB,
+    template_isophotes: object = None,
 ) -> Dict[str, object]:
     """Decision D14: B=1 input delegates to single-band fit_image."""
     warnings.warn(
@@ -407,9 +413,29 @@ def _delegate_single_band(
         permissive_geometry=config_mb.permissive_geometry,
         max_retry_first_isophote=config_mb.max_retry_first_isophote,
         first_isophote_fail_count=config_mb.first_isophote_fail_count,
+        # Feature families shared by both configs (M6: these were silently
+        # dropped on delegation, e.g. a B=1 run with compute_cog=True or
+        # lsb_auto_lock=True produced a fit without those features).
+        compute_cog=config_mb.compute_cog,
+        harmonic_orders=config_mb.harmonic_orders,
+        lsb_auto_lock=config_mb.lsb_auto_lock,
+        lsb_auto_lock_maxgerr=config_mb.lsb_auto_lock_maxgerr,
+        lsb_auto_lock_debounce=config_mb.lsb_auto_lock_debounce,
+        lsb_auto_lock_integrator=config_mb.lsb_auto_lock_integrator,
+        use_outer_center_regularization=config_mb.use_outer_center_regularization,
+        outer_reg_strength=config_mb.outer_reg_strength,
+        outer_reg_weights=config_mb.outer_reg_weights,
+        outer_reg_mode=config_mb.outer_reg_mode,
+        outer_reg_sma_onset=config_mb.outer_reg_sma_onset,
+        outer_reg_sma_width=config_mb.outer_reg_sma_width,
+        outer_reg_ref_sma_factor=config_mb.outer_reg_ref_sma_factor,
+        use_central_regularization=config_mb.use_central_regularization,
+        central_reg_strength=config_mb.central_reg_strength,
+        central_reg_weights=config_mb.central_reg_weights,
+        central_reg_sma_threshold=config_mb.central_reg_sma_threshold,
     )
     cfg_sb = IsosterConfig(**sb_kwargs)
-    return fit_image(image, mask=mask, config=cfg_sb, variance_map=var)
+    return fit_image(image, mask=mask, config=cfg_sb, variance_map=var, template_isophotes=template_isophotes)
 
 
 def _first_isophote_perturbations(
@@ -504,10 +530,11 @@ def _fit_central_pixel_mb(
         "tflux_c": float("nan"),
         "npix_e": 0,
         "npix_c": 0,
+        # Unconditional like every other row (M13: mixed presence produced
+        # masked FITS cells); the central pixel is one sample, not a ring.
+        "ndata": 1 if in_bounds else 0,
+        "nflag": 0,
     }
-    if debug:
-        row["ndata"] = 1 if in_bounds else 0
-        row["nflag"] = 0
     for b_idx, b in enumerate(bands):
         if in_bounds:
             mask_b = None
@@ -790,6 +817,11 @@ def fit_image_multiband(
     """
     Fit isophotes jointly across multiple aligned same-pixel-grid images.
 
+    **EXPERIMENTAL (beta):** the multi-band path is under active
+    development; the API and the Schema-1 output layout may change
+    between releases. See ``docs/10-multiband.md`` for the user-facing
+    reference.
+
     Single shared geometry per SMA, per-band intensities and per-band
     harmonic deviations. Replaces the traditional forced-photometry
     workflow (decision D1).
@@ -830,7 +862,17 @@ def fit_image_multiband(
         ascending SMA order. ``result['config']`` is the resolved
         :class:`IsosterConfigMB`. Multi-band top-level keys (decision D14):
         ``'bands'``, ``'multiband'``, ``'harmonic_combination'``,
-        ``'reference_band'``, ``'band_weights'``, ``'variance_mode'``.
+        ``'reference_band'``, ``'band_weights'``, ``'variance_mode'``,
+        ``'fit_per_band_intens_jointly'``, ``'loose_validity'``,
+        ``'multiband_higher_harmonics'``, ``'harmonic_orders'``, and
+        ``'harmonics_shared'`` (False only when
+        ``multiband_higher_harmonics='independent'``).
+        Conditional keys: ``'first_isophote_failure'`` when the anchor
+        and all retry/probe attempts fail, ``'first_isophote_retry_log'``
+        when first-isophote retries were attempted, and
+        ``'lsb_auto_lock'`` / ``'lsb_auto_lock_sma'`` /
+        ``'lsb_auto_lock_anchor_sma'`` / ``'lsb_auto_lock_count'`` when
+        ``config.lsb_auto_lock`` is enabled.
         In forced-photometry mode the result also carries
         ``'forced_photometry_mode': True`` and
         ``'template_n_isophotes': len(template)``.
@@ -847,7 +889,7 @@ def fit_image_multiband(
 
     # B=1 fallback (decision D14).
     if len(config.bands) == 1:
-        return _delegate_single_band(images, masks, variance_maps, config)
+        return _delegate_single_band(images, masks, variance_maps, config, template_isophotes=template_isophotes)
 
     # Surface the variance mode on the resolved config so it lands in
     # the FITS CONFIG HDU later. Review fix H1: build a model_copy with
@@ -1045,6 +1087,7 @@ def fit_image_multiband(
         "consec": 0,
         "transition_sma": None,
         "anchor_index": None,
+        "anchor_sma": None,
     }
     active_cfg: IsosterConfigMB = config
     if anchor_iso is not None:
@@ -1110,6 +1153,10 @@ def fit_image_multiband(
                         lsb_state["locked"] = True
                         lsb_state["transition_sma"] = float(next_iso["sma"])  # type: ignore[arg-type]
                         lsb_state["anchor_index"] = anchor_local_idx
+                        # Record the true geometry anchor's identity (U1/Q2),
+                        # mirroring single-band; the marker below goes on the
+                        # committing trigger.
+                        lsb_state["anchor_sma"] = float(lock_anchor["sma"])  # type: ignore[arg-type]
                         _mark_lsb_lock_state_mb(next_iso, locked=True, is_anchor=True)
                         # Restart the geometry carry-forward from the
                         # clean anchor so the next isophote is seeded by
@@ -1123,6 +1170,16 @@ def fit_image_multiband(
         final_list: List[Dict[str, object]] = [central_result] + inwards_results[::-1] + outwards_results
     else:
         final_list = inwards_results[::-1] + outwards_results
+
+    if config.lsb_auto_lock:
+        # Inward isophotes and the central pixel never pass through the
+        # outward lock machinery; stamp them explicitly so every row carries
+        # the same lock keys. A heterogeneous schema makes Table(rows=...)
+        # mask the missing cells, and FITS fills masked bools with True,
+        # destroying the flags on save/load (review B3).
+        for iso in final_list:
+            iso.setdefault("lsb_locked", False)
+            iso.setdefault("lsb_auto_lock_anchor", False)
 
     _validate_non_negative_error_fields(final_list)
 
@@ -1143,11 +1200,6 @@ def fit_image_multiband(
             fix_geometry=config.fix_center and config.fix_pa and config.fix_eps,
         )
         add_cog_mb_to_isophotes(final_list, list(config.bands), cog_results)
-
-    # Suppress the forced-photometry helper for unused imports — the
-    # central pixel uses _fit_central_pixel_mb above. Kept available for
-    # callers that want to do extra single-isophote forced extractions.
-    _ = extract_forced_photometry_mb  # noqa: F841
 
     result: Dict[str, object] = {
         "isophotes": final_list,
@@ -1176,5 +1228,6 @@ def fit_image_multiband(
     if config.lsb_auto_lock:
         result["lsb_auto_lock"] = True
         result["lsb_auto_lock_sma"] = lsb_state["transition_sma"]
+        result["lsb_auto_lock_anchor_sma"] = lsb_state["anchor_sma"]
         result["lsb_auto_lock_count"] = sum(1 for iso in final_list if bool(iso.get("lsb_locked", False)))
     return result

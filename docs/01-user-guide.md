@@ -97,7 +97,7 @@ print(f"Lock committed at sma = {transition}; {locked_n} locked isophotes")
 How the detector works:
 
 1. Free outward growth runs exactly like `lsb_auto_lock=False`.
-2. After each outward isophote, the relative gradient error `|grad_error / grad|` is inspected. A trigger fires when `grad_r_error > lsb_auto_lock_maxgerr` OR the isophote returned `stop_code = -1`. The threshold is more sensitive than `maxgerr` so the lock commits *before* a gradient failure.
+2. After each outward isophote, the relative gradient error `|grad_error / grad|` is inspected. A trigger fires when `grad_r_error > lsb_auto_lock_maxgerr`, OR the measured gradient is non-negative (`grad >= 0`, i.e. the profile no longer declines outward), OR the isophote returned `stop_code = -1`. The threshold is more sensitive than `maxgerr` so the lock commits *before* a gradient failure.
 3. Triggers are debounced: `lsb_auto_lock_debounce` consecutive triggered isophotes are required. A clean isophote in the streak resets the counter.
 4. When the lock commits, the anchor is the isophote **immediately before** the streak — not the trigger isophote itself — and its geometry (`x0`, `y0`, `eps`, `pa`) is carried forward. The integrator switches to `lsb_auto_lock_integrator` for the remaining outward isophotes.
 5. The transition is **one-way** per fit. Inward growth and the central pixel are unchanged.
@@ -222,11 +222,13 @@ Compatibility:
 When the first isophote at `sma0` fails, the entire fitting silently returns only the central pixel.
 Two config options improve this:
 
-- `max_retry_first_isophote` (default `0`, disabled): number of retry attempts with perturbed `sma0`
-  and initial geometry (`eps`, `pa`). Each attempt tries a different combination to find an
-  acceptable starting isophote. Set to `5` for robust batch processing.
-- `first_isophote_fail_count` (default `3`): how many consecutive initial isophotes must all fail
-  before a `FIRST_FEW_ISOPHOTE_FAILURE` warning is emitted.
+- `max_retry_first_isophote` (default `3`; `0` disables): number of retry attempts with
+  perturbed `sma0` and initial geometry (`eps`, `pa`). Each attempt tries a different
+  combination from a fixed schedule to find an acceptable starting isophote. Because
+  retries only run when the first isophote fails, the default adds near-zero overhead
+  when it already succeeds. Set to `5` for robust batch processing.
+- `first_isophote_fail_count` (default `3`): how many consecutive initial isophotes must
+  all fail before a `FIRST_FEW_ISOPHOTE_FAILURE` warning is emitted.
 
 When a failure is detected, the result dict contains:
 - `result["first_isophote_failure"]` = `True`
@@ -273,7 +275,7 @@ model = build_isoster_model(
 - **HDU 1** — `BinTableHDU` named `ISOPHOTES`: one row per fitted isophote, columns matching the isophote dict keys.
 - **HDU 2** — `BinTableHDU` named `CONFIG`: two columns (`PARAM`, `VALUE`) with the full `IsosterConfig` serialized as JSON strings, one row per field.
 
-This layout avoids `HIERARCH` warnings that occurred when config was written as FITS header keywords. Files written by older versions (config in header keywords, no `CONFIG` extension) are still readable — the reader detects the missing `CONFIG` HDU and falls back to header-keyword reconstruction automatically.
+This layout avoids `HIERARCH` warnings that occurred when config was written as FITS header keywords. Files written by older versions (config in header keywords, no `CONFIG` extension) are still readable, but the reader returns `config=None` for them — no header-keyword reconstruction is performed.
 
 ```python
 from isoster import isophote_results_to_fits, isophote_results_from_fits
@@ -309,7 +311,7 @@ loaded = isophote_results_from_asdf('galaxy.asdf')
 
 ### Astropy table export
 
-- `isophote_results_to_astropy_tables`: returns the isophote list as one or more `astropy.table.Table` objects for downstream analysis without writing to disk.
+- `isophote_results_to_astropy_tables`: returns the isophote list as a single `astropy.table.Table` for downstream analysis without writing to disk.
 
 ## Output Reference
 
@@ -325,6 +327,7 @@ loaded = isophote_results_from_asdf('galaxy.asdf')
 | `first_isophote_retry_log` | list[dict] | Only when retries ran | Detailed log of retry attempts when `max_retry_first_isophote > 0` |
 | `lsb_auto_lock` | bool | Only when `lsb_auto_lock=True` | Echoes that automatic LSB geometry lock was used |
 | `lsb_auto_lock_sma` | float or None | Only when `lsb_auto_lock=True` | SMA at which the lock committed; `None` if the detector never triggered |
+| `lsb_auto_lock_anchor_sma` | float or None | Only when `lsb_auto_lock=True` | SMA of the true geometry anchor (the last clean isophote before the debounce streak, whose geometry the lock froze to); `None` if never committed |
 | `lsb_auto_lock_count` | int | Only when `lsb_auto_lock=True` | Number of outward isophotes fit under locked geometry |
 | `use_outer_center_regularization` | bool | Only when `use_outer_center_regularization=True` | Echoes that outer-region regularization was used |
 | `outer_reg_x0_ref` | float | Only when `use_outer_center_regularization=True` | Frozen inner reference `x0` (flux-weighted mean over qualifying inward isophotes; falls back to anchor) |
@@ -370,12 +373,14 @@ Present when `compute_deviations=True` or `simultaneous_harmonics=True`. For eac
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `a{n}` | float | Sine harmonic coefficient (normalized by sma × gradient) |
-| `b{n}` | float | Cosine harmonic coefficient (normalized by sma × gradient) |
+| `a{n}` | float | Sine harmonic coefficient (normalized by sma × \|gradient\|) |
+| `b{n}` | float | Cosine harmonic coefficient (normalized by sma × \|gradient\|) |
 | `a{n}_err` | float | Uncertainty in `a{n}` |
 | `b{n}_err` | float | Uncertainty in `b{n}` |
 
 With the default `harmonic_orders=[3, 4]`, this produces: `a3`, `b3`, `a3_err`, `b3_err`, `a4`, `b4`, `a4_err`, `b4_err`.
+
+**Normalization convention.** Stored `a{n}`/`b{n}` are the raw harmonic amplitudes divided by `sma × |gradient|` (absolute value of the radial intensity gradient), making them dimensionless fractional-radius perturbations. This coincides with the Bender et al. form `-A_n/(a · dI/da)` whenever the gradient is negative (the normal case of an outward-declining profile); on rare positive-gradient rows (e.g. in the LSB regime) the stored values keep the absolute-value normalization and so differ from the Bender form in sign.
 
 ### Per-Isophote Fields: Curve of Growth
 
@@ -391,12 +396,12 @@ Present only when `compute_cog=True` (regular fitting mode only).
 
 ### Per-Isophote Fields: Automatic LSB Geometry Lock
 
-Present only on outward isophotes when `lsb_auto_lock=True`. Inward isophotes and the central pixel never carry these keys.
+Present on every isophote when `lsb_auto_lock=True`. Inward isophotes and the central pixel always carry `False` (the lock only engages during outward growth); the uniform schema keeps FITS round-trips exact.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `lsb_locked` | bool | `True` if this isophote was fit under locked geometry (post-transition), `False` otherwise |
-| `lsb_auto_lock_anchor` | bool | `True` only on the first locked isophote; absent on all others. Useful as a marker in QA overlays |
+| `lsb_auto_lock_anchor` | bool | `True` only on the first locked isophote, `False` on all others. Useful as a marker in QA overlays |
 
 ### Per-Isophote Fields: Debug Diagnostics
 

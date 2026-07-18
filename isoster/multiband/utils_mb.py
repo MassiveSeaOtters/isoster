@@ -26,10 +26,45 @@ from astropy.io import fits
 from astropy.table import Table
 from numpy.typing import NDArray
 
-from .._shared import _build_config_hdu, _config_to_dict
+from .._shared import _build_config_hdu, _build_meta_hdu, _config_to_dict, _parse_meta_hdu
 from .config_mb import IsosterConfigMB
 
 logger = logging.getLogger(__name__)
+
+
+# Top-level keys already persisted via the ISOPHOTES table, the CONFIG HDU,
+# or the primary header — everything else lands in the META HDU (M13).
+_META_SKIP_KEYS = {
+    "isophotes",
+    "config",
+    "bands",
+    "multiband",
+    "harmonic_combination",
+    "reference_band",
+    "band_weights",
+    "variance_mode",
+    "fit_per_band_intens_jointly",
+    "loose_validity",
+    "multiband_higher_harmonics",
+    "harmonic_orders",
+    "harmonics_shared",
+}
+
+
+def _build_meta_hdu_mb(results: dict) -> fits.BinTableHDU:
+    """Build a META BinTableHDU for non-structural top-level result keys.
+
+    Stores keys like ``forced_photometry_mode``, ``template_n_isophotes``,
+    ``sky_offsets``, ``lsb_auto_lock*`` and ``first_isophote_*`` as JSON
+    PARAM/VALUE rows so the FITS round-trip preserves them (M13).
+    """
+    meta = {key: value for key, value in results.items() if key not in _META_SKIP_KEYS}
+    return _build_meta_hdu(meta)
+
+
+def _parse_meta_hdu_mb(hdu: fits.BinTableHDU) -> dict:
+    """Parse a META HDU (JSON PARAM/VALUE rows) back into result keys."""
+    return _parse_meta_hdu(hdu)
 
 
 # ---------------------------------------------------------------------------
@@ -71,19 +106,6 @@ def _parse_config_hdu_mb(hdu: fits.BinTableHDU) -> Optional[IsosterConfigMB]:
 # ---------------------------------------------------------------------------
 
 
-# Top-level multi-band keys persisted on the result dict — these are
-# also recorded into the CONFIG HDU through model_dump so reading back
-# only needs to reconstruct from CONFIG.
-_TOP_LEVEL_MB_KEYS = (
-    "bands",
-    "multiband",
-    "harmonic_combination",
-    "reference_band",
-    "band_weights",
-    "variance_mode",
-)
-
-
 def isophote_results_mb_to_astropy_table(results: dict) -> Table:
     """
     Convert a multi-band isoster result dict into an astropy Table.
@@ -114,12 +136,16 @@ def isophote_results_mb_to_fits(
     * 0: ``PrimaryHDU`` with ``MULTIBND=True`` and ``BANDS=<comma-list>`` headers.
     * 1: ``ISOPHOTES`` BinTable with shared-geometry + per-band-suffix columns.
     * 2: ``CONFIG`` BinTable (PARAM/VALUE rows from IsosterConfigMB.model_dump()).
+    * 3: ``META`` BinTable (JSON PARAM/VALUE rows for the remaining
+      top-level result keys: ``forced_photometry_mode``, ``sky_offsets``,
+      ``lsb_auto_lock*``, ``first_isophote_*``, ...).
     """
     tbl = isophote_results_mb_to_astropy_table(results)
     iso_hdu = fits.table_to_hdu(tbl)
     iso_hdu.name = "ISOPHOTES"
 
     config_hdu = _build_config_hdu(results)
+    meta_hdu = _build_meta_hdu_mb(results)
 
     primary = fits.PrimaryHDU()
     primary.header["MULTIBND"] = (True, "Multi-band schema 1 result")
@@ -139,7 +165,7 @@ def isophote_results_mb_to_fits(
         "variance mode (wls or ols)",
     )
 
-    hdulist = fits.HDUList([primary, iso_hdu, config_hdu])
+    hdulist = fits.HDUList([primary, iso_hdu, config_hdu, meta_hdu])
     hdulist.writeto(filename, overwrite=overwrite)
 
 
@@ -162,6 +188,12 @@ def isophote_results_mb_from_fits(filename: Union[str, Path]) -> dict:
         if "CONFIG" in hdulist:
             config = _parse_config_hdu_mb(hdulist["CONFIG"])
 
+        # Non-structural top-level keys (forced_photometry_mode,
+        # sky_offsets, lsb_auto_lock*, first_isophote_*, ...; M13).
+        meta: dict = {}
+        if "META" in hdulist:
+            meta = _parse_meta_hdu_mb(hdulist["META"])
+
         # Fall back to PrimaryHDU headers if CONFIG is missing or stale.
         primary_hdr = hdulist[0].header
         bands_from_hdr = primary_hdr.get("BANDS")
@@ -174,6 +206,14 @@ def isophote_results_mb_from_fits(filename: Union[str, Path]) -> dict:
         out: dict = {}
         for col in iso_tbl.colnames:
             val = row[col]
+            # Heterogeneous row keys produce masked cells; skip them so the
+            # loaded dict keeps the original "key absent" shape (review B3).
+            # CAUTION: this cannot protect bool columns — FITS logical columns
+            # have no null value, so a conditionally-present bool key fills as
+            # True on write; bool keys must be written on every row (like the
+            # lsb lock flags).
+            if val is np.ma.masked:
+                continue
             if isinstance(val, np.integer):
                 val = int(val)
             elif isinstance(val, np.floating):
@@ -206,7 +246,7 @@ def isophote_results_mb_from_fits(filename: Union[str, Path]) -> dict:
         variance_mode = var_from_hdr or "ols"
         band_weights = {b: 1.0 for b in bands}
 
-    return {
+    result: dict = {
         "isophotes": isophotes,
         "config": config,
         "bands": bands,
@@ -221,6 +261,8 @@ def isophote_results_mb_from_fits(filename: Union[str, Path]) -> dict:
         "harmonic_orders": higher_orders,
         "harmonics_shared": higher_mode != "independent",
     }
+    result.update(meta)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +422,13 @@ def isophote_results_mb_to_asdf(
         if opt_key in results:
             tree[opt_key] = results[opt_key]
 
+    # M13: preserve any remaining top-level keys natively
+    # (forced_photometry_mode, template_n_isophotes, sky_offsets,
+    # outer-reg references, ...).
+    for opt_key, opt_val in results.items():
+        if opt_key not in tree and opt_key not in ("isophotes", "config"):
+            tree[opt_key] = opt_val
+
     af = asdf.AsdfFile(tree)
     af.write_to(str(filename))
 
@@ -437,16 +486,28 @@ def isophote_results_mb_from_asdf(filename: Union[str, Path]) -> dict:
         higher_mode = tree.get("multiband_higher_harmonics", "independent")
         higher_orders = list(tree.get("harmonic_orders", [3, 4]))
         harmonics_shared = bool(tree.get("harmonics_shared", higher_mode != "independent"))
-        # Pull optional lock-state / first-isophote diagnostics if present.
+        # Pull any non-structural top-level keys (lock-state metadata,
+        # first-isophote diagnostics, forced-mode/sky-offset bookkeeping;
+        # M13 — previously only lsb_* and first_isophote_* survived).
         optional = {}
-        for opt_key in (
-            "lsb_auto_lock",
-            "lsb_auto_lock_sma",
-            "lsb_auto_lock_count",
-            "first_isophote_failure",
-            "first_isophote_retry_log",
-        ):
-            if opt_key in tree:
+        _structural_tree_keys = {
+            "format_version",
+            "multiband",
+            "isophotes",
+            "config",
+            "bands",
+            "reference_band",
+            "harmonic_combination",
+            "variance_mode",
+            "band_weights",
+            "fit_per_band_intens_jointly",
+            "loose_validity",
+            "multiband_higher_harmonics",
+            "harmonic_orders",
+            "harmonics_shared",
+        }
+        for opt_key in tree:
+            if opt_key not in _structural_tree_keys:
                 optional[opt_key] = tree[opt_key]
 
     # Sanitize numpy scalar types in isophote rows for downstream consumers

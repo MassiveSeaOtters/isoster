@@ -462,3 +462,78 @@ class TestFitImageWithVariance:
         assert len(result["isophotes"]) > 0
         # Check that we got isophotes (some may not have 'valid' key for central pixel etc.)
         assert any(np.isfinite(iso.get("intens", np.nan)) for iso in result["isophotes"])
+
+
+# ---------------------------------------------------------------------------
+# Sentinel robustness (B2)
+# ---------------------------------------------------------------------------
+
+
+class TestVarianceSentinelRobustness:
+    """Regression tests for B2: driver variance sentinels must not explode errors.
+
+    fit_image replaces NaN/inf variance-map entries with a 1e30 sentinel, and
+    bilinear sampling smears it into neighboring samples. The old sum(var)/N^2
+    error formulas turned a few such pixels into intens_err ~ 1e12 and into
+    spurious stop_code=-1 gradient failures on neighboring isophotes. The
+    inverse-variance-weighted error formulas are immune (sentinel weight ~ 0).
+    """
+
+    @staticmethod
+    def _make_nan_variance(variance, n_pixels=15):
+        """Plant NaN pixels in a thin annulus at r~30, as in the B2 reproduction."""
+        size = variance.shape[0]
+        cx = cy = size / 2.0
+        y, x = np.mgrid[:size, :size]
+        r = np.hypot(x - cx, y - cy)
+        theta = np.arctan2(y - cy, x - cx)
+        annulus = (r > 29.5) & (r < 30.5) & (theta > 0) & (theta < 0.3)
+        idx = np.argwhere(annulus)[:n_pixels]
+        var = variance.copy()
+        var[idx[:, 0], idx[:, 1]] = np.nan
+        return var
+
+    def test_sentinel_variance_does_not_explode_errors(self):
+        """NaN cluster in the variance map: finite sane errors, no spurious -1."""
+        image, var_clean = _make_sersic_image(size=128, noise_sigma=5.0)
+        var_nan = self._make_nan_variance(var_clean)
+        config = IsosterConfig(x0=64, y0=64, sma0=10, minsma=5, maxsma=40, eps=0.2, pa=0.5)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # driver NaN-sentinel warning covered elsewhere
+            res = fit_image(image, config=config, variance_map=var_nan)["isophotes"]
+            res_clean = fit_image(image, config=config, variance_map=var_clean)["isophotes"]
+
+        intens_err = np.array([iso["intens_err"] for iso in res])
+        stop_codes = np.array([iso["stop_code"] for iso in res])
+
+        # All error bars finite and at the clean-run scale (B2 measured ~1e12)
+        assert np.all(np.isfinite(intens_err)), f"non-finite intens_err: {intens_err}"
+        assert np.max(intens_err) < 10.0 * np.median(intens_err), (
+            f"exploded intens_err: max={np.max(intens_err):.3g}, median={np.median(intens_err):.3g}"
+        )
+        # No spurious gradient-error failures
+        sma = np.array([iso["sma"] for iso in res])
+        assert not np.any(stop_codes == -1), f"spurious stop_code=-1 at sma={sma[stop_codes == -1]}"
+
+        # Errors track the clean run (sentinel pixels lose weight, nothing more)
+        clean_err = np.array([iso["intens_err"] for iso in res_clean])
+        assert np.max(intens_err) < 2.0 * np.max(clean_err)
+
+    def test_gradient_error_sentinel_immune(self):
+        """compute_gradient error stays sane when sentinel pixels contaminate the annulus."""
+        image, var_clean = _make_sersic_image(size=128, noise_sigma=5.0)
+        var_nan = self._make_nan_variance(var_clean)
+        # Simulate the driver's NaN -> 1e30 sentinel sanitization
+        var_sentinel = np.where(np.isnan(var_nan), 1e30, var_nan)
+
+        geometry = {"x0": 64, "y0": 64, "sma": 30, "eps": 0.2, "pa": 0.0}
+        config = {"astep": 0.1, "linear_growth": False, "integrator": "mean", "use_eccentric_anomaly": False}
+
+        grad_s, err_s = compute_gradient(image, None, geometry, config, variance_map=var_sentinel)
+        grad_c, err_c = compute_gradient(image, None, geometry, config, variance_map=var_clean)
+
+        assert np.isfinite(grad_s) and np.isfinite(err_s)
+        # Same gradient, error at the clean-map scale (old formula gave ~1e12)
+        np.testing.assert_allclose(grad_s, grad_c, rtol=1e-10)
+        np.testing.assert_allclose(err_s, err_c, rtol=0.5)
