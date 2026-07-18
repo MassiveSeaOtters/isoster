@@ -270,6 +270,43 @@ class TestPlotComparisonQaFigure:
         assert out.exists()
         assert out.stat().st_size > 1000
 
+    def test_unknown_method_name_no_keyerror(self, tmp_path):
+        """Regression test for P3: methods missing from METHOD_STYLES must not crash.
+
+        style = styles.get(method_name, {}) followed by style["color"] raised
+        KeyError for any method not in METHOD_STYLES or user method_styles.
+        Unknown methods now fall back to a default color.
+        """
+        image = _make_image()
+        model = np.full((64, 64), 100.0)
+        isos = _make_isophote_list(15)
+        out = tmp_path / "unknown_method.png"
+        plot_comparison_qa_figure(
+            image=image,
+            profiles={
+                "isoster": build_method_profile(isos),
+                "my_custom_tool": build_method_profile(isos),
+            },
+            models={"isoster": model, "my_custom_tool": model},
+            title="unknown method",
+            output_path=out,
+        )
+        assert out.exists()
+
+    def test_unknown_method_with_partial_user_styles(self, tmp_path):
+        """P3 variant: user method_styles that only label (no color) must not crash."""
+        image = _make_image()
+        isos = _make_isophote_list(15)
+        out = tmp_path / "partial_styles.png"
+        plot_comparison_qa_figure(
+            image=image,
+            profiles={"my_custom_tool": build_method_profile(isos)},
+            title="partial user styles",
+            output_path=out,
+            method_styles={"my_custom_tool": {"label": "custom"}},
+        )
+        assert out.exists()
+
 
 # ---------------------------------------------------------------------------
 # Cross-method PA normalization
@@ -421,3 +458,170 @@ class TestAsinhSurfaceBrightnessProfile:
         )
         assert out.exists()
         assert any(np.isclose(y, zero_y) and linestyle == "--" for y, linestyle in calls)
+
+
+# ---------------------------------------------------------------------------
+# P4 plotting batch regression tests
+# ---------------------------------------------------------------------------
+
+
+class TestP4PlottingBatch:
+    def test_psi_contour_matches_exact_model_radius(self):
+        """P4: contour_isoster_psi must draw sma/(1-delta), not sma*(1+delta).
+
+        The model evaluates the profile at r*(1-delta), so the perturbed
+        isophote sits exactly at sma/(1-delta); the first-order form
+        diverged ~25% at delta=0.2.
+        """
+        sma, b4 = 10.0, 0.2
+        iso = {
+            "sma": sma,
+            "eps": 0.0,
+            "pa": 0.0,
+            "x0": 50.0,
+            "y0": 50.0,
+            "b4": b4,  # delta(psi) = b4*cos(4*psi), max at psi=0
+        }
+        contour = contour_isoster_psi(iso, n_points=720)
+        r = np.hypot(contour[:, 0] - 50.0, contour[:, 1] - 50.0)
+        expected_max = sma / (1.0 - b4)  # 12.5 at psi=0
+        first_order_max = sma * (1.0 + b4)  # 12.0 — the old wrong value
+        np.testing.assert_allclose(np.max(r), expected_max, rtol=1e-3)
+        assert abs(np.max(r) - first_order_max) > 0.3, "still using the first-order form"
+
+    def test_overlay_builder_skips_nan_mode_flags(self):
+        """P4: NaN use_eccentric_anomaly/tool must not become True/'nan'.
+
+        bool(NaN) is True (silently switching to EA contours) and str(NaN)
+        is 'nan' (falling through to the psi default). Missing flags must
+        keep isoster's phi-mode defaults.
+        """
+        from isoster.plotting import _build_isos_for_overlay
+
+        isos = _make_isophote_list(5)
+        isos[0]["use_eccentric_anomaly"] = np.nan
+        isos[0]["tool"] = np.nan
+        prof = build_method_profile(isos)
+        rebuilt = _build_isos_for_overlay(prof)
+        first = rebuilt[0]
+        # NaN flags are dropped so downstream defaults (phi-mode, isoster) apply
+        assert "use_eccentric_anomaly" not in first
+        assert "tool" not in first
+        # Rows with real values keep them
+        isos[1]["use_eccentric_anomaly"] = True
+        prof2 = build_method_profile(isos)
+        rebuilt2 = _build_isos_for_overlay(prof2)
+        assert rebuilt2[1]["use_eccentric_anomaly"] is True
+
+    def test_runtime_scalar_passthrough(self):
+        """P4: scalar runtime_seconds/retries survive build_method_profile (dict path)."""
+        sma = np.arange(1.0, 6.0)
+        prof = build_method_profile(
+            {
+                "sma": sma,
+                "intens": 100.0 / sma,
+                "eps": np.full(5, 0.3),
+                "pa": np.full(5, 0.5),
+                "runtime_seconds": 0.15,
+                "retries": 2,
+            }
+        )
+        assert prof["runtime_seconds"] == 0.15
+        assert prof["retries"] == 2
+
+    def test_absolute_residual_panel_has_no_arbitrary_floor(self, tmp_path, monkeypatch):
+        """P4: absolute-mode residual panels must not floor the color range at 0.05."""
+        import matplotlib.pyplot as plt
+
+        image = np.full((64, 64), 1e-3)
+        model = np.full((64, 64), 1.1e-3)  # residuals ~1e-4
+        out = tmp_path / "low_flux.png"
+        monkeypatch.setattr(plt, "close", lambda *a, **k: None)
+        plot_comparison_qa_figure(
+            image=image,
+            profiles={"isoster": build_method_profile(_make_isophote_list(10))},
+            models={"isoster": model},
+            title="low flux",
+            output_path=out,
+        )
+        assert out.exists()
+        fig = plt.gcf()
+        residual_axes = [ax for ax in fig.axes if ax.images]
+        assert residual_axes
+        for ax in residual_axes:
+            lo, hi = ax.images[0].get_clim()
+            assert abs(hi) < 0.05, f"absolute residual floor still applied: clim=({lo}, {hi})"
+        plt.close("all")
+
+    def test_overlay_skips_nan_geometry_rows(self):
+        """P4: draw_isophote_overlays must skip rows with NaN geometry."""
+        import matplotlib.pyplot as plt
+
+        from isoster.plotting import draw_isophote_overlays
+
+        fig, ax = plt.subplots()
+        # sma > 1 for all rows so only the NaN-geometry rows are skipped
+        isos = [dict(iso, sma=float(i + 2)) for i, iso in enumerate(_make_isophote_list(5))]
+        isos[1]["eps"] = np.nan
+        isos[2]["pa"] = np.nan
+        draw_isophote_overlays(ax, isos, step=1)
+        assert len(ax.patches) == 3  # 5 rows minus the 2 NaN-geometry rows
+        plt.close(fig)
+
+    def test_asinh_softening_shared_across_methods(self, tmp_path, monkeypatch):
+        """P4: all overlaid methods share one asinh softening (from the reference)."""
+        import isoster.plotting as plotting_mod
+
+        image = _make_image()
+        isos_a = _make_isophote_list(15)
+        isos_b = [dict(iso, intens=iso["intens"] * 5.0) for iso in isos_a]
+
+        softenings = []
+        real_transform = plotting_mod.transform_sb_profile
+
+        def spy(*args, **kwargs):
+            softenings.append(kwargs.get("sb_asinh_softening"))
+            return real_transform(*args, **kwargs)
+
+        monkeypatch.setattr(plotting_mod, "transform_sb_profile", spy)
+        out = tmp_path / "asinh_shared.png"
+        plot_comparison_qa_figure(
+            image=image,
+            profiles={"isoster": build_method_profile(isos_a), "photutils": build_method_profile(isos_b)},
+            title="shared asinh",
+            output_path=out,
+            sb_profile_scale="asinh",
+        )
+        assert out.exists()
+        assert len(softenings) >= 2
+        assert all(s is not None and s > 0 for s in softenings)
+        assert len(set(softenings)) == 1, f"per-method softening detected: {softenings}"
+
+
+def test_p2_extended_figure_fractional_label_matches_sign(tmp_path, monkeypatch):
+    """P2: the extended figure's fractional-residual label must match the data.
+
+    compute_fractional_residual_percent returns 100*(model-data)/data but the
+    colorbar was labeled '(data - model) / data [%]' — the wrong sign.
+    """
+    import matplotlib.pyplot as plt
+
+    from isoster.plotting import plot_qa_summary_extended
+
+    image = np.random.default_rng(0).normal(100.0, 1.0, (64, 64))
+    model = np.full((64, 64), 100.0)
+    isos = _make_isophote_list(15)
+    monkeypatch.setattr(plt, "close", lambda *a, **k: None)
+    plot_qa_summary_extended(
+        "P2 sign",
+        image,
+        model,
+        isos,
+        relative_residual=True,
+        filename=str(tmp_path / "ext.png"),
+    )
+    fig = plt.gcf()
+    labels = [ax.get_ylabel() for ax in fig.axes]
+    assert any("(model - data) / data" in lbl for lbl in labels), f"no correct-sign label found in {labels}"
+    assert not any("(data - model) / data" in lbl for lbl in labels), "stale wrong-sign label still present"
+    plt.close("all")

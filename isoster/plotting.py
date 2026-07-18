@@ -273,12 +273,6 @@ def normalize_pa_degrees(pa_degrees: np.ndarray, anchor: float | None = None) ->
     return output
 
 
-def normalize_angle(angle_rad):
-    """Normalize angle in radians to [0, 180) degrees (legacy compatibility)."""
-    deg = np.degrees(angle_rad)
-    return np.mod(deg, 180.0)
-
-
 # ---------------------------------------------------------------------------
 # Multi-method profile building
 # ---------------------------------------------------------------------------
@@ -376,6 +370,11 @@ def build_method_profile(
                 n = int(key[1:])
                 if n >= 3 and isinstance(data[key], np.ndarray):
                     profile[key] = data[key]
+        # Scalar runtime metadata passes through so the comparison figure's
+        # runtime annotation works without post-build injection (review P4).
+        for key in ("runtime_seconds", "retries"):
+            if key in data and not isinstance(data[key], np.ndarray):
+                profile[key] = data[key]
         return profile
 
     return None
@@ -431,32 +430,6 @@ def make_arcsinh_display_from_parameters(
     shifted = np.clip(clipped - low, 0.0, None)
     display = np.arcsinh(shifted / max(scale, 1e-12))
     return display, 0.0, max(vmax, 1e-6)
-
-
-def make_arcsinh_display(
-    image_values: np.ndarray,
-    lower_percentile: float = 0.05,
-    upper_percentile: float = 99.99,
-    scale_percentile: float = 70.0,
-) -> tuple[np.ndarray, float, float, float]:
-    """Build arcsinh-scaled display map and limits.
-
-    Returns (display_array, vmin, vmax, scale).
-    """
-    low, high, scale, vmax = derive_arcsinh_parameters(
-        image_values,
-        lower_percentile=lower_percentile,
-        upper_percentile=upper_percentile,
-        scale_percentile=scale_percentile,
-    )
-    display, vmin, vmax = make_arcsinh_display_from_parameters(
-        image_values,
-        low=low,
-        high=high,
-        scale=scale,
-        vmax=vmax,
-    )
-    return display, vmin, vmax, scale
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +616,17 @@ def contour_isoster_psi(iso: dict, n_points: int = 360) -> np.ndarray:
     delta = _delta_at(iso, psi, _detect_harmonic_orders(iso))
     if float(np.max(np.abs(delta))) > DELTA_ROW_GATE:
         return contour_pure_ellipse(iso, n_points=n_points)
-    scale = 1.0 + delta
+    # The model's perturbed isophote sits at r = sma/(1-delta) exactly
+    # (model.py evaluates the profile at r*(1-delta)); sma*(1+delta) was
+    # only its first-order approximation and diverged by ~30% at the gate
+    # limit |delta|=0.5 (review P4).
+    one_minus_delta = 1.0 - delta
+    safe = np.where(
+        np.abs(one_minus_delta) > 1e-6,
+        one_minus_delta,
+        np.where(one_minus_delta >= 0.0, 1e-6, -1e-6),
+    )
+    scale = 1.0 / safe
     x_rot = sma * scale * np.cos(psi)
     y_rot = sma * (1.0 - eps) * scale * np.sin(psi)
     return _rotate_translate_contour(x_rot, y_rot, x0, y0, pa_rad)
@@ -676,7 +659,13 @@ def contour_isoster_phi(iso: dict, n_points: int = 360) -> np.ndarray:
 
 
 def contour_photutils(iso: dict, n_points: int = 360) -> np.ndarray:
-    """Photutils stores harmonic radius perturbations in psi."""
+    """Photutils stores harmonic coefficients normalized by ``sma * |grad|``
+    in the image polar-angle (phi) basis.
+
+    The psi-basis contour helper is reused here as a first-order
+    approximation: the polar-angle and eccentric-anomaly bases coincide
+    to first order in the ellipticity, so the overlay error is modest.
+    """
     return contour_isoster_psi(iso, n_points=n_points)
 
 
@@ -753,7 +742,10 @@ def draw_isophote_overlays(
         y0 = float(iso.get("y0", 0.0))
         eps = float(iso.get("eps", 0.0))
         pa_rad = float(iso.get("pa", 0.0))
-        stop_code = int(iso.get("stop_code", 0))
+        # Skip rows with unusable geometry (P4: only sma was guarded before)
+        if not all(np.isfinite(v) for v in (x0, y0, eps, pa_rad)):
+            continue
+        stop_code = int(np.nan_to_num(iso.get("stop_code", 0), nan=0))  # P4: NaN stop codes read as 0
 
         style = style_for_stop_code(stop_code)
         color = edge_color if edge_color is not None else style["color"]
@@ -983,16 +975,16 @@ def plot_qa_summary(
     i_b3 = get_arr("b3")
     i_a4 = get_arr("a4")
     i_b4 = get_arr("b4")
-    i_grad = get_arr("grad")
-    i_stop = get_arr("stop_code", 0).astype(int)
+    i_stop = np.nan_to_num(get_arr("stop_code", 0), nan=0).astype(int)  # P4: explicit NaN stop codes read as 0
 
-    # Normalized harmonics (Bender convention): A_n_norm = -A_n / (a * dI/da).
-    # All harmonic plotting in this repo uses the normalized form; see
-    # CLAUDE.md for the long-term rule.
-    i_a3n = _normalize_harmonic_for_plot(i_a3, i_sma, i_grad, i_intens)
-    i_b3n = _normalize_harmonic_for_plot(i_b3, i_sma, i_grad, i_intens)
-    i_a4n = _normalize_harmonic_for_plot(i_a4, i_sma, i_grad, i_intens)
-    i_b4n = _normalize_harmonic_for_plot(i_b4, i_sma, i_grad, i_intens)
+    # Stored a_n/b_n are already Bender-normalized by the fitter
+    # (compute_deviations divides by sma*|grad| before storing), so plot them
+    # directly. Re-normalizing here shrank the plotted values by another
+    # 1/(sma*|grad|) and distorted their radial shape (review P1).
+    i_a3n = i_a3
+    i_b3n = i_b3
+    i_a4n = i_a4
+    i_b4n = i_b4
 
     # Derived columns
     x_axis = i_sma**0.25
@@ -1008,9 +1000,8 @@ def plot_qa_summary(
     i_dx = i_x0 - median_x0
     i_dy = i_y0 - median_y0
 
-    # Determine panel count: base 5 + optional harmonics + optional CoG.
-    # Use normalized values so arms that cannot normalize (all grad==0 /
-    # NaN) still skip the panel rather than emit an empty/misleading one.
+    # Determine panel count: base 4 + optional harmonics + optional CoG.
+    # The panel is drawn whenever any stored harmonic coefficient is finite.
     has_harmonics = np.any(np.isfinite(i_a3n)) or np.any(np.isfinite(i_a4n))
     has_cog = any("cog" in r for r in isoster_res)
 
@@ -1056,134 +1047,70 @@ def plot_qa_summary(
 
     # --- Left column: 2-D panels ----------------------------------------------
     # Shared arcsinh parameters derived from the data image
-    ref_low, ref_high, ref_scale, ref_vmax = derive_arcsinh_parameters(image)
+    arc_params = derive_arcsinh_parameters(image)
 
     # Panel 1: Data + isophotes
-    ax_img = fig.add_subplot(left[0, 0])
-    img_display, img_vmin, img_vmax = make_arcsinh_display_from_parameters(
+    _plot_arcsinh_image_panel(
+        fig,
+        left[0, 0],
+        left[0, 1],
         image,
-        low=ref_low,
-        high=ref_high,
-        scale=ref_scale,
-        vmax=ref_vmax,
+        arc_params,
+        title="Data",
+        title_style="qa",
+        title_color="w",
+        title_pos=(0.15, 0.9),
+        mask=mask,
+        overlay_isos=isoster_res,
+        overlay_step=max(1, len(isoster_res) // 15),
+        overlay_width=1.2,
+        cbar_label=r"arcsinh((data $-$ p0.05) / scale)",
+        show_xy_labels=True,
+        show_ticks=True,
     )
-    h_img = ax_img.imshow(
-        img_display,
-        origin="lower",
-        cmap="viridis",
-        vmin=img_vmin,
-        vmax=img_vmax,
-        interpolation="none",
-    )
-    if mask is not None:
-        mask_overlay = np.zeros((*image.shape, 4))
-        mask_overlay[mask] = [1, 0, 0, 0.4]
-        ax_img.imshow(mask_overlay, origin="lower")
-
-    overlay_step = max(1, len(isoster_res) // 15)
-    draw_isophote_overlays(
-        ax_img,
-        isoster_res,
-        step=overlay_step,
-        line_width=1.2,
-        alpha=0.8,
-    )
-    ax_img.text(
-        0.15,
-        0.9,
-        "Data",
-        fontsize=18,
-        color="w",
-        transform=ax_img.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
-    )
-
-    ax_img_cb = fig.add_subplot(left[0, 1])
-    fig.colorbar(h_img, cax=ax_img_cb).set_label(r"arcsinh((data $-$ p0.5) / scale)")
 
     # Panel 2: Model
-    ax_mod = fig.add_subplot(left[1, 0])
-    mod_display, mod_vmin, mod_vmax = make_arcsinh_display_from_parameters(
+    _plot_arcsinh_image_panel(
+        fig,
+        left[1, 0],
+        left[1, 1],
         isoster_model,
-        low=ref_low,
-        high=ref_high,
-        scale=ref_scale,
-        vmax=ref_vmax,
+        arc_params,
+        title="Model",
+        title_style="qa",
+        title_color="w",
+        title_pos=(0.15, 0.9),
+        contours=True,
+        cbar_label=r"arcsinh((model $-$ p0.05) / scale)",
+        show_xy_labels=True,
+        show_ticks=True,
     )
-    h_mod = ax_mod.imshow(
-        mod_display,
-        origin="lower",
-        cmap="viridis",
-        vmin=mod_vmin,
-        vmax=mod_vmax,
-        interpolation="none",
-    )
-    overlay_model_contours(ax_mod, isoster_model)
-    ax_mod.text(
-        0.15,
-        0.9,
-        "Model",
-        fontsize=18,
-        color="w",
-        transform=ax_mod.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
-    )
-
-    ax_mod_cb = fig.add_subplot(left[1, 1])
-    fig.colorbar(h_mod, cax=ax_mod_cb).set_label(r"arcsinh((model $-$ p0.5) / scale)")
 
     # Panel 3: Residual (coolwarm)
-    ax_res = fig.add_subplot(left[2, 0])
-    if relative_residual:
-        residual = compute_fractional_residual_percent(image, isoster_model)
-        res_label = latex_safe_text("(model - data) / data [%]")
-        res_clip_lo, res_clip_hi = 0.05, 8.0
-    else:
-        residual = np.where(np.isfinite(image), image - isoster_model, np.nan)
-        res_label = "data - model"
-        res_clip_lo, res_clip_hi = None, None
-    abs_res = np.abs(residual[np.isfinite(residual)])
-    res_limit = np.nanpercentile(abs_res, 99.0) if abs_res.size else 1.0
-    if res_clip_lo is not None:
-        res_limit = float(np.clip(res_limit, res_clip_lo, res_clip_hi))
-    h_res = ax_res.imshow(
-        residual,
-        origin="lower",
-        cmap="coolwarm",
-        vmin=-res_limit,
-        vmax=res_limit,
-        interpolation="nearest",
-    )
-    ax_res.text(
-        0.18,
-        0.9,
+    _plot_residual_panel(
+        fig,
+        left[2, 0],
+        left[2, 1],
+        image,
+        isoster_model,
         "Residual",
-        fontsize=18,
-        color="k",
-        transform=ax_res.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
+        relative_residual=relative_residual,
+        title_style="qa",
+        title_color="k",
+        title_pos=(0.18, 0.9),
+        show_xy_labels=True,
+        show_ticks=True,
+        cbar_fontsize=None,
     )
-
-    ax_res_cb = fig.add_subplot(left[2, 1])
-    fig.colorbar(h_res, cax=ax_res_cb).set_label(res_label)
-
-    for ax in [ax_img, ax_mod, ax_res]:
-        ax.set_xlabel("x [pixel]")
-        ax.set_ylabel("y [pixel]")
 
     # --- Right column: 1-D profiles -------------------------------------------
     panel_idx = 0
 
     # 1. Surface brightness
+    # P4: one shared asinh scale for isoster and the photutils overlay —
+    # each used to resolve its own softening from its own intensities.
+    if sb_profile_scale in ("asinh", "arcsinh"):
+        sb_asinh_softening = _resolve_asinh_softening(i_intens, sb_asinh_softening)
     ax_sb = fig.add_subplot(right[panel_idx])
     panel_idx += 1
 
@@ -1488,8 +1415,8 @@ def plot_qa_summary_extended(
         ``A_n / I`` instead of raw ``A_n``.
     relative_residual : bool
         When False (default), the residual map shows ``data - model``
-        (absolute).  When True, shows ``(data - model) / data``
-        (fractional).
+        (absolute).  When True, shows ``100 * (model - data) / data``
+        (fractional percent).
     mask : 2D bool array, optional
         Bad-pixel mask (True = masked) for the data panel overlay.
     filename : str
@@ -1522,7 +1449,7 @@ def plot_qa_summary_extended(
     i_x0_err = get_arr("x0_err")
     i_y0 = get_arr("y0")
     i_y0_err = get_arr("y0_err")
-    i_stop = get_arr("stop_code", 0).astype(int)
+    i_stop = np.nan_to_num(get_arr("stop_code", 0), nan=0).astype(int)  # P4: explicit NaN stop codes read as 0
 
     # Determine which harmonic orders are present
     if harmonic_orders is None:
@@ -1585,126 +1512,58 @@ def plot_qa_summary_extended(
     fig.suptitle(title, fontsize=20, y=0.989)
 
     # --- Left panels: data / model / residual ---------------------------------
-    ref_low, ref_high, ref_scale, ref_vmax = derive_arcsinh_parameters(image)
+    arc_params = derive_arcsinh_parameters(image)
 
-    ax_img = fig.add_subplot(left[0, 0])
-    img_display, img_vmin, img_vmax = make_arcsinh_display_from_parameters(
+    _plot_arcsinh_image_panel(
+        fig,
+        left[0, 0],
+        left[0, 1],
         image,
-        low=ref_low,
-        high=ref_high,
-        scale=ref_scale,
-        vmax=ref_vmax,
+        arc_params,
+        title="Data",
+        title_style="qa",
+        title_color="w",
+        title_pos=(0.15, 0.9),
+        mask=mask,
+        overlay_isos=isoster_res,
+        overlay_step=max(1, len(isoster_res) // 15),
+        overlay_width=1.2,
+        cbar_label=r"arcsinh((data $-$ p0.05) / scale)",
+        show_xy_labels=True,
+        show_ticks=True,
     )
-    h_img = ax_img.imshow(
-        img_display,
-        origin="lower",
-        cmap="viridis",
-        vmin=img_vmin,
-        vmax=img_vmax,
-        interpolation="none",
-    )
-    if mask is not None:
-        mask_overlay = np.zeros((*image.shape, 4))
-        mask_overlay[mask] = [1, 0, 0, 0.4]
-        ax_img.imshow(mask_overlay, origin="lower")
-    overlay_step = max(1, len(isoster_res) // 15)
-    draw_isophote_overlays(
-        ax_img,
-        isoster_res,
-        step=overlay_step,
-        line_width=1.2,
-        alpha=0.8,
-    )
-    ax_img.text(
-        0.15,
-        0.9,
-        "Data",
-        fontsize=18,
-        color="w",
-        transform=ax_img.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
-    )
-    ax_img_cb = fig.add_subplot(left[0, 1])
-    fig.colorbar(h_img, cax=ax_img_cb).set_label(r"arcsinh((data $-$ p0.5) / scale)")
 
-    ax_mod = fig.add_subplot(left[1, 0])
-    mod_display, mod_vmin, mod_vmax = make_arcsinh_display_from_parameters(
+    _plot_arcsinh_image_panel(
+        fig,
+        left[1, 0],
+        left[1, 1],
         isoster_model,
-        low=ref_low,
-        high=ref_high,
-        scale=ref_scale,
-        vmax=ref_vmax,
+        arc_params,
+        title="Model",
+        title_style="qa",
+        title_color="w",
+        title_pos=(0.15, 0.9),
+        contours=True,
+        cbar_label=r"arcsinh((model $-$ p0.05) / scale)",
+        show_xy_labels=True,
+        show_ticks=True,
     )
-    h_mod = ax_mod.imshow(
-        mod_display,
-        origin="lower",
-        cmap="viridis",
-        vmin=mod_vmin,
-        vmax=mod_vmax,
-        interpolation="none",
-    )
-    overlay_model_contours(ax_mod, isoster_model)
-    ax_mod.text(
-        0.15,
-        0.9,
-        "Model",
-        fontsize=18,
-        color="w",
-        transform=ax_mod.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
-    )
-    ax_mod_cb = fig.add_subplot(left[1, 1])
-    fig.colorbar(h_mod, cax=ax_mod_cb).set_label(r"arcsinh((model $-$ p0.5) / scale)")
 
-    # Residual panel — absolute (default) or fractional
-    ax_res = fig.add_subplot(left[2, 0])
-    if relative_residual:
-        residual_map = compute_fractional_residual_percent(image, isoster_model)
-        res_label = latex_safe_text("(data - model) / data [%]")
-    else:
-        residual_map = np.where(np.isfinite(image), image - isoster_model, np.nan)
-        res_label = "data $-$ model"
-
-    abs_res = np.abs(residual_map[np.isfinite(residual_map)])
-    res_limit = float(
-        np.clip(
-            np.nanpercentile(abs_res, 99.0) if abs_res.size else 1.0,
-            0.05,
-            None,
-        )
-    )
-    h_res = ax_res.imshow(
-        residual_map,
-        origin="lower",
-        cmap="coolwarm",
-        vmin=-res_limit,
-        vmax=res_limit,
-        interpolation="nearest",
-    )
-    ax_res.text(
-        0.18,
-        0.9,
+    _plot_residual_panel(
+        fig,
+        left[2, 0],
+        left[2, 1],
+        image,
+        isoster_model,
         "Residual",
-        fontsize=18,
-        color="k",
-        transform=ax_res.transAxes,
-        ha="center",
-        va="center",
-        weight="bold",
-        alpha=0.85,
+        relative_residual=relative_residual,
+        title_style="qa",
+        title_color="k",
+        title_pos=(0.18, 0.9),
+        show_xy_labels=True,
+        show_ticks=True,
+        cbar_fontsize=None,
     )
-    ax_res_cb = fig.add_subplot(left[2, 1])
-    fig.colorbar(h_res, cax=ax_res_cb).set_label(res_label)
-
-    for ax in [ax_img, ax_mod, ax_res]:
-        ax.set_xlabel("x [pixel]")
-        ax.set_ylabel("y [pixel]")
 
     # --- Right panels: 1-D profiles ------------------------------------------
     panel_idx = 0
@@ -2057,13 +1916,163 @@ def _build_isos_for_overlay(prof: dict[str, np.ndarray]) -> list[dict]:
             "stop_code": int(prof["stop_codes"][i]) if "stop_codes" in prof else 0,
         }
         if "use_eccentric_anomaly" in prof:
-            iso["use_eccentric_anomaly"] = bool(prof["use_eccentric_anomaly"][i])
+            ea_val = prof["use_eccentric_anomaly"][i]
+            # Missing values arrive as NaN and bool(NaN) is True, which
+            # silently switched rows to EA contours; isoster's default is
+            # phi-mode (review P4). Skip the key so the downstream default
+            # (False) applies.
+            if ea_val is not None and np.isfinite(ea_val):
+                iso["use_eccentric_anomaly"] = bool(ea_val)
         if "tool" in prof:
-            iso["tool"] = str(prof["tool"][i])
+            tool_val = prof["tool"][i]
+            # str(NaN) == "nan" fell through to the psi default in
+            # select_contour_fn; only keep real tool names.
+            if isinstance(tool_val, str):
+                iso["tool"] = tool_val
         for k in harm_keys:
             iso[k] = float(prof[k][i])
         isos.append(iso)
     return isos
+
+
+def _panel_title(ax, text, *, style, color, pos):
+    """Draw the corner title of an image panel in one of the two house styles.
+
+    ``style="qa"`` is the large centered title used by plot_qa_summary and
+    the extended figure; ``style="small"`` is the compact top-left title
+    used by the comparison figure.
+    """
+    if style == "qa":
+        ax.text(
+            pos[0],
+            pos[1],
+            text,
+            fontsize=18,
+            color=color,
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            weight="bold",
+            alpha=0.85,
+        )
+    else:
+        ax.text(
+            pos[0],
+            pos[1],
+            text,
+            fontsize=11,
+            color=color,
+            fontweight="bold",
+            transform=ax.transAxes,
+            va="top",
+            ha="left",
+        )
+
+
+def _plot_arcsinh_image_panel(
+    fig,
+    gs_slot,
+    gs_cbar_slot,
+    image,
+    arc_params,
+    *,
+    title,
+    title_style="small",
+    title_color="white",
+    title_pos=(0.03, 0.95),
+    mask=None,
+    overlay_isos=None,
+    overlay_step=5,
+    overlay_color=None,
+    overlay_width=1.0,
+    overlay_alpha=0.8,
+    contours=False,
+    cbar_label=None,
+    show_scale_bar=False,
+    show_xy_labels=False,
+    show_ticks=False,
+):
+    """Render one arcsinh-stretched image panel (data or model) with extras.
+
+    Shared by plot_qa_summary, the extended figure, and the comparison
+    figure (which used to carry three drifting copies of this block).
+    ``arc_params`` is the ``(low, high, scale, vmax)`` tuple from
+    :func:`derive_arcsinh_parameters`, shared across all panels of one
+    figure so they use the same stretch.
+    """
+    low, high, scale, vmax = arc_params
+    display, disp_vmin, disp_vmax = make_arcsinh_display_from_parameters(
+        image,
+        low=low,
+        high=high,
+        scale=scale,
+        vmax=vmax,
+    )
+    ax = fig.add_subplot(gs_slot)
+    handle = ax.imshow(
+        display,
+        origin="lower",
+        cmap="viridis",
+        vmin=disp_vmin,
+        vmax=disp_vmax,
+        interpolation="none",
+    )
+    if mask is not None:
+        mask_overlay = np.zeros((*image.shape, 4))
+        mask_overlay[mask] = [1, 0, 0, 0.4]
+        ax.imshow(mask_overlay, origin="lower")
+    if contours:
+        overlay_model_contours(ax, image)
+    if overlay_isos:
+        draw_isophote_overlays(
+            ax,
+            overlay_isos,
+            step=overlay_step,
+            line_width=overlay_width,
+            alpha=overlay_alpha,
+            edge_color=overlay_color,
+        )
+    if not show_ticks:
+        ax.set_xticks([])
+        ax.set_yticks([])
+    _panel_title(ax, title, style=title_style, color=title_color, pos=title_pos)
+    if show_xy_labels:
+        ax.set_xlabel("x [pixel]")
+        ax.set_ylabel("y [pixel]")
+    if show_scale_bar:
+        # Scale bar: ~1/10 of the image size, rounded up to nearest 10
+        img_size = max(image.shape)
+        bar_length = int(np.ceil(img_size / 100.0)) * 10
+        bar_x0 = image.shape[1] * 0.05
+        bar_y0 = image.shape[0] * 0.05
+        ax.plot(
+            [bar_x0, bar_x0 + bar_length],
+            [bar_y0, bar_y0],
+            color="white",
+            linewidth=2.5,
+            solid_capstyle="butt",
+        )
+        ax.text(
+            bar_x0 + bar_length / 2,
+            bar_y0 + image.shape[0] * 0.03,
+            f"{bar_length} pix",
+            color="white",
+            fontsize=9,
+            ha="center",
+            va="bottom",
+        )
+
+    ax_cbar = fig.add_subplot(gs_cbar_slot)
+    if cbar_label is not None:
+        fig.colorbar(handle, cax=ax_cbar).set_label(cbar_label)
+    else:
+        fig.colorbar(handle, cax=ax_cbar)
+    return ax
+
+
+# ---------------------------------------------------------------------------
+# Residual computation
+# ---------------------------------------------------------------------------
 
 
 def _compute_residual_map(
@@ -2081,7 +2090,7 @@ def _compute_residual_map(
     """
     if relative:
         residual = compute_fractional_residual_percent(image, model)
-        label = "(model-data)/data [%]"
+        label = latex_safe_text("(model - data) / data [%]")
     else:
         residual = np.where(np.isfinite(image), image - model, np.nan)
         label = "data - model"
@@ -2100,18 +2109,33 @@ def _plot_residual_panel(
     overlay_step: int = 5,
     overlay_color: str = "white",
     overlay_width: float = 1.0,
+    title_style="small",
+    title_color="black",
+    title_pos=(0.03, 0.95),
+    show_xy_labels=False,
+    show_ticks=False,
+    cbar_fontsize=8,
 ) -> None:
-    """Draw a single residual image panel with optional isophote overlays."""
+    """Draw a single residual image panel with optional isophote overlays.
+
+    Used by all three QA figures (which used to carry three drifting
+    copies of this block). ``title_style="qa"`` selects the large centered
+    title of plot_qa_summary / the extended figure; ``"small"`` selects
+    the comparison figure's compact top-left title.
+    """
     residual, cbar_label = _compute_residual_map(
         image,
         model,
         relative=relative_residual,
     )
     abs_vals = np.abs(residual[np.isfinite(residual)])
+    # Floor (0.05) and cap (8.0) the color range only in fractional
+    # (percent) mode; in absolute mode an arbitrary floor flattens
+    # low-flux residual maps (P4).
     res_limit = float(
         np.clip(
             np.nanpercentile(abs_vals, 99.0) if abs_vals.size else 1.0,
-            0.05,
+            0.05 if relative_residual else None,
             8.0 if relative_residual else None,
         )
     )
@@ -2134,22 +2158,19 @@ def _plot_residual_panel(
             alpha=0.7,
             edge_color=overlay_color,
         )
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.text(
-        0.03,
-        0.95,
-        panel_title,
-        color="black",
-        fontsize=11,
-        fontweight="bold",
-        transform=ax.transAxes,
-        va="top",
-        ha="left",
-    )
+    if not show_ticks:
+        ax.set_xticks([])
+        ax.set_yticks([])
+    _panel_title(ax, panel_title, style=title_style, color=title_color, pos=title_pos)
+    if show_xy_labels:
+        ax.set_xlabel("x [pixel]")
+        ax.set_ylabel("y [pixel]")
 
     ax_cbar = fig.add_subplot(gs_cbar_slot)
-    fig.colorbar(handle, cax=ax_cbar).set_label(cbar_label, fontsize=8)
+    if cbar_fontsize is not None:
+        fig.colorbar(handle, cax=ax_cbar).set_label(cbar_label, fontsize=cbar_fontsize)
+    else:
+        fig.colorbar(handle, cax=ax_cbar).set_label(cbar_label)
 
 
 def plot_comparison_qa_figure(
@@ -2218,10 +2239,6 @@ def plot_comparison_qa_figure(
     dpi : int
         Figure resolution.
     """
-    from pathlib import Path as _Path
-
-    import matplotlib.gridspec as gridspec
-
     _validate_sb_inputs(sb_zeropoint, pixel_scale_arcsec)
     configure_qa_plot_style()
     plt.rcParams["text.usetex"] = False
@@ -2235,6 +2252,12 @@ def plot_comparison_qa_figure(
 
     available = [m for m in profiles if profiles[m] is not None]
     n_methods = len(available)
+
+    # P4: derive the asinh softening once from the reference method so every
+    # overlaid method shares one asinh scale — per-method resolution gave
+    # each method its own scale and the I=0 line came from the last one.
+    if sb_profile_scale in ("asinh", "arcsinh") and available:
+        sb_asinh_softening = _resolve_asinh_softening(profiles[available[0]]["intens"], sb_asinh_softening)
 
     # --- Determine layout mode ---
     # Mode 1 (solo): 3 left rows (image, model, residual)
@@ -2294,84 +2317,40 @@ def plot_comparison_qa_figure(
             _runtime_lines.append((line, color))
 
     # --- Left column row 0: Original image ---
-    ax_img = fig.add_subplot(left[0, 0])
-    low, high, scale, vmax_val = derive_arcsinh_parameters(image)
-    display, _, disp_vmax = make_arcsinh_display_from_parameters(
-        image,
-        low,
-        high,
-        scale,
-        vmax_val,
-    )
-    handle_img = ax_img.imshow(
-        display,
-        cmap="viridis",
-        origin="lower",
-        vmin=0,
-        vmax=disp_vmax,
-        interpolation="none",
-    )
+    arc_params = derive_arcsinh_parameters(image)
 
-    # Mask overlay (semi-transparent red)
-    if mask is not None:
-        mask_overlay = np.zeros((*image.shape, 4))
-        mask_overlay[mask] = [1, 0, 0, 0.4]
-        ax_img.imshow(mask_overlay, origin="lower")
-
-    ax_cbar = fig.add_subplot(left[0, 1])
-    fig.colorbar(handle_img, cax=ax_cbar)
-
+    # Solo mode: overlays from the (single) method on the data image
+    img_overlay_isos = None
+    img_overlay_step = 5
+    img_overlay_width = 1.0
+    img_overlay_color = "white"
     if n_methods <= 1:
-        # Solo mode: overlays from isoster on the data image
         for method_name in available:
             prof = profiles[method_name]
-            style = styles.get(method_name, {})
+            style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
             isos = _build_isos_for_overlay(prof)
             if isos:
-                overlay_step = max(1, len(isos) // 15)
-                draw_isophote_overlays(
-                    ax_img,
-                    isos,
-                    step=overlay_step,
-                    line_width=style.get("overlay_width", 1.0),
-                    alpha=0.8,
-                    edge_color=style.get("overlay_color", "white"),
-                )
+                img_overlay_isos = isos
+                img_overlay_step = max(1, len(isos) // 15)
+                img_overlay_width = style.get("overlay_width", 1.0)
+                img_overlay_color = style.get("overlay_color", "white")
 
-    ax_img.set_xticks([])
-    ax_img.set_yticks([])
-    ax_img.text(
-        0.03,
-        0.95,
-        "Data",
-        color="white",
-        fontsize=11,
-        fontweight="bold",
-        transform=ax_img.transAxes,
-        va="top",
-        ha="left",
-    )
-
-    # Scale bar: ~1/10 of image size, rounded up to nearest 10
-    img_size = max(image.shape)
-    bar_length = int(np.ceil(img_size / 100.0)) * 10  # round up to 10s
-    bar_x0 = image.shape[1] * 0.05
-    bar_y0 = image.shape[0] * 0.05
-    ax_img.plot(
-        [bar_x0, bar_x0 + bar_length],
-        [bar_y0, bar_y0],
-        color="white",
-        linewidth=2.5,
-        solid_capstyle="butt",
-    )
-    ax_img.text(
-        bar_x0 + bar_length / 2,
-        bar_y0 + image.shape[0] * 0.03,
-        f"{bar_length} pix",
-        color="white",
-        fontsize=9,
-        ha="center",
-        va="bottom",
+    _plot_arcsinh_image_panel(
+        fig,
+        left[0, 0],
+        left[0, 1],
+        image,
+        arc_params,
+        title="Data",
+        title_style="small",
+        title_color="white",
+        title_pos=(0.03, 0.95),
+        mask=mask,
+        overlay_isos=img_overlay_isos,
+        overlay_step=img_overlay_step,
+        overlay_color=img_overlay_color,
+        overlay_width=img_overlay_width,
+        show_scale_bar=True,
     )
 
     # --- Left column: mode-dependent panels ---
@@ -2382,38 +2361,18 @@ def plot_comparison_qa_figure(
 
         if model is not None:
             # Model panel
-            ax_mod = fig.add_subplot(left[1, 0])
-            mod_display, _, mod_vmax = make_arcsinh_display_from_parameters(
+            _plot_arcsinh_image_panel(
+                fig,
+                left[1, 0],
+                left[1, 1],
                 model,
-                low,
-                high,
-                scale,
-                vmax_val,
+                arc_params,
+                title="Model",
+                title_style="small",
+                title_color="white",
+                title_pos=(0.03, 0.95),
+                contours=True,
             )
-            h_mod = ax_mod.imshow(
-                mod_display,
-                origin="lower",
-                cmap="viridis",
-                vmin=0,
-                vmax=mod_vmax,
-                interpolation="none",
-            )
-            overlay_model_contours(ax_mod, model)
-            ax_mod.set_xticks([])
-            ax_mod.set_yticks([])
-            ax_mod.text(
-                0.03,
-                0.95,
-                "Model",
-                color="white",
-                fontsize=11,
-                fontweight="bold",
-                transform=ax_mod.transAxes,
-                va="top",
-                ha="left",
-            )
-            ax_mod_cb = fig.add_subplot(left[1, 1])
-            fig.colorbar(h_mod, cax=ax_mod_cb)
 
             # Residual panel
             _plot_residual_panel(
@@ -2445,7 +2404,7 @@ def plot_comparison_qa_figure(
         # Mode 2/3: one residual panel per method with isophote overlays
         for row_idx, method_name in enumerate(available, start=1):
             model = models.get(method_name)
-            style = styles.get(method_name, {})
+            style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
             label = style.get("label", method_name)
             isos = _build_isos_for_overlay(profiles[method_name])
             overlay_step = max(1, len(isos) // 15) if isos else 5
@@ -2478,17 +2437,9 @@ def plot_comparison_qa_figure(
                 )
                 ax_blank.set_axis_off()
 
-    elif not available:
-        # No profiles at all — save bare figure
-        output_path = _Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
-        plt.close(fig)
-        return
-
     # --- Right column: 1D profiles ---
     if not available:
-        output_path = _Path(output_path)
+        output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
@@ -2500,7 +2451,7 @@ def plot_comparison_qa_figure(
     ax_sb = fig.add_subplot(right[0])
     for method_name in available:
         prof = profiles[method_name]
-        style = styles.get(method_name, {})
+        style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
         x = prof["x_axis"]
         intens = prof["intens"]
         y, y_err, sb_ylabel, invert_sb_axis, zero_intensity_y = transform_sb_profile(
@@ -2623,7 +2574,7 @@ def plot_comparison_qa_figure(
             if method_name == ref_method:
                 continue
             prof = profiles[method_name]
-            style = styles.get(method_name, {})
+            style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
             from scipy.interpolate import interp1d
 
             valid_ref = np.isfinite(ref_intens) & (ref_intens > 0)
@@ -2709,7 +2660,7 @@ def plot_comparison_qa_figure(
     ax_eps = fig.add_subplot(right[2], sharex=ax_sb)
     for method_name in available:
         prof = profiles[method_name]
-        style = styles.get(method_name, {})
+        style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
         eps_err = prof.get("eps_err")
         mfc = style["color"] if style.get("marker_face") == "filled" else "none"
         if eps_err is not None:
@@ -2772,7 +2723,7 @@ def plot_comparison_qa_figure(
     ref_pa_median = None
     for method_name in available:
         prof = profiles[method_name]
-        style = styles.get(method_name, {})
+        style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
         pa_deg = np.degrees(prof["pa"])
 
         # First method: normalize freely; subsequent methods: anchor to
@@ -2883,7 +2834,7 @@ def plot_comparison_qa_figure(
         prof = profiles[method_name]
         if "x0" not in prof:
             continue
-        style = styles.get(method_name, {})
+        style = {"color": "black", **styles.get(method_name, {})}  # P3: default color for unknown methods
         # All methods use the isoster reference center if available;
         # fall back to own median if reference is not available
         if ref_x0 is not None:
@@ -2962,7 +2913,7 @@ def plot_comparison_qa_figure(
             lower_clip=0.0,
         )
 
-    output_path = _Path(output_path)
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
