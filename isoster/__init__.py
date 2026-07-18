@@ -1,3 +1,6 @@
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
+
 from .config import IsosterConfig
 from .driver import fit_image
 from .fitting import fit_isophote
@@ -16,3 +19,8 @@ from .utils import (
     isophote_results_to_astropy_tables,
     isophote_results_to_fits,
 )
+
+try:
+    __version__ = _version("isoster")
+except PackageNotFoundError:  # running from a source tree without an install
+    __version__ = "0.0.0+unknown"

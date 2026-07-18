@@ -9,14 +9,43 @@ description = "ISOphote on STERoid - Accelerated isophote fitting"
 readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.9"
+authors = [
+    { name = "Song Huang", email = "dr.guangtou@gmail.com" },
+]
+keywords = [
+    "astronomy",
+    "astrophysics",
+    "isophote fitting",
+    "galaxy photometry",
+    "ellipse fitting",
+    "surface photometry",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "numpy",
     "scipy",
     "astropy",
     "matplotlib",
     "pyyaml",
-    "pydantic>=2.0"
+    "pydantic>=2.0",
+    "numba>=0.60",
 ]
+
+[project.urls]
+Homepage = "https://github.com/MassiveSeaOtters/isoster"
+Repository = "https://github.com/MassiveSeaOtters/isoster"
+Documentation = "https://github.com/MassiveSeaOtters/isoster/tree/main/docs"
+Issues = "https://github.com/MassiveSeaOtters/isoster/issues"
 
 [project.optional-dependencies]
 asdf = [
@@ -26,7 +55,6 @@ dev = [
     "pytest>=8.0",
     "photutils>=1.10; python_version >= '3.9'",
     "scikit-image>=0.22; python_version >= '3.9'",
-    "numba>=0.60; python_version >= '3.9'",
     "ruff>=0.6; python_version >= '3.9'",
     "pre-commit>=3.8; python_version >= '3.9'",
     "asdf>=3.0",
