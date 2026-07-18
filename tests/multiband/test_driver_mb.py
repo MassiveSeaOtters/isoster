@@ -79,6 +79,64 @@ def test_b1_delegates_to_single_band(planted_two_band):
     assert "bands" not in result
 
 
+def test_m6_b1_delegation_forwards_template(planted_two_band):
+    """Regression test for M6: B=1 with a template must run forced photometry.
+
+    The B=1 check ran before the forced-photometry dispatch and the
+    delegation never received template_isophotes, so templates were
+    silently ignored for single-band inputs.
+    """
+    img, _ = planted_two_band
+    template_cfg = IsosterConfigMB(bands=["g"], reference_band="g", sma0=15.0, astep=0.2, maxsma=40.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        template_res = fit_image_multiband([img], None, template_cfg)
+
+    cfg = IsosterConfigMB(bands=["g"], reference_band="g", sma0=15.0, astep=0.2, maxsma=40.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = fit_image_multiband([img], None, cfg, template_isophotes=template_res["isophotes"])
+
+    # Forced photometry extracts without iterating: niter == 0 on ring rows
+    ring_rows = [iso for iso in res["isophotes"] if iso["sma"] > 0]
+    assert ring_rows and all(iso["niter"] == 0 for iso in ring_rows)
+
+
+def test_m6_b1_delegation_forwards_feature_flags(planted_two_band):
+    """M6: B=1 delegation must forward compute_cog / harmonic_orders / lsb_auto_lock."""
+    img, _ = planted_two_band
+    cfg = IsosterConfigMB(
+        bands=["g"],
+        reference_band="g",
+        sma0=15.0,
+        astep=0.2,
+        maxsma=40.0,
+        compute_cog=True,
+        harmonic_orders=[3, 4, 5, 6],
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = fit_image_multiband([img], None, cfg)
+    assert any("cog" in iso for iso in res["isophotes"])
+    assert any("a5" in iso for iso in res["isophotes"])
+
+    cfg_lock = IsosterConfigMB(
+        bands=["g"],
+        reference_band="g",
+        sma0=15.0,
+        astep=0.2,
+        maxsma=40.0,
+        lsb_auto_lock=True,
+        lsb_auto_lock_integrator="mean",  # MB validator: 'median' needs decoupled intercepts
+        debug=True,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res_lock = fit_image_multiband([img], None, cfg_lock)
+    assert res_lock.get("lsb_auto_lock") is True
+    assert any("lsb_locked" in iso for iso in res_lock["isophotes"])
+
+
 def test_b1_delegation_unwraps_variance_maps_list(planted_two_band):
     """Regression for B17: a length-1 variance_maps list must be unwrapped
     to a single ndarray when delegating to single-band ``fit_image``.
@@ -268,6 +326,84 @@ def test_ref_mode_runs(planted_two_band):
     assert any(iso["valid"] for iso in result["isophotes"])
 
 
+def _mask_outside_disk(shape, center, radius):
+    """Boolean mask (True = masked) for every pixel outside a central disk."""
+    y, x = np.mgrid[: shape[0], : shape[1]]
+    return (x - center[0]) ** 2 + (y - center[1]) ** 2 > radius**2
+
+
+def test_ref_mode_loose_validity_fits_correct_band():
+    """Regression test for M1: ref x loose must fit the reference band.
+
+    Under loose validity the solve arrays hold surviving bands only, but the
+    ref branch indexed them by full-list position: with band g dropped at
+    outer isophotes, position 1 held band i (eps=0.6) instead of the
+    reference band r (eps=0.3), and the fit silently converged to the wrong
+    band's geometry.
+    """
+    img_g = _planted_galaxy(eps=0.3, amplitude=100.0, seed=1)
+    img_r = _planted_galaxy(eps=0.3, amplitude=200.0, seed=2)
+    img_i = _planted_galaxy(eps=0.6, amplitude=150.0, seed=3)
+    # Band g keeps too few samples outside 30 px and is dropped there.
+    mask_g = _mask_outside_disk(img_g.shape, (96.0, 96.0), 30.0)
+
+    cfg = IsosterConfigMB(
+        bands=["g", "r", "i"],
+        reference_band="r",  # NOT the first band
+        harmonic_combination="ref",
+        loose_validity=True,
+        sma0=10.0,
+        minsma=4.0,
+        maxsma=60.0,
+        astep=0.2,
+        eps=0.3,
+        pa=0.5,
+        debug=True,
+        nclip=0,
+    )
+    result = fit_image_multiband([img_g, img_r, img_i], [mask_g, None, None], cfg)
+
+    outer = [iso for iso in result["isophotes"] if iso["sma"] > 35.0 and iso["stop_code"] == 0]
+    assert outer, "no converged outer isophotes (g should be dropped, r+i survive)"
+    for iso in outer:
+        # Fitting the wrong band would report eps ~ 0.6 (band i's truth).
+        assert iso["eps"] == pytest.approx(0.3, abs=0.05)
+
+
+def test_ref_mode_loose_validity_reference_band_dropped():
+    """M1 counterpart: a dropped reference band stops the isophote cleanly.
+
+    Previously this either raised an uncaught IndexError or silently fit the
+    wrong band; it must now skip the isophote with a clear stop code.
+    """
+    img_g = _planted_galaxy(eps=0.3, amplitude=100.0, seed=1)
+    img_r = _planted_galaxy(eps=0.3, amplitude=200.0, seed=2)
+    img_i = _planted_galaxy(eps=0.3, amplitude=150.0, seed=3)
+    # The reference band itself is dropped at outer isophotes.
+    mask_r = _mask_outside_disk(img_r.shape, (96.0, 96.0), 30.0)
+
+    cfg = IsosterConfigMB(
+        bands=["g", "r", "i"],
+        reference_band="r",
+        harmonic_combination="ref",
+        loose_validity=True,
+        sma0=10.0,
+        minsma=4.0,
+        maxsma=60.0,
+        astep=0.2,
+        eps=0.3,
+        pa=0.5,
+        debug=True,
+        nclip=0,
+    )
+    result = fit_image_multiband([img_g, img_r, img_i], [None, mask_r, None], cfg)
+
+    outer = [iso for iso in result["isophotes"] if iso["sma"] > 40.0]
+    assert outer, "expected isophote rows at radii where r is dropped"
+    bad = sorted({iso["stop_code"] for iso in outer} - {3})
+    assert not bad, f"expected stop_code=3 where the reference band is dropped, got {bad}"
+
+
 # ---------------------------------------------------------------------------
 # Validation paths
 # ---------------------------------------------------------------------------
@@ -371,3 +507,42 @@ def test_first_isophote_failure_warning():
         result = fit_image_multiband([img, img], None, cfg)
     assert any("FIRST_FEW_ISOPHOTE_FAILURE" in str(w.message) for w in captured)
     assert result.get("first_isophote_failure") is True
+
+
+def test_m13_ndata_nflag_present_without_debug(planted_two_band):
+    """M13: ndata/nflag are written on fitted rows regardless of debug —
+    mixed presence used to produce masked FITS cells."""
+    img_g, img_r = planted_two_band
+    cfg = IsosterConfigMB(
+        bands=["g", "r"],
+        reference_band="g",
+        sma0=15.0,
+        astep=0.2,
+        maxsma=40.0,
+        debug=False,
+        nclip=0,
+    )
+    result = fit_image_multiband([img_g, img_r], None, cfg)
+    assert result["isophotes"]
+    for iso in result["isophotes"]:
+        assert "ndata" in iso and "nflag" in iso
+
+
+def test_m13_forced_mode_stamps_n_valid(planted_two_band):
+    """M13: forced-photometry rows carry per-band n_valid_<b> counts."""
+    img_g, img_r = planted_two_band
+    cfg = IsosterConfigMB(
+        bands=["g", "r"],
+        reference_band="g",
+        sma0=15.0,
+        astep=0.2,
+        maxsma=40.0,
+        debug=True,
+        nclip=0,
+    )
+    template_res = fit_image_multiband([img_g, img_r], None, cfg)
+    res_forced = fit_image_multiband([img_g, img_r], None, cfg, template_isophotes=template_res["isophotes"])
+    ring_rows = [iso for iso in res_forced["isophotes"] if iso["sma"] > 0]
+    assert ring_rows
+    for iso in ring_rows:
+        assert iso["n_valid_g"] > 0 and iso["n_valid_r"] > 0

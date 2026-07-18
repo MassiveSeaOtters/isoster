@@ -20,6 +20,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.ndimage import map_coordinates
 
+from .._shared import _prepare_mask_float
 from ..numba_kernels import compute_ellipse_coords
 from .numba_kernels_mb import bilinear_sample_stack
 
@@ -113,10 +114,7 @@ def _resolve_masks(
     if isinstance(masks, np.ndarray):
         if masks.shape != (h, w):
             raise ValueError(f"masks ndarray shape {masks.shape} does not match images shape {(h, w)}")
-        m_f: NDArray[np.float64] = (
-            masks.astype(np.float64) if masks.dtype.kind != "f" else masks.astype(np.float64, copy=False)
-        )
-        return [m_f] * n_bands
+        return [_prepare_mask_float(masks)] * n_bands
 
     if not hasattr(masks, "__len__") or len(masks) != n_bands:
         raise ValueError(
@@ -133,10 +131,7 @@ def _resolve_masks(
             raise TypeError(f"masks[{i}] must be a numpy ndarray or None, got {type(m).__name__}")
         if m.shape != (h, w):
             raise ValueError(f"masks[{i}] shape {m.shape} does not match images shape {(h, w)}")
-        m_arr: NDArray[np.float64] = (
-            m.astype(np.float64, copy=False) if m.dtype != np.float64 else m  # type: ignore[assignment]
-        )
-        out.append(m_arr)
+        out.append(_prepare_mask_float(m))
     return out
 
 
@@ -494,7 +489,7 @@ def extract_isophote_data_multi(
     Returns
     -------
     MultiIsophoteData
-        Named tuple with shared ``angles, phi, radii`` and per-band
+        Slotted dataclass with shared ``angles, phi, radii`` and per-band
         ``intens, variances`` (each shape ``(B, N_valid)``). ``variances``
         is ``None`` when ``variance_maps`` is ``None``.
 

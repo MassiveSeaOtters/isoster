@@ -405,6 +405,59 @@ def test_asdf_roundtrip_preserves_lsb_auto_lock_metadata(tmp_path):
     assert loaded_anchors == orig_anchors
 
 
+def test_fits_roundtrip_preserves_lsb_auto_lock_flags(tmp_path):
+    """Regression test for B3 (multiband): lock flags must survive FITS exactly.
+
+    FITS logical columns cannot represent masked values, so heterogeneous row
+    keys made numpy fill the missing cells with True: every isophote read back
+    as locked and as the anchor. With the uniform schema (False stamped on
+    inward/central rows) the flags must round-trip exactly.
+    """
+    import warnings as _warnings
+
+    rng_h = rng_w = 200
+    y, x = np.mgrid[0:rng_h, 0:rng_w].astype(np.float64)
+    rng = np.random.default_rng(2026)
+    img1 = 50.0 * np.exp(-((x - 100.0) ** 2 + ((y - 100.0) / 0.75) ** 2) / (2 * 10.0**2))
+    img1 = img1 + rng.normal(0.0, 2.0, size=img1.shape)
+    rng = np.random.default_rng(2027)
+    img2 = 25.0 * np.exp(-((x - 100.0) ** 2 + ((y - 100.0) / 0.75) ** 2) / (2 * 10.0**2))
+    img2 = img2 + rng.normal(0.0, 2.0, size=img2.shape)
+
+    with _warnings.catch_warnings():
+        _warnings.simplefilter("ignore", UserWarning)
+        cfg = IsosterConfigMB(
+            bands=["g", "r"],
+            reference_band="g",
+            sma0=5.0,
+            minsma=2.0,
+            maxsma=80.0,
+            astep=0.15,
+            lsb_auto_lock=True,
+            lsb_auto_lock_integrator="mean",
+            lsb_auto_lock_maxgerr=0.2,
+            lsb_auto_lock_debounce=2,
+        )
+    result = fit_image_multiband([img1, img2], None, cfg)
+    if not result.get("lsb_auto_lock"):
+        pytest.skip("Lock did not trigger on synthetic image; metadata test inapplicable")
+
+    fname = tmp_path / "mb_lsb.fits"
+    isophote_results_mb_to_fits(result, fname)
+    loaded = isophote_results_mb_from_fits(fname)
+
+    assert len(loaded["isophotes"]) == len(result["isophotes"])
+    for orig, restored in zip(result["isophotes"], loaded["isophotes"]):
+        assert bool(restored["lsb_locked"]) == bool(orig["lsb_locked"])
+        assert bool(restored["lsb_auto_lock_anchor"]) == bool(orig["lsb_auto_lock_anchor"])
+    assert sum(1 for iso in loaded["isophotes"] if iso["lsb_auto_lock_anchor"]) == 1
+
+    # Q2: the true geometry anchor's sma is recorded and round-trips
+    anchor_sma = result["lsb_auto_lock_anchor_sma"]
+    assert anchor_sma is not None and float(anchor_sma) < float(result["lsb_auto_lock_sma"])
+    assert float(loaded["lsb_auto_lock_anchor_sma"]) == pytest.approx(float(anchor_sma))
+
+
 def test_asdf_import_guard(monkeypatch, tmp_path):
     """Helpful ImportError surfaces when the optional ``asdf`` package
     is unavailable at call time."""
@@ -422,3 +475,38 @@ def test_asdf_import_guard(monkeypatch, tmp_path):
 
     with pytest.raises(ImportError, match="asdf"):
         isophote_results_mb_from_asdf(str(tmp_path / "x.asdf"))
+
+
+def test_fits_roundtrip_preserves_extra_top_level_keys(tmp_path):
+    """M13: the FITS META HDU preserves non-structural top-level result keys
+    (forced-mode bookkeeping, sky offsets, first-isophote diagnostics)."""
+    result = _two_band_fit()
+    result["forced_photometry_mode"] = True
+    result["template_n_isophotes"] = 7
+    result["sky_offsets"] = {"g": 1.25, "r": -0.5}
+    result["first_isophote_failure"] = False
+
+    fname = tmp_path / "mb_meta.fits"
+    isophote_results_mb_to_fits(result, fname)
+    loaded = isophote_results_mb_from_fits(fname)
+
+    assert loaded["forced_photometry_mode"] is True
+    assert loaded["template_n_isophotes"] == 7
+    assert loaded["sky_offsets"] == {"g": 1.25, "r": -0.5}
+    assert loaded["first_isophote_failure"] is False
+
+
+def test_asdf_roundtrip_preserves_extra_top_level_keys(tmp_path):
+    """M13: the ASDF tree preserves non-structural top-level result keys."""
+    result = _two_band_fit()
+    result["forced_photometry_mode"] = True
+    result["template_n_isophotes"] = 7
+    result["sky_offsets"] = {"g": 1.25, "r": -0.5}
+
+    fname = tmp_path / "mb_meta.asdf"
+    isophote_results_mb_to_asdf(result, fname)
+    loaded = isophote_results_mb_from_asdf(fname)
+
+    assert loaded["forced_photometry_mode"] is True
+    assert loaded["template_n_isophotes"] == 7
+    assert loaded["sky_offsets"] == {"g": 1.25, "r": -0.5}
