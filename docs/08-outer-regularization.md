@@ -277,7 +277,11 @@ L_selector(iter) = |max_amp(iter)|  +  ∑_p λ(sma) w_p (p(iter) − p_ref)²  
 The selector picks the iteration that minimizes (2.9), producing the
 recorded isophote geometry. Unlike the solver-level term, the selector
 does **not** modify the iteration trajectory — it only influences which
-of the trajectory points is recorded as the output.
+of the trajectory points is recorded as the output. Note that (2.9) is
+a deliberate heuristic that mixes units: `|max_amp|` is a harmonic
+amplitude in intensity units while the penalty terms are squared
+geometry offsets (px², rad²), so the relative weighting of the terms
+depends on the image's flux scale.
 
 The selector penalty composes with either operating mode:
 - With `damping`: the selector biases the recorded geometry toward

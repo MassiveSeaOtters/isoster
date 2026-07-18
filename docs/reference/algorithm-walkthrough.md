@@ -51,7 +51,7 @@ order.*
 | Trigger | Mode | Driver function |
 |---|---|---|
 | `template` argument supplied | Template-based forced photometry | `_fit_image_template_forced` |
-| Otherwise | Regular iterative fitting | `_fit_image_regular` |
+| Otherwise | Regular iterative fitting | inline in `fit_image` |
 
 `template` accepts a results dict, a FITS path, or a list of
 isophote dicts. `template_isophotes` is still accepted as a
@@ -100,15 +100,27 @@ flowchart TD
 
 !!! info "Convergence with a noise floor"
     When `sigma_bg` is provided,
-    `effective_rms = max(rms, sigma_bg / √N)`. This stops the solver
+    `effective_rms = max(rms, sigma_bg / √N)` with `N` the number of
+    surviving samples after masking and sigma clipping. This stops
+    the solver
     from chasing noise-induced asymmetries in LSB regions where
     `rms` can dip below the photon-noise limit.
+
+!!! info "Convergence scale factor"
+    `scale` in the convergence test is an SMA-dependent factor set
+    by `convergence_scaling`. The default `'sector_area'` uses
+    `scale = max(1, sma · Δsma · Δθ)` with `Δsma` the SMA step and
+    `Δθ = 2π/N` the angular sample spacing, so the threshold scales
+    roughly with the area of one sample sector; `'sqrt_sma'` uses
+    `max(1, √sma)` and `'none'` uses `1`.
 
 !!! info "Lazy gradient"
     By default the radial gradient is evaluated once on iteration 0
     and reused. If the geometry stops improving for three
-    consecutive iterations the gradient is re-evaluated. This cuts
-    sampling overhead by about 45% on typical fits.
+    consecutive iterations the gradient is re-evaluated. The
+    gradient costs one extra sampling pass (a one-sided difference
+    reusing the current sample), so iterations that reuse the
+    cached gradient cost one sampling pass instead of two.
 
 !!! info "Gradient-SNR damping"
     If the local gradient is noisy (SNR < 3), `geometry_damping` is
@@ -182,7 +194,7 @@ flowchart TD
     VMChk{"variance_map<br/>provided?"}
     VMChk -- no --> OLS["OLS: min ‖y − Ax‖²<br/>cov = (AᵀA)⁻¹ · σ²_res<br/>(σ²_res from fit residuals)"]
     VMChk -- yes --> WLS["WLS: min ‖W^{½}(y − Ax)‖²<br/>W = diag(1 / σ²ᵢ)<br/>cov = (AᵀWA)⁻¹  (exact)"]
-    OLS --> Same["Identical fitting loop, identical convergence rule.<br/>The OLS path is byte-identical when variance_map = None."]
+    OLS --> Same["Identical fitting loop, identical convergence rule.<br/>No variance map ⇒ plain OLS solve everywhere."]
     WLS --> Same
 ```
 
@@ -193,8 +205,8 @@ residual-variance rescaling is needed.*
 |---|---|---|
 | Normal equations | `AᵀA x = Aᵀy` | `AᵀWA x = AᵀWy` |
 | Parameter covariance | `(AᵀA)⁻¹ · σ²_res` | `(AᵀWA)⁻¹` |
-| Intensity error | `rms / √N` | `√(Σ σ²ᵢ / N²)` |
-| Gradient error | scatter-based | `√(Var(mean_c) + Var(mean_g)) / Δr` |
+| Intensity error | `rms / √N` | `√[(AᵀWA)⁻¹]₀₀` (fit covariance; forced photometry uses the exact `1/√Σ σᵢ⁻²`) |
+| Gradient error | scatter-based | `√(Var(mean_c) + Var(mean_g)) / Δr` with `Var(mean) = 1/Σ σᵢ⁻²` |
 
 !!! note "What WLS buys you"
     Errors come directly from the per-pixel variance map rather
@@ -249,7 +261,7 @@ flowchart TD
     Ramp --> AL
     OR -- no --> AL
     AL{"lsb_auto_lock?"}
-    AL -- yes --> Detect["Each new outward iso:<br/>trigger if grad_r_error &gt; lsb_auto_lock_maxgerr<br/>OR stop_code = −1"]
+    AL -- yes --> Detect["Each new outward iso:<br/>trigger if grad_r_error &gt; lsb_auto_lock_maxgerr<br/>OR grad ≥ 0 OR stop_code = −1"]
     Detect --> Streak{"debounce streak<br/>≥ lsb_auto_lock_debounce?"}
     Streak -- "no (clean iso resets)" --> Free[Continue free fit]
     Streak -- yes --> Commit["Commit lock to isophote<br/>immediately BEFORE the streak<br/>(known clean anchor)"]
@@ -270,7 +282,9 @@ freeze post-lock.*
   If none qualify, the reference falls back to the anchor.
 - `outer_reg_mode='damping'` (default) shrinks harmonic geometry
   steps in the outer region; `'solver'` additionally pulls the
-  solver toward the reference inside the linear system.
+  geometry toward the reference. Both are applied in the
+  geometry-update equations (after the harmonic solve), not inside
+  the linear system.
 - A complementary selector penalty
   (`compute_outer_center_regularization_penalty`) contributes to
   `effective_amp` so the best-iteration tracker also prefers
@@ -315,8 +329,11 @@ freeze post-lock.*
 
 In regular-mode growth, codes `0`, `1`, and `2` are considered
 acceptable for continued propagation (constant
-`ACCEPTABLE_STOP_CODES`). Codes `3` and `−1` terminate the growth
-direction.
+`ACCEPTABLE_STOP_CODES`). Codes `3` and `−1` are unacceptable: the
+failed isophote's geometry is not propagated to the next SMA step
+(in the default strict mode), but growth continues to the
+configured radius limit (`max(minsma, 0.5)` inward, `maxsma`
+outward) — a stop code never terminates a growth loop early.
 
 ## 9. References
 

@@ -337,7 +337,7 @@ from the arcsinh stretch alone.
 | `build_method_profile(data)` | Convert list-of-dicts or array-dict into standardized profile arrays. Preserves harmonic keys. |
 | `configure_qa_plot_style()` | Apply shared matplotlib rcParams for QA figures. |
 | `derive_arcsinh_parameters(image)` | Compute arcsinh stretch parameters for display. |
-| `make_arcsinh_display(image)` | Apply arcsinh stretch to an image for display. |
+| `make_arcsinh_display_from_parameters(image, low, high, scale, vmax)` | Apply arcsinh stretch to an image for display. |
 | `model_isobrightness_levels(model)` | Choose model intensity levels for contour overlays. |
 | `overlay_model_contours(ax, model)` | Draw model iso-brightness contours on an existing axes. |
 | `plot_profile_by_stop_code(ax, x, y, stop_codes, ...)` | Scatter plot with per-stop-code color and marker. |

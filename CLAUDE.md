@@ -86,7 +86,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 
 | Document | Description |
 |----------|-------------|
-| `docs/00-index.md` | Documentation home page and map |
+| `docs/index.md` | Documentation home page and map |
 | `docs/01-user-guide.md` | Usage guidance, stop-code reference, public API |
 | `docs/02-configuration-reference.md` | All configuration parameters and guidelines |
 | `docs/03-algorithm.md` | Fitting and sampling implementation notes |

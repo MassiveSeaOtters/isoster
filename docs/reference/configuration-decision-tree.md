@@ -360,7 +360,7 @@ results = fit_image(image, mask=mask, config=config,
 ---
 
 *This page is an opinionated entry point, not a full parameter
-reference. For the full schema (43 parameters across 13 functional
+reference. For the full schema (62 parameters across 14 functional
 groups), see [Configuration reference](../02-configuration-reference.md).
 For the internal logic each flag triggers, see the
 [Algorithm walkthrough](algorithm-walkthrough.md).*

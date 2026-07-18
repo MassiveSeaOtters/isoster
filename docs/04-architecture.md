@@ -36,9 +36,9 @@ returns the legacy single-band schema unmodified.
 
 Status: experimental. CLI integration, ASDF I/O, COG attachment, ISOFIT,
 LSB auto-lock, and outer-center regularization are out of Stage-1 scope.
-See `docs/10-multiband.md` for the user-facing reference and
-`docs/agent/plan-2026-04-29-multiband-feasibility.md` for the locked
-24-decision design record.
+See `docs/10-multiband.md` for the user-facing reference. The locked
+24-decision design record is kept in internal planning notes outside the
+public docs tree.
 
 ## Core Modules
 
@@ -98,12 +98,12 @@ See `docs/10-multiband.md` for the user-facing reference and
     continue to be written but carry the identical shared value
     across bands under non-``'independent'`` modes; D16 per-band
     Bender normalization at plotting time still produces band-distinct
-    curves because per-band gradients differ. Section 6 of
-    ``docs/agent/plan-2026-04-29-multiband-feasibility.md``.
+    curves because per-band gradients differ. Section 6 of the internal
+    multi-band design record (not part of the public docs tree).
 
 ## Key Constants
 
-- `ACCEPTABLE_STOP_CODES = {0, 1, 2}` (`driver.py`): stop codes considered acceptable for continued fitting (outward/inward growth). Used by `is_acceptable_stop_code()` to gate whether the next SMA step proceeds.
+- `ACCEPTABLE_STOP_CODES = {0, 1, 2}` (`driver.py`): stop codes considered acceptable for continued fitting (outward/inward growth). Used by `_is_acceptable_stop_code()` to gate whether the next SMA step proceeds.
 
 ## Runtime Modes
 
@@ -159,7 +159,7 @@ Canonical user-facing stop-code documentation lives in `docs/01-user-guide.md`.
 
 This replaces the previous approach of writing config fields as FITS header keywords, which triggered `HIERARCH` warnings for long keyword names.
 
-Backward compatibility: `isophote_results_from_fits` detects whether an `ISOPHOTES` extension is present. Legacy single-table files (config in header keywords) are still readable; the `CONFIG` HDU is simply absent and config is reconstructed from header keywords instead.
+Backward compatibility: `isophote_results_from_fits` detects whether an `ISOPHOTES` extension is present. Legacy single-table files (config in header keywords) are still readable; the `CONFIG` HDU is simply absent and the reader returns `config=None` — no header-keyword reconstruction is performed.
 
 Each isophote row includes geometry/intensity fields and optional blocks depending on config. See `docs/01-user-guide.md` (Output Reference) for the complete per-field reference. Summary of optional blocks:
 
@@ -167,7 +167,7 @@ Each isophote row includes geometry/intensity fields and optional blocks dependi
 - Full aperture photometry (`full_photometry` or `debug`): `tflux_e`, `tflux_c`, `npix_e`, `npix_c`.
 - CoG (`compute_cog` in regular mode): `cog`, `cog_annulus`, `area_annulus`, `flag_cross`, `flag_negative_area`.
 - Debug diagnostics (`debug`): `ndata`, `nflag`, `grad`, `grad_error`, `grad_r_error`.
-- Automatic LSB geometry lock (`lsb_auto_lock`): per-outward-isophote `lsb_locked` (bool) and a single `lsb_auto_lock_anchor=True` marker on the first locked isophote. Inward isophotes never carry these keys. Top-level result dict also gains `lsb_auto_lock`, `lsb_auto_lock_sma`, and `lsb_auto_lock_count`.
+- Automatic LSB geometry lock (`lsb_auto_lock`): per-isophote `lsb_locked` (bool) and a single `lsb_auto_lock_anchor=True` marker on the first locked isophote (`False` everywhere else, including inward isophotes and the central pixel, so the schema is uniform). Top-level result dict also gains `lsb_auto_lock`, `lsb_auto_lock_sma`, `lsb_auto_lock_anchor_sma` (the true geometry anchor, which the marker does not identify), and `lsb_auto_lock_count`.
 - Outer region regularization (`use_outer_center_regularization`): the top-level result dict gains `use_outer_center_regularization` (echo), `outer_reg_x0_ref`, `outer_reg_y0_ref`, `outer_reg_eps_ref`, and `outer_reg_pa_ref` carrying the frozen inner reference geometry. No per-isophote fields are added.
 
 ## Known Behavior Notes
@@ -247,5 +247,5 @@ Manifest compatibility is preserved with additive-only schema evolution:
 ## Documentation Policy
 
 - Stable docs live in `docs/` root.
-- Historical records live under `docs/archive/` and `docs/journal/`.
+- Historical records live under `docs/journal/`; internal planning and review archives are kept under `docs/agent/` (not tracked in the public repository).
 - Use lowercase kebab-case markdown filenames.
