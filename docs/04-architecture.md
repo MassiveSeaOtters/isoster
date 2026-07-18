@@ -14,31 +14,36 @@ ISOSTER is a Python library for elliptical isophote fitting on 2D images, with a
 - `isoster.build_isoster_model(...)`
 - CLI entry point: `isoster` (`isoster/cli.py`)
 
-### Experimental Multi-Band Public Interface (Stage-1)
+### Experimental Multi-Band Public Interface
 
 Lives under a parallel module tree at `isoster/multiband/`. The single-
 band interfaces above are **not** modified.
 
 - `isoster.multiband.fit_image_multiband(images, masks=None, config=None,
-  variance_maps=None)` — joint free fit on aligned same-pixel-grid images.
-  One shared geometry per SMA, per-band intensities and per-band harmonic
-  deviations. Replaces forced photometry as the multi-band workflow.
+  variance_maps=None, template_isophotes=None)` — joint free fit on
+  aligned same-pixel-grid images (or forced photometry when a template is
+  given). One shared geometry per SMA, per-band intensities and per-band
+  harmonic deviations. Replaces forced photometry as the multi-band
+  workflow.
 - `isoster.multiband.IsosterConfigMB` — multi-band-specific config
   (sibling of `IsosterConfig`, no inheritance, deliberately reduced field
-  set).
-- `isoster.multiband.validate_alignment(wcss_or_hdus, tol_arcsec=0.1)` —
-  opt-in WCS sanity check (driver core does shape-only validation).
+  set). The driver validates that all inputs share one pixel grid
+  (shape-only check; no WCS validation is performed).
 - `isoster.multiband.load_bands_from_hdus(hdus)` — helper to extract
   `(images, masks, variance_maps, bands)` tuples from FITS HDUs.
 
 `fit_image_multiband` with `len(bands) == 1` delegates to `fit_image` and
 returns the legacy single-band schema unmodified.
 
-Status: experimental. CLI integration, ASDF I/O, COG attachment, ISOFIT,
-LSB auto-lock, and outer-center regularization are out of Stage-1 scope.
-See `docs/10-multiband.md` for the user-facing reference. The locked
-24-decision design record is kept in internal planning notes outside the
-public docs tree.
+Status: experimental (beta) — the API and the Schema-1 output layout may
+change between releases. The CLI (`isoster-mb`), FITS/ASDF I/O,
+curve-of-growth attachment, LSB auto-lock, and outer-center
+regularization are all implemented with multi-band semantics. The
+single-band ISOFIT API (`simultaneous_harmonics`) is not carried over;
+higher-order harmonics are handled via the `multiband_higher_harmonics`
+enum instead. See `docs/10-multiband.md` for the user-facing reference.
+The locked 24-decision design record is kept in internal planning notes
+outside the public docs tree.
 
 ## Core Modules
 

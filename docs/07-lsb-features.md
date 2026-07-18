@@ -693,7 +693,7 @@ compatibility with existing modes. Sibling test
 shape, reference building, fallback on `minsma >= sma0`, `fix_center`
 warning, forced-photo guard.
 
-The full suite is 698 passing (5 deselected) as of 2026-07-18.
+The full suite is 700 passing (5 deselected) as of 2026-07-19.
 
 ## 7. Future work
 

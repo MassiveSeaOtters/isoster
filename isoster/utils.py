@@ -195,6 +195,10 @@ def isophote_results_from_fits(filename):
             value = row[colname]
             # Heterogeneous row keys produce masked cells; skip them so the
             # loaded dict keeps the original "key absent" shape (review B3).
+            # CAUTION: this cannot protect bool columns — FITS logical columns
+            # have no null value, so a conditionally-present bool key fills as
+            # True on write; bool keys must be written on every row (like the
+            # lsb lock flags).
             if value is np.ma.masked:
                 continue
             # Convert numpy types to Python types for consistency
