@@ -60,16 +60,22 @@ variance map (HSC, DECaLS, SDSS, …), use it.
 flowchart LR
     Img[2-D image only] --> OLS["fit_image(image, mask=…, config=…)"]
     OLS --> OLSOut["OLS:<br/>cov = (AᵀA)⁻¹·σ²_res<br/>errors from fit residuals"]
-    ImgV["image + inverse-variance<br/>map (FITS)"] --> Conv["variance = np.where(invvar &gt; 0,<br/>1.0 / invvar, 1e30)"]
+    ImgV["image + inverse-variance<br/>map (FITS)"] --> Conv["variance = np.where(invvar &gt; 0,<br/>1.0 / invvar, np.nan)"]
     Conv --> WLS["fit_image(image, mask=…,<br/>config=…, variance_map=variance)"]
     WLS --> WLSOut["WLS:<br/>cov = (AᵀWA)⁻¹  (exact)<br/>errors from variance map<br/>cosmic rays auto-down-weighted"]
 ```
 
 !!! example "If you have a variance map"
     ```python
-    variance_map = np.where(invvar > 0, 1.0 / invvar, 1e30)
+    variance_map = np.where(invvar > 0, 1.0 / invvar, np.nan)
     results = fit_image(image, mask=mask, config=config, variance_map=variance_map)
     ```
+
+    Leave `invvar == 0` pixels as `NaN` rather than substituting a
+    large finite value like `1e30`: ISOSTER marks non-finite entries
+    invalid and drops them from the fit, whereas a finite `1e30` is
+    valid and stays in the ring, inflating the reported gradient
+    error by orders of magnitude instead of removing the pixel.
 
     WLS error bars are typically 1.2–2.1× larger than OLS for outer
     isophotes — that reflects realistic per-pixel noise rather than
