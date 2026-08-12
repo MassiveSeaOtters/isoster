@@ -1445,6 +1445,11 @@ def fit_isophote(
                     intens_err = np.sqrt(cov_matrix[0, 0])
                 else:
                     intens_err = np.sqrt(_weighted_mean_variance(variances))
+                if eff_integrator == "median":
+                    # The reported intensity is an unweighted median, so it needs
+                    # the median's uncertainty rather than the weighted intercept's.
+                    # Same Gaussian-asymptotic factor the OLS branch below uses.
+                    intens_err *= np.sqrt(np.pi / 2.0)
             else:
                 intens_err = rms / np.sqrt(len(intens))
                 if eff_integrator == "median":

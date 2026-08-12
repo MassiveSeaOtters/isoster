@@ -224,3 +224,22 @@ def test_corrected_error_can_change_which_baseline_is_selected():
 
     assert error is not None, "the corrected error must let the second baseline survive"
     assert gradient != pytest.approx(one_step_gradient, rel=1e-6), "the reported gradient must be the second baseline"
+
+
+def test_wls_median_intensity_error_carries_the_pi_over_two_penalty():
+    """A reported median needs the median's uncertainty, with or without variances."""
+    from isoster.config import IsosterConfig
+    from isoster.fitting import fit_isophote
+
+    image = make_sersic_image()
+    variance = np.full(image.shape, 4.0)
+    geom = {"x0": CENTER, "y0": CENTER, "eps": 0.3, "pa": 0.4}
+    base = dict(compute_errors=True, fix_center=True, fix_pa=True, fix_eps=True, nclip=0)
+
+    mean_result = fit_isophote(image, None, SMA, geom, IsosterConfig(integrator="mean", **base), variance_map=variance)
+    median_result = fit_isophote(
+        image, None, SMA, geom, IsosterConfig(integrator="median", **base), variance_map=variance
+    )
+
+    ratio = median_result["intens_err"] / mean_result["intens_err"]
+    assert ratio == pytest.approx(np.sqrt(np.pi / 2.0), rel=0.05)
