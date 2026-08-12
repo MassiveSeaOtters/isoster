@@ -194,8 +194,8 @@ WLS benefits:
 
 Input requirements and safeguards:
 - `variance_map` must have the same shape as `image` (raises `ValueError` otherwise).
-- `NaN` and `inf` values are replaced with `1e30` (near-zero weight) and a `RuntimeWarning` is emitted.
-- Non-positive values (zeros, negatives) are clamped to `1e-30` internally with a warning. Consider masking these pixels instead for cleaner results.
+- `NaN` and `inf` values are invalid: the corresponding sample is dropped during sampling (not kept with a substitute value) and a `RuntimeWarning` is emitted.
+- Non-positive values (zeros, negatives) are also invalid and dropped the same way, with a warning. Consider masking these pixels explicitly if the exclusion is intended. (An earlier version of isoster instead substituted `1e30` for non-finite entries and clamped non-positive entries to `1e-30`; both have been retired because they kept the flagged sample in the statistic while distorting its weight — see `docs/04-architecture.md`, section "Invalid-variance policy".)
 - The caller's array is never mutated (copy-on-write).
 - For inverse-variance maps, convert with `variance = 1.0 / invvar` and handle zero-invvar pixels appropriately (mask them or set variance to a large value like `1e30`).
 
