@@ -405,11 +405,17 @@ def compute_parameter_errors(
     coeffs=None,
     var_residual_floor=None,
     use_exact_covariance=False,
+    residual_variance=None,
 ):
     """Compute parameter errors based on the covariance matrix of harmonic coefficients.
 
     Args:
-        phi: Angles array
+        phi: Angles array. Must be in the same angular coordinate the coefficients
+            were fitted in: the eccentric anomaly psi under EA sampling, the polar
+            angle otherwise. Only used to rebuild a residual model when
+            ``residual_variance`` is not supplied (and to re-fit when ``coeffs``
+            is None), so callers that fit in psi must either pass psi here or
+            supply ``residual_variance`` directly.
         intens: Intensity array
         x0, y0, sma, eps, pa: Geometry parameters
         gradient: Intensity gradient
@@ -419,6 +425,17 @@ def compute_parameter_errors(
         var_residual_floor: Minimum variance for residuals (optional, e.g. sigma_bg^2)
         use_exact_covariance: If True (WLS mode), skip residual-variance scaling and
             use cov_matrix directly as the parameter covariance.
+        residual_variance: Residual variance of the *complete* fitted model,
+            computed by the caller where the exact design matrix and full
+            coefficient vector are still in scope (optional). Supplying it is
+            the only correct option when the fitted model has more terms than
+            the five geometric ones, because this function only knows how to
+            rebuild the five-parameter model and would otherwise count real
+            higher-order signal as noise. Pass ``0.0`` when the fit has no
+            residual degrees of freedom (as many samples as parameters): the
+            returned errors are then zero, meaning "not measurable", which is
+            distinct from ``None``, meaning "not supplied, rebuild it".
+            Ignored when ``use_exact_covariance`` is True.
 
     Returns:
         Tuple of (x0_err, y0_err, eps_err, pa_err)
@@ -452,10 +469,16 @@ def compute_parameter_errors(
             # WLS mode: cov_matrix = (A^T W A)^-1 is already the exact covariance
             covariance = cov_matrix
         else:
-            # OLS mode: scale by residual variance
-            n_params = 5
-            model = harmonic_function(phi, coeffs)
-            var_residual = np.var(intens - model, ddof=n_params)
+            # OLS mode: scale by residual variance. Prefer the caller's value,
+            # which is the only one that can account for a model with more than
+            # the five geometric terms; fall back to rebuilding the five-parameter
+            # model for external callers that fit in this same angle basis.
+            if residual_variance is not None:
+                var_residual = float(residual_variance)
+            else:
+                n_params = 5
+                model = harmonic_function(phi, coeffs)
+                var_residual = np.var(intens - model, ddof=n_params)
             if var_residual_floor is not None:
                 var_residual = max(var_residual, var_residual_floor)
             covariance = cov_matrix * var_residual
@@ -1444,14 +1467,41 @@ def fit_isophote(
                     # The median's standard error is sqrt(pi/2) larger than
                     # the mean's for Gaussian noise (multiband parity, M12)
                     intens_err *= np.sqrt(np.pi / 2.0)
+            # Under OLS the solvers return (A^T A)^-1, which only becomes a
+            # covariance once scaled by the residual variance of the fit. That
+            # variance is computed once here, where `model` is still the exact
+            # fitted model (5-parameter, or the full ISOFIT model under in_loop)
+            # evaluated at `angles`, the coordinate the coefficients were fitted
+            # in. Both the geometry errors below and the higher-order harmonic
+            # errors further down consume this single value, floor included, so
+            # one fit yields one error scale. Under WLS the covariance is
+            # already exact and no scaling applies.
+            wls_mode = variances is not None
+            n_fitted_params = len(coeffs)
+            if wls_mode:
+                ols_var_residual = None
+            elif len(intens) > n_fitted_params:
+                ols_var_residual = float(np.var(intens - model, ddof=n_fitted_params))
+            else:
+                # Exactly determined: the model passes through every point, so
+                # the data carry no information about the noise level. Report
+                # zero rather than letting a reduced model be rebuilt downstream,
+                # which would manufacture an error out of the higher-order signal
+                # the full model actually fitted. ISOFIT switches on at exactly
+                # this boundary, since isofit_min_points == n_fitted_params.
+                ols_var_residual = 0.0
+            if ols_var_residual is not None and cfg.sigma_bg is not None:
+                # The background-noise floor bounds the residual variance of the
+                # fit, so it belongs here, once, rather than on one consumer.
+                ols_var_residual = max(ols_var_residual, cfg.sigma_bg**2)
+
             # For ISOFIT in_loop, pass 5x5 sub-matrix and first 5 coefficients
             # so compute_parameter_errors uses correct dimensions
-            wls_mode = variances is not None
             if compute_errors:
                 cov_5x5 = cov_matrix[:5, :5] if (use_isofit_in_loop and cov_matrix is not None) else cov_matrix
                 coeffs_5 = coeffs[:5]
                 x0_err, y0_err, eps_err, pa_err = compute_parameter_errors(
-                    phi,
+                    angles,
                     intens,
                     x0,
                     y0,
@@ -1462,8 +1512,11 @@ def fit_isophote(
                     gradient_error=gradient_error if cfg.use_corrected_errors else None,
                     cov_matrix=cov_5x5,
                     coeffs=coeffs_5,
-                    var_residual_floor=cfg.sigma_bg**2 if cfg.sigma_bg is not None else None,
+                    # No var_residual_floor here: the sigma_bg floor is already
+                    # baked into ols_var_residual above, so that the geometry and
+                    # higher-order errors cannot drift onto different scales.
                     use_exact_covariance=wls_mode,
+                    residual_variance=ols_var_residual,
                 )
             else:
                 x0_err, y0_err, eps_err, pa_err = 0.0, 0.0, 0.0, 0.0
@@ -1508,13 +1561,13 @@ def fit_isophote(
                 factor = sma * abs(gradient)
                 if factor > 0:
                     # WLS: cov_matrix is exact (A^T W A)^-1, no residual scaling
-                    # OLS: scale by residual variance
+                    # OLS: scale by the same residual variance the geometry
+                    # errors above use, so one fit yields one error scale.
                     if cov_matrix is not None:
                         if wls_mode:
                             var_residual = 1.0  # no scaling for WLS
                         else:
-                            n_params = len(coeffs)
-                            var_residual = np.var(intens - model, ddof=n_params) if len(intens) > n_params else 0.0
+                            var_residual = ols_var_residual
                     for k, n_order in enumerate(harmonic_orders):
                         sin_coeff = coeffs[5 + 2 * k]
                         cos_coeff = coeffs[5 + 2 * k + 1]
