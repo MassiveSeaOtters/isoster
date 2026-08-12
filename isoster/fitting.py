@@ -6,7 +6,12 @@ import numpy as np
 # call sites and external code continue to access them at the original
 # ``isoster.fitting._prepare_mask_float`` / ``._tikhonov_alpha`` paths).
 # Single source of truth lives in ``isoster._shared``.
-from ._shared import _prepare_mask_float, _tikhonov_alpha, _weighted_mean_variance  # noqa: F401
+from ._shared import (  # noqa: F401
+    _prepare_mask_float,
+    _ring_statistic_and_variance,
+    _tikhonov_alpha,
+    _weighted_mean_variance,
+)
 from .config import IsosterConfig
 
 # Import numba-accelerated kernels (with numpy fallback)
@@ -145,6 +150,7 @@ def extract_forced_photometry(
     use_eccentric_anomaly=False,
     config=None,
     variance_map=None,
+    variance_map_prepared=False,
 ):
     """
     Extract forced photometry at a single SMA without fitting.
@@ -195,7 +201,16 @@ def extract_forced_photometry(
 
     # Sample along the ellipse
     data = extract_isophote_data(
-        image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+        image,
+        mask,
+        x0,
+        y0,
+        sma,
+        eps,
+        pa,
+        use_eccentric_anomaly=use_eccentric_anomaly,
+        variance_map=variance_map,
+        variance_map_prepared=variance_map_prepared,
     )
     phi = data.angles  # position angle or eccentric anomaly depending on mode
     intens = data.intens
@@ -803,7 +818,16 @@ def fit_higher_harmonics_simultaneous(angles, intens, sma, gradient, orders=None
     return result
 
 
-def compute_gradient(image, mask, geometry, config, previous_gradient=None, current_data=None, variance_map=None):
+def compute_gradient(
+    image,
+    mask,
+    geometry,
+    config,
+    previous_gradient=None,
+    current_data=None,
+    variance_map=None,
+    variance_map_prepared=False,
+):
     """Compute the radial intensity gradient.
 
     Args:
@@ -839,7 +863,16 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     else:
         # Extract current SMA data
         data_c = extract_isophote_data(
-            image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+            image,
+            mask,
+            x0,
+            y0,
+            sma,
+            eps,
+            pa,
+            use_eccentric_anomaly=use_eccentric_anomaly,
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
         intens_c = data_c.intens
         var_c = data_c.variances
@@ -847,10 +880,7 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     if len(intens_c) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
 
-    if integrator == "median":
-        mean_c = np.median(intens_c)
-    else:
-        mean_c = np.mean(intens_c)
+    mean_c, var_mean_c = _ring_statistic_and_variance(intens_c, var_c, integrator)
 
     if linear_growth:
         gradient_sma = sma + step
@@ -868,6 +898,7 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
         pa,
         use_eccentric_anomaly=use_eccentric_anomaly,
         variance_map=variance_map,
+        variance_map_prepared=variance_map_prepared,
     )
     intens_g = data_g.intens
     var_g = data_g.variances
@@ -875,27 +906,17 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     if len(intens_g) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
 
-    if integrator == "median":
-        mean_g = np.median(intens_g)
-    else:
-        mean_g = np.mean(intens_g)
+    mean_g, var_mean_g = _ring_statistic_and_variance(intens_g, var_g, integrator)
     delta_r = step if linear_growth else sma * step
     gradient = (mean_g - mean_c) / delta_r
 
-    if var_c is not None and var_g is not None:
-        # WLS: per-annulus mean error from inverse-variance weights
-        # (sentinel-immune; equals sigma^2/N for uniform variances)
-        var_mean_c = _weighted_mean_variance(var_c)
-        var_mean_g = _weighted_mean_variance(var_g)
-        if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
-            gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
-        else:
-            gradient_error = None  # no usable variances: error unknown
+    # The uncertainty comes from the variance of the same ring statistics that
+    # produced the gradient, on the same samples. An infinite ring variance
+    # means no usable uncertainty rather than an enormous one.
+    if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
+        gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
     else:
-        # OLS: scatter-based error estimate
-        sigma_c = np.std(intens_c)
-        sigma_g = np.std(intens_g)
-        gradient_error = np.sqrt(sigma_c**2 / len(intens_c) + sigma_g**2 / len(intens_g)) / delta_r
+        gradient_error = None
 
     if previous_gradient is None:
         previous_gradient = gradient + gradient_error if gradient_error is not None else gradient
@@ -911,6 +932,8 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     # Skip second gradient if:
     # 1. First gradient looks good (< previous_gradient / 3)
     # 2. OR first gradient is reliable (relative_error < 0.3)
+    # relative_error carries the ring-matched gradient_error from above, so a
+    # more honest error here can change whether the second baseline is taken.
     need_second_gradient = (gradient >= (previous_gradient / 3.0)) and (relative_error >= 0.3)
 
     if need_second_gradient:
@@ -930,28 +953,19 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
             pa,
             use_eccentric_anomaly=use_eccentric_anomaly,
             variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
         intens_g2 = data_g2.intens
         var_g2 = data_g2.variances
 
         if len(intens_g2) > 0:
-            if integrator == "median":
-                mean_g2 = np.median(intens_g2)
-            else:
-                mean_g2 = np.mean(intens_g2)
+            mean_g2, var_mean_g2 = _ring_statistic_and_variance(intens_g2, var_g2, integrator)
             delta_r_2 = 2 * step if linear_growth else sma * 2 * step
             gradient = (mean_g2 - mean_c) / delta_r_2
-            if var_c is not None and var_g2 is not None:
-                var_mean_c = _weighted_mean_variance(var_c)
-                var_mean_g2 = _weighted_mean_variance(var_g2)
-                if np.isfinite(var_mean_c) and np.isfinite(var_mean_g2):
-                    gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
-                else:
-                    gradient_error = None  # no usable variances: error unknown
+            if np.isfinite(var_mean_c) and np.isfinite(var_mean_g2):
+                gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
             else:
-                sigma_c = np.std(intens_c)
-                sigma_g2 = np.std(intens_g2)
-                gradient_error = np.sqrt(sigma_c**2 / len(intens_c) + sigma_g2**2 / len(intens_g2)) / delta_r_2
+                gradient_error = None
 
     if gradient >= (previous_gradient / 3.0):
         gradient = previous_gradient * 0.8
@@ -1106,6 +1120,7 @@ def fit_isophote(
     previous_geometry=None,
     variance_map=None,
     outer_reference_geom=None,
+    variance_map_prepared=False,
 ):
     """
     Fit a single isophote with quality control.
@@ -1260,7 +1275,16 @@ def fit_isophote(
         # angles retained for aligned diagnostics and error bookkeeping.
         # For regular: angles=φ (for harmonics), phi=φ (same)
         data = extract_isophote_data(
-            image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+            image,
+            mask,
+            x0,
+            y0,
+            sma,
+            eps,
+            pa,
+            use_eccentric_anomaly=use_eccentric_anomaly,
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
 
         angles = data.angles  # ψ for EA mode, φ for regular mode
@@ -1384,6 +1408,7 @@ def fit_isophote(
                 previous_gradient=previous_gradient,
                 current_data=current_data_for_grad,
                 variance_map=variance_map,
+                variance_map_prepared=variance_map_prepared,
             )
             cached_gradient = gradient
             cached_gradient_error = gradient_error
@@ -1452,12 +1477,21 @@ def fit_isophote(
         if effective_amp < min_amplitude:
             min_amplitude = effective_amp
             no_improvement_count = 0
-            # WLS: exact variance of the fitted (weighted) mean intensity from
-            # the fit's own covariance (weighted-mean form as a fallback); OLS:
-            # rms/sqrt(N). Both WLS forms are immune to the driver's variance
-            # sentinels, whose weight is ~0 (review B2).
+            # The reported intensity error must belong to the statistic actually
+            # reported. Under WLS with the mean integrator that is the fitted
+            # (weighted) harmonic intercept, so its own covariance is exact; the
+            # weighted-mean form is the fallback when the covariance is missing.
+            # Under the median integrator the reported intensity is an unweighted
+            # median, which needs the median's own variance: rescaling the
+            # weighted intercept by sqrt(pi/2) coincides with that only when the
+            # variances are uniform, because the intercept of a five-parameter
+            # fit correlates with the sin/cos terms once the noise varies around
+            # the ring. Under OLS the error is rms/sqrt(N), with the same
+            # Gaussian-asymptotic factor for the median.
             if variances is not None:
-                if cov_matrix is not None and cov_matrix[0, 0] > 0:
+                if eff_integrator == "median":
+                    intens_err = np.sqrt(_ring_statistic_and_variance(intens, variances, "median")[1])
+                elif cov_matrix is not None and cov_matrix[0, 0] > 0:
                     intens_err = np.sqrt(cov_matrix[0, 0])
                 else:
                     intens_err = np.sqrt(_weighted_mean_variance(variances))

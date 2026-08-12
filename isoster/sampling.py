@@ -92,7 +92,57 @@ def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     return sma, psi
 
 
-def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=False, variance_map=None):
+def _bilinear_support_is_valid(variance_map, x, y):
+    """Flag samples whose four contributing source pixels are all usable.
+
+    Bilinear interpolation blends a sample from the four pixels surrounding it,
+    so a lone unusable pixel can be averaged with positive neighbours into a
+    positive result that a value-only check accepts. NaN and infinity propagate
+    through the blend on their own, but zero and negative variances do not, so
+    the source pixels have to be inspected directly.
+
+    Cost is proportional to the number of samples, not the image size, so this
+    stays cheap on large images.
+
+    The footprint must match ``map_coordinates`` exactly, including on the final
+    row and column. There, SciPy shifts its interpolation interval to the last
+    two cells and gives the penultimate one zero weight -- but zero times NaN is
+    still NaN, so that cell propagates and must be inspected too. Clamping the
+    lower index to ``axis_length - 2`` reproduces that; clamping each neighbour
+    independently would inspect the final cell twice and miss the one before it.
+    An axis of length one has no penultimate cell, and both offsets collapse
+    onto its single index.
+
+    Samples that fall outside the image are already excluded by the interpolated
+    intensity and variance being non-finite, so the index clamping here only has
+    to stay in bounds.
+    """
+    height, width = variance_map.shape
+    row0 = np.clip(np.floor(y).astype(np.intp), 0, max(height - 2, 0))
+    col0 = np.clip(np.floor(x).astype(np.intp), 0, max(width - 2, 0))
+
+    usable = np.ones(x.shape, dtype=bool)
+    for row_offset in (0, 1):
+        for col_offset in (0, 1):
+            rows = np.minimum(row0 + row_offset, height - 1)
+            cols = np.minimum(col0 + col_offset, width - 1)
+            neighbour = variance_map[rows, cols]
+            usable &= np.isfinite(neighbour) & (neighbour > 0.0)
+    return usable
+
+
+def extract_isophote_data(
+    image,
+    mask,
+    x0,
+    y0,
+    sma,
+    eps,
+    pa,
+    use_eccentric_anomaly=False,
+    variance_map=None,
+    variance_map_prepared=False,
+):
     """
     Extract image pixels along an elliptical path using vectorized sampling.
 
@@ -122,6 +172,13 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
     variance_map : 2D array, optional
         Per-pixel variance map. When provided, variance values are sampled along the
         ellipse using bilinear interpolation and included in the returned IsophoteData.
+    variance_map_prepared : bool
+        Set True only when every unusable entry in ``variance_map`` is already
+        non-finite, as :func:`isoster.driver.fit_image` guarantees after its own
+        validation. The per-sample source-pixel check is then skipped, because
+        non-finite entries propagate through interpolation by themselves. The
+        default is False so that a caller passing a raw variance map straight to
+        this function still gets correct exclusion.
 
     Returns
     -------
@@ -159,11 +216,17 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
 
     valid &= ~np.isnan(intens)
 
-    # Sample variance map if provided
+    # Sample variance map if provided.
+    # A variance that is not finite or not strictly positive carries no usable
+    # information, so the sample is dropped exactly like a masked pixel. This
+    # keeps every ring statistic and its uncertainty on one identical sample
+    # set; see docs/04-architecture.md, "Invalid-variance policy".
     var_vals = None
     if variance_map is not None:
         var_vals = map_coordinates(variance_map, coords, order=1, mode="constant", cval=np.nan)
-        valid &= ~np.isnan(var_vals)
+        valid &= np.isfinite(var_vals) & (var_vals > 0.0)
+        if not variance_map_prepared:
+            valid &= _bilinear_support_is_valid(variance_map, x, y)
 
     # Return named tuple with appropriate angles
     sampled_variances = var_vals[valid] if var_vals is not None else None

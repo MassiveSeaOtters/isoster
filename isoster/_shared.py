@@ -37,29 +37,72 @@ from astropy.table import Table
 
 logger = logging.getLogger(__name__)
 
-# Sentinel written into variance maps for NaN/inf entries (driver.py): large
-# enough to give the sample effectively zero weight in WLS solves. Error
-# formulas must be built from inverse-variance weights so the sentinel (and
-# values smeared into neighboring samples by interpolation) contribute ~zero
-# weight; plain sums of variances would explode (review finding B2).
-VARIANCE_SENTINEL = 1e30
-
 
 def _weighted_mean_variance(variances):
     """Variance of an inverse-variance-weighted mean, 1/sum(1/var_i).
 
     Exact for the inverse-variance-weighted mean estimator; equals
     ``sum(var_i)/N^2`` (the unweighted mean's variance) for uniform
-    variances. Sentinel-immune by construction: the driver's unknown-variance
-    sentinel (and values smeared into neighboring samples by interpolation)
-    contribute ~zero weight, so one bad variance-map pixel cannot blow up
-    the error (review finding B2). Returns np.inf when no sample carries
-    finite weight.
+    variances. Returns np.inf when no sample carries finite weight.
     """
     wsum = np.sum(1.0 / variances)
     if not np.isfinite(wsum) or wsum <= 0:
         return np.inf
     return float(1.0 / wsum)
+
+
+def _ring_statistic_and_variance(intens, variances, integrator):
+    """Return a ring's location and the variance of that same location.
+
+    The variance must belong to the estimator actually reported. The variance
+    of an inverse-variance-weighted mean, ``1/sum(1/v)``, is correct only for
+    that weighted mean; using it for an unweighted mean understates the
+    uncertainty whenever the variances differ across the ring, and using it for
+    a median also drops the median's ``pi/2`` penalty.
+
+    Args:
+        intens: Sampled intensities along one ring.
+        variances: Matching per-sample variances, or None when no variance map
+            was supplied. Callers must already have excluded unusable samples;
+            :func:`isoster.sampling.extract_isophote_data` does this.
+        integrator: ``"median"`` selects the median; anything else is treated as
+            the mean, matching the historical ``compute_gradient`` behaviour for
+            an unresolved ``"adaptive"`` setting.
+
+    Returns:
+        tuple: ``(location, variance_of_location)``. ``(nan, inf)`` for an empty
+        ring, meaning the location and its uncertainty are both unavailable.
+
+    Notes:
+        The heteroscedastic median variance uses the normal-theory asymptotic
+        form ``pi*N / (2*(sum 1/sqrt(v))**2)``, which reduces to
+        ``pi*sigma**2/(2N)`` for uniform variance. It is an approximation:
+        real rings carry azimuthal galaxy structure and neighbouring samples are
+        correlated through interpolation, neither of which the derivation
+        assumes. Monte Carlo agreement for independent Gaussian samples is
+        within a few per cent.
+    """
+    n_samples = intens.size
+    if n_samples == 0:
+        return np.nan, np.inf
+
+    if integrator == "median":
+        location = float(np.median(intens))
+        if variances is not None:
+            inverse_scale_sum = np.sum(1.0 / np.sqrt(variances))
+            if not np.isfinite(inverse_scale_sum) or inverse_scale_sum <= 0:
+                return location, np.inf
+            variance = float(np.pi * n_samples / (2.0 * inverse_scale_sum**2))
+        else:
+            variance = float((np.pi / 2.0) * np.std(intens) ** 2 / n_samples)
+        return location, variance
+
+    location = float(np.mean(intens))
+    if variances is not None:
+        variance = float(np.sum(variances) / n_samples**2)
+    else:
+        variance = float(np.std(intens) ** 2 / n_samples)
+    return location, variance
 
 
 # ---------------------------------------------------------------------------

@@ -442,10 +442,22 @@ results = fit_image(image, config=config, variance_map=variance_map)
 | Requirement | Behavior |
 |-------------|----------|
 | Shape must match `image` | `ValueError` raised on mismatch |
-| `NaN` values | Replaced with `1e30` (near-zero weight), warning emitted |
-| `inf` values | Replaced with `1e30` (near-zero weight), warning emitted |
-| Non-positive values (0, negative) | Clamped to `1e-30` (near-infinite weight), warning emitted |
+| `NaN` / `inf` values (non-finite) | Marked invalid; the corresponding sample is dropped during sampling, one warning emitted per call |
+| Non-positive values (0, negative) | Marked invalid; the corresponding sample is dropped during sampling, one warning emitted per call |
 | Caller's array | Never mutated (copy-on-write) |
+
+A variance entry is only usable if it is finite and strictly positive. Entries that fail
+this test carry no usable noise information, so the sample at that pixel is dropped from
+sampling entirely — the same treatment already given to masked pixels — rather than being
+kept with a substitute value. This guarantees that a ring's reported statistic (intensity,
+gradient) and its reported uncertainty always describe the identical set of samples. An
+earlier version of this feature instead substituted a large sentinel (`1e30`) for
+non-finite entries and clamped non-positive entries to a tiny value (`1e-30`); both have
+been retired because they left the flagged pixel in the sample set while distorting its
+weight, which could shrink a reported gradient error by roughly fifteen orders of
+magnitude and silently defeat the `maxgerr` check, the signal-to-noise damping, and the LSB
+auto-lock. See `docs/04-architecture.md`, section "Invalid-variance policy", for the full
+account and a measured real-data example.
 
 ### Interaction with other parameters
 
@@ -558,7 +570,20 @@ Reports `np.median(intens)` of the sigma-clipped intensity samples. More robust 
 contamination from bright foreground objects or cosmic rays, but discards the harmonic
 model information. Its error bar is the mean's `rms/√N` scaled by the
 Gaussian-asymptotic median factor `√(π/2) ≈ 1.25` (the median is a noisier
-estimator than the mean for Gaussian noise).
+estimator than the mean for Gaussian noise). This `√(π/2)` scaling now applies uniformly to
+`intens_err` whether or not a `variance_map` is supplied — an earlier version applied it
+only when no variance map was given, understating the reported intensity error under WLS.
+
+The reported ring **gradient** does not use this weighted-intensity path at all: it always
+uses an unweighted mean or median of the same two rings, with a matching error formula
+(`sum(v_i)/N**2` for the mean, and the normal-theory median form
+`pi*N/(2*(sum 1/sqrt(v_i))**2)`, which reduces to `pi*sigma**2/(2N)` for uniform variance).
+This is a deliberate difference from the intensity, which under WLS is the
+inverse-variance-weighted harmonic intercept — see `docs/04-architecture.md`, section
+"Gradient error and ring statistics", for the full formulas and the reasoning behind the
+asymmetry. Without a variance map, the same helper falls back to a scatter-based error
+computed from the sampled intensities; because that scatter includes real galaxy structure
+along the ring, it is an upper bound on the noise rather than a pure noise estimate.
 
 ### Adaptive Integrator (`integrator='adaptive'`)
 

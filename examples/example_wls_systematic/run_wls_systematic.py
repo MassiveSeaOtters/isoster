@@ -206,8 +206,11 @@ def load_galaxy_data(
     invvar = fits.getdata(invvar_path).astype(np.float64)
     mask = fits.getdata(mask_path).astype(bool)
 
-    # Convert inverse-variance to variance, guarding against zeros.
-    variance = np.where(invvar > 0, 1.0 / invvar, 1e30)
+    # Convert inverse-variance to variance. Zero-invvar pixels become NaN
+    # rather than a large finite value: a large finite variance is still
+    # "valid" to isoster, so it stays in the ring and inflates the unweighted
+    # gradient error, whereas NaN is marked invalid and the sample is dropped.
+    variance = np.where(invvar > 0, 1.0 / invvar, np.nan)
 
     ny, nx = image.shape
     half_diag = 0.5 * np.sqrt(nx**2 + ny**2)

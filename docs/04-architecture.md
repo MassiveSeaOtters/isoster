@@ -129,11 +129,158 @@ For each SMA in regular mode:
    - **Default path** (`simultaneous_harmonics=False`): Fit 5-param model (`I0`, `A1`, `B1`, `A2`, `B2`) via `fit_first_and_second_harmonics()`. Higher-order harmonics fitted post-hoc after convergence.
    - **ISOFIT path** (`simultaneous_harmonics=True`): Fit all harmonics simultaneously via `fit_all_harmonics()` using an extended design matrix `[1, sin(θ), cos(θ), sin(2θ), cos(2θ), sin(n₁θ), cos(n₁θ), ...]`. Falls back to 5-param when `n_points < 1 + 2*(2 + len(orders))`. Geometry updates use `A1, B1, A2, B2 = coeffs[1:5]` identically in both paths.
    - **WLS mode** (`variance_map` provided to `fit_image`): All harmonic fits use Weighted Least Squares with `w_i = 1/σ²_i`. The covariance matrix `(A^T W A)^-1` is exact — no residual-variance scaling is needed. This cleanly separates photon noise from galaxy structure scatter and automatically down-weights high-variance pixels (cosmic rays, hot pixels). When `variance_map=None`, the OLS path is byte-identical to the non-WLS code.
+   - **Invalid-variance policy**: a variance-map entry that is not finite or not strictly positive is invalid; the corresponding sample is dropped during sampling rather than substituted with a placeholder value, so a ring's reported statistic and its reported uncertainty always describe the identical set of samples. Full policy, the retired sentinel/clamp it replaces, and its measured impact are below, in "Invalid-variance policy".
    - **OLS covariance scaling**: under OLS the solvers return `(A^T A)^-1`, which is only a shape — it becomes a covariance after multiplication by the residual variance of the fit. That variance is computed **once**, in `fit_isophote`, from the exact fitted model evaluated at `angles` (the coordinate the coefficients were fitted in: ψ under EA sampling, φ otherwise) with `ddof = len(coeffs)`. The single value — **including the `sigma_bg**2` floor, applied at that same point** — scales both the geometry 5×5 block and the higher-order harmonic errors, so one fit yields one error scale. It reaches `compute_parameter_errors` through its `residual_variance=` keyword; that call deliberately does **not** pass `var_residual_floor`, since the floor is already applied. Evaluating the model at `phi` under EA sampling, or using the truncated 5-term model to rescale an ISOFIT `in_loop` fit, both produce internally inconsistent uncertainties — see `docs/agent/journal/2026-08-12_ea-ols-review.md`.
    - **Exactly determined fits**: `isofit_min_points` equals the ISOFIT parameter count exactly (`1 + 2*(2 + L)` is `5 + 2*L`), so ISOFIT switches on at precisely `N == P`, where the model passes through every sample and no residual degrees of freedom remain. The residual variance is then reported as `0.0` (subject to the `sigma_bg` floor), which propagates to zero errors meaning "not measurable". In `compute_parameter_errors`, `residual_variance=0.0` means exactly that, and is distinct from `residual_variance=None`, which means "not supplied — rebuild the five-parameter model" and is retained only for external callers of this public function.
-4. Estimate radial gradient (`fitting.compute_gradient`). When `variance_map` is provided, gradient error uses exact per-sample variance (`Var(mean) = Σσ²_i / N²`) instead of scatter-based estimates.
+4. Estimate radial gradient (`fitting.compute_gradient`). When `variance_map` is provided, gradient error uses exact per-sample variance (`Var(mean) = Σσ²_i / N²`) instead of scatter-based estimates. See "Gradient error and ring statistics" below for the full formulas, the deliberate mean/median asymmetry with the reported intensity, and a measured consequence for the reported gradient value itself.
 5. Update geometry based on dominant harmonic coefficient.
 6. Check convergence criterion: `abs(max_amp) < conver * rms` with iteration index check `i >= minit`.
+
+### Invalid-variance policy
+
+A per-pixel variance describes how noisy that pixel's measurement is; to carry any usable
+information it must be a finite, strictly positive number. `driver.py` scans the caller's
+`variance_map` once per `fit_image` call and marks every non-finite entry (`NaN` or infinite)
+and every non-positive entry (zero or negative) as `NaN`, emitting one warning per category
+(non-finite, non-positive). `sampling.extract_isophote_data` then drops the corresponding
+sample outright, the same way it already drops masked pixels:
+`valid &= np.isfinite(var_vals) & (var_vals > 0.0)`. The consequence for every downstream
+ring statistic — intensity, gradient, and their uncertainties — is that the value and its
+error bar are always built from the identical set of samples.
+
+**Checking the value alone is not sufficient for a raw map.** Variances are sampled with
+bilinear interpolation, which blends each sample from the four surrounding image pixels.
+Non-finite entries propagate through that blend on their own, so a `NaN` or infinity always
+reaches the value check. Zero and negative entries do not: an isolated zero pixel averaged
+with three positive neighbours yields a positive interpolated variance that the value check
+accepts, leaving an unusable sample in the ring with an understated variance. Measured on a
+flat test map, one zero-variance source pixel produced an interpolated variance of 1.95
+against a true 4.0, and one negative pixel produced 1.44.
+
+`sampling._bilinear_support_is_valid` therefore also checks the four source pixels feeding
+each sample, and `extract_isophote_data` applies it by default. Its cost is proportional to
+the number of samples in a ring rather than to the image size, so it stays cheap on large
+images.
+
+`fit_image` has already replaced every unusable entry with `NaN` before any sampling
+happens, so for it the check is redundant. It passes `variance_map_prepared=True` down
+through `fit_isophote` and `compute_gradient` to skip it: instrumenting a 62-isophote fit of
+a 1133×1133 image confirms the check runs **zero** times inside `fit_image`, so the normal
+pipeline carries no extra cost at all. The flag defaults to `False`, so the lower-level
+functions — which are public through `isoster/optimize.py` — remain correct when a caller
+passes a raw, unvalidated variance map straight to them. Setting it to `True` is a promise
+that unusable entries are already non-finite; it is an optimisation, not a behaviour switch.
+On a direct call the check costs at most about 0.11 ms per ring (3141 samples on a 1133×1133
+image).
+
+Two earlier mechanisms handled the same input problem differently, and both have been
+retired:
+
+- A `VARIANCE_SENTINEL = 1e30` substitution for non-finite entries, meant to give the
+  affected pixel a near-zero weight in a weighted fit.
+- A clamp of non-positive entries to `1e-30`, meant to give the affected pixel a bounded
+  (very large but finite) weight instead of a division by zero.
+
+Both kept the flagged pixel *in* the sample set while distorting how much it counted,
+rather than removing it. The clamp was the more damaging of the two: because a ring
+gradient's uncertainty combines the per-sample variances of two rings, a single `1e-30`
+entry could shrink the combined gradient error by roughly fifteen orders of magnitude —
+making it disappear numerically. A spuriously tiny error is not a cosmetic problem, because
+three downstream checks trust it directly: the `maxgerr` gradient-quality gate, the
+signal-to-noise damping applied to the geometry update, and the low-surface-brightness (LSB)
+auto-lock trigger. None of the three can trip correctly when the error they compare against
+is many orders of magnitude too small.
+
+A real-data demonstration on a DECaLS cutout of `2MASXJ12504800+4231220`, with a block of
+pixels deliberately set to zero variance to simulate a defect, shows the effect concretely:
+the retired clamp collapsed `grad_error` by roughly 12-13 orders of magnitude on the
+affected rings, while the corrected code instead drops samples from the affected rings (a
+one-off count of 89 samples across 5 rings was measured during development; this specific
+count is not reproduced by the committed demo script and should be read as illustrative,
+not as a pinned regression value). At one semi-major axis on that image (144.21 pixels),
+the retired code accepted the isophote (stop code 0); the corrected code correctly flags it
+as a gradient-quality failure (stop code -1) — a rejection that the old, artificially tiny
+error had been silently suppressing. Runtime effect of the fix, measured on the same
+demonstration: +0.01% for pure OLS, +0.79% for a clean WLS run, and -11.76% (faster) for the
+WLS run carrying the injected defect.
+
+### Gradient error and ring statistics
+
+The radial gradient reported for an isophote is the difference between two "ring
+statistics" — a representative intensity for the current radius and for a radius one step
+further out — divided by the radial step. The gradient's uncertainty is built from the
+variance of those same two ring statistics, computed by one shared helper,
+`_ring_statistic_and_variance` in `isoster/_shared.py`, so the reported value and its error
+always come from the same estimator on the same samples:
+
+- **Unweighted mean** (the default `integrator='mean'`, and the branch used for
+  `'adaptive'` when not otherwise resolved): variance is `sum(v_i) / N**2`, where `v_i` are
+  the per-sample variances and `N` the sample count — the ordinary variance of a mean of
+  independent, non-identically-distributed measurements.
+- **Unweighted median** (`integrator='median'`): variance is
+  `pi * N / (2 * (sum(1/sqrt(v_i)))**2)`, a normal-theory asymptotic result. For uniform
+  variance (all `v_i = sigma**2`) this reduces to the familiar `pi * sigma**2 / (2*N)` — the
+  ordinary mean-of-`N` variance `sigma**2/N`, inflated by the `pi/2 ≈ 1.571` factor that
+  makes the median a less efficient (noisier) estimator than the mean under Gaussian noise.
+
+The median formula is an **approximation**, not an exact result: its normal-theory
+derivation assumes independent, identically distributed Gaussian samples, but a real
+isophote ring carries genuine azimuthal structure (the galaxy's light is not uniform around
+the ring) and neighbouring samples are correlated, because bilinear interpolation
+(`scipy.ndimage.map_coordinates`) blends each sample from nearby pixels. Monte Carlo tests
+against both formulas showed agreement within about 0.08% for uniform per-sample variance
+and 1.36% for heteroscedastic (spatially varying) variance — close enough to trust as an
+error estimate, but not exact in the way a from-first-principles derivation on independent
+Gaussian samples would be.
+
+When no variance map is supplied, the same helper falls back to a scatter-based error
+computed directly from the sampled intensities (`np.std(intens)**2 / N` for the mean, with
+the same `pi/2` penalty for the median). This scatter reflects everything that varies
+around the ring — photon noise, but also any real azimuthal structure in the galaxy's light
+at that radius — so it should be read as an **upper bound** on the noise, not a pure noise
+estimate.
+
+**A deliberate asymmetry.** Under WLS (a variance map supplied), the ring **intensity**
+reported for `integrator='mean'` is *not* the unweighted mean described above: it is the
+inverse-variance-weighted intercept of the harmonic fit (the `y0_fit` term), which gives
+more influence to lower-variance (more trustworthy) samples — see the WLS mode bullet
+above. The ring **gradient**, by contrast, always uses the unweighted mean's location and
+variance, through `_ring_statistic_and_variance`, and never calls the inverse-variance-
+weighted helper (`_weighted_mean_variance`, which remains in `isoster/_shared.py` and is
+still used for the reported intensity's own error under `integrator='mean'`, and by
+`isoster/multiband/`). These are different quantities computed for different purposes: the
+intensity is a per-isophote photometric measurement, where down-weighting noisy pixels is
+desirable, while the gradient is a diagnostic comparison between two rings, where matching
+the same, simple estimator on both sides keeps the comparison honest. The difference is
+intentional and should be stated explicitly rather than left implicit.
+
+The asymmetry applies to `integrator='mean'` only. Under `integrator='median'` the reported
+intensity is an **unweighted median** even when a variance map is supplied, so `intens_err`
+comes from that median's own variance via `_ring_statistic_and_variance`, not from the
+weighted intercept. Rescaling the weighted intercept's error by `sqrt(pi/2)` — the factor
+that converts a mean's error to a median's — is correct only when the ring's variances are
+uniform. Once they vary with angle, the intercept of a five-parameter fit becomes correlated
+with the sin/cos terms, and its variance is no longer the median's by any constant factor.
+Measured across several spatial variance patterns, the rescaled value ranged from 0.75x to
+3.21x the correct median error, so the mismatch can understate as well as overstate the
+uncertainty; it is exactly 1.00x only for uniform variance.
+
+**A consequence for the reported gradient value itself.** The per-ring location formulas
+are byte-identical before and after this fix, so one might expect only the error bars to
+change. That is not quite true: `gradient_error` also gates two control-flow decisions in
+`fitting.compute_gradient` that select *which* ring's gradient gets reported — the
+`need_second_gradient` decision (`isoster/fitting.py:908`) and the final baseline-selection
+override (`isoster/fitting.py:940`), both of which compare a candidate gradient, or its
+relative error, against a threshold. A corrected — typically larger — error can therefore
+push a borderline case across one of these thresholds and change which baseline (one-step
+or two-step) is reported, and hence the numeric gradient value itself, not only its
+uncertainty. This was measured directly on the regression fixture in
+`tests/unit/test_gradient_error.py::test_corrected_error_can_change_which_baseline_is_selected`:
+the old code reported `(gradient, error) = (-2.56, None)`; the corrected code reports
+`(-1.185, 0.2805)`. This is the fix working as intended — the gradient error is the first
+thing this downstream logic consumes — but it means fitted gradients on borderline
+isophotes with heteroscedastic variance maps can shift as a result of this change, not only
+their reported uncertainty.
 
 ## Stop Codes (Implemented Semantics)
 

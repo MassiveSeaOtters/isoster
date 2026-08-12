@@ -61,7 +61,8 @@ def load_data() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     image : 2D float64 array
     variance : 2D float64 array
         Per-pixel variance derived from the inverse-variance map.
-        Pixels with invvar == 0 are set to 1e30 (effectively masked).
+        Pixels with invvar == 0 carry no usable noise information and are set
+        to NaN, which isoster marks invalid and drops during ring sampling.
     mask : 2D bool array
         True = bad pixel (from the external mask file).
     """
@@ -73,8 +74,11 @@ def load_data() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     invvar = fits.getdata(invvar_path).astype(np.float64)
     mask = fits.getdata(mask_path).astype(bool)
 
-    # Convert inverse-variance to variance, guarding against zeros.
-    variance = np.where(invvar > 0, 1.0 / invvar, 1e30)
+    # Convert inverse-variance to variance. Zero-invvar pixels become NaN
+    # rather than a large finite value: a large finite variance is still
+    # "valid" to isoster, so it stays in the ring and inflates the unweighted
+    # gradient error, whereas NaN is marked invalid and the sample is dropped.
+    variance = np.where(invvar > 0, 1.0 / invvar, np.nan)
 
     print(f"Image shape : {image.shape}")
     print(f"Non-zero invvar fraction : {np.mean(invvar > 0):.4f}")

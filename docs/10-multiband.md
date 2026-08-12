@@ -296,8 +296,14 @@ anything else (astropy ``Table.write`` of the per-isophote table).
   NaN/inf values are replaced with `1e30` (near-zero WLS weight);
   non-positive values are clamped to `1e-30` (near-infinite WLS weight)
   with a `RuntimeWarning` advising the user to mask those pixels
-  instead. The sanitization mirrors single-band semantics; users who
-  want bad pixels excluded from the fit must add them to `masks` —
+  instead. **This no longer mirrors single-band semantics.** Single-band
+  `fit_image` now treats a non-finite or non-positive variance entry as
+  invalid and drops the corresponding sample during sampling instead of
+  substituting or clamping it (see `docs/04-architecture.md`, section
+  "Invalid-variance policy"); multi-band retains the older sentinel/clamp
+  behavior described above, so the two code paths currently diverge on
+  this point. Users who want bad pixels excluded from the fit must add
+  them to `masks` —
   sanitization alone does not drop samples.
 - `bands`: list of strings, regex `^[A-Za-z][A-Za-z0-9_]*$`, no
   duplicates. Strings appear verbatim as column suffixes (`intens_g`,
