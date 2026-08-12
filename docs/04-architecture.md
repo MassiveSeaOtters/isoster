@@ -169,13 +169,15 @@ is many orders of magnitude too small.
 A real-data demonstration on a DECaLS cutout of `2MASXJ12504800+4231220`, with a block of
 pixels deliberately set to zero variance to simulate a defect, shows the effect concretely:
 the retired clamp collapsed `grad_error` by roughly 12-13 orders of magnitude on the
-affected rings, while the corrected code instead drops 89 samples spread across 5 rings. At
-one semi-major axis on that image (144.21 pixels), the retired code accepted the isophote
-(stop code 0); the corrected code correctly flags it as a gradient-quality failure
-(stop code -1) — a rejection that the old, artificially tiny error had been silently
-suppressing. Runtime effect of the fix, measured on the same demonstration: +0.01% for pure
-OLS, +0.79% for a clean WLS run, and -11.76% (faster) for the WLS run carrying the injected
-defect.
+affected rings, while the corrected code instead drops samples from the affected rings (a
+one-off count of 89 samples across 5 rings was measured during development; this specific
+count is not reproduced by the committed demo script and should be read as illustrative,
+not as a pinned regression value). At one semi-major axis on that image (144.21 pixels),
+the retired code accepted the isophote (stop code 0); the corrected code correctly flags it
+as a gradient-quality failure (stop code -1) — a rejection that the old, artificially tiny
+error had been silently suppressing. Runtime effect of the fix, measured on the same
+demonstration: +0.01% for pure OLS, +0.79% for a clean WLS run, and -11.76% (faster) for the
+WLS run carrying the injected defect.
 
 ### Gradient error and ring statistics
 
