@@ -37,24 +37,13 @@ from astropy.table import Table
 
 logger = logging.getLogger(__name__)
 
-# Sentinel written into variance maps for NaN/inf entries (driver.py): large
-# enough to give the sample effectively zero weight in WLS solves. Error
-# formulas must be built from inverse-variance weights so the sentinel (and
-# values smeared into neighboring samples by interpolation) contribute ~zero
-# weight; plain sums of variances would explode (review finding B2).
-VARIANCE_SENTINEL = 1e30
-
 
 def _weighted_mean_variance(variances):
     """Variance of an inverse-variance-weighted mean, 1/sum(1/var_i).
 
     Exact for the inverse-variance-weighted mean estimator; equals
     ``sum(var_i)/N^2`` (the unweighted mean's variance) for uniform
-    variances. Sentinel-immune by construction: the driver's unknown-variance
-    sentinel (and values smeared into neighboring samples by interpolation)
-    contribute ~zero weight, so one bad variance-map pixel cannot blow up
-    the error (review finding B2). Returns np.inf when no sample carries
-    finite weight.
+    variances. Returns np.inf when no sample carries finite weight.
     """
     wsum = np.sum(1.0 / variances)
     if not np.isfinite(wsum) or wsum <= 0:

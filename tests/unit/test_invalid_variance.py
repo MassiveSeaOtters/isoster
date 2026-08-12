@@ -76,3 +76,58 @@ def test_no_variance_map_path_is_unchanged():
     data = sample(image, None)
     assert data.variances is None
     assert data.intens.size > 0
+
+
+import warnings
+
+from isoster.config import IsosterConfig
+from isoster.driver import fit_image
+
+
+def make_sersic_image(size=121, amplitude=1000.0, r_eff=20.0):
+    from scipy.special import gammaincinv
+
+    bn = gammaincinv(4.0, 0.5)
+    yy, xx = np.mgrid[:size, :size]
+    r = np.sqrt((xx - size // 2) ** 2 + ((yy - size // 2) / 0.7) ** 2)
+    return amplitude * np.exp(-bn * ((r / r_eff) ** 0.5 - 1.0))
+
+
+def test_fit_image_does_not_mutate_the_callers_variance_map():
+    """The driver must work on a copy, whatever it marks invalid."""
+    image = make_sersic_image()
+    variance = np.full(image.shape, 4.0)
+    variance[30:40, 30:40] = -1.0
+    original = variance.copy()
+
+    cfg = IsosterConfig(sma0=6.0, minsma=3.0, maxsma=40.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fit_image(image, None, cfg, variance_map=variance)
+
+    np.testing.assert_array_equal(variance, original)
+
+
+@pytest.mark.parametrize(
+    "bad_value, expected_phrase",
+    [(np.nan, "non-finite"), (np.inf, "non-finite"), (-1.0, "non-positive"), (0.0, "non-positive")],
+    ids=["nan", "inf", "negative", "zero"],
+)
+def test_fit_image_warns_and_excludes_unusable_variance(bad_value, expected_phrase):
+    """Unusable entries are reported and excluded, never clamped or substituted."""
+    image = make_sersic_image()
+    variance = np.full(image.shape, 4.0)
+    variance[30:40, 30:40] = bad_value
+
+    cfg = IsosterConfig(sma0=6.0, minsma=3.0, maxsma=40.0)
+    with pytest.warns(RuntimeWarning, match=expected_phrase):
+        result = fit_image(image, None, cfg, variance_map=variance)
+
+    assert len(result["isophotes"]) > 0
+
+
+def test_variance_sentinel_constant_is_gone():
+    """The 1e30 sentinel is retired; nothing may reintroduce it."""
+    import isoster._shared as shared
+
+    assert not hasattr(shared, "VARIANCE_SENTINEL")

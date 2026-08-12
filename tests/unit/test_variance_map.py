@@ -308,8 +308,8 @@ class TestInputValidation:
             non_positive_warnings = [x for x in w if "non-positive" in str(x.message)]
             assert len(non_positive_warnings) >= 1
 
-    def test_nan_values_warn_and_sanitized(self):
-        """variance_map with NaN values should warn and replace with sentinel."""
+    def test_nan_values_warn_and_excluded(self):
+        """variance_map with NaN values should warn and the fit should still succeed."""
         image, _ = _make_sersic_image(size=64)
         var_map = np.ones((64, 64))
         var_map[10, 10] = np.nan
@@ -317,15 +317,16 @@ class TestInputValidation:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             config = IsosterConfig(x0=32, y0=32, sma0=5, maxsma=6, maxit=15)
-            fit_image(image, config=config, variance_map=var_map)
-            nan_warnings = [x for x in w if "NaN" in str(x.message)]
-            assert len(nan_warnings) >= 1
-            assert "2 NaN" in str(nan_warnings[0].message)
+            result = fit_image(image, config=config, variance_map=var_map)
+            non_finite_warnings = [x for x in w if "non-finite" in str(x.message)]
+            assert len(non_finite_warnings) >= 1
+            assert "2 non-finite" in str(non_finite_warnings[0].message)
+        assert len(result["isophotes"]) > 0
         # Original array should not be mutated
         assert np.isnan(var_map[10, 10])
 
-    def test_inf_values_warn_and_sanitized(self):
-        """variance_map with inf values should warn and replace with sentinel."""
+    def test_inf_values_warn_and_excluded(self):
+        """variance_map with inf values should warn and the fit should still succeed."""
         image, _ = _make_sersic_image(size=64)
         var_map = np.ones((64, 64))
         var_map[10, 10] = np.inf
@@ -333,9 +334,10 @@ class TestInputValidation:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             config = IsosterConfig(x0=32, y0=32, sma0=5, maxsma=6, maxit=15)
-            fit_image(image, config=config, variance_map=var_map)
-            inf_warnings = [x for x in w if "infinite" in str(x.message)]
-            assert len(inf_warnings) >= 1
+            result = fit_image(image, config=config, variance_map=var_map)
+            non_finite_warnings = [x for x in w if "non-finite" in str(x.message)]
+            assert len(non_finite_warnings) >= 1
+        assert len(result["isophotes"]) > 0
         # Original array should not be mutated
         assert np.isinf(var_map[10, 10])
 
@@ -470,13 +472,15 @@ class TestFitImageWithVariance:
 
 
 class TestVarianceSentinelRobustness:
-    """Regression tests for B2: driver variance sentinels must not explode errors.
+    """Regression tests for B2: unusable variance-map pixels must not explode errors.
 
-    fit_image replaces NaN/inf variance-map entries with a 1e30 sentinel, and
-    bilinear sampling smears it into neighboring samples. The old sum(var)/N^2
-    error formulas turned a few such pixels into intens_err ~ 1e12 and into
-    spurious stop_code=-1 gradient failures on neighboring isophotes. The
-    inverse-variance-weighted error formulas are immune (sentinel weight ~ 0).
+    NaN/inf variance-map entries are marked invalid and their samples are
+    excluded from the ring; they no longer receive a 1e30 sentinel. The old
+    sum(var)/N^2 error formulas turned a few such pixels into intens_err ~ 1e12
+    and into spurious stop_code=-1 gradient failures on neighboring isophotes.
+    Excluding the affected samples keeps the inverse-variance-weighted error
+    formulas immune, since the bad pixels no longer contribute at all rather
+    than contributing near-zero weight.
     """
 
     @staticmethod
@@ -500,7 +504,7 @@ class TestVarianceSentinelRobustness:
         config = IsosterConfig(x0=64, y0=64, sma0=10, minsma=5, maxsma=40, eps=0.2, pa=0.5)
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # driver NaN-sentinel warning covered elsewhere
+            warnings.simplefilter("ignore")  # driver non-finite-exclusion warning covered elsewhere
             res = fit_image(image, config=config, variance_map=var_nan)["isophotes"]
             res_clean = fit_image(image, config=config, variance_map=var_clean)["isophotes"]
 
@@ -516,24 +520,30 @@ class TestVarianceSentinelRobustness:
         sma = np.array([iso["sma"] for iso in res])
         assert not np.any(stop_codes == -1), f"spurious stop_code=-1 at sma={sma[stop_codes == -1]}"
 
-        # Errors track the clean run (sentinel pixels lose weight, nothing more)
+        # Errors track the clean run (excluded pixels lose their sample, nothing more)
         clean_err = np.array([iso["intens_err"] for iso in res_clean])
         assert np.max(intens_err) < 2.0 * np.max(clean_err)
 
     def test_gradient_error_sentinel_immune(self):
-        """compute_gradient error stays sane when sentinel pixels contaminate the annulus."""
+        """compute_gradient error stays sane when unusable pixels contaminate the annulus."""
         image, var_clean = _make_sersic_image(size=128, noise_sigma=5.0)
+        # var_nan already carries the NaN entries directly: that is what a
+        # caller's unusable variance looks like now that extract_isophote_data
+        # (Task 1) drops non-finite / non-positive samples instead of a 1e30
+        # sentinel absorbing them.
         var_nan = self._make_nan_variance(var_clean)
-        # Simulate the driver's NaN -> 1e30 sentinel sanitization
-        var_sentinel = np.where(np.isnan(var_nan), 1e30, var_nan)
 
         geometry = {"x0": 64, "y0": 64, "sma": 30, "eps": 0.2, "pa": 0.0}
         config = {"astep": 0.1, "linear_growth": False, "integrator": "mean", "use_eccentric_anomaly": False}
 
-        grad_s, err_s = compute_gradient(image, None, geometry, config, variance_map=var_sentinel)
+        grad_s, err_s = compute_gradient(image, None, geometry, config, variance_map=var_nan)
         grad_c, err_c = compute_gradient(image, None, geometry, config, variance_map=var_clean)
 
         assert np.isfinite(grad_s) and np.isfinite(err_s)
-        # Same gradient, error at the clean-map scale (old formula gave ~1e12)
-        np.testing.assert_allclose(grad_s, grad_c, rtol=1e-10)
+        # The gradient itself is a plain mean of the ring's intensities, so
+        # excluding the unusable samples (rather than down-weighting them
+        # near zero) now perturbs it slightly too, not only its error; a few
+        # percent is expected from dropping ~15 samples out of one ring, and
+        # far short of the B2 blow-up (old formula gave error ~1e12).
+        np.testing.assert_allclose(grad_s, grad_c, rtol=0.1)
         np.testing.assert_allclose(err_s, err_c, rtol=0.5)

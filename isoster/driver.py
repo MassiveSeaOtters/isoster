@@ -3,7 +3,6 @@ from pathlib import Path
 
 import numpy as np
 
-from ._shared import VARIANCE_SENTINEL
 from .config import IsosterConfig
 from .fitting import fit_isophote
 
@@ -463,48 +462,47 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         )
         template = template_isophotes
 
-    # Validate and sanitize variance_map
+    # Validate the variance map and mark unusable entries.
+    #
+    # An entry that is not finite, or not strictly positive, carries no usable
+    # information about the noise. Such entries are marked NaN here and the
+    # affected samples are dropped during ring sampling, so a ring statistic
+    # and its uncertainty always describe the same samples. Substituting a
+    # large sentinel or clamping to a tiny positive value would instead leave
+    # the sample in the statistic while distorting its weight: the 1e-30 clamp
+    # in particular gave a single pixel near-infinite weight and could collapse
+    # the reported gradient error by fifteen orders of magnitude.
     if variance_map is not None:
         if variance_map.shape != image.shape:
             raise ValueError(f"variance_map shape {variance_map.shape} does not match image shape {image.shape}")
 
         # Work on a copy to avoid mutating the caller's array
-        variance_map = variance_map.copy()
+        variance_map = variance_map.astype(np.float64, copy=True)
 
-        # Replace NaN with large sentinel (effectively zero weight)
-        n_nan = np.sum(np.isnan(variance_map))
-        if n_nan > 0:
-            variance_map[np.isnan(variance_map)] = VARIANCE_SENTINEL
+        non_finite = ~np.isfinite(variance_map)
+        n_non_finite = int(np.sum(non_finite))
+        if n_non_finite > 0:
             warnings.warn(
-                f"variance_map contains {n_nan} NaN values; replaced with {VARIANCE_SENTINEL:.0e} (near-zero weight).",
+                f"variance_map contains {n_non_finite} non-finite values (NaN or infinite); "
+                f"the affected samples are excluded from both the ring statistics and their "
+                f"uncertainties.",
                 RuntimeWarning,
                 stacklevel=2,
             )
 
-        # Replace inf with large sentinel (effectively zero weight)
-        n_inf = np.sum(np.isinf(variance_map))
-        if n_inf > 0:
-            variance_map[np.isinf(variance_map)] = VARIANCE_SENTINEL
+        non_positive = ~non_finite & (variance_map <= 0.0)
+        n_non_positive = int(np.sum(non_positive))
+        if n_non_positive > 0:
             warnings.warn(
-                f"variance_map contains {n_inf} infinite values; "
-                f"replaced with {VARIANCE_SENTINEL:.0e} (near-zero weight).",
+                f"variance_map contains {n_non_positive} non-positive values; a variance of zero "
+                f"or below is not physical, so the affected samples are excluded from both the "
+                f"ring statistics and their uncertainties. Mask these pixels explicitly if the "
+                f"exclusion is intended.",
                 RuntimeWarning,
                 stacklevel=2,
             )
 
-        # Warn on non-positive values (zeros or negatives produce infinite weights)
-        n_non_pos = np.sum(variance_map <= 0)
-        if n_non_pos > 0:
-            warnings.warn(
-                f"variance_map contains {n_non_pos} non-positive values; "
-                f"these will be clamped to 1e-30 (near-infinite weight). "
-                f"Consider masking these pixels instead.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-
-        # Clamp minimum variance to prevent numerical overflow in 1/variance
-        variance_map = np.maximum(variance_map, 1e-30)
+        variance_map[non_finite | non_positive] = np.nan
 
     # Handle template-based forced mode
     if template is not None:
