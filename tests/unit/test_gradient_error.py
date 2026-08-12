@@ -180,3 +180,47 @@ def test_second_baseline_uses_the_matched_variance():
     _, var_c = _ring_statistic_and_variance(*_ring_inputs(image, variance, SMA), "mean")
     _, var_g2 = _ring_statistic_and_variance(*_ring_inputs(image, variance, SMA * 1.2), "mean")
     assert error == pytest.approx(np.sqrt(var_c + var_g2) / delta_r_2, rel=1e-9)
+
+
+def test_corrected_error_can_change_which_baseline_is_selected():
+    """A more honest ring error can change which baseline compute_gradient reports.
+
+    This is intended, not a regression. gradient_error is not just descriptive:
+    it gates two decisions downstream, ``need_second_gradient`` at
+    isoster/fitting.py:908 (via ``relative_error >= 0.3``) and the final
+    baseline-selection override at isoster/fitting.py:940 (via
+    ``gradient >= previous_gradient / 3``). The old inverse-variance-weighted
+    formula understated this ring's error enough to keep ``relative_error``
+    under 0.3, so the first (one-step) baseline was always kept. The
+    corrected formula reports the unweighted mean's true, larger error, which
+    pushes ``relative_error`` past 0.3 and lets the second (two-step) baseline
+    be taken and kept instead. A more truthful per-ring uncertainty can
+    therefore change which ring's gradient compute_gradient reports.
+    """
+    from isoster._shared import _weighted_mean_variance
+
+    image = make_truncated_disk_image()
+    variance = np.full(image.shape, 4.0)
+    variance[:, 75:] = 400.0
+
+    delta_r = SMA * 0.1
+    intens_c, var_c = _ring_inputs(image, variance, SMA)
+    intens_g, var_g = _ring_inputs(image, variance, SMA * 1.1)
+    one_step_gradient = (np.mean(intens_g) - np.mean(intens_c)) / delta_r
+
+    old_relative_error = abs(
+        np.sqrt(_weighted_mean_variance(var_c) + _weighted_mean_variance(var_g)) / delta_r / one_step_gradient
+    )
+    assert old_relative_error < 0.3, "fixture must reproduce the old formula staying under threshold"
+
+    _, new_var_c = _ring_statistic_and_variance(intens_c, var_c, "mean")
+    _, new_var_g = _ring_statistic_and_variance(intens_g, var_g, "mean")
+    new_relative_error = abs(np.sqrt(new_var_c + new_var_g) / delta_r / one_step_gradient)
+    assert new_relative_error >= 0.3, "fixture must reproduce the corrected formula crossing threshold"
+
+    gradient, error = compute_gradient(
+        image, None, GEOMETRY, gradient_config("mean"), previous_gradient=-3.2, variance_map=variance
+    )
+
+    assert error is not None, "the corrected error must let the second baseline survive"
+    assert gradient != pytest.approx(one_step_gradient, rel=1e-6), "the reported gradient must be the second baseline"

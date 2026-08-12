@@ -903,6 +903,8 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     # Skip second gradient if:
     # 1. First gradient looks good (< previous_gradient / 3)
     # 2. OR first gradient is reliable (relative_error < 0.3)
+    # relative_error carries the ring-matched gradient_error from above, so a
+    # more honest error here can change whether the second baseline is taken.
     need_second_gradient = (gradient >= (previous_gradient / 3.0)) and (relative_error >= 0.3)
 
     if need_second_gradient:
