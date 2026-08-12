@@ -159,11 +159,15 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
 
     valid &= ~np.isnan(intens)
 
-    # Sample variance map if provided
+    # Sample variance map if provided.
+    # A variance that is not finite or not strictly positive carries no usable
+    # information, so the sample is dropped exactly like a masked pixel. This
+    # keeps every ring statistic and its uncertainty on one identical sample
+    # set; see docs/04-architecture.md, "Invalid-variance policy".
     var_vals = None
     if variance_map is not None:
         var_vals = map_coordinates(variance_map, coords, order=1, mode="constant", cval=np.nan)
-        valid &= ~np.isnan(var_vals)
+        valid &= np.isfinite(var_vals) & (var_vals > 0.0)
 
     # Return named tuple with appropriate angles
     sampled_variances = var_vals[valid] if var_vals is not None else None
