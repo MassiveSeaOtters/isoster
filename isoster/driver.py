@@ -548,7 +548,9 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
 
     # 2. Fit First Isophote at SMA0 (with optional retry)
     start_geometry = {"x0": x0, "y0": y0, "eps": cfg.eps, "pa": cfg.pa}
-    first_iso = fit_isophote(image, mask, sma0, start_geometry, cfg, variance_map=variance_map)
+    first_iso = fit_isophote(
+        image, mask, sma0, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+    )
 
     # Retry with perturbed parameters if first isophote failed
     retry_log = []
@@ -556,7 +558,9 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         perturbations = _first_isophote_perturbations(sma0, cfg.eps, cfg.pa, cfg.max_retry_first_isophote)
         for attempt_idx, (sma0_try, eps_try, pa_try) in enumerate(perturbations, start=1):
             retry_geometry = {"x0": x0, "y0": y0, "eps": eps_try, "pa": pa_try}
-            candidate = fit_isophote(image, mask, sma0_try, retry_geometry, cfg, variance_map=variance_map)
+            candidate = fit_isophote(
+                image, mask, sma0_try, retry_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+            )
             retry_log.append(
                 {
                     "attempt": attempt_idx,
@@ -591,7 +595,9 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 probe_sma = probe_sma * (1.0 + astep)
             if probe_sma > maxsma:
                 break
-            probe_iso = fit_isophote(image, mask, probe_sma, start_geometry, cfg, variance_map=variance_map)
+            probe_iso = fit_isophote(
+                image, mask, probe_sma, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+            )
             failed_initial.append(probe_iso)
             if _is_acceptable_stop_code(probe_iso["stop_code"]):
                 anchor_iso = probe_iso
@@ -644,6 +650,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 going_inwards=True,
                 previous_geometry=current_iso,
                 variance_map=variance_map,
+                variance_map_prepared=True,
             )
             inwards_results.append(next_iso)
 
@@ -701,6 +708,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 active_cfg,
                 previous_geometry=current_iso,
                 variance_map=variance_map,
+                variance_map_prepared=True,
                 outer_reference_geom=outer_ref_geom,
             )
             if cfg.lsb_auto_lock:
@@ -860,6 +868,7 @@ def _fit_image_template_forced(image, mask, config, template_isophotes, variance
                 use_eccentric_anomaly=config.use_eccentric_anomaly,
                 config=config,
                 variance_map=variance_map,
+                variance_map_prepared=True,
             )
         isophotes.append(iso)
 

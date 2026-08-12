@@ -92,7 +92,44 @@ def get_elliptical_coordinates(x, y, x0, y0, pa, eps):
     return sma, psi
 
 
-def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=False, variance_map=None):
+def _bilinear_support_is_valid(variance_map, x, y):
+    """Flag samples whose four contributing source pixels are all usable.
+
+    Bilinear interpolation blends a sample from the four pixels surrounding it,
+    so a lone unusable pixel can be averaged with positive neighbours into a
+    positive result that a value-only check accepts. NaN and infinity propagate
+    through the blend on their own, but zero and negative variances do not, so
+    the source pixels have to be inspected directly.
+
+    Cost is proportional to the number of samples, not the image size, so this
+    stays cheap on large images.
+    """
+    height, width = variance_map.shape
+    row0 = np.floor(y).astype(np.intp)
+    col0 = np.floor(x).astype(np.intp)
+
+    usable = np.ones(x.shape, dtype=bool)
+    for row_offset in (0, 1):
+        for col_offset in (0, 1):
+            rows = np.clip(row0 + row_offset, 0, height - 1)
+            cols = np.clip(col0 + col_offset, 0, width - 1)
+            neighbour = variance_map[rows, cols]
+            usable &= np.isfinite(neighbour) & (neighbour > 0.0)
+    return usable
+
+
+def extract_isophote_data(
+    image,
+    mask,
+    x0,
+    y0,
+    sma,
+    eps,
+    pa,
+    use_eccentric_anomaly=False,
+    variance_map=None,
+    variance_map_prepared=False,
+):
     """
     Extract image pixels along an elliptical path using vectorized sampling.
 
@@ -122,6 +159,13 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
     variance_map : 2D array, optional
         Per-pixel variance map. When provided, variance values are sampled along the
         ellipse using bilinear interpolation and included in the returned IsophoteData.
+    variance_map_prepared : bool
+        Set True only when every unusable entry in ``variance_map`` is already
+        non-finite, as :func:`isoster.driver.fit_image` guarantees after its own
+        validation. The per-sample source-pixel check is then skipped, because
+        non-finite entries propagate through interpolation by themselves. The
+        default is False so that a caller passing a raw variance map straight to
+        this function still gets correct exclusion.
 
     Returns
     -------
@@ -168,6 +212,8 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
     if variance_map is not None:
         var_vals = map_coordinates(variance_map, coords, order=1, mode="constant", cval=np.nan)
         valid &= np.isfinite(var_vals) & (var_vals > 0.0)
+        if not variance_map_prepared:
+            valid &= _bilinear_support_is_valid(variance_map, x, y)
 
     # Return named tuple with appropriate angles
     sampled_variances = var_vals[valid] if var_vals is not None else None

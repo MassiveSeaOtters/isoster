@@ -192,3 +192,99 @@ def test_fit_image_grad_error_survives_unmassaged_variance_map():
         assert dirty[i]["ndata"] < clean[i]["ndata"], (
             f"ndata did not drop at sma={dirty[i]['sma']}: dirty={dirty[i]['ndata']}, clean={clean[i]['ndata']}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Invalid source pixels must not survive bilinear interpolation
+# ---------------------------------------------------------------------------
+
+
+def ring_pixel(sma=SMA, eps=0.3, pa=0.4, index=10):
+    """Row and column of one image pixel the sampling ring passes through."""
+    from isoster.numba_kernels import compute_ellipse_coords
+
+    n_samples = max(64, int(2 * np.pi * sma))
+    x, y, _, _ = compute_ellipse_coords(n_samples, sma, eps, pa, CENTER, CENTER, False)
+    return int(round(y[index])), int(round(x[index]))
+
+
+@pytest.mark.parametrize("bad_value", [0.0, -1.0], ids=["zero", "negative"])
+def test_isolated_invalid_source_pixel_is_dropped(bad_value):
+    """A lone zero or negative variance pixel must not be blended back into validity.
+
+    Bilinear interpolation mixes an invalid source pixel with its positive
+    neighbours, producing a positive interpolated variance that passes a
+    value-only check. NaN and inf propagate through interpolation on their own,
+    but zero and negative values do not, so the four source pixels behind each
+    sample have to be checked directly.
+    """
+    image = make_flat_image()
+    variance = np.full(SHAPE, 4.0)
+    row, col = ring_pixel()
+
+    clean_count = sample(image, variance).intens.size
+
+    dirty = variance.copy()
+    dirty[row, col] = bad_value
+    dirty_data = sample(image, dirty)
+
+    marked_invalid = variance.copy()
+    marked_invalid[row, col] = np.nan
+    expected_count = sample(image, marked_invalid).intens.size
+
+    assert dirty_data.intens.size < clean_count
+    assert dirty_data.intens.size == expected_count
+    assert np.all(dirty_data.variances > 0.0)
+
+
+def test_support_check_does_not_drop_samples_on_a_clean_map():
+    """The check must not cost valid samples."""
+    image = make_flat_image()
+    variance = np.full(SHAPE, 4.0)
+
+    assert sample(image, variance).intens.size == sample(image, None).intens.size
+
+
+def test_prepared_variance_map_skips_the_support_check():
+    """fit_image already sanitises, so it may opt out of the per-sample check.
+
+    Declaring a map prepared is a promise that unusable entries are already
+    non-finite; a raw zero would then survive, which is exactly why the opt-out
+    is off by default.
+    """
+    image = make_flat_image()
+    variance = np.full(SHAPE, 4.0)
+    row, col = ring_pixel()
+    dirty = variance.copy()
+    dirty[row, col] = 0.0
+
+    checked = extract_isophote_data(image, None, CENTER, CENTER, SMA, 0.3, 0.4, variance_map=dirty)
+    skipped = extract_isophote_data(
+        image, None, CENTER, CENTER, SMA, 0.3, 0.4, variance_map=dirty, variance_map_prepared=True
+    )
+
+    assert skipped.intens.size > checked.intens.size
+
+
+def test_fit_image_still_excludes_invalid_pixels_through_the_prepared_path():
+    """fit_image opts out of the check but must still exclude invalid samples.
+
+    Its own sanitisation converts unusable entries to NaN before sampling, and
+    NaN propagates through interpolation, so the exclusion still happens.
+    """
+    image = make_sersic_image()
+    variance = np.full(image.shape, 4.0)
+    # Off-centre, so it clips mid-radius rings without starving the inner ones.
+    variance[70:78, 70:78] = 0.0
+
+    cfg = IsosterConfig(sma0=6.0, minsma=3.0, maxsma=40.0, debug=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        dirty = fit_image(image, None, cfg, variance_map=variance)["isophotes"]
+        clean = fit_image(image, None, cfg, variance_map=np.full(image.shape, 4.0))["isophotes"]
+
+    dirty_by_sma = {round(i["sma"], 4): i for i in dirty}
+    dropped_somewhere = any(
+        dirty_by_sma[round(i["sma"], 4)]["ndata"] < i["ndata"] for i in clean if round(i["sma"], 4) in dirty_by_sma
+    )
+    assert dropped_somewhere

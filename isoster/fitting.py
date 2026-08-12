@@ -150,6 +150,7 @@ def extract_forced_photometry(
     use_eccentric_anomaly=False,
     config=None,
     variance_map=None,
+    variance_map_prepared=False,
 ):
     """
     Extract forced photometry at a single SMA without fitting.
@@ -200,7 +201,16 @@ def extract_forced_photometry(
 
     # Sample along the ellipse
     data = extract_isophote_data(
-        image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+        image,
+        mask,
+        x0,
+        y0,
+        sma,
+        eps,
+        pa,
+        use_eccentric_anomaly=use_eccentric_anomaly,
+        variance_map=variance_map,
+        variance_map_prepared=variance_map_prepared,
     )
     phi = data.angles  # position angle or eccentric anomaly depending on mode
     intens = data.intens
@@ -808,7 +818,16 @@ def fit_higher_harmonics_simultaneous(angles, intens, sma, gradient, orders=None
     return result
 
 
-def compute_gradient(image, mask, geometry, config, previous_gradient=None, current_data=None, variance_map=None):
+def compute_gradient(
+    image,
+    mask,
+    geometry,
+    config,
+    previous_gradient=None,
+    current_data=None,
+    variance_map=None,
+    variance_map_prepared=False,
+):
     """Compute the radial intensity gradient.
 
     Args:
@@ -844,7 +863,16 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     else:
         # Extract current SMA data
         data_c = extract_isophote_data(
-            image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+            image,
+            mask,
+            x0,
+            y0,
+            sma,
+            eps,
+            pa,
+            use_eccentric_anomaly=use_eccentric_anomaly,
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
         intens_c = data_c.intens
         var_c = data_c.variances
@@ -870,6 +898,7 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
         pa,
         use_eccentric_anomaly=use_eccentric_anomaly,
         variance_map=variance_map,
+        variance_map_prepared=variance_map_prepared,
     )
     intens_g = data_g.intens
     var_g = data_g.variances
@@ -924,6 +953,7 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
             pa,
             use_eccentric_anomaly=use_eccentric_anomaly,
             variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
         intens_g2 = data_g2.intens
         var_g2 = data_g2.variances
@@ -1090,6 +1120,7 @@ def fit_isophote(
     previous_geometry=None,
     variance_map=None,
     outer_reference_geom=None,
+    variance_map_prepared=False,
 ):
     """
     Fit a single isophote with quality control.
@@ -1244,7 +1275,16 @@ def fit_isophote(
         # angles retained for aligned diagnostics and error bookkeeping.
         # For regular: angles=φ (for harmonics), phi=φ (same)
         data = extract_isophote_data(
-            image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
+            image,
+            mask,
+            x0,
+            y0,
+            sma,
+            eps,
+            pa,
+            use_eccentric_anomaly=use_eccentric_anomaly,
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
         )
 
         angles = data.angles  # ψ for EA mode, φ for regular mode
@@ -1368,6 +1408,7 @@ def fit_isophote(
                 previous_gradient=previous_gradient,
                 current_data=current_data_for_grad,
                 variance_map=variance_map,
+                variance_map_prepared=variance_map_prepared,
             )
             cached_gradient = gradient
             cached_gradient_error = gradient_error
@@ -1436,20 +1477,24 @@ def fit_isophote(
         if effective_amp < min_amplitude:
             min_amplitude = effective_amp
             no_improvement_count = 0
-            # WLS: exact variance of the fitted (weighted) mean intensity from
-            # the fit's own covariance (weighted-mean form as a fallback); OLS:
-            # rms/sqrt(N). Both WLS forms are immune to the driver's variance
-            # sentinels, whose weight is ~0 (review B2).
+            # The reported intensity error must belong to the statistic actually
+            # reported. Under WLS with the mean integrator that is the fitted
+            # (weighted) harmonic intercept, so its own covariance is exact; the
+            # weighted-mean form is the fallback when the covariance is missing.
+            # Under the median integrator the reported intensity is an unweighted
+            # median, which needs the median's own variance: rescaling the
+            # weighted intercept by sqrt(pi/2) coincides with that only when the
+            # variances are uniform, because the intercept of a five-parameter
+            # fit correlates with the sin/cos terms once the noise varies around
+            # the ring. Under OLS the error is rms/sqrt(N), with the same
+            # Gaussian-asymptotic factor for the median.
             if variances is not None:
-                if cov_matrix is not None and cov_matrix[0, 0] > 0:
+                if eff_integrator == "median":
+                    intens_err = np.sqrt(_ring_statistic_and_variance(intens, variances, "median")[1])
+                elif cov_matrix is not None and cov_matrix[0, 0] > 0:
                     intens_err = np.sqrt(cov_matrix[0, 0])
                 else:
                     intens_err = np.sqrt(_weighted_mean_variance(variances))
-                if eff_integrator == "median":
-                    # The reported intensity is an unweighted median, so it needs
-                    # the median's uncertainty rather than the weighted intercept's.
-                    # Same Gaussian-asymptotic factor the OLS branch below uses.
-                    intens_err *= np.sqrt(np.pi / 2.0)
             else:
                 intens_err = rms / np.sqrt(len(intens))
                 if eff_integrator == "median":

@@ -148,6 +148,31 @@ sample outright, the same way it already drops masked pixels:
 ring statistic — intensity, gradient, and their uncertainties — is that the value and its
 error bar are always built from the identical set of samples.
 
+**Checking the value alone is not sufficient for a raw map.** Variances are sampled with
+bilinear interpolation, which blends each sample from the four surrounding image pixels.
+Non-finite entries propagate through that blend on their own, so a `NaN` or infinity always
+reaches the value check. Zero and negative entries do not: an isolated zero pixel averaged
+with three positive neighbours yields a positive interpolated variance that the value check
+accepts, leaving an unusable sample in the ring with an understated variance. Measured on a
+flat test map, one zero-variance source pixel produced an interpolated variance of 1.95
+against a true 4.0, and one negative pixel produced 1.44.
+
+`sampling._bilinear_support_is_valid` therefore also checks the four source pixels feeding
+each sample, and `extract_isophote_data` applies it by default. Its cost is proportional to
+the number of samples in a ring rather than to the image size, so it stays cheap on large
+images.
+
+`fit_image` has already replaced every unusable entry with `NaN` before any sampling
+happens, so for it the check is redundant. It passes `variance_map_prepared=True` down
+through `fit_isophote` and `compute_gradient` to skip it: instrumenting a 62-isophote fit of
+a 1133×1133 image confirms the check runs **zero** times inside `fit_image`, so the normal
+pipeline carries no extra cost at all. The flag defaults to `False`, so the lower-level
+functions — which are public through `isoster/optimize.py` — remain correct when a caller
+passes a raw, unvalidated variance map straight to them. Setting it to `True` is a promise
+that unusable entries are already non-finite; it is an optimisation, not a behaviour switch.
+On a direct call the check costs at most about 0.11 ms per ring (3141 samples on a 1133×1133
+image).
+
 Two earlier mechanisms handled the same input problem differently, and both have been
 retired:
 
@@ -222,12 +247,23 @@ more influence to lower-variance (more trustworthy) samples — see the WLS mode
 above. The ring **gradient**, by contrast, always uses the unweighted mean's location and
 variance, through `_ring_statistic_and_variance`, and never calls the inverse-variance-
 weighted helper (`_weighted_mean_variance`, which remains in `isoster/_shared.py` and is
-still used for the reported intensity's own error, `intens_err`, and by
+still used for the reported intensity's own error under `integrator='mean'`, and by
 `isoster/multiband/`). These are different quantities computed for different purposes: the
 intensity is a per-isophote photometric measurement, where down-weighting noisy pixels is
 desirable, while the gradient is a diagnostic comparison between two rings, where matching
 the same, simple estimator on both sides keeps the comparison honest. The difference is
 intentional and should be stated explicitly rather than left implicit.
+
+The asymmetry applies to `integrator='mean'` only. Under `integrator='median'` the reported
+intensity is an **unweighted median** even when a variance map is supplied, so `intens_err`
+comes from that median's own variance via `_ring_statistic_and_variance`, not from the
+weighted intercept. Rescaling the weighted intercept's error by `sqrt(pi/2)` — the factor
+that converts a mean's error to a median's — is correct only when the ring's variances are
+uniform. Once they vary with angle, the intercept of a five-parameter fit becomes correlated
+with the sin/cos terms, and its variance is no longer the median's by any constant factor.
+Measured across several spatial variance patterns, the rescaled value ranged from 0.75x to
+3.21x the correct median error, so the mismatch can understate as well as overstate the
+uncertainty; it is exactly 1.00x only for uniform variance.
 
 **A consequence for the reported gradient value itself.** The per-ring location formulas
 are byte-identical before and after this fix, so one might expect only the error bars to

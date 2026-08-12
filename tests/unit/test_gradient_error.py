@@ -243,3 +243,39 @@ def test_wls_median_intensity_error_carries_the_pi_over_two_penalty():
 
     ratio = median_result["intens_err"] / mean_result["intens_err"]
     assert ratio == pytest.approx(np.sqrt(np.pi / 2.0), rel=0.05)
+
+
+def test_wls_median_intensity_error_matches_the_median_under_heterogeneous_variance():
+    """The reported median needs the median's own uncertainty, not a rescaled intercept.
+
+    Under uniform variance, scaling the weighted harmonic intercept's error by
+    sqrt(pi/2) happens to give the right answer, which is why the uniform test
+    above passes either way. Under heterogeneous variance it does not: the
+    intercept of a five-parameter fit correlates with the sin/cos terms when the
+    noise pattern varies around the ring, so its variance is not the unweighted
+    median's variance by any constant factor.
+    """
+    from isoster._shared import _ring_statistic_and_variance
+    from isoster.config import IsosterConfig
+    from isoster.fitting import fit_first_and_second_harmonics, fit_isophote
+
+    image = make_sersic_image()
+    # One half of the ring far noisier than the other: the pattern projects onto
+    # the first-order harmonics, which is what inflates the intercept variance.
+    variance = np.full(image.shape, 1.0)
+    variance[:, : int(CENTER)] = 100.0
+    geom = {"x0": CENTER, "y0": CENTER, "eps": 0.3, "pa": 0.4}
+    cfg = IsosterConfig(integrator="median", compute_errors=True, fix_center=True, fix_pa=True, fix_eps=True, nclip=0)
+
+    result = fit_isophote(image, None, SMA, geom, cfg, variance_map=variance)
+
+    data = extract_isophote_data(image, None, CENTER, CENTER, SMA, 0.3, 0.4, variance_map=variance)
+    matched = np.sqrt(_ring_statistic_and_variance(data.intens, data.variances, "median")[1])
+    _, cov = fit_first_and_second_harmonics(data.angles, data.intens, variances=data.variances)
+    superseded = np.sqrt(cov[0, 0] * np.pi / 2.0)
+
+    # The scenario must actually separate the two, or the test proves nothing.
+    assert abs(superseded / matched - 1.0) > 0.5
+
+    assert result["intens_err"] == pytest.approx(matched, rel=1e-9)
+    assert result["intens_err"] != pytest.approx(superseded, rel=1e-3)
