@@ -103,16 +103,29 @@ def _bilinear_support_is_valid(variance_map, x, y):
 
     Cost is proportional to the number of samples, not the image size, so this
     stays cheap on large images.
+
+    The footprint must match ``map_coordinates`` exactly, including on the final
+    row and column. There, SciPy shifts its interpolation interval to the last
+    two cells and gives the penultimate one zero weight -- but zero times NaN is
+    still NaN, so that cell propagates and must be inspected too. Clamping the
+    lower index to ``axis_length - 2`` reproduces that; clamping each neighbour
+    independently would inspect the final cell twice and miss the one before it.
+    An axis of length one has no penultimate cell, and both offsets collapse
+    onto its single index.
+
+    Samples that fall outside the image are already excluded by the interpolated
+    intensity and variance being non-finite, so the index clamping here only has
+    to stay in bounds.
     """
     height, width = variance_map.shape
-    row0 = np.floor(y).astype(np.intp)
-    col0 = np.floor(x).astype(np.intp)
+    row0 = np.clip(np.floor(y).astype(np.intp), 0, max(height - 2, 0))
+    col0 = np.clip(np.floor(x).astype(np.intp), 0, max(width - 2, 0))
 
     usable = np.ones(x.shape, dtype=bool)
     for row_offset in (0, 1):
         for col_offset in (0, 1):
-            rows = np.clip(row0 + row_offset, 0, height - 1)
-            cols = np.clip(col0 + col_offset, 0, width - 1)
+            rows = np.minimum(row0 + row_offset, height - 1)
+            cols = np.minimum(col0 + col_offset, width - 1)
             neighbour = variance_map[rows, cols]
             usable &= np.isfinite(neighbour) & (neighbour > 0.0)
     return usable

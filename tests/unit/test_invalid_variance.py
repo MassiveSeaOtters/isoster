@@ -288,3 +288,82 @@ def test_fit_image_still_excludes_invalid_pixels_through_the_prepared_path():
         dirty_by_sma[round(i["sma"], 4)]["ndata"] < i["ndata"] for i in clean if round(i["sma"], 4) in dirty_by_sma
     )
     assert dropped_somewhere
+
+
+# ---------------------------------------------------------------------------
+# The source-pixel check must match SciPy's interpolation footprint exactly
+# ---------------------------------------------------------------------------
+
+
+def reference_validity(variance_map, x, y):
+    """Which samples survive when invalid entries are marked NaN first.
+
+    This is exactly what ``fit_image`` does, so it is the behaviour the
+    per-sample source-pixel check has to reproduce for a raw map.
+    """
+    from scipy.ndimage import map_coordinates
+
+    marked = np.where(np.isfinite(variance_map) & (variance_map > 0.0), variance_map, np.nan)
+    interpolated = map_coordinates(marked, np.vstack([y, x]), order=1, mode="constant", cval=np.nan)
+    return np.isfinite(interpolated) & (interpolated > 0.0)
+
+
+@pytest.mark.parametrize("bad_value", [0.0, -1.0], ids=["zero", "negative"])
+def test_support_check_covers_the_penultimate_cell_on_the_final_row_and_column(bad_value):
+    """Sampling exactly on the last row or column still reaches the cell before it.
+
+    At an exact final index SciPy shifts its interpolation interval to the last
+    two cells and gives the penultimate one zero weight -- but a NaN there still
+    propagates, because zero times NaN is NaN. Clipping each neighbour
+    independently would inspect the final cell twice and miss it.
+    """
+    from isoster.sampling import _bilinear_support_is_valid
+
+    size = 6
+    variance = np.full((size, size), 4.0)
+    variance[2, size - 2] = bad_value  # penultimate column
+    variance[size - 2, 2] = bad_value  # penultimate row
+
+    # Sample exactly on the final column, and exactly on the final row.
+    x = np.array([float(size - 1), 2.0])
+    y = np.array([2.0, float(size - 1)])
+
+    support = _bilinear_support_is_valid(variance, x, y)
+    assert not support.any()
+    np.testing.assert_array_equal(support, reference_validity(variance, x, y))
+
+
+def test_support_check_matches_scipy_across_shapes_and_edges():
+    """The raw-map path and the sanitise-first path must exclude the same samples."""
+    from isoster.sampling import _bilinear_support_is_valid
+
+    rng = np.random.default_rng(20260812)
+    compared = 0
+    for _ in range(200):
+        height, width = rng.integers(4, 9, size=2)
+        variance = np.full((height, width), 4.0)
+        for _ in range(rng.integers(1, 4)):
+            variance[rng.integers(0, height), rng.integers(0, width)] = rng.choice([0.0, -1.0])
+
+        # Interior coordinates plus every exact corner and edge.
+        x = np.concatenate([rng.uniform(0, width - 1, 20), [width - 1.0, width - 1.0, 0.0, 0.0]])
+        y = np.concatenate([rng.uniform(0, height - 1, 20), [height - 1.0, 0.0, height - 1.0, 0.0]])
+        compared += x.size
+
+        np.testing.assert_array_equal(_bilinear_support_is_valid(variance, x, y), reference_validity(variance, x, y))
+
+    assert compared > 4000
+
+
+def test_support_check_handles_a_single_row_or_column_image():
+    """An axis of length one has no penultimate cell to fall back to."""
+    from isoster.sampling import _bilinear_support_is_valid
+
+    single_row = np.full((1, 5), 4.0)
+    single_row[0, 3] = 0.0
+    x = np.array([0.0, 3.0, 4.0])
+    y = np.zeros(3)
+    np.testing.assert_array_equal(_bilinear_support_is_valid(single_row, x, y), reference_validity(single_row, x, y))
+
+    single_pixel = np.full((1, 1), 4.0)
+    assert _bilinear_support_is_valid(single_pixel, np.array([0.0]), np.array([0.0])).tolist() == [True]
