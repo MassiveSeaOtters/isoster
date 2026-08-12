@@ -6,7 +6,12 @@ import numpy as np
 # call sites and external code continue to access them at the original
 # ``isoster.fitting._prepare_mask_float`` / ``._tikhonov_alpha`` paths).
 # Single source of truth lives in ``isoster._shared``.
-from ._shared import _prepare_mask_float, _tikhonov_alpha, _weighted_mean_variance  # noqa: F401
+from ._shared import (  # noqa: F401
+    _prepare_mask_float,
+    _ring_statistic_and_variance,
+    _tikhonov_alpha,
+    _weighted_mean_variance,
+)
 from .config import IsosterConfig
 
 # Import numba-accelerated kernels (with numpy fallback)
@@ -847,10 +852,7 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     if len(intens_c) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
 
-    if integrator == "median":
-        mean_c = np.median(intens_c)
-    else:
-        mean_c = np.mean(intens_c)
+    mean_c, var_mean_c = _ring_statistic_and_variance(intens_c, var_c, integrator)
 
     if linear_growth:
         gradient_sma = sma + step
@@ -875,27 +877,17 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
     if len(intens_g) == 0:
         return previous_gradient * 0.8 if previous_gradient else -1.0, None
 
-    if integrator == "median":
-        mean_g = np.median(intens_g)
-    else:
-        mean_g = np.mean(intens_g)
+    mean_g, var_mean_g = _ring_statistic_and_variance(intens_g, var_g, integrator)
     delta_r = step if linear_growth else sma * step
     gradient = (mean_g - mean_c) / delta_r
 
-    if var_c is not None and var_g is not None:
-        # WLS: per-annulus mean error from inverse-variance weights
-        # (sentinel-immune; equals sigma^2/N for uniform variances)
-        var_mean_c = _weighted_mean_variance(var_c)
-        var_mean_g = _weighted_mean_variance(var_g)
-        if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
-            gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
-        else:
-            gradient_error = None  # no usable variances: error unknown
+    # The uncertainty comes from the variance of the same ring statistics that
+    # produced the gradient, on the same samples. An infinite ring variance
+    # means no usable uncertainty rather than an enormous one.
+    if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
+        gradient_error = np.sqrt(var_mean_c + var_mean_g) / delta_r
     else:
-        # OLS: scatter-based error estimate
-        sigma_c = np.std(intens_c)
-        sigma_g = np.std(intens_g)
-        gradient_error = np.sqrt(sigma_c**2 / len(intens_c) + sigma_g**2 / len(intens_g)) / delta_r
+        gradient_error = None
 
     if previous_gradient is None:
         previous_gradient = gradient + gradient_error if gradient_error is not None else gradient
@@ -935,23 +927,13 @@ def compute_gradient(image, mask, geometry, config, previous_gradient=None, curr
         var_g2 = data_g2.variances
 
         if len(intens_g2) > 0:
-            if integrator == "median":
-                mean_g2 = np.median(intens_g2)
-            else:
-                mean_g2 = np.mean(intens_g2)
+            mean_g2, var_mean_g2 = _ring_statistic_and_variance(intens_g2, var_g2, integrator)
             delta_r_2 = 2 * step if linear_growth else sma * 2 * step
             gradient = (mean_g2 - mean_c) / delta_r_2
-            if var_c is not None and var_g2 is not None:
-                var_mean_c = _weighted_mean_variance(var_c)
-                var_mean_g2 = _weighted_mean_variance(var_g2)
-                if np.isfinite(var_mean_c) and np.isfinite(var_mean_g2):
-                    gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
-                else:
-                    gradient_error = None  # no usable variances: error unknown
+            if np.isfinite(var_mean_c) and np.isfinite(var_mean_g2):
+                gradient_error = np.sqrt(var_mean_c + var_mean_g2) / delta_r_2
             else:
-                sigma_c = np.std(intens_c)
-                sigma_g2 = np.std(intens_g2)
-                gradient_error = np.sqrt(sigma_c**2 / len(intens_c) + sigma_g2**2 / len(intens_g2)) / delta_r_2
+                gradient_error = None
 
     if gradient >= (previous_gradient / 3.0):
         gradient = previous_gradient * 0.8
