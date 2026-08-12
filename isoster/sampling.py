@@ -11,7 +11,7 @@ IsophoteData = namedtuple(
     "IsophoteData",
     [
         "angles",  # ψ (EA mode) or φ (regular mode) - for harmonic fitting
-        "phi",  # φ (position angles) - for geometry updates
+        "phi",  # φ at the sampled locations - retained for aligned bookkeeping
         "intens",  # Intensity values
         "radii",  # Semi-major axis values
         "variances",  # Per-pixel variance values (None when no variance map provided)
@@ -170,7 +170,7 @@ def extract_isophote_data(image, mask, x0, y0, sma, eps, pa, use_eccentric_anoma
     if use_eccentric_anomaly:
         return IsophoteData(
             angles=psi[valid],  # ψ for harmonic fitting (Ciambur 2015)
-            phi=phi[valid],  # φ for geometry updates
+            phi=phi[valid],  # Corresponding φ values, kept aligned with ψ samples
             intens=intens[valid],
             radii=np.full(np.sum(valid), sma),
             variances=sampled_variances,

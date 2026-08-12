@@ -1233,14 +1233,15 @@ def fit_isophote(
         niter = i + 1
 
         # Extract isophote data - returns named tuple
-        # For EA mode: angles=ψ (for harmonics), phi=φ (for geometry)
+        # For EA mode: angles=ψ (for harmonics), phi=the corresponding polar
+        # angles retained for aligned diagnostics and error bookkeeping.
         # For regular: angles=φ (for harmonics), phi=φ (same)
         data = extract_isophote_data(
             image, mask, x0, y0, sma, eps, pa, use_eccentric_anomaly=use_eccentric_anomaly, variance_map=variance_map
         )
 
         angles = data.angles  # ψ for EA mode, φ for regular mode
-        phi = data.phi  # φ (always available for geometry updates)
+        phi = data.phi  # Corresponding φ values; geometry uses the fitted ψ coefficients directly
         intens = data.intens
         variances = data.variances  # None when no variance_map
 
@@ -1340,7 +1341,8 @@ def fit_isophote(
         y0_fit = coeffs[0]
         A1, B1, A2, B2 = coeffs[1], coeffs[2], coeffs[3], coeffs[4]
 
-        # GRADIENT computed using φ and current geometry
+        # GRADIENT computed from ring intensities at the current and neighboring
+        # geometries; the angular values themselves do not enter the estimate.
         # Lazy Evaluation: reuse gradient unless convergence stalls
         if i == 0 or not cfg.use_lazy_gradient or no_improvement_count >= 3 or cached_gradient_error is None or lexceed:
             geometry = {"x0": x0, "y0": y0, "sma": sma, "eps": eps, "pa": pa}
