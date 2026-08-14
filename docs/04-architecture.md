@@ -173,6 +173,17 @@ that unusable entries are already non-finite; it is an optimisation, not a behav
 On a direct call the check costs at most about 0.11 ms per ring (3141 samples on a 1133×1133
 image).
 
+**Multi-band follows the same rule**, through
+`multiband.sampling_mb._mark_invalid_variance`. There is one structural difference worth
+knowing: every multi-band entry point that accepts a raw variance map routes through
+`_resolve_variance_maps`, so the stacks handed to the sampler are *always* pre-marked. That
+makes the source-pixel check unnecessary on that side — there is no equivalent of
+`variance_map_prepared`, because there is no unprepared path. A second difference is the
+interpolation kernel: multi-band uses a numba kernel that, at an exact final row or column,
+collapses onto the last cell rather than shifting to the last two the way SciPy does. The
+two agree for all finite data and differ only for a `NaN` sitting in the penultimate cell of
+a sample landing exactly on the final index — a corner that no real ellipse path reaches.
+
 Two earlier mechanisms handled the same input problem differently, and both have been
 retired:
 

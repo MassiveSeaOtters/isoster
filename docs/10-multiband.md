@@ -100,13 +100,18 @@ pre-merge review pass.
    semantics, the `n_valid_<b>` column, and the optional
    `loose_validity_band_normalization` knob.
 
-10. **Forced-mode `intens_err_<b>` (OLS) uses unbiased sample std.**
-    Review fix H4: `extract_forced_photometry_mb` returns
-    `np.std(intens, ddof=1) / sqrt(n)` for the mean integrator and
-    `sqrt(π/2) · np.std(intens, ddof=1) / sqrt(n)` for the median
-    integrator (Gaussian-asymptotic median SEM). For `n < 2` the
-    error is `NaN` rather than a misleading 0.0. WLS branch is
-    unchanged — `1 / sqrt(Σ 1/var_i)` is the exact MLE error.
+10. **Forced-mode `intens_err_<b>` (OLS) uses the population std.**
+    `extract_forced_photometry_mb` returns `np.std(intens) / sqrt(n)`
+    for the mean integrator and `sqrt(π/2) · np.std(intens) / sqrt(n)`
+    for the median integrator (Gaussian-asymptotic median SEM),
+    matching single-band `extract_forced_photometry`. Review fix H4
+    originally used `ddof=1` here, leaving the two paths disagreeing by
+    `sqrt(N/(N-1))` — about 0.8% at 64 samples. For `n < 2` the error
+    is `NaN` rather than a misleading 0.0; single-band reports 0.0
+    there, which reads as measured certainty rather than an absent
+    measurement. WLS branch is unchanged — `1 / sqrt(Σ 1/var_i)` is the
+    exact MLE error, and like single-band it reports the
+    inverse-variance-weighted mean regardless of `integrator`.
 
 11. **Central-pixel `intens_err_<b>` reads the variance map under
     WLS** (review fix H3). In OLS mode (no variance map provided) the
@@ -118,6 +123,26 @@ pre-merge review pass.
     `IsosterConfigMB`** (review fix H1). Internal resolution like the
     WLS / OLS variance-mode tag goes onto a `model_copy` so the
     caller's instance is safe to reuse across runs.
+
+13. **`loose_validity=True` is not production-ready.** It is correct at
+    the sampler level, but four things break downstream:
+
+    - B=1 always returns `stop_code=3` (the joint solve requires ≥2
+      surviving bands). Intended — use single-band isoster for one band.
+    - Forced photometry cannot honour it at all and warns that it is
+      ignored (item 3 above).
+    - `lsb_auto_lock` does not freeze the lock-triggering isophote's
+      geometry to the anchor, so locked rows disagree by ~2.7 px in
+      `x0` where shared validity has them identical.
+    - `intens_err_<b>` takes the direct ring-statistic error even when
+      `fit_per_band_intens_jointly=True`, where `intens_<b>` is a
+      jointly fitted intercept whose uncertainty belongs in the joint
+      covariance. Measured on incomplete angular coverage: correct
+      joint variance 0.029156 against the selected 0.020000, a ~31%
+      underestimate.
+
+    `compute_joint_gradient` also samples in shared mode regardless.
+    Leave it at the default `False` until these are fixed.
 
 ## What it does
 
@@ -293,18 +318,21 @@ anything else (astropy ``Table.write`` of the per-isophote table).
   "no bad pixels in that band."
 - `variance_maps`: all-or-nothing. Either `None` (full OLS), a single
   `(H, W)` ndarray (broadcast), or a `list[ndarray]` of length B.
-  NaN/inf values are replaced with `1e30` (near-zero WLS weight);
-  non-positive values are clamped to `1e-30` (near-infinite WLS weight)
-  with a `RuntimeWarning` advising the user to mask those pixels
-  instead. **This no longer mirrors single-band semantics.** Single-band
-  `fit_image` now treats a non-finite or non-positive variance entry as
-  invalid and drops the corresponding sample during sampling instead of
-  substituting or clamping it (see `docs/04-architecture.md`, section
-  "Invalid-variance policy"); multi-band retains the older sentinel/clamp
-  behavior described above, so the two code paths currently diverge on
-  this point. Users who want bad pixels excluded from the fit must add
-  them to `masks` —
-  sanitization alone does not drop samples.
+  Entries that are non-finite (NaN or infinite) or non-positive (zero or
+  negative) carry no usable information about the noise, so they are
+  marked `NaN` with a `RuntimeWarning` and the affected samples are
+  dropped during sampling — the same policy single-band `fit_image`
+  applies (see `docs/04-architecture.md`, section "Invalid-variance
+  policy"). Under the default shared validity a dropped sample is
+  dropped from every band, exactly as a masked pixel already is; set
+  `loose_validity=True` for per-band treatment.
+
+    This retires the earlier sentinel scheme, in which non-finite entries
+    became `1e30` and non-positive entries were clamped to `1e-30`.
+    Neither did what its comment claimed: `1e30` is finite and strictly
+    positive, so the sampler's validity rule *kept* it, and `1e-30` gave
+    one pixel near-infinite weight, collapsing every
+    inverse-variance-weighted error by fourteen orders of magnitude.
 - `bands`: list of strings, regex `^[A-Za-z][A-Za-z0-9_]*$`, no
   duplicates. Strings appear verbatim as column suffixes (`intens_g`,
   `intens_r`, ...).
@@ -1014,16 +1042,146 @@ columns in the main per-isophote table, NOT a separate HDU) means
 columns for B=5 HSC). The Schema-2 motivation if this becomes too
 heavy is recorded in the plan doc.
 
+## Uncertainty parity with single-band
+
+Multi-band and single-band now follow the same four rules for building an
+uncertainty. Each had drifted independently, and every drift reported a number
+that belonged to a different estimator than the one printed beside it.
+
+**1. An error belongs to the statistic actually reported.** Multi-band used the
+variance of an inverse-variance-weighted mean everywhere, regardless of what was
+reported. Under `integrator='median'` the reported value is a plain median, so
+its uncertainty needs the median's own variance — the heteroscedastic form
+`π·N / (2·(Σ 1/√vᵢ)²)` under WLS, or `(π/2)·σ²/N` under OLS. The mismatch was
+not a subtle heteroscedastic effect: with a *uniform* variance map the retired
+value was wrong by exactly `√(π/2) = 1.253`, because the median's penalty was
+simply absent. This applies both to the per-band intensity error
+(`_per_band_intercept_variance`, used by the four decoupled solvers and by
+`intens_err_<b>`) and to the per-band gradient error (`compute_joint_gradient`,
+which now calls the shared `_ring_statistic_and_variance`).
+
+Measured on a Sérsic ring at `sma=20` with the noted variance map:
+
+| variance map | integrator | quantity | new / retired |
+|---|---|---|---|
+| smooth ramp | mean | gradient error | 1.012 |
+| smooth ramp | median | gradient error | 1.257 |
+| azimuthal split | mean | gradient error | 5.007 |
+| azimuthal split | median | gradient error | 1.634 |
+| uniform | median | `intens_err_<b>` | 1.253 |
+| smooth ramp | median | `intens_err_<b>` | 1.257 |
+| azimuthal split | median | `intens_err_<b>` | 1.634 |
+
+**2. The OLS scatter term uses residuals, not raw ring scatter.** A ring's real
+m=1 / m=2 signal is deterministic structure the model fits, and it averages out
+of the intercept, so leaving it in the scatter overstates the error. Single-band
+uses `np.std(intens - model)`; the four decoupled solvers now evaluate their
+fitted geometric block and score the intercept on the residuals the same way.
+
+**3. The residual variance measures the complete fitted model.** Under
+`simultaneous_in_loop` and `simultaneous_original` the solve carries shared
+higher-order columns, and `_compute_joint_residual_variance` used to evaluate a
+truncated model that omitted them — charging the fitted m=n structure to the
+noise. On a noiseless synthetic built from its own coefficients, where the
+residual variance must be exactly zero, it returned **30.5**; it now returns
+`0.0`. The geometry path also counted `n_bands + 4` parameters while the
+harmonic attacher counted `n_bands + 4 + 2L`, so one solve produced two
+different error scales. Both now pass `harmonic_orders` and the full parameter
+count. This is the multi-band port of the single-band truncated-model fix in
+`fit_isophote`.
+
+**4. One solve yields one error scale.** The `sigma_bg**2` floor is applied
+inside `_compute_joint_residual_variance`, so every consumer of *that solve's
+residual variance* shares it. Previously only the geometry errors carried it. An
+exactly-determined or under-determined solve now returns `0.0` rather than
+`None`: the model passes through every point, so it carries no information about
+the noise. `None` used to make the harmonic attachers skip the OLS rescale and
+publish a raw `(AᵀA)⁻¹` diagonal, which is an arbitrary scale, not an error.
+
+The rule that decides which errors take the floor is about **what kind of
+quantity each one is**, not which mode is active:
+
+> A *fitted parameter* is scaled by its own solve's residual variance, floor
+> included. A *plain ring statistic* carries that statistic's own variance and
+> is never floored.
+
+Measured by scaling `sigma_bg` from 5 to 50 (a 10× change in the error floor):
+
+| error | coupled joint | decoupled | reference mode |
+|---|---|---|---|
+| `eps_err` (and the other geometry errors) | 10.0× | 10.0× | 10.0× |
+| `intens_err_<b>`, reference band | — | — | 10.0× |
+| `intens_err_<b>`, other bands | 10.0× | 1.0× | 1.0× |
+| `a3_err_<b>` (`independent` mode) | 1.0× | 1.0× | 1.0× |
+
+Reading the table through the rule: in coupled joint mode every `intens_<b>` is
+a co-fitted intercept, so all of them are floored. In decoupled mode every one
+is a ring statistic, so none are. **Reference mode is mixed**: the reference
+band's `intens_<ref>` is overwritten with the fitted intercept `coeffs_ref[0]`
+and takes the floor, while the other bands report a ring statistic and do not. The difference is real, not cosmetic — with incomplete angular
+coverage the fitted intercept and the plain mean were measured at 100.0 against
+101.32.
+
+`independent` higher-order errors come from the shared `compute_deviations`,
+which derives its own residual variance; single-band's non-ISOFIT harmonic
+errors behave identically, so that row is parity rather than a gap. Single-band's
+OLS `intens_err` (`rms/√N`) is likewise unfloored.
+
+**Non-reference bands in reference mode report the same reducer as everywhere
+else.** Their `intens_<b>` comes from `_per_band_mean_or_median`, so under WLS it
+is the inverse-variance-weighted mean — the estimator whose variance
+`intens_err_<b>` reports, and the one every other WLS path in the package uses.
+Ref mode previously widened its coefficient vector with a plain `np.mean` while
+reporting the weighted mean's error beside it: on a bimodal variance map the
+reported error understated the reported value's own error by a factor of ten
+(0.0904 against 0.9026). Under OLS both reducers give the plain mean, so nothing
+changes there. Ref mode cannot select `integrator='median'` — two config
+validators together exclude that combination — so this is always a mean.
+
+**Reference mode takes its scale from the band it actually solved.** The
+harmonic coefficients come from `fit_first_and_second_harmonics_ref`, which sees
+only the reference band, so scaling their covariance with a residual variance
+pooled over every band let a band *outside* the solve set its noise level.
+Holding the reference band byte-identical and raising a second band's noise from
+0.2 to 20 moved `eps_err` by 18×; at fixed geometry the pooled form spanned a
+factor of 99 across a 1000× noise change. `_reference_residual_variance` now
+computes the scale from the reference band's own residuals against the exact
+five-parameter model it fitted, and it is passed through the
+`residual_variance=` keyword — the same mechanism single-band uses in
+`compute_parameter_errors`. The reference band's geometry errors and its
+`intens_err_<ref>` therefore share one scale, and both are now bit-identical
+under changes to any other band.
+
+### Two deliberate remaining differences
+
+- **`intens_err` for a fitted intercept, and the `sigma_bg` floor.** Under OLS,
+  single-band reports
+  `intens_err = rms/√N`, computed outside the covariance and therefore *not*
+  floored — even though its reported `intens` is also a fitted intercept
+  (`y0_fit`). Multi-band instead derives `intens_err_<b>` from
+  `cov[b, b] × var_residual` wherever the intercept was fitted — coupled joint
+  mode, and the reference band under `harmonic_combination='ref'` — so it is
+  floored along with the geometry errors from that same solve. The two
+  implementations differ structurally here and cannot both be satisfied;
+  multi-band keeps every error from one solve on one scale.
+- **`compute_joint_gradient` samples in shared-validity mode** even when
+  `loose_validity=True`, so per-band gradients come from the cross-band
+  intersection. This belongs to the outstanding loose-validity work (see "Known
+  limitations and gotchas") rather than to uncertainty parity.
+
 ## Testing
 
-Multi-band tests live under `tests/multiband/` (264 total, all green
+Multi-band tests live under `tests/multiband/` (339 total, all green
 as of the Phase-39 + review-pass merge). The per-module counts below
 are approximate (collected at merge time):
 
 | Module | Cases | Coverage |
 |---|---|---|
 | `test_config_mb.py` | ~96 | band-name regex, duplicate detection, reference-band membership, band_weights validation, integrator restriction, SMA/iteration consistency, loose-validity field defaults + normalization compatibility, multiband_higher_harmonics enum (4 values + parametrized variants), harmonic_orders validator (empty / <3 / duplicates / unique-sort), simultaneous_* experimental warning, shared-mode no-warn, ring-mean intercept × ref-mode incompatibility, Stage-3 fields (outer_reg / lsb_auto_lock / central_reg / compute_cog / forced-photometry validators). |
-| `test_sampling_mb.py` | ~19 | B=1 numerical parity with single-band sampler, shared-validity (per-band masks, NaN), variance sanitization (NaN/inf → 1e30, non-positive clamped + warning), all-masked degeneracy, mask broadcasting, variance all-or-nothing rejection, joint design matrix kernel parity. |
+| `test_sampling_mb.py` | ~20 | B=1 numerical parity with single-band sampler, shared-validity (per-band masks, NaN), invalid-variance marking (non-finite and non-positive → NaN + warning, samples dropped, retired sentinels absent), all-masked degeneracy, mask broadcasting, variance all-or-nothing rejection, joint design matrix kernel parity. |
+| `test_gradient_error_mb.py` | 10 | Per-band gradient error matches the reported ring statistic under both integrators; heteroscedastic mean error exceeds the retired inverse-variance form; uniform variance reproduces it; OLS median carries the √(π/2) penalty; B=1 gradient and error equal single-band's exactly. |
+| `test_intercept_error_mb.py` | 14 | `_per_band_intercept_variance` against each reported statistic (IVW mean, plain mean, median); WLS median wrong by √(π/2) even for uniform variance under the retired pairing; OLS uses residual not raw scatter; empty band contributes 0.0; all four decoupled solvers write the matching `cov[b, b]`. |
+| `test_residual_variance_mb.py` | 26 | Noiseless simultaneous model gives exactly zero residual variance (rectangular + jagged), and the truncated form is shown to charge the harmonics to the noise; noise-only residual recovered; `simultaneous_in_loop` geometry, harmonic and intensity errors share one scale end-to-end; `sigma_bg**2` floor applied inside the helper and reaching both geometry and per-band intensity errors; floor is a lower bound, not a rescale; exactly- and under-determined solves report `0.0` (not `None`) and still take the floor; harmonic attachers publish zero rather than an unscaled `(AᵀA)⁻¹` diagonal; reference-mode scale comes from the reference band alone (bit-identical across a 1000× noise change in an excluded band) and its fitted intercept shares that scale; non-reference bands report the inverse-variance-weighted mean matching their error, on a bimodal variance map where it cannot coincide with the plain mean. |
 | `test_fitting_mb.py` | ~82 | joint solver recovery, B=1 single-band parity, WLS exact covariance, band-weight scaling, per-band sigma clip + AND, planted-galaxy recovery, ref-mode fallback, forced photometry, ring-mean intercept mode, loose-validity (band drop / n_valid columns / normalization), Stage-3 features (median intercept, outer-reg damping, lsb_auto_lock state machine, compute_cog wiring, central-reg penalty, forced-mode end-to-end + warn-list), **review-pass regressions** (B1 OLS rescale, B2 forced warn-list extensions, B3 forced-mode `grad_<b>`, H1 config immutability, H3 central-pixel WLS error, H4 SEM scaling). |
 | `test_higher_harmonics.py` | ~20 | All four enum values; per-band-equality of shared higher orders; planted-m=4 recovery (shared + simultaneous_*); loose-validity × simultaneous (jagged kernel); simultaneous_original ≈ shared within tolerance; experimental UserWarning; FITS round-trip; harmonic_orders=[3,4,5,6] writes 16 expected per-band columns; D16 normalization separates curves under sharing; direct solver-level fit_simultaneous_joint{,_loose} planted-recovery. |
 | `test_driver_mb.py` | ~17 | B=1 → single-band delegation, B=2 end-to-end recovery, WLS variance-mode tagging, band_weights passthrough, ref-mode end-to-end, error paths. |

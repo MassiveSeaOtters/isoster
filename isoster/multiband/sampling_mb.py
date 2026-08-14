@@ -135,47 +135,50 @@ def _resolve_masks(
     return out
 
 
-# Per decision D7: NaN/inf → BAD_PIXEL_VARIANCE (huge sentinel that the
-# validity rule treats as "drop"); non-positive → MIN_POSITIVE_VARIANCE
-# (tiny floor that keeps the WLS denominator finite). Mirrors the
-# single-band sentinels documented in ``docs/02-configuration-reference.md``.
-BAD_PIXEL_VARIANCE = 1e30
-MIN_POSITIVE_VARIANCE = 1e-30
+def _mark_invalid_variance(v: NDArray[np.floating], label: str) -> NDArray[np.float64]:
+    """Mark unusable variance entries NaN so their samples are dropped.
 
+    An entry that is not finite, or not strictly positive, carries no usable
+    information about the noise. Marking it NaN makes bilinear interpolation
+    propagate the flag to every sample that touches it, and the sampler's
+    validity rule then drops those samples, so a ring statistic and its
+    uncertainty always describe one identical sample set.
 
-def _sanitize_variance_array(v: NDArray[np.floating], label: str) -> NDArray[np.float64]:
-    """Clamp NaN/inf and non-positive entries; emit a warning if any are touched.
-
-    Implements the all-or-nothing variance contract from plan decision
-    D7: callers can rely on the returned array being strictly positive
-    and finite, with bad pixels marked by ``BAD_PIXEL_VARIANCE`` so the
-    sampler's validity rule excludes them.
+    This retires the earlier sentinel scheme (non-finite → ``1e30``,
+    non-positive → ``1e-30``). Both substitutions left the flagged pixel in
+    the ring while distorting its weight. ``1e30`` is finite and strictly
+    positive, so the validity rule kept it despite the comment claiming
+    otherwise; ``1e-30`` gave a single pixel near-infinite weight and
+    collapsed every inverse-variance-weighted error by fourteen orders of
+    magnitude. Mirrors :func:`isoster.driver.fit_image`; see
+    ``docs/04-architecture.md``, section "Invalid-variance policy".
     """
     arr = np.asarray(v, dtype=np.float64)
-    nonfinite = ~np.isfinite(arr)
-    nonpos = (arr <= 0.0) & ~nonfinite
-    if not (nonfinite.any() or nonpos.any()):
+    non_finite = ~np.isfinite(arr)
+    non_positive = ~non_finite & (arr <= 0.0)
+    n_non_finite = int(non_finite.sum())
+    n_non_positive = int(non_positive.sum())
+    if not (n_non_finite or n_non_positive):
         return arr
     out = arr.copy()
-    n_nonfinite = int(nonfinite.sum())
-    n_nonpos = int(nonpos.sum())
-    if n_nonfinite:
-        out[nonfinite] = BAD_PIXEL_VARIANCE
+    if n_non_finite:
         warnings.warn(
-            f"{label}: replaced {n_nonfinite} NaN/inf pixel(s) with "
-            f"{BAD_PIXEL_VARIANCE:.0e} (near-zero weight). Decision D7.",
+            f"{label}: contains {n_non_finite} non-finite value(s) (NaN or infinite); "
+            f"the affected samples are excluded from both the ring statistics and "
+            f"their uncertainties.",
             RuntimeWarning,
             stacklevel=3,
         )
-    if n_nonpos:
-        out[nonpos] = MIN_POSITIVE_VARIANCE
+    if n_non_positive:
         warnings.warn(
-            f"{label}: clamped {n_nonpos} non-positive pixel(s) to "
-            f"{MIN_POSITIVE_VARIANCE:.0e} (near-infinite weight). "
-            "Consider masking these pixels instead. Decision D7.",
+            f"{label}: contains {n_non_positive} non-positive value(s); a variance of "
+            f"zero or below is not physical, so the affected samples are excluded from "
+            f"both the ring statistics and their uncertainties. Mask these pixels "
+            f"explicitly if the exclusion is intended.",
             RuntimeWarning,
             stacklevel=3,
         )
+    out[non_finite | non_positive] = np.nan
     return out
 
 
@@ -192,11 +195,11 @@ def _resolve_variance_maps(
     WLS) or none do (full OLS). ``None`` values inside a list are
     rejected even if the list has the right length.
 
-    NaN/inf entries are replaced with ``BAD_PIXEL_VARIANCE`` and
-    non-positive entries with ``MIN_POSITIVE_VARIANCE``; a single
-    warning is emitted per band that needed sanitization. The bad-pixel
-    sentinel is large enough that the sampler's validity rule will drop
-    those pixels even though the array is "valid" by type.
+    Entries that are non-finite or non-positive are marked NaN; a single
+    warning is emitted per band and category that needed marking. Because
+    every entry point that accepts a raw map routes through this function,
+    the stacks handed to the sampler are always pre-marked, and NaN
+    propagates through interpolation on its own.
 
     Returns ``None`` when the user passed ``None`` (OLS mode signal).
     Otherwise returns a list of B ``(H, W)`` float64 arrays.
@@ -207,7 +210,7 @@ def _resolve_variance_maps(
     if isinstance(variance_maps, np.ndarray):
         if variance_maps.shape != (h, w):
             raise ValueError(f"variance_maps ndarray shape {variance_maps.shape} does not match images shape {(h, w)}")
-        v_f = _sanitize_variance_array(variance_maps, "variance_maps (broadcast)")
+        v_f = _mark_invalid_variance(variance_maps, "variance_maps (broadcast)")
         return [v_f] * n_bands
 
     if len(variance_maps) != n_bands:
@@ -225,7 +228,7 @@ def _resolve_variance_maps(
             raise TypeError(f"variance_maps[{i}] must be a numpy ndarray, got {type(v).__name__}")
         if v.shape != (h, w):
             raise ValueError(f"variance_maps[{i}] shape {v.shape} does not match images shape {(h, w)}")
-        out.append(_sanitize_variance_array(v, f"variance_maps[{i}]"))
+        out.append(_mark_invalid_variance(v, f"variance_maps[{i}]"))
     return out
 
 
