@@ -2680,14 +2680,15 @@ def test_h3_central_pixel_wls_with_single_broadcast_variance_map():
     assert central["intens_err_r"] == pytest.approx(sigma, rel=1e-9)
 
 
-def test_h4_forced_mode_ols_mean_sem_uses_unbiased_sample_std():
-    """Review fix H4: forced extraction OLS-mean ``intens_err_<b>`` must
-    use the unbiased sample std (ddof=1) divided by ``sqrt(n)``, not
-    the biased population std. On a flat synthetic ring (constant
-    intensity + gaussian noise), the recovered SEM must match the
-    closed form ``σ/sqrt(n)`` to within Monte-Carlo tolerance,
-    NOT ``σ·sqrt((n-1)/n)/sqrt(n)`` which the old population-std
-    formula would have produced.
+def test_forced_mode_ols_mean_sem_matches_single_band_convention():
+    """Forced extraction OLS-mean ``intens_err_<b>`` uses the population std
+    (ddof=0) divided by ``sqrt(n)``, matching single-band
+    ``extract_forced_photometry``.
+
+    Review fix H4 originally chose the unbiased sample std (ddof=1) here, which
+    left the two code paths disagreeing by ``sqrt(N/(N-1))`` — about 0.8% at 64
+    samples, 0.2% at the ~250 used below. Small, but a needless divergence in
+    a user-visible column.
     """
     from isoster.multiband.fitting_mb import extract_forced_photometry_mb
 
@@ -2721,13 +2722,9 @@ def test_h4_forced_mode_ols_mean_sem_uses_unbiased_sample_std():
         config=cfg,
         variance_maps=None,
     )
-    # The unbiased SEM of N≈251 samples drawn from N(μ, σ²) should be
-    # σ/√N to within 5% (large-N regime). The old (biased) formula
-    # would underestimate by factor sqrt((n-1)/n) — only 0.2% at n≈250
-    # so this test cannot distinguish biased vs unbiased at n=250 alone.
-    # Instead we cross-check that the reported SEM matches the
-    # ``np.std(intens, ddof=1) / sqrt(n)`` math — the user-visible
-    # contract that previously was wrong.
+    # At n≈250 the ddof=0 and ddof=1 forms differ by only 0.2%, so a
+    # tolerance-based check cannot tell them apart. Cross-check the exact
+    # arithmetic instead — that is the user-visible contract.
     from isoster.multiband.sampling_mb import extract_isophote_data_multi
 
     data = extract_isophote_data_multi(
@@ -2741,14 +2738,13 @@ def test_h4_forced_mode_ols_mean_sem_uses_unbiased_sample_std():
         use_eccentric_anomaly=False,
     )
     n_b = data.intens.shape[1]
-    expected_sem_g = float(np.std(data.intens[0], ddof=1) / np.sqrt(n_b))
-    expected_sem_r = float(np.std(data.intens[1], ddof=1) / np.sqrt(n_b))
+    expected_sem_g = float(np.std(data.intens[0]) / np.sqrt(n_b))
+    expected_sem_r = float(np.std(data.intens[1]) / np.sqrt(n_b))
     assert geom["intens_err_g"] == pytest.approx(expected_sem_g, rel=1e-9)
     assert geom["intens_err_r"] == pytest.approx(expected_sem_r, rel=1e-9)
-    # And the biased ddof=0 formula must NOT match (sanity that the
-    # contract change is observable).
-    biased_sem_g = float(np.std(data.intens[0], ddof=0) / np.sqrt(n_b))
-    assert geom["intens_err_g"] != pytest.approx(biased_sem_g, rel=1e-9)
+    # And the ddof=1 form must NOT match, so the convention stays observable.
+    unbiased_sem_g = float(np.std(data.intens[0], ddof=1) / np.sqrt(n_b))
+    assert geom["intens_err_g"] != pytest.approx(unbiased_sem_g, rel=1e-9)
 
 
 def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
@@ -2804,13 +2800,13 @@ def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
     )
     n_b = data.intens.shape[1]
     median_factor = float(np.sqrt(np.pi / 2.0))
-    expected_sem_g = float(median_factor * np.std(data.intens[0], ddof=1) / np.sqrt(n_b))
-    expected_sem_r = float(median_factor * np.std(data.intens[1], ddof=1) / np.sqrt(n_b))
+    expected_sem_g = float(median_factor * np.std(data.intens[0]) / np.sqrt(n_b))
+    expected_sem_r = float(median_factor * np.std(data.intens[1]) / np.sqrt(n_b))
     assert geom["intens_err_g"] == pytest.approx(expected_sem_g, rel=1e-9)
     assert geom["intens_err_r"] == pytest.approx(expected_sem_r, rel=1e-9)
     # And the mean-branch formula must NOT match — the user-visible
     # change is the factor sqrt(π/2).
-    mean_sem_g = float(np.std(data.intens[0], ddof=1) / np.sqrt(n_b))
+    mean_sem_g = float(np.std(data.intens[0]) / np.sqrt(n_b))
     assert geom["intens_err_g"] != pytest.approx(mean_sem_g, rel=1e-9)
     # Median value is the actual median (sanity).
     assert geom["intens_g"] == pytest.approx(float(np.median(data.intens[0])), rel=1e-9)

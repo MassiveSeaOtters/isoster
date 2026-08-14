@@ -120,11 +120,13 @@ def test_shared_validity_via_nan_in_one_band():
     assert np.all(np.isfinite(mb.intens))
 
 
-def test_non_positive_variance_sanitized_and_warned():
-    """Non-positive variance entries are clamped to MIN_POSITIVE_VARIANCE per
-    plan D7 (mirroring single-band semantics) and a RuntimeWarning is
-    emitted.  The user is responsible for masking such pixels — the
-    sanitization layer keeps the sampler stable but does not drop them.
+def test_non_positive_variance_dropped_and_warned():
+    """Non-positive variance entries are invalid: their samples are dropped.
+
+    A variance of zero or below is not physical, so it carries no usable
+    information about the noise. The retired policy clamped such entries to
+    ``1e-30``, which kept the sample in every ring statistic while giving it
+    near-infinite weight. Mirrors single-band ``fit_image``.
     """
     img1 = _gaussian_image()
     img2 = _gaussian_image() * 0.7
@@ -153,9 +155,9 @@ def test_non_positive_variance_sanitized_and_warned():
             pa=0.0,
             variance_maps=[var1, var2],
         )
-    # No samples dropped — the bad pixel is clamped, not excluded. Users
-    # who want the pixel excluded must mask it explicitly.
-    assert mb_sanit.valid_count == mb_clean.valid_count
+    # The bad pixel is excluded, so strictly fewer samples survive than on
+    # the clean map, and every surviving variance is usable.
+    assert mb_sanit.valid_count < mb_clean.valid_count
     assert mb_sanit.variances is not None
     assert np.all(mb_sanit.variances > 0.0)
     assert np.all(np.isfinite(mb_sanit.variances))
@@ -296,14 +298,14 @@ def test_variance_list_wrong_length_rejected():
         )
 
 
-def test_variance_nan_inf_sanitized_with_warning():
-    """Regression for I11/D7: NaN/inf and non-positive variance entries get
-    clamped to sentinel values and a RuntimeWarning is emitted."""
-    from isoster.multiband.sampling_mb import (
-        BAD_PIXEL_VARIANCE,
-        MIN_POSITIVE_VARIANCE,
-        _resolve_variance_maps,
-    )
+def test_variance_invalid_entries_marked_nan_with_warning():
+    """Non-finite and non-positive variance entries are marked NaN, with a warning.
+
+    Replaces the retired sentinel scheme. ``1e30`` was finite and strictly
+    positive, so the sampler's validity rule kept it rather than dropping it
+    as its comment claimed; ``1e-30`` gave one pixel near-infinite weight.
+    """
+    from isoster.multiband.sampling_mb import _resolve_variance_maps
 
     h, w = 32, 32
     var = np.ones((h, w), dtype=np.float64)
@@ -316,16 +318,37 @@ def test_variance_nan_inf_sanitized_with_warning():
         warnings.simplefilter("always", RuntimeWarning)
         out = _resolve_variance_maps([var, var.copy()], n_bands=2, h=h, w=w)
     msgs = [str(w.message) for w in captured if issubclass(w.category, RuntimeWarning)]
-    assert any("NaN/inf" in m for m in msgs)
+    assert any("non-finite" in m for m in msgs)
     assert any("non-positive" in m for m in msgs)
     assert out is not None
     for arr in out:
-        assert arr[0, 0] == BAD_PIXEL_VARIANCE
-        assert arr[0, 1] == BAD_PIXEL_VARIANCE
-        assert arr[1, 0] == MIN_POSITIVE_VARIANCE
-        assert arr[1, 1] == MIN_POSITIVE_VARIANCE
-        assert np.all(np.isfinite(arr))
-        assert np.all(arr > 0.0)
+        assert np.isnan(arr[0, 0])
+        assert np.isnan(arr[0, 1])
+        assert np.isnan(arr[1, 0])
+        assert np.isnan(arr[1, 1])
+        # Everything else is untouched and still usable.
+        assert np.isfinite(arr[2:, 2:]).all()
+        assert (arr[2:, 2:] > 0.0).all()
+
+
+def test_retired_variance_sentinels_are_gone():
+    """Nothing may reintroduce the 1e30 sentinel or the 1e-30 clamp."""
+    from isoster.multiband import sampling_mb
+
+    assert not hasattr(sampling_mb, "BAD_PIXEL_VARIANCE")
+    assert not hasattr(sampling_mb, "MIN_POSITIVE_VARIANCE")
+
+    h, w = 16, 16
+    var = np.ones((h, w), dtype=np.float64)
+    var[3, 3] = np.nan
+    var[4, 4] = 0.0
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        out = sampling_mb._resolve_variance_maps([var], n_bands=1, h=h, w=w)
+    assert out is not None
+    finite = out[0][np.isfinite(out[0])]
+    assert finite.max() <= 1.0
+    assert finite.min() >= 1.0
 
 
 def test_variance_clean_arrays_emit_no_warning():
@@ -341,21 +364,18 @@ def test_variance_clean_arrays_emit_no_warning():
     np.testing.assert_array_equal(out[0], var)
 
 
-def test_variance_broadcast_ndarray_sanitized():
-    """The single-ndarray broadcast path also sanitizes."""
-    from isoster.multiband.sampling_mb import (
-        BAD_PIXEL_VARIANCE,
-        _resolve_variance_maps,
-    )
+def test_variance_broadcast_ndarray_marked():
+    """The single-ndarray broadcast path also marks invalid entries."""
+    from isoster.multiband.sampling_mb import _resolve_variance_maps
 
     h, w = 24, 24
     var = np.ones((h, w), dtype=np.float64)
     var[5, 5] = np.nan
-    with pytest.warns(RuntimeWarning, match="NaN/inf"):
+    with pytest.warns(RuntimeWarning, match="non-finite"):
         out = _resolve_variance_maps(var, n_bands=3, h=h, w=w)
     assert out is not None and len(out) == 3
     for arr in out:
-        assert arr[5, 5] == BAD_PIXEL_VARIANCE
+        assert np.isnan(arr[5, 5])
 
 
 # ---------------------------------------------------------------------------
