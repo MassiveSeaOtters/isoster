@@ -1185,7 +1185,7 @@ five-parameter model it fitted, and it is passed through the
 `intens_err_<ref>` therefore share one scale, and both are now bit-identical
 under changes to any other band.
 
-### Two deliberate remaining differences
+### One deliberate remaining difference
 
 - **`intens_err` for a fitted intercept, and the `sigma_bg` floor.** Under OLS,
   single-band reports
@@ -1197,10 +1197,6 @@ under changes to any other band.
   floored along with the geometry errors from that same solve. The two
   implementations differ structurally here and cannot both be satisfied;
   multi-band keeps every error from one solve on one scale.
-- **`compute_joint_gradient` samples in shared-validity mode** even when
-  `loose_validity=True`, so per-band gradients come from the cross-band
-  intersection. This belongs to the outstanding loose-validity work (see "Known
-  limitations and gotchas") rather than to uncertainty parity.
 
 ## Testing
 
