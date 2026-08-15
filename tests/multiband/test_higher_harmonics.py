@@ -103,6 +103,27 @@ def _make_cfg(
         return IsosterConfigMB(**kwargs)
 
 
+def assert_one_shared_shape(row, orders=(3, 4), bands=("g", "r", "i")):
+    """Every band's raw amplitude is the same shape times that band's scale.
+
+    Under ``shared`` the raw per-band values differ (they must — a common shape
+    gives ``A_n_raw = -A_n_norm * sma * grad_b``), but the *ratio* between two
+    bands is set by their gradients alone and is therefore identical for every
+    order. That is checkable without needing the per-band gradient columns.
+    """
+    reference = bands[0]
+    ratios = {}
+    for order in orders:
+        for band in bands[1:]:
+            denom = float(row[f"a{order}_{reference}"])
+            if abs(denom) < 1e-12:
+                continue
+            ratios.setdefault(band, []).append(float(row[f"a{order}_{band}"]) / denom)
+    for band, values in ratios.items():
+        if len(values) > 1:
+            assert max(values) - min(values) < 1e-6, f"{band}: {values}"
+
+
 # ---------------------------------------------------------------------------
 # Independent mode (back-compat regression)
 # ---------------------------------------------------------------------------
@@ -136,19 +157,35 @@ def test_independent_top_level_keys_consistent():
 # ---------------------------------------------------------------------------
 
 
-def test_shared_mode_produces_identical_per_band_values():
-    """Per-band ``a{n}_<b>``, ``b{n}_<b>``, and error columns are identical
-    across bands at every isophote when the mode is 'shared'."""
+def test_shared_mode_shares_the_normalised_shape_not_the_raw_amplitude():
+    """'shared' means one shared isophotal *shape*, not one raw amplitude.
+
+    A common shape deviation produces raw amplitude ``-A_n_norm * sma * grad_b``
+    in band ``b``, so bands with different gradients must carry *different* raw
+    values for the same shape. Writing one identical raw value into every column
+    used to make the reported Bender-normalised amplitudes depend on the bands'
+    arbitrary flux units — measured at 0.11 against 0.011 for a planted 0.02
+    after rescaling one band by ten.
+
+    Schema 1 stores raw amplitudes, so the invariant to check is that every band
+    *normalises* to the same value.
+    """
     bands = _three_band_planted()
     cfg = _make_cfg("shared")
+    cfg = cfg.model_copy(update={"debug": True})  # per-band grad_<b> columns
     res = fit_image_multiband(list(bands), config=cfg)
     iso = res["isophotes"]
     assert all(r["stop_code"] == 0 for r in iso)
+    checked = 0
     for r in iso:
+        grads = {b: float(r.get(f"grad_{b}", float("nan"))) for b in ("g", "r", "i")}
+        if not all(np.isfinite(g) and g != 0.0 for g in grads.values()):
+            continue
         for n_order in (3, 4):
-            assert r[f"a{n_order}_g"] == r[f"a{n_order}_r"] == r[f"a{n_order}_i"]
-            assert r[f"b{n_order}_g"] == r[f"b{n_order}_r"] == r[f"b{n_order}_i"]
-            assert r[f"a{n_order}_err_g"] == r[f"a{n_order}_err_r"] == r[f"a{n_order}_err_i"]
+            normalised = [-float(r[f"a{n_order}_{b}"]) / (float(r["sma"]) * grads[b]) for b in ("g", "r", "i")]
+            assert max(normalised) - min(normalised) < 1e-9
+            checked += 1
+    assert checked > 0, "fixture produced no rows with usable per-band gradients"
 
 
 def test_shared_mode_recovers_planted_m4_signal():
@@ -193,7 +230,8 @@ def test_shared_mode_with_loose_validity_drops_band_at_isophote():
     # Surviving (r, i) bands carry identical higher-order values.
     for r in iso:
         for n_order in (3, 4):
-            assert r[f"a{n_order}_r"] == r[f"a{n_order}_i"]
+            assert r[f"a{n_order}_r"] != 0.0 or r[f"a{n_order}_i"] == 0.0
+        assert_one_shared_shape(r, bands=("r", "i"))
 
 
 def test_shared_mode_with_ring_mean_intercept():
@@ -205,7 +243,7 @@ def test_shared_mode_with_ring_mean_intercept():
     iso = res["isophotes"]
     assert all(r["stop_code"] == 0 for r in iso)
     for r in iso:
-        assert r["a4_g"] == r["a4_r"] == r["a4_i"]
+        assert_one_shared_shape(r)
 
 
 # ---------------------------------------------------------------------------
@@ -222,8 +260,7 @@ def test_simultaneous_modes_produce_identical_per_band_values(mode):
     assert all(r["stop_code"] == 0 for r in iso)
     for r in iso:
         for n_order in (3, 4):
-            assert r[f"a{n_order}_g"] == r[f"a{n_order}_r"] == r[f"a{n_order}_i"]
-            assert r[f"b{n_order}_g"] == r[f"b{n_order}_r"] == r[f"b{n_order}_i"]
+            assert_one_shared_shape(r)
 
 
 @pytest.mark.parametrize("mode", ["simultaneous_in_loop", "simultaneous_original"])
@@ -251,7 +288,8 @@ def test_simultaneous_with_loose_validity_runs(mode):
     # Higher-order columns shared on surviving bands.
     for r in iso:
         for n_order in (3, 4):
-            assert r[f"a{n_order}_r"] == r[f"a{n_order}_i"]
+            assert r[f"a{n_order}_r"] != 0.0 or r[f"a{n_order}_i"] == 0.0
+        assert_one_shared_shape(r, bands=("r", "i"))
 
 
 def test_simultaneous_original_matches_shared_within_tolerance():
@@ -271,9 +309,15 @@ def test_simultaneous_original_matches_shared_within_tolerance():
     assert len(iso_s) == len(iso_o)
     # Compare reference-band higher-order values at every isophote with
     # absolute tolerance comparable to the residual noise.
+    # The two modes now use different per-band conventions: `shared` solves for
+    # a dimensionless shape and writes each band's own raw amplitude, while the
+    # `simultaneous_*` modes still stamp one identical raw amplitude into every
+    # band. They therefore agree on the underlying signal but not column by
+    # column; the reference band is compared with a tolerance that reflects
+    # that. See docs/10-multiband.md on the shared-shape convention.
     for rs, ro in zip(iso_s, iso_o):
         for col in ("a3_r", "b3_r", "a4_r", "b4_r"):
-            np.testing.assert_allclose(rs[col], ro[col], atol=2e-3, err_msg=col)
+            np.testing.assert_allclose(rs[col], ro[col], atol=3e-3, err_msg=col)
 
 
 def test_simultaneous_in_loop_emits_warning():
@@ -327,7 +371,7 @@ def test_harmonic_orders_extension_to_5_6():
         for n_order in (3, 4, 5, 6):
             assert f"a{n_order}_g" in r
             assert f"b{n_order}_g" in r
-            assert r[f"a{n_order}_g"] == r[f"a{n_order}_r"] == r[f"a{n_order}_i"]
+            assert_one_shared_shape(r, orders=(3, 4, 5, 6))
 
 
 # ---------------------------------------------------------------------------
@@ -422,3 +466,53 @@ def test_fit_simultaneous_joint_loose_jagged_path():
     np.testing.assert_allclose(coeffs[:3], I0, atol=5e-4)
     a3, b3, a4, b4 = coeffs[3 + 4 : 3 + 8]
     np.testing.assert_allclose(b4, A4_true, atol=3e-3)
+
+
+def test_shared_shape_is_independent_of_a_bands_flux_units():
+    """The property that makes 'shared' mean a shared *shape*.
+
+    Re-expressing one band's flux in different units is the same physical
+    measurement. Before the reparameterisation the reported Bender-normalised
+    amplitudes moved with those units — a planted 0.02 was reported as 0.11 and
+    0.011 after a x10 rescale, and mirrored under x0.1.
+    """
+    from isoster._shared import _normalize_harmonic_for_plot
+    from isoster.multiband.fitting_mb import _attach_shared_higher_harmonics
+
+    n_samples = 256
+    phi = np.linspace(0.0, 2.0 * np.pi, n_samples, endpoint=False)
+    sma = 30.0
+    planted_shape = 0.02
+
+    def normalised_for(scale):
+        gradients = np.array([-1.0, -1.0 * scale])
+        raw = np.array([-planted_shape * sma * g for g in gradients])
+        intens = np.vstack([100.0 * (1.0 if b == 0 else scale) + raw[b] * np.sin(4.0 * phi) for b in range(2)])
+        coeffs = np.zeros(2 + 4)
+        coeffs[0], coeffs[1] = intens[0].mean(), intens[1].mean()
+        geom: dict = {}
+        _attach_shared_higher_harmonics(
+            geom,
+            ["g", "r"],
+            coeffs,
+            phi,
+            intens,
+            None,
+            sma,
+            list(gradients),
+            harmonic_orders=[4],
+            band_weights_arr=np.ones(2),
+            jagged=False,
+        )
+        return [
+            float(
+                _normalize_harmonic_for_plot(
+                    np.array([geom[f"a4_{b}"]]), np.array([sma]), np.array([g]), np.array([100.0])
+                )[0]
+            )
+            for b, g in zip(("g", "r"), gradients)
+        ]
+
+    for scale in (1.0, 10.0, 0.1, 100.0):
+        for value in normalised_for(scale):
+            assert value == pytest.approx(planted_shape, rel=1e-6), scale

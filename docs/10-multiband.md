@@ -26,6 +26,38 @@ Real-data validation is concentrated on a small number of targets, and the B=5
 path has synthetic coverage only — the asteris five-band cutouts are not
 available on the development machine.
 
+## Shared higher harmonics mean a shared *shape*
+
+`multiband_higher_harmonics='shared'` fits one dimensionless, Bender-normalised
+shape coefficient across bands, and writes each band's own raw amplitude back
+into Schema 1.
+
+This matters because a common shape deviation produces raw amplitude
+`A_n_raw = -A_n_norm · sma · grad_b` in band `b` — proportional to *that band's*
+radial gradient. Writing one identical raw value into every column therefore
+cannot represent one shared shape once the gradients differ, and because
+plotting divides by each band's own gradient, the reported normalised amplitudes
+came out band-dependent *and* dependent on the bands' arbitrary flux units. For
+a planted shape of 0.02 in both bands:
+
+| units | reported normalised a4, band g | band r |
+|---|---|---|
+| original | 0.02000 | 0.02000 |
+| band r × 10 | 0.11000 | 0.01100 |
+| band r × 0.1 | 0.01100 | 0.11000 |
+
+After the reparameterisation both bands report 0.02000 at every rescaling. The
+raw per-band columns now legitimately differ — that is what a shared shape looks
+like in raw units — and the invariant to check is that they *normalise* to one
+value.
+
+**The `simultaneous_in_loop` and `simultaneous_original` modes still stamp one
+identical raw amplitude into every band**, so they represent a shared raw
+intensity residual rather than a shared shape. That is a further reason those
+modes keep their experimental warning, and it is why they no longer agree with
+`shared` column-by-column. The default `independent` mode is unaffected: it fits
+each band separately from its own gradient and was always self-consistent.
+
 ## Backport status: shipped vs not-shipped vs experimental
 
 The table below tracks every Stage backport from single-band into the

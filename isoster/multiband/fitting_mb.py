@@ -2145,6 +2145,7 @@ def fit_isophote_mb(
         if loose_validity:
             model_per_band_loose: List[NDArray[np.float64]] = []
             residual_chunks: List[NDArray[np.float64]] = []
+            weight_chunks: List[NDArray[np.float64]] = []
             A1c, B1c, A2c, B2c = (
                 float(coeffs[n_bands]),
                 float(coeffs[n_bands + 1]),
@@ -2184,7 +2185,27 @@ def fit_isophote_mb(
                 # is a defensive guard.
                 if i_b.size == m_b.size:
                     residual_chunks.append(i_b - m_b)
+                    # Weight this band's residuals exactly as the solve weighted
+                    # its data: the band weight, the per-sample inverse variance
+                    # under WLS, and the per-band-count normalisation when it is
+                    # enabled. Without this the jagged path compared a weighted
+                    # amplitude against an unweighted scatter and the stopping
+                    # decision moved with a band's flux units.
+                    w_b = float(band_weights_arr[b_idx])
+                    if loose_normalize and i_b.size:
+                        w_b /= float(i_b.size)
+                    var_b = vars_pb[b_idx] if vars_pb is not None else None
+                    if var_b is not None and var_b.size == i_b.size:
+                        weight_chunks.append(w_b / np.asarray(var_b, dtype=np.float64))
+                    else:
+                        weight_chunks.append(np.full(i_b.size, w_b, dtype=np.float64))
             rms = float(np.std(np.concatenate(residual_chunks))) if residual_chunks else float("nan")
+            if residual_chunks:
+                res_all = np.concatenate(residual_chunks)
+                w_all = np.concatenate(weight_chunks)
+                w_sum = float(np.sum(w_all))
+                if np.isfinite(w_sum) and w_sum > 0.0:
+                    convergence_rms = float(np.sqrt(np.sum(w_all * res_all**2) / w_sum))
             model_per_band = model_per_band_loose  # type: ignore[assignment]
         else:
             model_per_band = evaluate_joint_model(
@@ -2195,7 +2216,22 @@ def fit_isophote_mb(
             )
             residuals_flat = (intens_per_band - model_per_band).reshape(-1)
             rms = float(np.std(residuals_flat))
-            if variances_per_band is not None:
+            if use_ref_only:
+                # Reference mode fits the harmonics from the reference band
+                # alone, so the convergence comparison has to be against that
+                # band's residuals. Pooling every band let a passive band's
+                # noise decide when the fit stopped: holding the reference
+                # image fixed and making another band noisy moved the iteration
+                # count. `rms` stays the all-band diagnostic it is documented as.
+                ref_residual = intens_per_band[ref_idx] - model_per_band[ref_idx]
+                if variances_per_band is not None:
+                    ref_weights = 1.0 / variances_per_band[ref_idx]
+                    ref_weight_sum = float(np.sum(ref_weights))
+                    if np.isfinite(ref_weight_sum) and ref_weight_sum > 0.0:
+                        convergence_rms = float(np.sqrt(np.sum(ref_weights * ref_residual**2) / ref_weight_sum))
+                else:
+                    convergence_rms = float(np.std(ref_residual))
+            elif variances_per_band is not None:
                 # Convergence compares the shared harmonic amplitude — which the
                 # solve produced under per-sample weights w_b/var_{b,i} — against
                 # this scatter. An unweighted pooled scatter is in raw flux units
@@ -2214,8 +2250,8 @@ def fit_isophote_mb(
                     convergence_rms = float(np.sqrt(np.sum(convergence_weights * residuals_flat**2) / weight_sum))
 
         if not np.isfinite(convergence_rms):
-            # OLS, or the loose-validity path, which has no rectangular
-            # variance block to weight with: fall back to the plain scatter.
+            # No variance map: the solve weighted by band weight alone, which
+            # the plain scatter already matches when those weights are equal.
             convergence_rms = rms
 
         harmonics = [A1, B1, A2, B2]
@@ -2486,8 +2522,11 @@ def fit_isophote_mb(
         # under OLS with equal band weights.
         effective_rms = convergence_rms
         if config.sigma_bg is not None and len(angles) > 0:
+            # Floor the *weighted* scatter. Flooring `rms` here silently undid
+            # the weighting whenever sigma_bg was set — even a value far below
+            # the data scatter restored the unit-dependent stopping rule.
             noise_floor = config.sigma_bg / np.sqrt(len(angles))
-            effective_rms = max(rms, noise_floor)
+            effective_rms = max(convergence_rms, noise_floor)
 
         if abs(max_amp) < config.conver * convergence_scale * effective_rms and i >= config.minit:
             stop_code = 0
@@ -2958,6 +2997,7 @@ def _attach_shared_higher_harmonics(
 
     dropped: set = dropped_band_indices or set()
 
+    band_shape_scale: Dict[int, float] = {}
     rows_a: List[NDArray[np.float64]] = []
     rows_y: List[NDArray[np.float64]] = []
     rows_w: List[NDArray[np.float64]] = []
@@ -2996,6 +3036,22 @@ def _attach_shared_higher_harmonics(
         for j, n_order in enumerate(orders_list):
             a_b[:, 2 * j] = np.sin(int(n_order) * ang_b)
             a_b[:, 2 * j + 1] = np.cos(int(n_order) * ang_b)
+        # Solve for a shared *shape* coefficient, not a shared raw amplitude.
+        # A common shape deviation produces raw amplitude
+        # ``A_n_raw = -A_n_norm * sma * grad_b``, so one shared raw value cannot
+        # describe one shared shape once the bands' gradients differ — and the
+        # per-band Bender normalisation then divides by each band's own gradient
+        # and returns different answers. Scaling each band's columns by
+        # ``-sma * grad_b`` makes the fitted coefficient the dimensionless
+        # Bender-normalised amplitude directly, which is what "shared" means.
+        grad_b = float(per_band_grad[b_idx]) if b_idx < len(per_band_grad) else 0.0
+        shape_scale = -sma * grad_b
+        if not np.isfinite(shape_scale) or shape_scale == 0.0:
+            # No usable gradient: this band carries no shape information. Its
+            # columns are zero, so it contributes nothing rather than a NaN.
+            shape_scale = 0.0
+        a_b = a_b * shape_scale
+        band_shape_scale[b_idx] = shape_scale
 
         w_band = float(band_weights_arr[b_idx]) if b_idx < band_weights_arr.size else 1.0
         if var_b is not None:
@@ -3040,18 +3096,24 @@ def _attach_shared_higher_harmonics(
     except np.linalg.LinAlgError:
         return
 
+    # The solve returned dimensionless shared shape coefficients. Schema 1 stores
+    # *raw* per-band amplitudes (plotting applies the Bender normalisation), so
+    # convert back with each band's own scale. Every band then normalises to the
+    # same shared value, which is the property that makes the mode meaningful and
+    # independent of a band's flux units.
     for j, n_order in enumerate(orders_list):
-        a_n = float(coeffs_higher[2 * j])
-        b_n = float(coeffs_higher[2 * j + 1])
-        a_n_err = float(errors_higher[2 * j])
-        b_n_err = float(errors_higher[2 * j + 1])
+        shared_a = float(coeffs_higher[2 * j])
+        shared_b = float(coeffs_higher[2 * j + 1])
+        shared_a_err = float(errors_higher[2 * j])
+        shared_b_err = float(errors_higher[2 * j + 1])
         for b_idx, b in enumerate(bands):
             if b_idx in dropped:
                 continue
-            geom[f"a{int(n_order)}_{b}"] = a_n
-            geom[f"b{int(n_order)}_{b}"] = b_n
-            geom[f"a{int(n_order)}_err_{b}"] = a_n_err
-            geom[f"b{int(n_order)}_err_{b}"] = b_n_err
+            scale = band_shape_scale.get(b_idx, 0.0)
+            geom[f"a{int(n_order)}_{b}"] = shared_a * scale
+            geom[f"b{int(n_order)}_{b}"] = shared_b * scale
+            geom[f"a{int(n_order)}_err_{b}"] = shared_a_err * abs(scale)
+            geom[f"b{int(n_order)}_err_{b}"] = shared_b_err * abs(scale)
 
 
 def _compute_joint_residual_variance(
