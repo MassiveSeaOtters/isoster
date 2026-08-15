@@ -19,8 +19,8 @@ warnings and are called out where they appear below:
 
 - `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`,
   because the single-band equivalent has benchmark regressions;
-- `loose_validity=True`, which is repaired and tested but not yet the default;
-  `compute_joint_gradient` still samples in shared mode under it.
+- `loose_validity=True`, which is repaired and tested end to end but not yet
+  the default.
 
 Real-data validation is concentrated on a small number of targets, and the B=5
 path has synthetic coverage only — the asteris five-band cutouts are not
@@ -162,9 +162,12 @@ pre-merge review pass.
     - A test asserting that *all* locked rows share geometry was
       over-tight and has been corrected — see the note below.
 
-    Known remaining differences: `compute_joint_gradient` samples in
-    shared mode regardless of the flag, so per-band gradients come from
-    the cross-band intersection.
+    `compute_joint_gradient` now samples in the same validity mode as the
+    solve, so the numerator and denominator of every geometry correction
+    describe one sample set. It previously sampled shared-validity
+    regardless, which let a single fully-masked band collapse the joint
+    gradient to the "no usable ring" sentinel while other bands had full
+    rings.
 
     **Not a defect:** the `lsb_auto_lock` trigger row carries its own
     geometry rather than the anchor's. It is fitted before the locked

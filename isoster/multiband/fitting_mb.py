@@ -1047,6 +1047,34 @@ def fit_first_and_second_harmonics_geometry(
         return fallback, None, wls_mode
 
 
+def _band_ring(data: MultiIsophoteData, band: int):
+    """One band's kept samples and variances, in either validity layout.
+
+    Under loose validity the bands no longer share a sample set, so the
+    rectangular ``intens`` field holds only the cross-band intersection and the
+    per-band lists carry the truth. Reading the rectangular view there would
+    measure a gradient on samples other bands happened to share.
+    """
+    if data.intens_per_band is not None:
+        intens = data.intens_per_band[band]
+        variances = data.variances_per_band[band] if data.variances_per_band is not None else None
+        return intens, variances
+    return data.intens[band], (data.variances[band] if data.variances is not None else None)
+
+
+def _ring_is_empty(data: MultiIsophoteData) -> bool:
+    """True when no band has a usable ring.
+
+    Under shared validity that is the intersection being empty. Under loose
+    validity the isophote survives as long as *some* band has samples: a band
+    fully masked at this radius must not discard the bands that are clean, which
+    is the same rule the forced-photometry path applies.
+    """
+    if data.intens_per_band is not None:
+        return all(arr.size == 0 for arr in data.intens_per_band)
+    return data.intens.shape[1] == 0
+
+
 def joint_gradient_pooling_weights(
     band_weights_arr: NDArray[np.float64],
     variances_per_band: Union[None, NDArray[np.float64], List[NDArray[np.float64]]],
@@ -1152,6 +1180,11 @@ def compute_joint_gradient(
     sma = geometry["sma"]
     eps = geometry["eps"]
     pa = geometry["pa"]
+    # Sample the gradient rings the same way the harmonic solve sampled its own,
+    # so the numerator and the denominator of every geometry correction describe
+    # one sample set. Sampling shared-validity under loose validity also made a
+    # single fully-masked band collapse the joint gradient to a sentinel.
+    loose_validity = bool(config.loose_validity)
 
     # Sample at the current SMA (reuse cached data when available).
     if current_data is not None:
@@ -1167,9 +1200,10 @@ def compute_joint_gradient(
             eps,
             pa,
             use_eccentric_anomaly=config.use_eccentric_anomaly,
+            loose_validity=loose_validity,
         )
 
-    if data_c.intens.shape[1] == 0:
+    if _ring_is_empty(data_c):
         if previous_gradient is not None:
             return previous_gradient * 0.8, None, [], []
         return -1.0, None, [], []
@@ -1190,15 +1224,16 @@ def compute_joint_gradient(
         eps,
         pa,
         use_eccentric_anomaly=config.use_eccentric_anomaly,
+        loose_validity=loose_validity,
     )
 
-    if data_g.intens.shape[1] == 0:
+    if _ring_is_empty(data_g):
         if previous_gradient is not None:
             return previous_gradient * 0.8, None, [], []
         return -1.0, None, [], []
 
     delta_r = config.astep if config.linear_growth else sma * config.astep
-    n_bands = data_c.intens.shape[0]
+    n_bands = len(data_c.intens_per_band) if data_c.intens_per_band is not None else data_c.intens.shape[0]
 
     def _per_band_gradient(data_g, delta_r_b):
         """Per-band two-point gradients and errors against the current ring.
@@ -1213,10 +1248,16 @@ def compute_joint_gradient(
         grads: List[float] = []
         errs: List[Optional[float]] = []
         for b in range(n_bands):
-            var_c_b = data_c.variances[b] if data_c.variances is not None else None
-            var_g_b = data_g.variances[b] if data_g.variances is not None else None
-            mean_c, var_mean_c = _ring_statistic_and_variance(data_c.intens[b], var_c_b, config.integrator)
-            mean_g, var_mean_g = _ring_statistic_and_variance(data_g.intens[b], var_g_b, config.integrator)
+            intens_c_b, var_c_b = _band_ring(data_c, b)
+            intens_g_b, var_g_b = _band_ring(data_g, b)
+            mean_c, var_mean_c = _ring_statistic_and_variance(intens_c_b, var_c_b, config.integrator)
+            mean_g, var_mean_g = _ring_statistic_and_variance(intens_g_b, var_g_b, config.integrator)
+            if intens_c_b.size == 0 or intens_g_b.size == 0:
+                # This band has no usable ring at one of the two radii, while
+                # others may. Contribute nothing rather than a NaN gradient.
+                grads.append(float("nan"))
+                errs.append(None)
+                continue
             grads.append((mean_g - mean_c) / delta_r_b)
             if np.isfinite(var_mean_c) and np.isfinite(var_mean_g):
                 errs.append(float(np.sqrt(var_mean_c + var_mean_g)) / delta_r_b)
@@ -1236,12 +1277,22 @@ def compute_joint_gradient(
         harmonic solve — not the bare band weight, so that the shared amplitude
         and this gradient describe the same weighted average of the bands.
         """
-        w_sum = float(pool_w.sum())
-        grad = float(np.sum(pool_w * np.array(grads))) / w_sum
-        if any(e is None for e in errs):
+        grad_arr = np.asarray(grads, dtype=np.float64)
+        # Under loose validity a band can have no usable ring at this radius
+        # while others do; it contributes nothing rather than poisoning the sum.
+        usable = np.isfinite(grad_arr)
+        if not usable.any():
+            return float("nan"), None
+        weights = pool_w[usable]
+        w_sum = float(weights.sum())
+        if w_sum <= 0.0:
+            return float("nan"), None
+        grad = float(np.sum(weights * grad_arr[usable])) / w_sum
+        contributing_errs = [e for e, keep in zip(errs, usable) if keep]
+        if any(e is None for e in contributing_errs):
             return grad, None
-        err_arr = np.array([e if e is not None else 0.0 for e in errs], dtype=np.float64)
-        var_joint = float(np.sum((pool_w**2) * (err_arr**2))) / (w_sum**2)
+        err_arr = np.array(contributing_errs, dtype=np.float64)
+        var_joint = float(np.sum((weights**2) * (err_arr**2))) / (w_sum**2)
         return grad, float(np.sqrt(var_joint))
 
     per_band_grad, per_band_err = _per_band_gradient(data_g, delta_r)
@@ -1274,8 +1325,9 @@ def compute_joint_gradient(
             eps,
             pa,
             use_eccentric_anomaly=config.use_eccentric_anomaly,
+            loose_validity=loose_validity,
         )
-        if data_g2.intens.shape[1] > 0:
+        if not _ring_is_empty(data_g2):
             delta_r_2 = 2 * config.astep if config.linear_growth else sma * 2 * config.astep
             per_band_grad, per_band_err = _per_band_gradient(data_g2, delta_r_2)
             grad_joint, grad_err_joint = _pool(per_band_grad, per_band_err)

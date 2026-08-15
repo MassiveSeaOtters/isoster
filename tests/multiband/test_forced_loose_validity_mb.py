@@ -157,3 +157,51 @@ def test_loose_validity_requires_at_least_two_bands():
     # Neither half alone is a problem.
     assert IsosterConfigMB(bands=["g"], reference_band="g").loose_validity is False
     assert IsosterConfigMB(bands=["g", "r"], reference_band="g", loose_validity=True).loose_validity is True
+
+
+# ---------------------------------------------------------------------------
+# The joint gradient must sample in the same validity mode as the solve
+# ---------------------------------------------------------------------------
+
+
+def gradient_case(masks, loose_validity):
+    from isoster.multiband.fitting_mb import compute_joint_gradient
+    from isoster.multiband.sampling_mb import prepare_inputs
+
+    image_stack, masks_resolved, var_stack = prepare_inputs(images(), masks, None)
+    cfg = IsosterConfigMB(bands=BANDS, reference_band="i", loose_validity=loose_validity)
+    geometry = {"x0": GEOMETRY["x0"], "y0": GEOMETRY["y0"], "sma": SMA, "eps": GEOMETRY["eps"], "pa": GEOMETRY["pa"]}
+    return compute_joint_gradient(
+        image_stack, masks_resolved, var_stack, geometry, cfg, np.ones(3), previous_gradient=None
+    )
+
+
+def test_gradient_survives_a_band_fully_masked_at_this_radius():
+    """The gradient used to sample shared-validity regardless of the flag.
+
+    It is the denominator of every geometry correction *and* the source of the
+    pooling weights, so sampling it on a different set from the solve is the
+    same class of mismatch this work removes. In the worst case it collapsed to
+    the "no usable ring" sentinel while two bands had full rings.
+    """
+    masks = masks_with_g_annulus(20.0, 70.0)
+
+    shared_grad, _err, shared_per_band, _ = gradient_case(masks, loose_validity=False)
+    assert shared_grad == -1.0  # the sentinel
+    assert shared_per_band == []
+
+    loose_grad, _err, loose_per_band, _ = gradient_case(masks, loose_validity=True)
+    assert np.isfinite(loose_grad)
+    assert loose_grad < 0.0  # a real, falling profile
+    assert not np.isfinite(loose_per_band[0])  # band g contributes nothing
+    assert np.isfinite(loose_per_band[1]) and np.isfinite(loose_per_band[2])
+
+
+def test_gradient_modes_agree_when_nothing_is_masked():
+    """Loose sampling must not perturb the gradient when it cannot matter."""
+    masks = [np.zeros((256, 256), dtype=bool) for _ in range(3)]
+    shared_grad, _e1, shared_per_band, _ = gradient_case(masks, loose_validity=False)
+    loose_grad, _e2, loose_per_band, _ = gradient_case(masks, loose_validity=True)
+    assert loose_grad == pytest.approx(shared_grad, rel=1e-12)
+    for a, b in zip(shared_per_band, loose_per_band):
+        assert b == pytest.approx(a, rel=1e-12)
