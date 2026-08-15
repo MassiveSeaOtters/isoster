@@ -102,9 +102,9 @@ def test_cli_smoke_fits_output(tmp_path, monkeypatch, capsys):
     main()
 
     assert out.exists()
-    # The experimental banner appears on stderr by default.
+    # The interface-stability banner appears on stderr by default.
     captured = capsys.readouterr()
-    assert "EXPERIMENTAL" in captured.err
+    assert "UNSTABLE INTERFACE" in captured.err
     # Schema-1 sanity: PrimaryHDU MULTIBND header + per-band intensity columns.
     with fits.open(out) as hdul:
         assert hdul[0].header["MULTIBND"] is True
@@ -223,7 +223,7 @@ def test_cli_quiet_suppresses_banner(tmp_path, monkeypatch, capsys):
     )
     main()
     captured = capsys.readouterr()
-    assert "EXPERIMENTAL" not in captured.err
+    assert "UNSTABLE INTERFACE" not in captured.err
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ ISOSTER is a Python library for elliptical isophote fitting on 2D images, with a
 - `isoster.build_isoster_model(...)`
 - CLI entry point: `isoster` (`isoster/cli.py`)
 
-### Experimental Multi-Band Public Interface
+### Multi-Band Public Interface
 
 Lives under a parallel module tree at `isoster/multiband/`. The single-
 band interfaces above are **not** modified.
@@ -108,12 +108,49 @@ outside the public docs tree.
     kernels (``build_joint_design_matrix_higher`` /
     ``build_joint_design_matrix_jagged_higher``) carry the wider
     matrix through both shared- and loose-validity paths. Per-band
-    Schema 1 columns ``a<n>_<b>`` / ``b<n>_<b>`` (and ``_err``)
-    continue to be written but carry the identical shared value
-    across bands under non-``'independent'`` modes; D16 per-band
-    Bender normalization at plotting time still produces band-distinct
-    curves because per-band gradients differ. Section 6 of the internal
-    multi-band design record (not part of the public docs tree).
+    Schema 1 columns ``a<n>_<b>`` / ``b<n>_<b>`` (and
+    ``a<n>_err_<b>`` / ``b<n>_err_<b>``) are written in every mode, but
+    **not in the same units**, and ``result['harmonics_shared']`` is the
+    flag that says which convention applies. Under ``'independent'`` the
+    stored values are already Bender-normalized (``compute_deviations``
+    normalizes at fit time) and must not be normalized again. Under
+    ``'shared'`` they are raw and **band-distinct**: the solve fits one
+    dimensionless shape (each band's columns scaled by ``-sma*grad_b``)
+    and converts back through each band's own scale, so the invariant is
+    that they all normalize to one value. Under ``'simultaneous_*'`` they
+    are raw and identical across bands, which means a shared raw residual
+    rather than a shared shape — one of the two reasons those modes keep
+    their experimental warning. D16 per-band Bender normalization is
+    applied at plotting time only when ``harmonics_shared`` is true.
+    Section 6 of the internal multi-band design record (not part of the
+    public docs tree).
+  - **Geometry-parameterised solve (default 2026-08-15):**
+    ``geometry_parameterized_solve=True`` scales each band's four
+    *shared* design columns by that band's radial gradient, so the shared
+    free parameters are geometry steps rather than one harmonic
+    amplitude. A common step ``delta`` produces amplitude
+    ``delta*grad_b`` in band ``b``, so sharing an amplitude is
+    misspecified whenever the bands' gradients differ. The effective
+    per-band weight becomes ``w_b*grad_b**2/var_b`` (minimum-variance)
+    instead of ``w_b/var_b``. Threaded through all four solvers via
+    ``per_band_gradients=``; the first iteration of each isophote falls
+    back to the amplitude form for lack of a previous gradient.
+    **Invariant:** the fitted block is rescaled by the pooled
+    ``grad_joint`` so downstream consumers keep their units, but band
+    ``b``'s fitted amplitude is ``delta*grad_b``, so every site that
+    *reconstructs the model* must apply ``band_scale[b] =
+    grad_b/grad_joint`` — per-band residuals, convergence RMS, OLS error
+    scaling, and harmonic subtraction. Omitting it leaves the geometry
+    step exact while making every residual-derived quantity wrong.
+  - **Joint gradient pooling weights:** the per-band gradients are
+    pooled with the weight each band carried *in the harmonic solve*,
+    ``W_b = w_b * sum_i(1/var_{b,i})`` under WLS (``w_b`` under OLS), via
+    ``joint_gradient_pooling_weights``, using the **post-clipping**
+    variance arrays. Pooling with the bare ``w_b`` recovers the wrong
+    geometry step and the error is not one-signed. Reference mode uses a
+    one-hot pooling weight so the reference band's own gradient is used.
+    Full derivation and the exactness caveat: ``docs/10-multiband.md``,
+    "Joint gradient weighting".
 
 ## Key Constants
 

@@ -2982,10 +2982,19 @@ def _attach_shared_higher_harmonics(
     design matrix has shape ``(B_eff*N_b, 2*L)`` where ``L = len(harmonic_orders)``
     and one (sin/cos) pair of columns per order is shared across all bands.
 
-    Per Schema 1: every band's ``a{n}_{b}``, ``b{n}_{b}``, ``a{n}_err_{b}``,
-    ``b{n}_err_{b}`` columns receive the IDENTICAL shared value. Per-band
-    Bender normalization at plotting time (D16) scales the same raw value by
-    ``1/(sma * |dI/da_b|)`` per band so normalized curves separate visually.
+    What is shared is the dimensionless *shape*, not the raw amplitude. Each
+    band's higher-order columns are scaled by ``-sma * grad_b``, so the fitted
+    coefficient is the Bender-normalised amplitude directly; Schema 1 stores
+    raw values, so each band's ``a{n}_{b}``, ``b{n}_{b}``, ``a{n}_err_{b}``,
+    ``b{n}_err_{b}`` columns receive that shared coefficient converted back
+    through the band's own scale. The per-band columns therefore **differ**
+    across bands, and the invariant to check is that they all normalise to one
+    value under the per-band Bender normalisation applied at plotting time
+    (D16). Writing one identical raw value instead — which the two
+    ``simultaneous_*`` modes still do — cannot represent a shared shape once
+    the per-band gradients differ, and makes the reported normalised amplitude
+    depend on the bands' arbitrary flux units. See ``docs/10-multiband.md``,
+    "Shared higher harmonics mean a shared *shape*".
 
     Parameters
     ----------
