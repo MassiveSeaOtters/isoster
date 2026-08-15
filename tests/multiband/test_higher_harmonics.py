@@ -604,3 +604,79 @@ def test_every_harmonic_dispatch_call_passes_the_reconstruction_factor():
                     break
         call_text = source[start:end]
         assert "band_scale=" in call_text, f"dispatch call at offset {start} omits band_scale"
+
+
+def test_dispatcher_forwards_the_reconstruction_factor_to_simultaneous_in_loop():
+    """The dispatcher's own call must forward ``band_scale`` too.
+
+    The structural guard above walks call sites inside ``fit_isophote_mb``, so
+    it cannot see the dispatcher's internal call to
+    ``_attach_simultaneous_higher_harmonics_from_coeffs``. That path uses the
+    factor for its OLS residual-variance rescale, and dropping it left both
+    other tests green.
+
+    Constructed so the answer is unambiguous: ``intens`` is the *exact* model
+    implied by the coefficients and the per-band scales, so the residual — and
+    therefore every formal error — must be zero. Reconstructing without the
+    factor describes a model that was never fitted and produces a non-zero
+    error out of nothing.
+    """
+    from isoster.multiband.fitting_mb import _attach_higher_harmonics_dispatch
+
+    n_bands, orders = 2, [3, 4]
+    width = n_bands + 4 + 2 * len(orders)
+    n_samples = 128
+    angles = np.linspace(0.0, 2.0 * np.pi, n_samples, endpoint=False)
+    band_scale = np.array([0.25, 1.75])  # deliberately unequal and distinctive
+
+    coeffs = np.zeros(width)
+    coeffs[:n_bands] = [100.0, 70.0]
+    coeffs[n_bands : n_bands + 4] = [1.5, -2.0, 0.8, 1.2]
+    coeffs[n_bands + 4 :] = [0.6, -0.4, 0.3, 0.5]
+
+    def shared_terms(ang):
+        out = (
+            coeffs[n_bands] * np.sin(ang)
+            + coeffs[n_bands + 1] * np.cos(ang)
+            + coeffs[n_bands + 2] * np.sin(2.0 * ang)
+            + coeffs[n_bands + 3] * np.cos(2.0 * ang)
+        )
+        for j, order in enumerate(orders):
+            out = out + coeffs[n_bands + 4 + 2 * j] * np.sin(order * ang)
+            out = out + coeffs[n_bands + 4 + 2 * j + 1] * np.cos(order * ang)
+        return out
+
+    intens = np.vstack([coeffs[b] + band_scale[b] * shared_terms(angles) for b in range(n_bands)])
+
+    cfg = _make_cfg("simultaneous_in_loop")
+    cfg = cfg.model_copy(update={"bands": ["g", "r"], "reference_band": "g", "harmonic_orders": orders})
+
+    def run(scale):
+        geom: dict = {}
+        _attach_higher_harmonics_dispatch(
+            geom,
+            ["g", "r"],
+            cfg,
+            coeffs,
+            angles,
+            intens,
+            None,
+            30.0,
+            [-1.0, -1.0],
+            np.ones(n_bands),
+            jagged=False,
+            last_cov=np.eye(width),
+            last_wls_mode=False,
+            band_scale=scale,
+        )
+        return geom
+
+    with_scale = run(band_scale)
+    without_scale = run(None)
+
+    # Exact model, so every formal error must vanish.
+    for order in orders:
+        assert with_scale[f"a{order}_err_g"] == pytest.approx(0.0, abs=1e-9)
+        assert with_scale[f"b{order}_err_g"] == pytest.approx(0.0, abs=1e-9)
+    # And omitting the factor manufactures an error from nothing.
+    assert any(without_scale[f"a{order}_err_g"] > 1e-3 for order in orders)
