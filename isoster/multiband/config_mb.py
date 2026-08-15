@@ -95,7 +95,7 @@ class IsosterConfigMB(BaseModel):
         "is suspected of misbehaving.",
     )
     geometry_parameterized_solve: bool = Field(
-        default=False,
+        default=True,
         description="Fit shared *geometry steps* instead of a shared harmonic "
         "amplitude (experimental, under evaluation).\n\n"
         "A common geometry step ``delta`` produces a ring harmonic of amplitude "
@@ -116,12 +116,11 @@ class IsosterConfigMB(BaseModel):
         "The scaling uses the previous iteration's per-band gradients, which "
         "are slowly-varying nuisance scale factors; the first iteration of each "
         "isophote falls back to the amplitude form.\n\n"
-        "**Currently wired only into the shared-validity, joint-intercept solve** "
-        "(the default configuration). It is a no-op under ``loose_validity=True``, "
-        "under ``fit_per_band_intens_jointly=False`` (which ``integrator='median'`` "
-        "requires), and under the ``simultaneous_*`` higher-harmonic modes. Default "
-        "``False`` until those paths are covered, so that one configuration does not "
-        "silently use a different estimator from another.",
+        "Threaded into every solve path — shared and loose validity, joint and "
+        "decoupled intercepts, plain and simultaneous higher harmonics — so the "
+        "parameterisation does not depend on which other options are set.\n\n"
+        "Default ``True`` since 2026-08-15. Set ``False`` to reproduce earlier "
+        "results or to compare the two parameterisations.",
     )
     fit_per_band_intens_jointly: bool = Field(
         default=True,

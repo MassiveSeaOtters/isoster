@@ -260,13 +260,30 @@ def _fit_planted(flag, seed, sma=30.0):
     return fit_isophote_mb(images, None, sma, START_GEOMETRY, cfg, variance_maps=variance_maps)
 
 
-def test_flag_defaults_off_and_leaves_the_solve_unchanged():
+def test_flag_defaults_on_and_can_still_be_disabled():
+    """Default flipped to True on 2026-08-15, once every solve path was wired.
+
+    An earlier attempt to flip it failed: the parameterisation was reachable
+    only from the shared-validity, joint-intercept branch, so turning it on made
+    ``integrator='median'`` report a least-squares intercept instead of a median
+    and made loose validity disagree with shared validity. It is now threaded
+    through every solver, so the parameterisation no longer depends on which
+    other options are set.
+    """
     from isoster.multiband.config_mb import IsosterConfigMB
 
-    assert IsosterConfigMB(bands=["g", "r"], reference_band="g").geometry_parameterized_solve is False
+    assert IsosterConfigMB(bands=["g", "r"], reference_band="g").geometry_parameterized_solve is True
+    assert (
+        IsosterConfigMB(
+            bands=["g", "r"], reference_band="g", geometry_parameterized_solve=False
+        ).geometry_parameterized_solve
+        is False
+    )
+    # Both settings are deterministic, and they genuinely differ.
+    on, on_again = _fit_planted(True, seed=0), _fit_planted(True, seed=0)
     off = _fit_planted(False, seed=0)
-    again = _fit_planted(False, seed=0)
-    assert off["eps"] == again["eps"]  # deterministic
+    assert on["eps"] == on_again["eps"]
+    assert on["eps"] != off["eps"]
 
 
 def test_geometry_parameterisation_recovers_known_common_geometry():
