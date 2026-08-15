@@ -10,7 +10,23 @@
 > design record (24 decisions captured from a structured interview
 > before any code was written) plus Phase-38 / Phase-39 update.
 
-## Status: shipped vs not-shipped vs experimental
+## Status
+
+The default configuration — shared validity, joint intercepts, the
+geometry-parameterised solve and `independent` higher harmonics, in OLS or WLS —
+is **supported**, not experimental, as of 2026-08-15. Two features keep their own
+warnings and are called out where they appear below:
+
+- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`,
+  because the single-band equivalent has benchmark regressions;
+- `loose_validity=True`, which is repaired and tested but not yet the default;
+  `compute_joint_gradient` still samples in shared mode under it.
+
+Real-data validation is concentrated on a small number of targets, and the B=5
+path has synthetic coverage only — the asteris five-band cutouts are not
+available on the development machine.
+
+## Backport status: shipped vs not-shipped vs experimental
 
 The table below tracks every Stage backport from single-band into the
 multi-band path, plus the Phase 39 finalization. Use it to decide
