@@ -516,3 +516,91 @@ def test_shared_shape_is_independent_of_a_bands_flux_units():
     for scale in (1.0, 10.0, 0.1, 100.0):
         for value in normalised_for(scale):
             assert value == pytest.approx(planted_shape, rel=1e-6), scale
+
+
+def test_band_scale_actually_changes_the_shared_harmonics():
+    """Guard that the reconstruction factor is not an inert parameter.
+
+    ``band_scale`` corrects the geometric model subtracted before the
+    higher-order refit. If omitting it made no difference there would be
+    nothing for the call-site test below to protect.
+    """
+    from isoster.multiband.fitting_mb import _attach_shared_higher_harmonics
+
+    n_samples = 154  # ~60% angular coverage
+    phi = np.linspace(0.0, 2.0 * np.pi, 256, endpoint=False)[:n_samples]
+    gradients = [-1.0, -10.0]  # deliberately unequal
+    coeffs = np.array([100.0, 100.0, 0.7, -0.4, 0.3, 0.2])
+    intens = np.vstack([100.0 + 0.5 * np.sin(4.0 * phi) + 0.3 * np.cos(3.0 * phi) for _ in range(2)])
+
+    without: dict = {}
+    with_scale: dict = {}
+    _attach_shared_higher_harmonics(
+        without,
+        ["g", "r"],
+        coeffs,
+        phi,
+        intens,
+        None,
+        30.0,
+        gradients,
+        harmonic_orders=[3, 4],
+        band_weights_arr=np.ones(2),
+        jagged=False,
+    )
+    _attach_shared_higher_harmonics(
+        with_scale,
+        ["g", "r"],
+        coeffs,
+        phi,
+        intens,
+        None,
+        30.0,
+        gradients,
+        harmonic_orders=[3, 4],
+        band_weights_arr=np.ones(2),
+        jagged=False,
+        band_scale=np.array([0.25, 1.75]),
+    )
+    assert any(abs(with_scale[f"a{n}_g"] - without[f"a{n}_g"]) > 1e-9 for n in (3, 4)), (
+        "band_scale made no difference; the call-site guard below would be meaningless"
+    )
+
+
+def test_every_harmonic_dispatch_call_passes_the_reconstruction_factor():
+    """Every path into the harmonic dispatcher, including the maxit fallback.
+
+    The convergence paths passed ``band_scale`` while the two ``stop_code=2``
+    fallback calls did not, because they sit at a different indentation and an
+    earlier pattern-based edit matched only the convergence sites. ``stop_code=2``
+    is a usable best-effort result, so its harmonics have to be reconstructed
+    from the same model as everything else.
+
+    A structural check is the right shape here: the failure mode is a *new call
+    site* forgetting the keyword, which no numerical fixture reliably catches.
+    """
+    import pathlib
+    import re
+
+    from isoster.multiband import fitting_mb
+
+    # Read from disk rather than via ``inspect.getsource``: that goes through
+    # ``linecache``, which caches file contents and can return a stale copy.
+    module_source = pathlib.Path(fitting_mb.__file__).read_text()
+    start_of_fit = module_source.index("def fit_isophote_mb(")
+    end_of_fit = module_source.index("\ndef ", module_source.index("return best_geometry", start_of_fit))
+    source = module_source[start_of_fit:end_of_fit]
+    calls = [m.start() for m in re.finditer(r"_attach_higher_harmonics_dispatch\(", source)]
+    assert len(calls) >= 4, f"expected several dispatch sites, found {len(calls)}"
+    for start in calls:
+        depth, end = 0, start
+        for idx in range(source.index("(", start), len(source)):
+            if source[idx] == "(":
+                depth += 1
+            elif source[idx] == ")":
+                depth -= 1
+                if depth == 0:
+                    end = idx
+                    break
+        call_text = source[start:end]
+        assert "band_scale=" in call_text, f"dispatch call at offset {start} omits band_scale"

@@ -2809,6 +2809,7 @@ def fit_isophote_mb(
                     jagged=True,
                     last_cov=last_joint_cov,
                     last_wls_mode=last_joint_wls_mode,
+                    band_scale=band_geometry_scale,
                     dropped_band_indices=set(last_dropped_band_indices),
                 )
             else:
@@ -2831,6 +2832,7 @@ def fit_isophote_mb(
                     jagged=False,
                     last_cov=last_joint_cov,
                     last_wls_mode=last_joint_wls_mode,
+                    band_scale=band_geometry_scale,
                 )
 
     if config.full_photometry:
@@ -3294,6 +3296,7 @@ def _attach_simultaneous_higher_harmonics_from_coeffs(
     band_weights_arr: Optional[NDArray[np.float64]] = None,
     jagged: bool = False,
     var_residual_floor: Optional[float] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> None:
     """Stamp shared higher-order coefficients straight from the wider iteration coeffs.
 
@@ -3352,6 +3355,7 @@ def _attach_simultaneous_higher_harmonics_from_coeffs(
                 band_indices=res_idx,
                 floor=var_residual_floor,
                 harmonic_orders=orders,
+                band_scale=band_scale,
             )
             if var_residual is not None and np.isfinite(var_residual):
                 cov_for_errs = last_cov * var_residual
@@ -3574,6 +3578,7 @@ def _attach_higher_harmonics_dispatch(
             band_weights_arr=band_weights_arr,
             jagged=jagged,
             var_residual_floor=_sigma_bg_variance_floor(config),
+            band_scale=band_scale,
         )
     elif mode == "simultaneous_original":
         _attach_simultaneous_original_post_hoc(
