@@ -640,11 +640,10 @@ def _fit_image_template_forced_mb(
         forced_noop_features.append("use_central_regularization")
     if config.harmonic_combination == "ref":
         forced_noop_features.append("harmonic_combination='ref'")
-    # Review fix B2: forced extraction always runs shared-validity
-    # sampling and the per-band independent harmonic path; flag
-    # configs whose iteration-only semantics are silently lost.
-    if config.loose_validity:
-        forced_noop_features.append("loose_validity")
+    # ``loose_validity`` used to belong here: forced extraction always ran
+    # shared-validity sampling and silently ignored the flag. It is now honoured
+    # end to end — per-band sampling, per-band clipping, per-band statistics and
+    # jagged harmonics — so the warning would be false.
     if config.multiband_higher_harmonics != "independent":
         forced_noop_features.append(f"multiband_higher_harmonics='{config.multiband_higher_harmonics}'")
     if forced_noop_features:
@@ -754,12 +753,24 @@ def _fit_image_template_forced_mb(
             # only finite-difference estimate available in forced mode.
             for b, g_b in zip(bands, per_band_grad):
                 iso[f"grad_{b}"] = g_b
+            # Under loose validity each band kept its own samples, so hand the
+            # attacher the jagged lists; it accepts either layout. Passing the
+            # rectangular intersection view instead would compute each band's
+            # harmonics on samples other bands happened to share.
+            if ring.intens_per_band is not None:
+                harmonic_angles = ring.phi_per_band
+                harmonic_intens = ring.intens_per_band
+                harmonic_variances = ring.variances_per_band
+            else:
+                harmonic_angles = ring.angles
+                harmonic_intens = ring.intens
+                harmonic_variances = ring.variances
             _attach_per_band_harmonics(
                 iso,
                 bands,
-                ring.angles,
-                ring.intens,
-                ring.variances,
+                harmonic_angles,
+                harmonic_intens,
+                harmonic_variances,
                 float(iso["sma"]),  # type: ignore[arg-type]
                 per_band_grad,
                 harmonic_orders=config.harmonic_orders,

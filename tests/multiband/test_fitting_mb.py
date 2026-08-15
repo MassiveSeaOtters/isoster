@@ -1448,17 +1448,24 @@ def test_lsb_auto_lock_fires_on_synthetic_galaxy():
     # anchor gets lsb_locked=False (lock_state initialized).
     iso_locked = [iso for iso in res["isophotes"] if iso.get("lsb_locked")]
     assert len(iso_locked) >= 1
-    # The locked isophotes' geometry must match the lock anchor exactly
-    # (since fix_center / fix_pa / fix_eps fire on the cloned cfg).
-    locked_x0s = [float(iso["x0"]) for iso in iso_locked]
-    locked_y0s = [float(iso["y0"]) for iso in iso_locked]
-    locked_eps = [float(iso["eps"]) for iso in iso_locked]
-    locked_pa = [float(iso["pa"]) for iso in iso_locked]
-    # All locked isophotes share the same geometry to numerical noise.
-    assert max(locked_x0s) - min(locked_x0s) < 1e-9
-    assert max(locked_y0s) - min(locked_y0s) < 1e-9
-    assert max(locked_eps) - min(locked_eps) < 1e-9
-    assert max(locked_pa) - min(locked_pa) < 1e-9
+
+    # The *frozen* isophotes must share the anchor's geometry exactly, since
+    # fix_center / fix_pa / fix_eps fire on the cloned cfg.
+    #
+    # The lock-triggering row is excluded deliberately. It carries
+    # ``lsb_auto_lock_anchor=True``, meaning "the lock committed here" — but it
+    # was fitted *before* the locked config existed, so its geometry is its own
+    # and is not frozen. Single-band does exactly the same
+    # (``driver.py`` `_mark_lsb_lock_state(next_iso, locked=True,
+    # is_anchor=True)`), and there too the trigger row's eps differs from the
+    # frozen rows'. Asserting over every locked row instead only passed because
+    # the trigger's fitted geometry happened to coincide with the anchor's on
+    # this fixture; it does not under loose validity.
+    frozen = [iso for iso in iso_locked if not iso.get("lsb_auto_lock_anchor")]
+    if frozen:
+        for key in ("x0", "y0", "eps", "pa"):
+            values = [float(iso[key]) for iso in frozen]
+            assert max(values) - min(values) < 1e-9, key
 
 
 def test_lsb_auto_lock_off_no_metadata():
@@ -2434,9 +2441,15 @@ def test_b1_simultaneous_original_post_hoc_ols_errors_rescaled():
     )
 
 
-def test_b2_forced_mode_warns_on_loose_validity():
-    """Review fix B2: forced extraction silently no-ops loose_validity;
-    the warn-and-ignore message must surface it."""
+def test_forced_mode_honours_loose_validity_without_warning():
+    """Forced extraction now supports loose validity, so it must not warn.
+
+    It used to sample shared-validity unconditionally and list
+    ``loose_validity`` among the features it silently ignored. Forced
+    photometry runs no joint solve — every band's statistics are computed
+    independently — so per-band sampling needed no new machinery, and the
+    warning would now be false.
+    """
     import warnings as _warnings
 
     from isoster.multiband import fit_image_multiband
@@ -2450,15 +2463,16 @@ def test_b2_forced_mode_warns_on_loose_validity():
     template = [_template_iso(sma=10.0)]
     with _warnings.catch_warnings(record=True) as w:
         _warnings.simplefilter("always")
-        fit_image_multiband(
+        res = fit_image_multiband(
             [img, img],
             masks=None,
             config=cfg,
             template_isophotes=template,
         )
-    msgs = [str(item.message) for item in w if "template_isophotes" in str(item.message)]
-    assert msgs, "expected the forced-mode warn-and-ignore message"
-    assert "loose_validity" in msgs[0]
+    forced_warnings = [str(item.message) for item in w if "template_isophotes" in str(item.message)]
+    assert not any("loose_validity" in m for m in forced_warnings)
+    assert res["forced_photometry_mode"] is True
+    assert len(res["isophotes"]) >= 1
 
 
 def test_b2_forced_mode_warns_on_non_independent_higher_harmonics():

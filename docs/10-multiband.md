@@ -10,7 +10,55 @@
 > design record (24 decisions captured from a structured interview
 > before any code was written) plus Phase-38 / Phase-39 update.
 
-## Status: shipped vs not-shipped vs experimental
+## Status
+
+The default configuration — shared validity, joint intercepts, the
+geometry-parameterised solve and `independent` higher harmonics, in OLS or WLS —
+is **supported**, not experimental, as of 2026-08-15. Two features keep their own
+warnings and are called out where they appear below:
+
+- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`,
+  because the single-band equivalent has benchmark regressions;
+- `loose_validity=True`, which is repaired and tested end to end but not yet
+  the default.
+
+Real-data validation is concentrated on a small number of targets, and the B=5
+path has synthetic coverage only — the asteris five-band cutouts are not
+available on the development machine.
+
+## Shared higher harmonics mean a shared *shape*
+
+`multiband_higher_harmonics='shared'` fits one dimensionless, Bender-normalised
+shape coefficient across bands, and writes each band's own raw amplitude back
+into Schema 1.
+
+This matters because a common shape deviation produces raw amplitude
+`A_n_raw = -A_n_norm · sma · grad_b` in band `b` — proportional to *that band's*
+radial gradient. Writing one identical raw value into every column therefore
+cannot represent one shared shape once the gradients differ, and because
+plotting divides by each band's own gradient, the reported normalised amplitudes
+came out band-dependent *and* dependent on the bands' arbitrary flux units. For
+a planted shape of 0.02 in both bands:
+
+| units | reported normalised a4, band g | band r |
+|---|---|---|
+| original | 0.02000 | 0.02000 |
+| band r × 10 | 0.11000 | 0.01100 |
+| band r × 0.1 | 0.01100 | 0.11000 |
+
+After the reparameterisation both bands report 0.02000 at every rescaling. The
+raw per-band columns now legitimately differ — that is what a shared shape looks
+like in raw units — and the invariant to check is that they *normalise* to one
+value.
+
+**The `simultaneous_in_loop` and `simultaneous_original` modes still stamp one
+identical raw amplitude into every band**, so they represent a shared raw
+intensity residual rather than a shared shape. That is a further reason those
+modes keep their experimental warning, and it is why they no longer agree with
+`shared` column-by-column. The default `independent` mode is unaffected: it fits
+each band separately from its own gradient and was always self-consistent.
+
+## Backport status: shipped vs not-shipped vs experimental
 
 The table below tracks every Stage backport from single-band into the
 multi-band path, plus the Phase 39 finalization. Use it to decide
@@ -57,7 +105,7 @@ pre-merge review pass.
 3. **Forced-photometry mode silently ignores several iteration-only
    features.** `lsb_auto_lock`, `use_outer_center_regularization`,
    `use_central_regularization`, `harmonic_combination='ref'`,
-   `loose_validity`, and `multiband_higher_harmonics ∈ {shared,
+   and `multiband_higher_harmonics ∈ {shared,
    simultaneous_in_loop, simultaneous_original}` are no-ops under
    forced extraction. The driver emits a `UserWarning` listing which
    features were dropped (review fix B2).
@@ -124,25 +172,42 @@ pre-merge review pass.
     WLS / OLS variance-mode tag goes onto a `model_copy` so the
     caller's instance is safe to reuse across runs.
 
-13. **`loose_validity=True` is not production-ready.** It is correct at
-    the sampler level, but four things break downstream:
+13. **`loose_validity=True` is supported but not yet the default.** Every
+    band keeps its own surviving samples instead of the cross-band
+    intersection. This matters more than it sounds: shared validity
+    drops a sample from *every* band whenever *any* band rejects it, and
+    on the HSC demo with its real per-band masks that discards 18-27% of
+    usable samples routinely — and at one radius, where band g is fully
+    masked, it discards **everything**, failing an isophote that r and i
+    could each measure with 370 samples.
 
-    - B=1 always returns `stop_code=3` (the joint solve requires ≥2
-      surviving bands). Intended — use single-band isoster for one band.
-    - Forced photometry cannot honour it at all and warns that it is
-      ignored (item 3 above).
-    - `lsb_auto_lock` does not freeze the lock-triggering isophote's
-      geometry to the anchor, so locked rows disagree by ~2.7 px in
-      `x0` where shared validity has them identical.
-    - `intens_err_<b>` takes the direct ring-statistic error even when
-      `fit_per_band_intens_jointly=True`, where `intens_<b>` is a
-      jointly fitted intercept whose uncertainty belongs in the joint
-      covariance. Measured on incomplete angular coverage: correct
-      joint variance 0.029156 against the selected 0.020000, a ~31%
-      underestimate.
+    Four defects were repaired in the 2026-08-15 maturity pass:
 
-    `compute_joint_gradient` also samples in shared mode regardless.
-    Leave it at the default `False` until these are fixed.
+    - Forced photometry now honours the flag end to end (per-band
+      sampling, clipping, statistics and jagged harmonics). An isophote
+      fails only when *every* band is empty.
+    - `intens_err_<b>` keeps its joint covariance when
+      `fit_per_band_intens_jointly=True`; the direct ring SEM was
+      understating by ~34% under incomplete angular coverage.
+    - B=1 combined with `loose_validity=True` is now rejected at
+      configuration time rather than failing every isophote mid-fit.
+    - A test asserting that *all* locked rows share geometry was
+      over-tight and has been corrected — see the note below.
+
+    `compute_joint_gradient` now samples in the same validity mode as the
+    solve, so the numerator and denominator of every geometry correction
+    describe one sample set. It previously sampled shared-validity
+    regardless, which let a single fully-masked band collapse the joint
+    gradient to the "no usable ring" sentinel while other bands had full
+    rings.
+
+    **Not a defect:** the `lsb_auto_lock` trigger row carries its own
+    geometry rather than the anchor's. It is fitted before the locked
+    config exists, and `lsb_locked=True` there means "the lock committed
+    here", not "this row is frozen"; the anchor is identified separately
+    via `lsb_auto_lock_anchor_sma`. Single-band behaves identically. Only
+    the rows with `lsb_auto_lock_anchor=False` are frozen, and those do
+    share the anchor's geometry exactly in both validity modes.
 
 ## What it does
 
@@ -1152,7 +1217,7 @@ five-parameter model it fitted, and it is passed through the
 `intens_err_<ref>` therefore share one scale, and both are now bit-identical
 under changes to any other band.
 
-### Two deliberate remaining differences
+### One deliberate remaining difference
 
 - **`intens_err` for a fitted intercept, and the `sigma_bg` floor.** Under OLS,
   single-band reports
@@ -1164,10 +1229,6 @@ under changes to any other band.
   floored along with the geometry errors from that same solve. The two
   implementations differ structurally here and cannot both be satisfied;
   multi-band keeps every error from one solve on one scale.
-- **`compute_joint_gradient` samples in shared-validity mode** even when
-  `loose_validity=True`, so per-band gradients come from the cross-band
-  intersection. This belongs to the outstanding loose-validity work (see "Known
-  limitations and gotchas") rather than to uncertainty parity.
 
 ## Testing
 

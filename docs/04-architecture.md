@@ -35,8 +35,17 @@ band interfaces above are **not** modified.
 `fit_image_multiband` with `len(bands) == 1` delegates to `fit_image` and
 returns the legacy single-band schema unmodified.
 
-Status: experimental (beta) — the API and the Schema-1 output layout may
-change between releases. The CLI (`isoster-mb`), FITS/ASDF I/O,
+Status: **supported** for the default configuration (shared validity, joint
+intercepts, geometry-parameterised solve, `independent` higher harmonics), in
+both OLS and WLS. Promoted from experimental (beta) on 2026-08-15 after the
+maturity pass recorded in `docs/agent/plans/2026-08-14-multiband-maturity.md`:
+consistent WLS gradient weighting, a geometry-parameterised solve, full-fit
+unit invariance, planted-truth WLS coverage, repaired loose validity, a
+known-truth colour-gradient demonstration, and a B=1 parity harness over a
+16-cell config matrix that pins agreement with single-band at machine
+precision. Individual features still carry their own warnings — see
+`docs/10-multiband.md`. The Schema-1 output layout may still gain columns
+additively. The CLI (`isoster-mb`), FITS/ASDF I/O,
 curve-of-growth attachment, LSB auto-lock, and outer-center
 regularization are all implemented with multi-band semantics. The
 single-band ISOFIT API (`simultaneous_harmonics`) is not carried over;
@@ -59,7 +68,7 @@ outside the public docs tree.
 - `isoster/numba_kernels.py`: optional Numba-accelerated kernels with NumPy fallback.
 - `isoster/output_paths.py`: output directory and file path construction helpers.
 - `isoster/optimize.py`: compatibility facade re-exporting driver/fitting APIs.
-- `isoster/multiband/` (Stage-1 experimental): parallel module tree for
+- `isoster/multiband/`: parallel module tree for
   joint multi-band free fit. Sibling of the core modules, never edits
   them. Contains `sampling_mb.py`, `fitting_mb.py`, `driver_mb.py`,
   `config_mb.py`, `utils_mb.py`, `plotting_mb.py`, and a multi-band

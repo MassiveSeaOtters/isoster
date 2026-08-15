@@ -269,8 +269,12 @@ def test_reference_mode_geometry_and_reference_intensity_share_one_scale():
 
     for key in ("eps_err", "pa_err", "intens_err_g"):
         assert results[50.0][key] / results[5.0][key] == pytest.approx(10.0, rel=0.01), key
-    # Non-reference band: a plain ring statistic, unaffected by the floor.
-    assert results[50.0]["intens_err_r"] == pytest.approx(results[5.0]["intens_err_r"], rel=1e-12)
+    # Non-reference band: a plain ring statistic, so it does not take the floor.
+    # Not bit-identical, because sigma_bg also raises the convergence noise floor
+    # (`effective_rms`), so the two runs stop at slightly different geometry and
+    # sample slightly different rings. The contrast that matters is 1x against
+    # the 10x above.
+    assert results[50.0]["intens_err_r"] / results[5.0]["intens_err_r"] == pytest.approx(1.0, rel=0.1)
 
 
 def azimuthal_variance_map(size=121, low=0.5, high=200.0):
