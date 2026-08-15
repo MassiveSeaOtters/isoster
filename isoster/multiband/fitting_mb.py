@@ -802,8 +802,17 @@ def evaluate_joint_model(
     coeffs: NDArray[np.float64],
     n_bands: int,
     harmonic_orders: Optional[Sequence[int]] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> NDArray[np.float64]:
     """Evaluate the joint model intensities for every band at every angle.
+
+    ``band_scale`` multiplies the *shared* block per band, leaving the per-band
+    intercepts alone. It is required whenever the solve used the geometry
+    parameterisation: there the fitted amplitude in band ``b`` is
+    ``delta * grad_b``, so a single amplitude applied to every band does not
+    reconstruct the model that was actually fitted. On an exactly solvable
+    two-band ring with gradients -1 and -10, the true fitted model leaves a
+    residual of 4e-14 while a pooled-amplitude reconstruction leaves 0.45.
 
     With ``harmonic_orders`` left at the default ``None`` (or empty), the
     model is the standard 5-parameter geometric form ``I0_b + A1·sin(φ)
@@ -822,9 +831,10 @@ def evaluate_joint_model(
             an = float(coeffs[n_bands + 4 + 2 * j])
             bn = float(coeffs[n_bands + 4 + 2 * j + 1])
             geom = geom + an * np.sin(int(n_order) * angles) + bn * np.cos(int(n_order) * angles)
+    scale = None if band_scale is None else np.asarray(band_scale, dtype=np.float64)
     out = np.empty((n_bands, len(angles)), dtype=np.float64)
     for b in range(n_bands):
-        out[b] = coeffs[b] + geom
+        out[b] = coeffs[b] + (geom if scale is None else scale[b] * geom)
     return out
 
 
@@ -1362,6 +1372,7 @@ def _compute_parameter_errors_from_joint(
     band_indices: Optional[Sequence[int]] = None,
     harmonic_orders: Optional[Sequence[int]] = None,
     residual_variance: Optional[float] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[float, float, float, float]:
     """
     Map the joint (B+4)x(B+4) covariance into geometric parameter errors.
@@ -1436,6 +1447,7 @@ def _compute_parameter_errors_from_joint(
                 band_indices=band_indices,
                 floor=var_residual_floor,
                 harmonic_orders=harmonic_orders,
+                band_scale=band_scale,
             )
             if var_residual is None or not np.isfinite(var_residual):
                 return 0.0, 0.0, 0.0, 0.0
@@ -1701,6 +1713,9 @@ def fit_isophote_mb(
         # Set when this iteration's solve returned geometry steps rather than
         # amplitudes, so the pooled-gradient rescale below knows to run.
         solved_in_geometry_units = False
+        # Per-band factor for reconstructing the fitted model; all ones unless
+        # the solve ran in geometry units. See the rescale below.
+        band_geometry_scale = np.ones(n_bands, dtype=np.float64)
         # Per-band gradients that turn the shared columns into geometry steps.
         # ``None`` keeps the amplitude parameterisation. The scaling needs a
         # gradient at solve time and the loop only produces one afterwards, so
@@ -2100,6 +2115,17 @@ def fit_isophote_mb(
             # Every shared column was scaled by grad_b in the solve, including
             # the simultaneous higher-order block, so all of them come back.
             scale[n_bands:] = float(grad_joint)
+            # The rescale puts the shared block in the units the geometry update
+            # and error propagation expect, but band b's *fitted* amplitude is
+            # delta*grad_b, not delta*grad_joint. Anything that reconstructs the
+            # model needs this per-band factor, or the residuals it computes are
+            # not the residuals of the fit that was performed.
+            band_geometry_scale = np.ones(n_bands, dtype=np.float64)
+            if geometry_gradients is not None and grad_joint:
+                gradients_used = np.asarray(geometry_gradients, dtype=np.float64)
+                band_geometry_scale = np.where(
+                    np.isfinite(gradients_used), gradients_used, 0.0
+                ) / float(grad_joint)
             coeffs = coeffs * scale
             if cov_full is not None:
                 cov_full = cov_full * np.outer(scale, scale)
@@ -2146,6 +2172,8 @@ def fit_isophote_mb(
             model_per_band_loose: List[NDArray[np.float64]] = []
             residual_chunks: List[NDArray[np.float64]] = []
             weight_chunks: List[NDArray[np.float64]] = []
+            # Bands are skipped when empty, so chunk order is not band order.
+            ref_chunk_index: Dict[int, int] = {}
             A1c, B1c, A2c, B2c = (
                 float(coeffs[n_bands]),
                 float(coeffs[n_bands + 1]),
@@ -2169,21 +2197,22 @@ def fit_isophote_mb(
                     model_per_band_loose.append(np.empty(0, dtype=np.float64))
                     continue
                 p_b = phi_post_clip[b_idx]
-                m_b = (
-                    float(coeffs[b_idx])
-                    + A1c * np.sin(p_b)
+                s_b = float(band_geometry_scale[b_idx])
+                m_b = float(coeffs[b_idx]) + s_b * (
+                    A1c * np.sin(p_b)
                     + B1c * np.cos(p_b)
                     + A2c * np.sin(2.0 * p_b)
                     + B2c * np.cos(2.0 * p_b)
                 )
                 for n_order, an, bn in higher_in_loop_terms:
-                    m_b = m_b + an * np.sin(n_order * p_b) + bn * np.cos(n_order * p_b)
+                    m_b = m_b + s_b * (an * np.sin(n_order * p_b) + bn * np.cos(n_order * p_b))
                 model_per_band_loose.append(m_b)
                 i_b = intens_post_clip[b_idx]
                 # Both arrays now come from the same post-clip kept set
                 # so the size match is guaranteed; the explicit check
                 # is a defensive guard.
                 if i_b.size == m_b.size:
+                    ref_chunk_index[b_idx] = len(residual_chunks)
                     residual_chunks.append(i_b - m_b)
                     # Weight this band's residuals exactly as the solve weighted
                     # its data: the band weight, the per-sample inverse variance
@@ -2201,11 +2230,25 @@ def fit_isophote_mb(
                         weight_chunks.append(np.full(i_b.size, w_b, dtype=np.float64))
             rms = float(np.std(np.concatenate(residual_chunks))) if residual_chunks else float("nan")
             if residual_chunks:
-                res_all = np.concatenate(residual_chunks)
-                w_all = np.concatenate(weight_chunks)
-                w_sum = float(np.sum(w_all))
-                if np.isfinite(w_sum) and w_sum > 0.0:
-                    convergence_rms = float(np.sqrt(np.sum(w_all * res_all**2) / w_sum))
+                if use_ref_only:
+                    # Reference mode drives geometry from one band, so only that
+                    # band's residuals may decide when the fit stops. The
+                    # rectangular branch already did this; the jagged branch
+                    # pooled every band, which let a passive band's noise move
+                    # the iteration count under loose validity.
+                    ref_pos = ref_chunk_index.get(ref_idx)
+                    if ref_pos is not None:
+                        res_ref = residual_chunks[ref_pos]
+                        w_ref = weight_chunks[ref_pos]
+                        w_sum = float(np.sum(w_ref))
+                        if np.isfinite(w_sum) and w_sum > 0.0:
+                            convergence_rms = float(np.sqrt(np.sum(w_ref * res_ref**2) / w_sum))
+                else:
+                    res_all = np.concatenate(residual_chunks)
+                    w_all = np.concatenate(weight_chunks)
+                    w_sum = float(np.sum(w_all))
+                    if np.isfinite(w_sum) and w_sum > 0.0:
+                        convergence_rms = float(np.sqrt(np.sum(w_all * res_all**2) / w_sum))
             model_per_band = model_per_band_loose  # type: ignore[assignment]
         else:
             model_per_band = evaluate_joint_model(
@@ -2213,6 +2256,7 @@ def fit_isophote_mb(
                 coeffs,
                 n_bands,
                 harmonic_orders=eval_orders_in_loop,
+                band_scale=band_geometry_scale,
             )
             residuals_flat = (intens_per_band - model_per_band).reshape(-1)
             rms = float(np.std(residuals_flat))
@@ -2309,6 +2353,7 @@ def fit_isophote_mb(
                     # alone, so its scale must too. None in joint mode, where
                     # the pooled estimate is correct.
                     residual_variance=ref_ols_var_residual,
+                    band_scale=band_geometry_scale,
                 )
             else:
                 x0_err = y0_err = eps_err = pa_err = 0.0
@@ -2359,6 +2404,7 @@ def fit_isophote_mb(
                     jagged=False,
                     floor=_sigma_bg_variance_floor(config),
                     harmonic_orders=eval_orders_in_loop,
+                    band_scale=band_geometry_scale,
                 )
             # When the per-band intercept is computed post-fit (ref mode for
             # non-ref bands, or fit_per_band_intens_jointly=False for every
@@ -2547,6 +2593,7 @@ def fit_isophote_mb(
                         jagged=True,
                         last_cov=last_joint_cov,
                         last_wls_mode=last_joint_wls_mode,
+                        band_scale=band_geometry_scale,
                         dropped_band_indices=set(last_dropped_band_indices),
                     )
                 else:
@@ -2564,6 +2611,7 @@ def fit_isophote_mb(
                         jagged=False,
                         last_cov=last_joint_cov,
                         last_wls_mode=last_joint_wls_mode,
+                        band_scale=band_geometry_scale,
                     )
             break
 
@@ -2702,6 +2750,7 @@ def fit_isophote_mb(
                             jagged=True,
                             last_cov=last_joint_cov,
                             last_wls_mode=last_joint_wls_mode,
+                            band_scale=band_geometry_scale,
                             dropped_band_indices=set(last_dropped_band_indices),
                         )
                     else:
@@ -2719,6 +2768,7 @@ def fit_isophote_mb(
                             jagged=False,
                             last_cov=last_joint_cov,
                             last_wls_mode=last_joint_wls_mode,
+                            band_scale=band_geometry_scale,
                         )
                 break
 
@@ -2925,6 +2975,7 @@ def _attach_shared_higher_harmonics(
     jagged: bool,
     dropped_band_indices: Optional[set] = None,
     var_residual_floor: Optional[float] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> None:
     """Compute SHARED higher-order harmonic coefficients and write per-band columns.
 
@@ -3029,7 +3080,10 @@ def _attach_shared_higher_harmonics(
             continue
 
         i0_b = float(last_coeffs[b_idx])
-        geom_pred = i0_b + A1 * np.sin(ang_b) + B1 * np.cos(ang_b) + A2 * np.sin(2.0 * ang_b) + B2 * np.cos(2.0 * ang_b)
+        s_b = 1.0 if band_scale is None else float(np.asarray(band_scale)[b_idx])
+        geom_pred = i0_b + s_b * (
+            A1 * np.sin(ang_b) + B1 * np.cos(ang_b) + A2 * np.sin(2.0 * ang_b) + B2 * np.cos(2.0 * ang_b)
+        )
         residual_b = int_b - geom_pred
 
         a_b = np.empty((ang_b.size, 2 * L), dtype=np.float64)
@@ -3128,8 +3182,13 @@ def _compute_joint_residual_variance(
     band_indices: Optional[Sequence[int]] = None,
     floor: Optional[float] = None,
     harmonic_orders: Optional[Sequence[int]] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> Optional[float]:
     """Residual variance of a joint solve, weighted by per-band band weights.
+
+    ``band_scale`` multiplies the shared block per band, and is required when the
+    solve used the geometry parameterisation — see :func:`evaluate_joint_model`.
+    Without it this measures the residual of a model that was never fitted.
 
     Mirrors the OLS rescale used in :func:`_compute_parameter_errors_from_joint`
     (rectangular shared-validity case) but extended to handle the loose-
@@ -3177,8 +3236,12 @@ def _compute_joint_residual_variance(
                 B1 = float(coeffs[n_bands + 1])
                 A2 = float(coeffs[n_bands + 2])
                 B2 = float(coeffs[n_bands + 3])
-                model = (
-                    I0_b + A1 * np.sin(ang_b) + B1 * np.cos(ang_b) + A2 * np.sin(2.0 * ang_b) + B2 * np.cos(2.0 * ang_b)
+                s_b = 1.0 if band_scale is None else float(np.asarray(band_scale)[b_idx])
+                model = I0_b + s_b * (
+                    A1 * np.sin(ang_b)
+                    + B1 * np.cos(ang_b)
+                    + A2 * np.sin(2.0 * ang_b)
+                    + B2 * np.cos(2.0 * ang_b)
                 )
                 # Trailing simultaneous higher-order block, when the caller
                 # fitted one. These terms are part of the model, so they belong
@@ -3187,7 +3250,9 @@ def _compute_joint_residual_variance(
                     for j, n_order in enumerate(harmonic_orders):
                         a_n = float(coeffs[n_bands + 4 + 2 * j])
                         b_n = float(coeffs[n_bands + 4 + 2 * j + 1])
-                        model = model + a_n * np.sin(int(n_order) * ang_b) + b_n * np.cos(int(n_order) * ang_b)
+                        model = model + s_b * (
+                            a_n * np.sin(int(n_order) * ang_b) + b_n * np.cos(int(n_order) * ang_b)
+                        )
                 w_b = float(band_weights_arr[b_idx]) if band_weights_arr is not None else 1.0
                 sse += float(np.sum(w_b * (int_b - model) ** 2))
                 n_samples += int(ang_b.size)
@@ -3197,7 +3262,9 @@ def _compute_joint_residual_variance(
             # Rectangular shared-validity: all bands share the same angles.
             # ``intens_per_band`` is shape (B, N).
             assert isinstance(intens_per_band, np.ndarray) and isinstance(angles, np.ndarray)
-            model_full = evaluate_joint_model(angles, coeffs, n_bands, harmonic_orders=harmonic_orders)
+            model_full = evaluate_joint_model(
+                angles, coeffs, n_bands, harmonic_orders=harmonic_orders, band_scale=band_scale
+            )
             res = intens_per_band - model_full
             # Apply per-band weights row-wise so the OLS rescale matches
             # the row-weighted normal-equation solve.
@@ -3459,6 +3526,7 @@ def _attach_higher_harmonics_dispatch(
     last_cov: Optional[NDArray[np.float64]] = None,
     last_wls_mode: bool = False,
     dropped_band_indices: Optional[set] = None,
+    band_scale: Optional[NDArray[np.float64]] = None,
 ) -> None:
     """Pick the higher-order harmonic attachment path based on config.
 
@@ -3490,6 +3558,7 @@ def _attach_higher_harmonics_dispatch(
             jagged=jagged,
             dropped_band_indices=dropped_band_indices,
             var_residual_floor=_sigma_bg_variance_floor(config),
+            band_scale=band_scale,
         )
     elif mode == "simultaneous_in_loop":
         _attach_simultaneous_higher_harmonics_from_coeffs(

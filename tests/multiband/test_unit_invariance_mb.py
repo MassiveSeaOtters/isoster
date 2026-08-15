@@ -137,3 +137,62 @@ def test_reported_rms_stays_the_physical_ring_dispersion():
     reference = fit_with_units(1.0, geometry_parameterized=True)
     rescaled = fit_with_units(10.0, geometry_parameterized=True)
     assert float(rescaled["rms"]) > 2.0 * float(reference["rms"])
+
+
+# ---------------------------------------------------------------------------
+# The reconstructed model must be the model that was actually fitted
+# ---------------------------------------------------------------------------
+
+
+def _joint_fit_and_reconstruct(gradients, angles):
+    """Fit a planted geometry step, then rebuild the model both ways."""
+    from isoster.multiband.fitting_mb import (
+        evaluate_joint_model,
+        fit_first_and_second_harmonics_joint,
+        joint_gradient_pooling_weights,
+    )
+
+    delta = 0.100
+    gradients = np.asarray(gradients, dtype=np.float64)
+    intens = np.vstack([100.0 + delta * g * np.sin(angles) for g in gradients])
+    coeffs, _cov, _wls = fit_first_and_second_harmonics_joint(
+        angles, intens, np.ones(gradients.size), None, per_band_gradients=gradients
+    )
+    pooling = joint_gradient_pooling_weights(np.ones(gradients.size), None, gradients.size)
+    pooled_gradient = float(np.sum(pooling * gradients) / np.sum(pooling))
+    equivalent = coeffs.copy()
+    equivalent[gradients.size :] = coeffs[gradients.size :] * pooled_gradient
+    band_scale = gradients / pooled_gradient
+    corrected = evaluate_joint_model(angles, equivalent, gradients.size, band_scale=band_scale)
+    uncorrected = evaluate_joint_model(angles, equivalent, gradients.size)
+    return delta, float(coeffs[gradients.size]), intens, corrected, uncorrected
+
+
+@pytest.mark.parametrize("coverage", [1.0, 0.6])
+def test_geometry_solve_model_reconstruction_is_exact(coverage):
+    """Zero residual against the model the solve actually fitted.
+
+    Under the geometry parameterisation band ``b``'s fitted amplitude is
+    ``delta * grad_b``, so reconstructing with one pooled amplitude for every
+    band describes a model that was never fitted. That false residual reached
+    ``rms`` and ``rms_<b>``, the convergence scatter, the OLS residual-variance
+    scaling and therefore the formal errors, and the shared higher-harmonic
+    subtraction — where on an incomplete ring it leaked into non-zero third and
+    fourth order coefficients with no higher-order signal planted.
+    """
+    n = 256
+    angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)[: int(n * coverage)]
+    delta, recovered, intens, corrected, uncorrected = _joint_fit_and_reconstruct([-1.0, -10.0], angles)
+
+    assert recovered == pytest.approx(delta, rel=1e-9)
+    assert np.abs(intens - corrected).max() < 1e-10
+    # And the previous reconstruction was badly wrong, so this cannot pass by
+    # the two happening to coincide.
+    assert np.abs(intens - uncorrected).max() > 0.4
+
+
+def test_equal_gradients_make_both_reconstructions_agree():
+    """The defect needs unequal gradients; with equal ones nothing moves."""
+    angles = np.linspace(0.0, 2.0 * np.pi, 256, endpoint=False)
+    _delta, _rec, _intens, corrected, uncorrected = _joint_fit_and_reconstruct([-4.0, -4.0], angles)
+    np.testing.assert_allclose(corrected, uncorrected, rtol=1e-12)

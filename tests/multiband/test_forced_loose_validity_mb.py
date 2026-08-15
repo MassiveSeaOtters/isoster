@@ -205,3 +205,59 @@ def test_gradient_modes_agree_when_nothing_is_masked():
     assert loose_grad == pytest.approx(shared_grad, rel=1e-12)
     for a, b in zip(shared_per_band, loose_per_band):
         assert b == pytest.approx(a, rel=1e-12)
+
+
+@pytest.mark.parametrize("loose", [False, True])
+@pytest.mark.parametrize("wls", [False, True])
+def test_reference_mode_convergence_ignores_passive_bands(loose, wls):
+    """Reference mode drives geometry from one band, so only that band's
+    residuals may decide when the fit stops.
+
+    The rectangular branch was fixed first; the jagged branch still pooled every
+    band, so under loose validity a passive band's noise moved the iteration
+    count (11 -> 7 in OLS) and shifted reported errors by ~3%. The reference
+    band is deliberately not first in the band list here, and the surviving
+    counts differ between bands.
+    """
+    from isoster.multiband.fitting_mb import fit_isophote_mb
+
+    def galaxy(amplitude, seed, sigma):
+        rng = np.random.default_rng(seed)
+        y, x = np.mgrid[0:256, 0:256].astype(np.float64)
+        dx, dy = x - 128.0, y - 128.0
+        c, s = np.cos(0.45), np.sin(0.45)
+        xr, yr = dx * c + dy * s, -dx * s + dy * c
+        r = np.sqrt(xr**2 + (yr / 0.75) ** 2)
+        bn = 2.0 * 1.5 - 0.327
+        return amplitude * np.exp(-bn * ((r / 25.0) ** (1.0 / 1.5) - 1.0)) + rng.normal(0.0, sigma, (256, 256))
+
+    results = []
+    for passive_noise in (0.05, 5.0):
+        images = [galaxy(30.0, 1, passive_noise), galaxy(50.0, 0, 0.05), galaxy(80.0, 2, 0.05)]
+        variance_maps = (
+            [np.full((256, 256), passive_noise**2), np.full((256, 256), 0.05**2), np.full((256, 256), 0.05**2)]
+            if wls
+            else None
+        )
+        cfg = IsosterConfigMB(
+            bands=["r", "g", "i"],  # reference band is NOT first
+            reference_band="g",
+            harmonic_combination="ref",
+            nclip=0,
+            loose_validity=loose,
+        )
+        results.append(
+            fit_isophote_mb(
+                images,
+                None,
+                30.0,
+                {"x0": 128.0, "y0": 128.0, "eps": 0.20, "pa": 0.40},
+                cfg,
+                variance_maps=variance_maps,
+            )
+        )
+
+    quiet, noisy = results
+    assert int(quiet["niter"]) == int(noisy["niter"])
+    for key in ("eps", "pa", "eps_err", "pa_err"):
+        assert float(noisy[key]) == pytest.approx(float(quiet[key]), rel=1e-9), key
