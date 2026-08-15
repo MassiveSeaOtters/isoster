@@ -201,3 +201,81 @@ def test_solver_intercept_covariance_uses_residual_scatter_ols(name, solver):
         assert cov[b, b] < raw / 10.0
         # It is a real scatter estimate, not zero.
         assert cov[b, b] > 0.0
+
+
+# ---------------------------------------------------------------------------
+# Loose validity: a coupled intercept keeps its joint covariance
+# ---------------------------------------------------------------------------
+
+
+def loose_validity_case(loose_validity, fit_jointly=True):
+    """Planted galaxy with a masked wedge, so coverage is incomplete.
+
+    Incomplete angular coverage is what makes the intercept correlate with the
+    harmonic terms; with full coverage the coupling nearly vanishes and the
+    direct ring SEM happens to agree.
+    """
+    from isoster.multiband.config_mb import IsosterConfigMB
+    from isoster.multiband.fitting_mb import fit_isophote_mb
+
+    def planted(amplitude, seed, h=256, w=256, re=25.0, sigma=0.05, n_sersic=1.5):
+        rng = np.random.default_rng(seed)
+        y, x = np.mgrid[0:h, 0:w].astype(np.float64)
+        dx, dy = x - 128.0, y - 128.0
+        c, s = np.cos(0.45), np.sin(0.45)
+        xr, yr = dx * c + dy * s, -dx * s + dy * c
+        r = np.sqrt(xr**2 + (yr / 0.75) ** 2)
+        bn = 2.0 * n_sersic - 0.327
+        return amplitude * np.exp(-bn * ((r / re) ** (1.0 / n_sersic) - 1.0)) + rng.normal(0.0, sigma, (h, w))
+
+    images = [planted(a, seed=b) for b, a in enumerate([20.0, 50.0, 80.0])]
+    yy, xx = np.mgrid[:256, :256]
+    angle = np.arctan2(yy - 128.0, xx - 128.0)
+    wedge = (angle > 0.2) & (angle < 2.2)
+    masks = [wedge.copy() for _ in range(3)]
+    variance_maps = [np.full((256, 256), 0.05**2) for _ in range(3)]
+    cfg = IsosterConfigMB(
+        bands=["g", "r", "i"],
+        reference_band="i",
+        nclip=0,
+        loose_validity=loose_validity,
+        fit_per_band_intens_jointly=fit_jointly,
+    )
+    return fit_isophote_mb(
+        images,
+        masks,
+        40.0,
+        {"x0": 128.0, "y0": 128.0, "eps": 0.25, "pa": 0.45},
+        cfg,
+        variance_maps=variance_maps,
+    )
+
+
+def test_loose_validity_keeps_the_joint_covariance_for_coupled_intercepts():
+    """`loose_validity` and `fit_per_band_intens_jointly` are independent.
+
+    Under loose validity the jagged solve still fits ``I0_b`` as a coupled
+    parameter and maps its covariance back for surviving bands, so taking the
+    band's own ring SEM ignored the coupling. Measured: the direct SEM
+    understates by ~34% on this fixture.
+    """
+    out = loose_validity_case(loose_validity=True)
+    n_b = int(out["n_valid_r"])
+    direct_sem = float(np.sqrt(_weighted_mean_variance(np.full(n_b, 0.05**2))))
+    assert out["intens_err_r"] > 1.2 * direct_sem
+
+
+def test_loose_and_shared_agree_when_the_masks_match():
+    """With identical per-band masks the two validity modes must not diverge."""
+    loose = loose_validity_case(loose_validity=True)
+    shared = loose_validity_case(loose_validity=False)
+    for band in ("g", "r", "i"):
+        assert loose[f"intens_err_{band}"] == pytest.approx(shared[f"intens_err_{band}"], rel=1e-9)
+
+
+def test_decoupled_intercepts_still_take_the_direct_ring_sem():
+    """The direct path is still right where the intercept is not co-fitted."""
+    out = loose_validity_case(loose_validity=True, fit_jointly=False)
+    n_b = int(out["n_valid_r"])
+    direct_sem = float(np.sqrt(_weighted_mean_variance(np.full(n_b, 0.05**2))))
+    assert out["intens_err_r"] == pytest.approx(direct_sem, rel=1e-9)

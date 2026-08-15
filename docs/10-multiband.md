@@ -57,7 +57,7 @@ pre-merge review pass.
 3. **Forced-photometry mode silently ignores several iteration-only
    features.** `lsb_auto_lock`, `use_outer_center_regularization`,
    `use_central_regularization`, `harmonic_combination='ref'`,
-   `loose_validity`, and `multiband_higher_harmonics ∈ {shared,
+   and `multiband_higher_harmonics ∈ {shared,
    simultaneous_in_loop, simultaneous_original}` are no-ops under
    forced extraction. The driver emits a `UserWarning` listing which
    features were dropped (review fix B2).
@@ -124,25 +124,39 @@ pre-merge review pass.
     WLS / OLS variance-mode tag goes onto a `model_copy` so the
     caller's instance is safe to reuse across runs.
 
-13. **`loose_validity=True` is not production-ready.** It is correct at
-    the sampler level, but four things break downstream:
+13. **`loose_validity=True` is supported but not yet the default.** Every
+    band keeps its own surviving samples instead of the cross-band
+    intersection. This matters more than it sounds: shared validity
+    drops a sample from *every* band whenever *any* band rejects it, and
+    on the HSC demo with its real per-band masks that discards 18-27% of
+    usable samples routinely — and at one radius, where band g is fully
+    masked, it discards **everything**, failing an isophote that r and i
+    could each measure with 370 samples.
 
-    - B=1 always returns `stop_code=3` (the joint solve requires ≥2
-      surviving bands). Intended — use single-band isoster for one band.
-    - Forced photometry cannot honour it at all and warns that it is
-      ignored (item 3 above).
-    - `lsb_auto_lock` does not freeze the lock-triggering isophote's
-      geometry to the anchor, so locked rows disagree by ~2.7 px in
-      `x0` where shared validity has them identical.
-    - `intens_err_<b>` takes the direct ring-statistic error even when
-      `fit_per_band_intens_jointly=True`, where `intens_<b>` is a
-      jointly fitted intercept whose uncertainty belongs in the joint
-      covariance. Measured on incomplete angular coverage: correct
-      joint variance 0.029156 against the selected 0.020000, a ~31%
-      underestimate.
+    Four defects were repaired in the 2026-08-15 maturity pass:
 
-    `compute_joint_gradient` also samples in shared mode regardless.
-    Leave it at the default `False` until these are fixed.
+    - Forced photometry now honours the flag end to end (per-band
+      sampling, clipping, statistics and jagged harmonics). An isophote
+      fails only when *every* band is empty.
+    - `intens_err_<b>` keeps its joint covariance when
+      `fit_per_band_intens_jointly=True`; the direct ring SEM was
+      understating by ~34% under incomplete angular coverage.
+    - B=1 combined with `loose_validity=True` is now rejected at
+      configuration time rather than failing every isophote mid-fit.
+    - A test asserting that *all* locked rows share geometry was
+      over-tight and has been corrected — see the note below.
+
+    Known remaining differences: `compute_joint_gradient` samples in
+    shared mode regardless of the flag, so per-band gradients come from
+    the cross-band intersection.
+
+    **Not a defect:** the `lsb_auto_lock` trigger row carries its own
+    geometry rather than the anchor's. It is fitted before the locked
+    config exists, and `lsb_locked=True` there means "the lock committed
+    here", not "this row is frozen"; the anchor is identified separately
+    via `lsb_auto_lock_anchor_sma`. Single-band behaves identically. Only
+    the rows with `lsb_auto_lock_anchor=False` are frozen, and those do
+    share the anchor's geometry exactly in both validity modes.
 
 ## What it does
 

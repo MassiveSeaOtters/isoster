@@ -94,6 +94,35 @@ class IsosterConfigMB(BaseModel):
         "extraction). Use ``'ref'`` for debugging or when the joint solver "
         "is suspected of misbehaving.",
     )
+    geometry_parameterized_solve: bool = Field(
+        default=False,
+        description="Fit shared *geometry steps* instead of a shared harmonic "
+        "amplitude (experimental, under evaluation).\n\n"
+        "A common geometry step ``delta`` produces a ring harmonic of amplitude "
+        "``delta * grad_b`` in band ``b``, so one shared amplitude across bands "
+        "is a misspecified model whenever the bands have different radial "
+        "gradients: it fits ``delta`` times a weight-averaged gradient, which "
+        "then has to be divided back out by a separately pooled gradient. With "
+        "``True`` each band's harmonic columns are scaled by that band's "
+        "gradient, so the shared parameters are the geometry steps themselves.\n\n"
+        "Effect: the effective per-band weight becomes ``w_b * grad_b**2 / "
+        "var_b`` (minimum-variance) rather than ``w_b / var_b``. Measured on "
+        "synthetic truth, this cuts the scatter of the recovered geometry by "
+        "roughly 25% wherever the two weightings disagree — on HSC g/r/i the "
+        "amplitude weighting was close to inverted against the bands' "
+        "information content — and changes nothing where they agree. It also "
+        "improves OLS, where the amplitude form weights bands equally "
+        "regardless of how much geometric signal each carries.\n\n"
+        "The scaling uses the previous iteration's per-band gradients, which "
+        "are slowly-varying nuisance scale factors; the first iteration of each "
+        "isophote falls back to the amplitude form.\n\n"
+        "**Currently wired only into the shared-validity, joint-intercept solve** "
+        "(the default configuration). It is a no-op under ``loose_validity=True``, "
+        "under ``fit_per_band_intens_jointly=False`` (which ``integrator='median'`` "
+        "requires), and under the ``simultaneous_*`` higher-harmonic modes. Default "
+        "``False`` until those paths are covered, so that one configuration does not "
+        "silently use a different estimator from another.",
+    )
     fit_per_band_intens_jointly: bool = Field(
         default=True,
         description="Controls how per-band ``intens_<b>`` (a.k.a. the "
@@ -691,6 +720,21 @@ class IsosterConfigMB(BaseModel):
             raise ValueError(f"maxsma ({self.maxsma}) must be greater than minsma ({self.minsma}).")
         if self.minit > self.maxit:
             raise ValueError(f"minit ({self.minit}) must be <= maxit ({self.maxit}).")
+
+        # Loose validity needs at least two bands. The joint solve requires two
+        # surviving bands to be meaningful, so at B=1 every isophote would fail
+        # with stop_code=3 partway through the fit. Rejecting here turns that
+        # into an immediate, explanatory error instead of a silent whole-image
+        # failure.
+        if self.loose_validity and len(self.bands) < 2:
+            raise ValueError(
+                "loose_validity=True requires at least 2 bands; got "
+                f"{len(self.bands)} ({self.bands}). Per-band validity only has "
+                "meaning when bands can disagree, and the joint solve needs two "
+                "surviving bands, so a single-band run would fail every isophote "
+                "with stop_code=3. Use loose_validity=False, or fit this band "
+                "with single-band isoster (isoster.fit_image)."
+            )
 
         # --- D11 backport: the ``ring_mean`` intercept mode
         # (fit_per_band_intens_jointly=False) is incompatible with

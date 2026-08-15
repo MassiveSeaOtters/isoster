@@ -263,9 +263,15 @@ def fit_first_and_second_harmonics_joint(
     *,
     fit_per_band_intens_jointly: bool = True,
     integrator: str = "mean",
+    per_band_gradients: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[NDArray[np.float64], Optional[NDArray[np.float64]], bool]:
     """
     Solve the joint multi-band 1st+2nd harmonic system in WLS or OLS mode.
+
+    ``per_band_gradients`` switches the shared parameters from harmonic
+    *amplitudes* to geometry *steps* by scaling every shared column by that
+    band's radial gradient; see :func:`_geometry_row_scaling`. ``None`` keeps the
+    amplitude parameterisation byte-identically.
 
     Parameters
     ----------
@@ -337,6 +343,9 @@ def fit_first_and_second_harmonics_joint(
         # band so we can build them once and tile.
         A_full = build_joint_design_matrix(angles, n_bands)  # (B*N, B+4)
         A_geom = A_full[:, n_bands:]  # (B*N, 4)
+        row_scale = _geometry_row_scaling(per_band_gradients, [n_samples] * n_bands)
+        if row_scale is not None:
+            A_geom = A_geom * row_scale[:, None]
         AW_geom = A_geom * w_eff[:, None]
         ATWA = AW_geom.T @ A_geom
         ATWy = AW_geom.T @ y_geom
@@ -371,7 +380,10 @@ def fit_first_and_second_harmonics_joint(
         return coeffs, cov, wls_mode
 
     # --- Default: full (B + 4)-column joint solve --- #
-    A = build_joint_design_matrix(angles, n_bands)  # (B*N, B+4)
+    A = build_joint_design_matrix(angles, n_bands).astype(np.float64, copy=True)  # (B*N, B+4)
+    row_scale = _geometry_row_scaling(per_band_gradients, [n_samples] * n_bands)
+    if row_scale is not None:
+        A[:, n_bands:] *= row_scale[:, None]
     y = intens_per_band.reshape(n_bands * n_samples)
     AW = A * w_eff[:, None]
     ATWA = AW.T @ A
@@ -425,6 +437,7 @@ def fit_first_and_second_harmonics_joint_loose(
     normalize: bool = False,
     fit_per_band_intens_jointly: bool = True,
     integrator: str = "mean",
+    per_band_gradients: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[NDArray[np.float64], Optional[NDArray[np.float64]], bool]:
     """
     Loose-validity counterpart to :func:`fit_first_and_second_harmonics_joint`.
@@ -486,6 +499,9 @@ def fit_first_and_second_harmonics_joint_loose(
         sin2 = np.concatenate([np.sin(2.0 * p) for p in phi_per_band]) if n_total else np.empty(0)
         cos2 = np.concatenate([np.cos(2.0 * p) for p in phi_per_band]) if n_total else np.empty(0)
         A_geom = np.column_stack([sin1, cos1, sin2, cos2])
+        row_scale = _geometry_row_scaling(per_band_gradients, n_per_band)
+        if row_scale is not None:
+            A_geom = A_geom * row_scale[:, None]
         AW = A_geom * w_eff[:, None]
         ATWA = AW.T @ A_geom
         ATWy = AW.T @ y_geom
@@ -514,7 +530,10 @@ def fit_first_and_second_harmonics_joint_loose(
         return coeffs, cov, wls_mode
 
     # Default joint loose path: full (B + 4) column solve.
-    A = build_joint_design_matrix_jagged(phi_per_band, n_bands, normalize=False)
+    A = build_joint_design_matrix_jagged(phi_per_band, n_bands, normalize=False).astype(np.float64, copy=True)
+    row_scale = _geometry_row_scaling(per_band_gradients, n_per_band)
+    if row_scale is not None:
+        A[:, n_bands:] *= row_scale[:, None]
     y = np.concatenate(intens_per_band) if n_total else np.empty(0)
     AW = A * w_eff[:, None]
     ATWA = AW.T @ A
@@ -540,6 +559,7 @@ def fit_simultaneous_joint(
     *,
     fit_per_band_intens_jointly: bool = True,
     integrator: str = "mean",
+    per_band_gradients: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[NDArray[np.float64], Optional[NDArray[np.float64]], bool]:
     """Joint solve over per-band ``I0_b`` + (A1,B1,A2,B2) + shared higher orders.
 
@@ -578,6 +598,9 @@ def fit_simultaneous_joint(
         y_geom = residuals.reshape(n_bands * n_samples)
         A_full = build_joint_design_matrix_higher(angles, n_bands, orders_arr)
         A_geom = A_full[:, n_bands:]  # (B*N, 4 + 2L)
+        row_scale = _geometry_row_scaling(per_band_gradients, [n_samples] * n_bands)
+        if row_scale is not None:
+            A_geom = A_geom * row_scale[:, None]
         AW_geom = A_geom * w_eff[:, None]
         ATWA = AW_geom.T @ A_geom
         ATWy = AW_geom.T @ y_geom
@@ -605,7 +628,10 @@ def fit_simultaneous_joint(
             )
         return coeffs, cov, wls_mode
 
-    A = build_joint_design_matrix_higher(angles, n_bands, orders_arr)
+    A = build_joint_design_matrix_higher(angles, n_bands, orders_arr).astype(np.float64, copy=True)
+    row_scale = _geometry_row_scaling(per_band_gradients, [n_samples] * n_bands)
+    if row_scale is not None:
+        A[:, n_bands:] *= row_scale[:, None]
     y = intens_per_band.reshape(n_bands * n_samples)
     AW = A * w_eff[:, None]
     ATWA = AW.T @ A
@@ -631,6 +657,7 @@ def fit_simultaneous_joint_loose(
     normalize: bool = False,
     fit_per_band_intens_jointly: bool = True,
     integrator: str = "mean",
+    per_band_gradients: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[NDArray[np.float64], Optional[NDArray[np.float64]], bool]:
     """Loose-validity higher-order joint solver.
 
@@ -674,6 +701,9 @@ def fit_simultaneous_joint_loose(
             normalize=False,
         )
         A_geom = A_full[:, n_bands:]
+        row_scale = _geometry_row_scaling(per_band_gradients, n_per_band)
+        if row_scale is not None:
+            A_geom = A_geom * row_scale[:, None]
         AW_geom = A_geom * w_eff[:, None]
         ATWA = AW_geom.T @ A_geom
         ATWy = AW_geom.T @ y_geom
@@ -706,7 +736,10 @@ def fit_simultaneous_joint_loose(
         n_bands,
         orders_arr,
         normalize=False,
-    )
+    ).astype(np.float64, copy=True)
+    row_scale = _geometry_row_scaling(per_band_gradients, n_per_band)
+    if row_scale is not None:
+        A[:, n_bands:] *= row_scale[:, None]
     y = np.concatenate(intens_per_band) if n_total else np.empty(0)
     AW = A * w_eff[:, None]
     ATWA = AW.T @ A
@@ -918,6 +951,157 @@ def _per_band_sigma_clip_loose(
 # ---------------------------------------------------------------------------
 
 
+def _geometry_row_scaling(
+    per_band_gradients: Optional[NDArray[np.float64]],
+    samples_per_band: Sequence[int],
+) -> Optional[NDArray[np.float64]]:
+    """Per-row gradient factors that turn shared amplitudes into geometry steps.
+
+    A common geometry step ``delta`` produces amplitude ``delta * grad_b`` in
+    band ``b``, so scaling every *shared* design column by that band's gradient
+    makes the shared free parameters the geometry steps themselves. The per-band
+    intercept columns are never scaled — ``I0_b`` stays an intensity.
+
+    Returns ``None`` when no gradients were supplied, so callers can skip the
+    multiply entirely and stay byte-identical to the amplitude parameterisation.
+    Non-finite gradients become 0.0: a band with no measurable radial gradient
+    carries no geometric leverage, which is the correct contribution rather than
+    a NaN that would poison the solve.
+    """
+    if per_band_gradients is None:
+        return None
+    gradients = np.asarray(per_band_gradients, dtype=np.float64).reshape(-1)
+    gradients = np.where(np.isfinite(gradients), gradients, 0.0)
+    return np.repeat(gradients, np.asarray(samples_per_band, dtype=np.intp))
+
+
+def fit_first_and_second_harmonics_geometry(
+    angles: NDArray[np.float64],
+    intens_per_band: NDArray[np.float64],
+    band_weights_arr: NDArray[np.float64],
+    per_band_gradients: NDArray[np.float64],
+    variances_per_band: Optional[NDArray[np.float64]] = None,
+) -> Tuple[NDArray[np.float64], Optional[NDArray[np.float64]], bool]:
+    """Geometry-parameterised joint solve: shared parameters are geometry steps.
+
+    The standard joint solver fits one shared *amplitude* across bands. But a
+    common geometry step ``delta`` produces amplitude ``delta * grad_b`` in band
+    ``b``, so a single shared amplitude is a misspecified model whenever the
+    bands have different gradients: what it fits is ``delta`` times a
+    weight-averaged gradient, which then has to be divided back out by a
+    separately pooled gradient.
+
+    Scaling each band's harmonic columns by ``grad_b`` instead makes the shared
+    parameters the geometry steps themselves:
+
+        y_{b,i} = I0_b + grad_b * (D1 sin p + E1 cos p + D2 sin 2p + E2 cos 2p)
+
+    Three consequences, all of which remove a defect rather than trade one off:
+
+    * No division by a pooled gradient, so no way for the two to disagree.
+    * The effective weight on each geometry parameter becomes
+      ``w_b * grad_b**2 / var_b`` — the minimum-variance weighting — instead of
+      ``w_b / var_b``, which on real HSC data was measured close to *inverted*
+      against the bands' information content (band g: 65% of the weight, 10% of
+      the information).
+    * The shared coefficients and the residual scatter end up in the same units,
+      so the convergence comparison stops depending on a band's flux units.
+
+    Returns the same ``(coeffs, cov, wls_mode)`` triple as
+    :func:`fit_first_and_second_harmonics_joint`, with ``coeffs`` laid out as
+    ``[I0_0, ..., I0_{B-1}, D1, E1, D2, E2]``. A band whose gradient is zero or
+    non-finite contributes zero columns and therefore no geometry information,
+    which is the correct behaviour: no measurable radial gradient means no
+    geometric leverage. If *every* band is degenerate the normal equations are
+    singular and the fallback path returns per-band means with zero geometry.
+    """
+    n_bands, n_samples = intens_per_band.shape
+    gradients = np.asarray(per_band_gradients, dtype=np.float64).reshape(-1)
+    gradients = np.where(np.isfinite(gradients), gradients, 0.0)
+
+    w_band_per_row = np.repeat(band_weights_arr, n_samples)
+    if variances_per_band is not None:
+        w_eff = w_band_per_row / variances_per_band.reshape(n_bands * n_samples)
+        wls_mode = True
+    else:
+        w_eff = w_band_per_row
+        wls_mode = False
+
+    design = build_joint_design_matrix(angles, n_bands).astype(np.float64, copy=True)
+    # Scale only the four shared geometric columns, per band row-block. The
+    # per-band intercept columns are untouched: I0_b is still an intensity.
+    design[:, n_bands:] *= np.repeat(gradients, n_samples)[:, None]
+
+    y = intens_per_band.reshape(n_bands * n_samples)
+    design_weighted = design * w_eff[:, None]
+    normal_matrix = design_weighted.T @ design
+    normal_rhs = design_weighted.T @ y
+    try:
+        coeffs = np.linalg.solve(normal_matrix, normal_rhs)
+        cov = np.linalg.inv(normal_matrix)
+        return coeffs, cov, wls_mode
+    except np.linalg.LinAlgError:
+        fallback = np.zeros(n_bands + 4, dtype=np.float64)
+        for b in range(n_bands):
+            fallback[b] = float(np.mean(intens_per_band[b]))
+        return fallback, None, wls_mode
+
+
+def joint_gradient_pooling_weights(
+    band_weights_arr: NDArray[np.float64],
+    variances_per_band: Union[None, NDArray[np.float64], List[NDArray[np.float64]]],
+    n_bands: int,
+    band_indices: Optional[Sequence[int]] = None,
+) -> NDArray[np.float64]:
+    """Per-band weights for pooling gradients, matching the harmonic solve.
+
+    The joint solve weights every sample by ``w_b / var_{b,i}``, so band ``b``
+    contributes total weight ``W_b = w_b * sum_i (1 / var_{b,i})``. A common
+    geometry step ``delta`` produces amplitude ``delta * grad_b`` in band ``b``,
+    so the shared fitted amplitude is ``delta * sum(W_b grad_b) / sum(W_b)``.
+    Dividing that by a gradient pooled with the *same* ``W_b`` returns ``delta``
+    exactly; pooling with the bare ``w_b`` does not, and the error is not even
+    one-signed — measured recoveries of 0.180 and 0.045 against a truth of 0.100
+    at different band configurations.
+
+    Under OLS there is no variance map, the solve weights by ``w_b`` alone, and
+    this returns ``band_weights_arr`` unchanged.
+
+    ``variances_per_band`` must be the **post-clipping** arrays handed to the
+    solve. Taking them from the sampler's unfiltered ring would put the pooled
+    gradient and the fitted amplitude back on different sample sets, which is
+    the class of bug this whole exercise removes.
+
+    ``band_indices`` maps jagged entries to their position in the full band list
+    under loose validity with dropped bands; absent bands keep their bare weight,
+    which is unused because they do not enter the solve.
+
+    Exactness
+    ---------
+    The exactly-correct weight is ``sum_i w_b * sin^2(phi_i) / var_{b,i}``, which
+    differs per harmonic when the variance varies *azimuthally within* a band —
+    no single scalar can then be right for all of ``A1, B1, A2, B2`` at once.
+    ``W_b`` as defined here is exact for shared angular coverage with
+    azimuthally-uniform variance inside each band (the common case: bands differ
+    in sky level, each band's own ring is uniform) and an approximation
+    otherwise. See ``docs/10-multiband.md``, "Joint gradient weighting".
+    """
+    weights = np.array(band_weights_arr, dtype=np.float64, copy=True)
+    if variances_per_band is None:
+        return weights
+    for position in range(len(variances_per_band)):
+        var_b = variances_per_band[position]
+        if var_b is None or np.size(var_b) == 0:
+            continue
+        b_idx = int(band_indices[position]) if band_indices is not None else position
+        if b_idx >= n_bands:
+            continue
+        inverse_variance_sum = float(np.sum(1.0 / np.asarray(var_b, dtype=np.float64)))
+        if np.isfinite(inverse_variance_sum) and inverse_variance_sum > 0.0:
+            weights[b_idx] = float(band_weights_arr[b_idx]) * inverse_variance_sum
+    return weights
+
+
 def compute_joint_gradient(
     image_stack: NDArray[np.float64],
     masks_resolved: List[Optional[NDArray[np.float64]]],
@@ -927,6 +1111,7 @@ def compute_joint_gradient(
     band_weights_arr: NDArray[np.float64],
     previous_gradient: Optional[float] = None,
     current_data: Optional[MultiIsophoteData] = None,
+    pooling_weights: Optional[NDArray[np.float64]] = None,
 ) -> Tuple[float, Optional[float], List[float], List[Optional[float]]]:
     """
     Compute one combined-scalar radial gradient from multiple bands.
@@ -938,12 +1123,24 @@ def compute_joint_gradient(
     gradients (>= previous/3) are decayed to ``0.8 * previous_gradient``
     with the error cleared.
 
+    ``pooling_weights`` are the per-band weights used to combine the per-band
+    gradients into the joint scalar. They must match the weights each band
+    carried in the harmonic solve whose coefficients this gradient will divide,
+    because a common geometry step ``delta`` produces amplitude
+    ``delta * grad_b`` in band ``b``, so the shared fitted amplitude is
+    ``delta`` times the *weight-averaged* gradient. Pooling the gradient with
+    different weights leaves the variance factors uncancelled: on an exactly
+    solvable two-band ring with band-dependent variance, a truth of 0.100 was
+    recovered as 0.180. See :func:`joint_gradient_pooling_weights`. ``None``
+    falls back to ``band_weights_arr``, which is exactly right under OLS, where
+    the solve also weights by ``w_b`` alone.
+
     Returns
     -------
     gradient_joint : float
-        Weighted-mean gradient ``Σ w_b grad_b / Σ w_b``.
+        Weighted-mean gradient ``Σ W_b grad_b / Σ W_b``.
     gradient_error_joint : float or None
-        ``sqrt(Σ w_b^2 σ_b^2 / (Σ w_b)^2)``, or None when no per-band
+        ``sqrt(Σ W_b^2 σ_b^2 / (Σ W_b)^2)``, or None when no per-band
         errors are available.
     per_band_gradients : list[float]
         Length B. Each entry is ``grad_b`` (raw per-band gradient).
@@ -1027,18 +1224,24 @@ def compute_joint_gradient(
                 errs.append(None)
         return grads, errs
 
+    pool_w = band_weights_arr if pooling_weights is None else np.asarray(pooling_weights, dtype=np.float64)
+
     def _pool(grads, errs):
         """Weight-combine per-band gradients into the joint scalar + error.
 
-        gradient_joint = Σ w_b grad_b / Σ w_b
-        σ²_joint = Σ w²_b σ²_b / (Σ w_b)²   (independent measurements)
+        gradient_joint = Σ W_b grad_b / Σ W_b
+        σ²_joint = Σ W²_b σ²_b / (Σ W_b)²   (independent measurements)
+
+        ``W_b`` is ``pooling_weights`` — the weight each band carried in the
+        harmonic solve — not the bare band weight, so that the shared amplitude
+        and this gradient describe the same weighted average of the bands.
         """
-        w_sum = float(band_weights_arr.sum())
-        grad = float(np.sum(band_weights_arr * np.array(grads))) / w_sum
+        w_sum = float(pool_w.sum())
+        grad = float(np.sum(pool_w * np.array(grads))) / w_sum
         if any(e is None for e in errs):
             return grad, None
         err_arr = np.array([e if e is not None else 0.0 for e in errs], dtype=np.float64)
-        var_joint = float(np.sum((band_weights_arr**2) * (err_arr**2))) / (w_sum**2)
+        var_joint = float(np.sum((pool_w**2) * (err_arr**2))) / (w_sum**2)
         return grad, float(np.sqrt(var_joint))
 
     per_band_grad, per_band_err = _per_band_gradient(data_g, delta_r)
@@ -1443,6 +1646,25 @@ def fit_isophote_mb(
 
     for i in range(config.maxit):
         niter = i + 1
+        # Set when this iteration's solve returned geometry steps rather than
+        # amplitudes, so the pooled-gradient rescale below knows to run.
+        solved_in_geometry_units = False
+        # Per-band gradients that turn the shared columns into geometry steps.
+        # ``None`` keeps the amplitude parameterisation. The scaling needs a
+        # gradient at solve time and the loop only produces one afterwards, so
+        # the previous iteration's is used: these are slowly-varying nuisance
+        # scale factors, not the estimand. Iteration 0 has none and falls back
+        # to amplitudes. Threaded into *every* solver — shared and loose, joint
+        # and decoupled, plain and simultaneous — so the parameterisation cannot
+        # depend on which other options are set.
+        geometry_gradients = (
+            np.asarray(last_per_band_grad, dtype=np.float64)
+            if (config.geometry_parameterized_solve and last_per_band_grad)
+            else None
+        )
+        # Scatter used by the convergence test. Defaults to the reported `rms`
+        # and is replaced by the variance-weighted form under WLS below.
+        convergence_rms = float("nan")
         data = extract_isophote_data_multi_prepared(
             image_stack,
             masks_resolved,
@@ -1665,6 +1887,12 @@ def fit_isophote_mb(
         elif loose_validity:
             n_surviving = int(surviving_idx.size)
             surviving_weights = band_weights_arr[surviving_idx]
+            # Geometry parameterisation, restricted to the bands in this solve.
+            if geometry_gradients is not None:
+                solve_gradients = np.asarray(geometry_gradients, dtype=np.float64)[surviving_idx]
+                solved_in_geometry_units = True
+            else:
+                solve_gradients = None
             if simul_in_loop:
                 coeffs_sub, cov_sub, wls_mode = fit_simultaneous_joint_loose(
                     phi_solve,
@@ -1675,6 +1903,7 @@ def fit_isophote_mb(
                     normalize=loose_normalize,
                     fit_per_band_intens_jointly=config.fit_per_band_intens_jointly,
                     integrator=config.integrator,
+                    per_band_gradients=solve_gradients,
                 )
             else:
                 coeffs_sub, cov_sub, wls_mode = fit_first_and_second_harmonics_joint_loose(
@@ -1685,6 +1914,7 @@ def fit_isophote_mb(
                     normalize=loose_normalize,
                     fit_per_band_intens_jointly=config.fit_per_band_intens_jointly,
                     integrator=config.integrator,
+                    per_band_gradients=solve_gradients,
                 )
             # Widen the surviving-bands solution back to a full coefficient
             # vector with NaN for dropped bands. Trailing block is
@@ -1720,6 +1950,8 @@ def fit_isophote_mb(
             else:
                 cov_full = None
         else:
+            if geometry_gradients is not None:
+                solved_in_geometry_units = True
             if simul_in_loop:
                 coeffs, cov_full, wls_mode = fit_simultaneous_joint(
                     angles,
@@ -1729,6 +1961,7 @@ def fit_isophote_mb(
                     variances_per_band,
                     fit_per_band_intens_jointly=config.fit_per_band_intens_jointly,
                     integrator=config.integrator,
+                    per_band_gradients=geometry_gradients,
                 )
             else:
                 coeffs, cov_full, wls_mode = fit_first_and_second_harmonics_joint(
@@ -1738,6 +1971,7 @@ def fit_isophote_mb(
                     variances_per_band,
                     fit_per_band_intens_jointly=config.fit_per_band_intens_jointly,
                     integrator=config.integrator,
+                    per_band_gradients=geometry_gradients,
                 )
 
         A1 = float(coeffs[n_bands])
@@ -1757,6 +1991,27 @@ def fit_isophote_mb(
             or lexceed
         ):
             geom = {"x0": x0, "y0": y0, "sma": sma, "eps": eps, "pa": pa}
+            # Pool the per-band gradients with the weights each band carried in
+            # the harmonic solve above, using the post-clipping variances that
+            # solve actually saw. Under OLS this reduces to band_weights_arr.
+            #
+            # Reference mode fits the harmonics from the reference band alone,
+            # so that band's solve weight is 1 and every other band's is 0.
+            # Expressing it as a one-hot pooling weight makes the geometry
+            # denominator, the gradient error, the runaway check, the maxgerr
+            # gate and the reported `grad` all describe the same band. Dividing
+            # a reference-band coefficient by an all-band pooled gradient
+            # recovered 0.182 against a truth of 0.100 — in OLS as well as WLS.
+            if use_ref_only:
+                pooling_weights = np.zeros(n_bands, dtype=np.float64)
+                pooling_weights[bands.index(config.reference_band)] = 1.0
+            else:
+                pooling_weights = joint_gradient_pooling_weights(
+                    band_weights_arr,
+                    vars_solve if loose_validity else variances_per_band,
+                    n_bands,
+                    band_indices=surviving_idx if loose_validity else None,
+                )
             grad_joint, grad_err_joint, per_band_grad, per_band_err = compute_joint_gradient(
                 image_stack,
                 masks_resolved,
@@ -1766,6 +2021,7 @@ def fit_isophote_mb(
                 band_weights_arr,
                 previous_gradient=previous_gradient,
                 current_data=data,
+                pooling_weights=pooling_weights,
             )
             cached_gradient = grad_joint
             cached_gradient_error = grad_err_joint
@@ -1778,6 +2034,29 @@ def fit_isophote_mb(
             grad_err_joint = cached_gradient_error
             per_band_grad = cached_per_band_grad
             per_band_err = cached_per_band_grad_err
+
+        if solved_in_geometry_units and grad_joint is not None and np.isfinite(grad_joint):
+            # Convert the geometry steps back into amplitude-equivalent
+            # coefficients by multiplying by the same pooled gradient the
+            # downstream geometry update divides by. That update then recovers
+            # the fitted step exactly, and every consumer — max_amp, the
+            # convergence test, the harmonic attachers, the covariance-based
+            # geometry errors — keeps working unchanged in its own units. The
+            # only thing that differs is the *value*, which now carries the
+            # minimum-variance band weighting.
+            scale = np.ones(coeffs.size, dtype=np.float64)
+            # Every shared column was scaled by grad_b in the solve, including
+            # the simultaneous higher-order block, so all of them come back.
+            scale[n_bands:] = float(grad_joint)
+            coeffs = coeffs * scale
+            if cov_full is not None:
+                cov_full = cov_full * np.outer(scale, scale)
+            A1 = float(coeffs[n_bands])
+            B1 = float(coeffs[n_bands + 1])
+            A2 = float(coeffs[n_bands + 2])
+            B2 = float(coeffs[n_bands + 3])
+            last_joint_coeffs = coeffs
+            last_joint_cov = cov_full
 
         last_per_band_grad = per_band_grad
 
@@ -1864,6 +2143,28 @@ def fit_isophote_mb(
             )
             residuals_flat = (intens_per_band - model_per_band).reshape(-1)
             rms = float(np.std(residuals_flat))
+            if variances_per_band is not None:
+                # Convergence compares the shared harmonic amplitude — which the
+                # solve produced under per-sample weights w_b/var_{b,i} — against
+                # this scatter. An unweighted pooled scatter is in raw flux units
+                # and is dominated by whichever band happens to carry the largest
+                # numbers, so the comparison changed by a factor of 8 under a pure
+                # change of one band's flux units. Weighting the scatter the same
+                # way the solve weighted the data puts both sides in one unit
+                # system. Reduces to the plain rms under OLS with equal band
+                # weights, so the default path is untouched; `rms` itself is a
+                # reported column and stays the physical ring dispersion.
+                convergence_weights = np.repeat(
+                    band_weights_arr, intens_per_band.shape[1]
+                ) / variances_per_band.reshape(-1)
+                weight_sum = float(np.sum(convergence_weights))
+                if np.isfinite(weight_sum) and weight_sum > 0.0:
+                    convergence_rms = float(np.sqrt(np.sum(convergence_weights * residuals_flat**2) / weight_sum))
+
+        if not np.isfinite(convergence_rms):
+            # OLS, or the loose-validity path, which has no rectangular
+            # variance block to weight with: fall back to the plain scatter.
+            convergence_rms = rms
 
         harmonics = [A1, B1, A2, B2]
         if config.fix_center:
@@ -2011,11 +2312,17 @@ def fit_isophote_mb(
                         rms_b = float("nan")
                 else:
                     rms_b = float(np.std(intens_per_band[b_idx] - model_per_band[b_idx]))
-                use_direct_sem = (
-                    (not config.fit_per_band_intens_jointly)
-                    or loose_validity
-                    or (use_ref_only and b_idx != ref_idx_for_err)
-                )
+                # A band's intensity error comes from its own ring statistic only
+                # when the intercept did not flow through the joint solve. Loose
+                # validity used to force that unconditionally, but the two are
+                # independent: with `fit_per_band_intens_jointly=True` the jagged
+                # solve still fits `I0_b` as a coupled parameter, and its
+                # covariance is mapped back into `cov_full` for surviving bands.
+                # Taking the direct SEM there ignored the coupling — a measured
+                # ~31% underestimate under incomplete angular coverage. Bands
+                # dropped at this isophote never reach here; they are NaN-filled
+                # above.
+                use_direct_sem = (not config.fit_per_band_intens_jointly) or (use_ref_only and b_idx != ref_idx_for_err)
                 if use_direct_sem:
                     # The reported intens_<b> is this band's own ring statistic,
                     # not a joint-solve output, so its error comes from that same
@@ -2122,7 +2429,10 @@ def fit_isophote_mb(
 
         # Effective rms for convergence check (decision D17 — sigma_bg honored
         # in multi-band even though variance maps already encode pixel noise).
-        effective_rms = rms
+        # Under WLS this is the variance-weighted scatter, so the convergence
+        # comparison stops depending on a band's flux units; identical to `rms`
+        # under OLS with equal band weights.
+        effective_rms = convergence_rms
         if config.sigma_bg is not None and len(angles) > 0:
             noise_floor = config.sigma_bg / np.sqrt(len(angles))
             effective_rms = max(rms, noise_floor)
@@ -3152,6 +3462,7 @@ def extract_forced_photometry_mb(
     """
     debug = bool(config.debug)
     band_list = list(bands)
+    loose_validity = bool(config.loose_validity)
     data = extract_isophote_data_multi(
         images,
         masks,
@@ -3162,22 +3473,50 @@ def extract_forced_photometry_mb(
         pa,
         use_eccentric_anomaly=config.use_eccentric_anomaly,
         variance_maps=variance_maps,
+        loose_validity=loose_validity,
     )
     # Sigma-clip the ring samples before any statistics, mirroring the
     # single-band forced path and the iteration loop. Without this,
     # ~sclip-sigma outliers (unmasked companions, cosmic rays) entered
     # intens_<b>/rms_<b> directly (review M4). No-op when nclip=0.
-    angles_c, phi_c, intens_c, variances_c, _n_clipped = _per_band_sigma_clip(
-        data.angles,
-        data.phi,
-        data.intens,
-        data.variances,
-        config.sclip,
-        config.nclip,
-        config.sclip_low,
-        config.sclip_high,
-    )
-    if angles_c.size == 0:
+    #
+    # Forced photometry runs no joint solve — every band's intensity, rms and
+    # error is computed independently in the per-band loop below — so there is
+    # no rectangular design matrix to preserve and loose validity needs nothing
+    # beyond keeping each band's own samples.
+    if loose_validity:
+        phi_pb, intens_pb, vars_pb, _n_clipped = _per_band_sigma_clip_loose(
+            data.phi_per_band if data.phi_per_band is not None else [data.phi] * len(band_list),
+            data.intens_per_band if data.intens_per_band is not None else list(data.intens),
+            data.variances_per_band,
+            config.sclip,
+            config.nclip,
+            config.sclip_low,
+            config.sclip_high,
+        )
+        # Legacy rectangular views are unused under loose validity; the per-band
+        # lists below carry the truth.
+        angles_c = phi_c = np.concatenate(phi_pb) if phi_pb else np.empty(0, dtype=np.float64)
+        intens_c = intens_pb
+        variances_c = vars_pb
+        per_band_empty = [arr.size == 0 for arr in intens_pb]
+    else:
+        angles_c, phi_c, intens_c, variances_c, _n_clipped = _per_band_sigma_clip(
+            data.angles,
+            data.phi,
+            data.intens,
+            data.variances,
+            config.sclip,
+            config.nclip,
+            config.sclip_low,
+            config.sclip_high,
+        )
+        per_band_empty = [angles_c.size == 0] * len(band_list)
+
+    # Under shared validity an empty intersection ends the isophote. Under loose
+    # validity it ends only when *every* band is empty: a band fully masked at
+    # this radius must not discard the bands that still have usable samples.
+    if all(per_band_empty):
         empty = _empty_isophote_dict(
             sma,
             x0,
@@ -3216,8 +3555,17 @@ def extract_forced_photometry_mb(
         "npix_c": 0,
     }
     if debug:
-        geom["ndata"] = data.valid_count
-        geom["nflag"] = data.n_samples - data.valid_count
+        # Under loose validity the bands no longer share one kept set, so
+        # ``ndata`` reports the total across bands and ``nflag`` the total
+        # rejected; ``n_valid_<b>`` below carries each band's own count.
+        if loose_validity:
+            attempted = data.n_samples * len(band_list)
+            kept = int(sum(arr.size for arr in intens_c))
+            geom["ndata"] = kept
+            geom["nflag"] = attempted - kept
+        else:
+            geom["ndata"] = data.valid_count
+            geom["nflag"] = data.n_samples - data.valid_count
 
     # Asymptotic Gaussian factor for the median's standard error
     # relative to the mean's: sqrt(π/2) ≈ 1.2533 (review fix H4).
@@ -3226,6 +3574,25 @@ def extract_forced_photometry_mb(
     for b_idx, b in enumerate(band_list):
         intens_b = intens_c[b_idx]
         n_b = int(len(intens_b))
+        if n_b == 0:
+            # Loose validity only: this band has no usable samples at this
+            # radius while others do. NaN marks the absence, matching the
+            # dropped-band convention in the fitted rows (M5); 0.0 would read
+            # as a real measurement.
+            geom[f"intens_{b}"] = float("nan")
+            geom[f"intens_err_{b}"] = float("nan")
+            geom[f"rms_{b}"] = float("nan")
+            geom[f"n_valid_{b}"] = 0
+            for n_order in config.harmonic_orders:
+                geom[f"a{int(n_order)}_{b}"] = float("nan")
+                geom[f"b{int(n_order)}_{b}"] = float("nan")
+                geom[f"a{int(n_order)}_err_{b}"] = float("nan")
+                geom[f"b{int(n_order)}_err_{b}"] = float("nan")
+            if debug:
+                geom[f"grad_{b}"] = float("nan")
+                geom[f"grad_error_{b}"] = float("nan")
+                geom[f"grad_r_error_{b}"] = float("nan")
+            continue
         if variances_c is not None:
             v_b = variances_c[b_idx]
             weights = 1.0 / v_b
@@ -3274,15 +3641,29 @@ def extract_forced_photometry_mb(
     if return_ring_data:
         # Return the clipped ring so the orchestrator's post-hoc harmonics
         # are computed on the same outlier-free samples as the statistics.
-        ring = replace(
-            data,
-            angles=angles_c,
-            phi=phi_c,
-            intens=intens_c,
-            radii=np.full(angles_c.size, sma, dtype=np.float64),
-            variances=variances_c,
-            valid_count=int(angles_c.size),
-            n_valid_per_band=np.full(len(band_list), int(angles_c.size), dtype=np.int64),
-        )
+        if loose_validity:
+            # Jagged layout: the per-band lists carry the clipped samples and
+            # the rectangular fields are left as the sampler's intersection
+            # view, matching MultiIsophoteData's documented loose contract.
+            counts = np.array([arr.size for arr in intens_c], dtype=np.int64)
+            ring = replace(
+                data,
+                radii=np.full(int(counts.max()) if counts.size else 0, sma, dtype=np.float64),
+                intens_per_band=intens_c,
+                phi_per_band=[np.asarray(p, dtype=np.float64) for p in phi_pb],
+                variances_per_band=variances_c,
+                n_valid_per_band=counts,
+            )
+        else:
+            ring = replace(
+                data,
+                angles=angles_c,
+                phi=phi_c,
+                intens=intens_c,
+                radii=np.full(angles_c.size, sma, dtype=np.float64),
+                variances=variances_c,
+                valid_count=int(angles_c.size),
+                n_valid_per_band=np.full(len(band_list), int(angles_c.size), dtype=np.int64),
+            )
         return geom, ring
     return geom
