@@ -2123,9 +2123,7 @@ def fit_isophote_mb(
             band_geometry_scale = np.ones(n_bands, dtype=np.float64)
             if geometry_gradients is not None and grad_joint:
                 gradients_used = np.asarray(geometry_gradients, dtype=np.float64)
-                band_geometry_scale = np.where(
-                    np.isfinite(gradients_used), gradients_used, 0.0
-                ) / float(grad_joint)
+                band_geometry_scale = np.where(np.isfinite(gradients_used), gradients_used, 0.0) / float(grad_joint)
             coeffs = coeffs * scale
             if cov_full is not None:
                 cov_full = cov_full * np.outer(scale, scale)
@@ -2199,10 +2197,7 @@ def fit_isophote_mb(
                 p_b = phi_post_clip[b_idx]
                 s_b = float(band_geometry_scale[b_idx])
                 m_b = float(coeffs[b_idx]) + s_b * (
-                    A1c * np.sin(p_b)
-                    + B1c * np.cos(p_b)
-                    + A2c * np.sin(2.0 * p_b)
-                    + B2c * np.cos(2.0 * p_b)
+                    A1c * np.sin(p_b) + B1c * np.cos(p_b) + A2c * np.sin(2.0 * p_b) + B2c * np.cos(2.0 * p_b)
                 )
                 for n_order, an, bn in higher_in_loop_terms:
                     m_b = m_b + s_b * (an * np.sin(n_order * p_b) + bn * np.cos(n_order * p_b))
@@ -3240,10 +3235,7 @@ def _compute_joint_residual_variance(
                 B2 = float(coeffs[n_bands + 3])
                 s_b = 1.0 if band_scale is None else float(np.asarray(band_scale)[b_idx])
                 model = I0_b + s_b * (
-                    A1 * np.sin(ang_b)
-                    + B1 * np.cos(ang_b)
-                    + A2 * np.sin(2.0 * ang_b)
-                    + B2 * np.cos(2.0 * ang_b)
+                    A1 * np.sin(ang_b) + B1 * np.cos(ang_b) + A2 * np.sin(2.0 * ang_b) + B2 * np.cos(2.0 * ang_b)
                 )
                 # Trailing simultaneous higher-order block, when the caller
                 # fitted one. These terms are part of the model, so they belong
@@ -3252,9 +3244,7 @@ def _compute_joint_residual_variance(
                     for j, n_order in enumerate(harmonic_orders):
                         a_n = float(coeffs[n_bands + 4 + 2 * j])
                         b_n = float(coeffs[n_bands + 4 + 2 * j + 1])
-                        model = model + s_b * (
-                            a_n * np.sin(int(n_order) * ang_b) + b_n * np.cos(int(n_order) * ang_b)
-                        )
+                        model = model + s_b * (a_n * np.sin(int(n_order) * ang_b) + b_n * np.cos(int(n_order) * ang_b))
                 w_b = float(band_weights_arr[b_idx]) if band_weights_arr is not None else 1.0
                 sse += float(np.sum(w_b * (int_b - model) ** 2))
                 n_samples += int(ang_b.size)
