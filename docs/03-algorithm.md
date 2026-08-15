@@ -34,8 +34,8 @@ Sampling density:
 
 Angle semantics:
 
-- Regular mode (`use_eccentric_anomaly=False`): harmonics use `phi` (position angle).
-- Eccentric-anomaly mode (`use_eccentric_anomaly=True`): harmonics use `psi`; geometry updates still use `phi`.
+- Regular mode (`use_eccentric_anomaly=False`): harmonics use `phi` (position angle), and `angles is phi`.
+- Eccentric-anomaly mode (`use_eccentric_anomaly=True`): harmonics use `psi`. The geometry update consumes those `psi`-basis coefficients **directly** — there is no conversion back to `phi`. `phi` is carried alongside (and sigma-clipped in lockstep) so the angular bookkeeping stays aligned for diagnostics and error propagation, but it does not enter the update. The update rule is a descent direction driven to a fixed point, and the two bases agree on where the first- and second-order residual vanishes because they are related by a fixed monotonic reparametrization at fixed geometry (`tan(phi) = (1 - eps) * tan(psi)`); they disagree about the size of a mismatch mid-iteration, so the trajectory differs. Earlier versions of this line, and of the comments in `fitting.py`, claimed geometry updates used `phi`; that was never what the code did (corrected in `80618bb`).
 
 The returned structure is `IsophoteData(angles, phi, intens, radii, variances)` where `angles` is the harmonic-fit angle basis and `variances` is `None` when no variance map is provided.
 
