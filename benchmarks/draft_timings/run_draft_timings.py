@@ -85,6 +85,8 @@ FIXTURE_WIDE = dict(R_e=80.0, n=2.0, I_e=100.0, eps=0.4, pa=0.6, noise_snr=200.0
 
 REPEATS = 9
 MIN_BATCH_SECONDS = 0.02
+ORDER_SEED = 20260816
+COLD_START_PAIRS = 3
 
 
 def _summarize(samples_ms: Sequence[float]) -> Dict[str, object]:
@@ -118,19 +120,29 @@ def _batch_size(call: Callable[[], object]) -> int:
     return max(1, int(MIN_BATCH_SECONDS / single) + 1)
 
 
-def _time_interleaved(calls: Dict[str, Callable[[], object]], repeats: int = REPEATS) -> Dict[str, object]:
-    """Time several configurations, interleaving their repetitions.
+def _time_interleaved(
+    calls: Dict[str, Callable[[], object]],
+    repeats: int = REPEATS,
+    seed: int = ORDER_SEED,
+) -> Dict[str, object]:
+    """Time several configurations, interleaving *and reordering* repetitions.
 
-    Running arm A's repetitions and then arm B's would let a thermal or cache
-    trend masquerade as a difference between the arms. Interleaving spreads any
-    such trend across all arms equally.
+    Running arm A's repetitions and then arm B's would let a thermal or
+    background-load trend masquerade as a difference between the arms.
+    Interleaving alone is not enough either: if every repetition visits the arms
+    in the same order, whichever arm always runs last absorbs any
+    within-repetition drift. That biases exactly the comparisons this script
+    exists to make, since the arms sort by band count and the largest always
+    ran last. Each repetition therefore visits the arms in a freshly shuffled
+    order, drawn from a seeded generator so the sequence is reproducible.
     """
     labels = list(calls)
     batches = {label: _batch_size(calls[label]) for label in labels}
     samples: Dict[str, List[float]] = {label: [] for label in labels}
+    rng = np.random.default_rng(seed)
 
     for _ in range(repeats):
-        for label in labels:
+        for label in rng.permutation(labels):
             call, batch = calls[label], batches[label]
             start = time.perf_counter()
             for _ in range(batch):
@@ -212,7 +224,9 @@ def bench_lazy_gradient() -> Dict[str, object]:
     timings = _time_interleaved({label: (lambda c=cfg: fit_image(image, config=c)) for label, cfg in configs.items()})
     for label in configs:
         out[label].update(timings[label])  # type: ignore[union-attr]
-    out["saving_vs_classical"] = _ratio(timings["lazy"], timings["classical"])
+    # A ratio of runtimes, not a fractional saving: 0.75 means the lazy path
+    # takes three-quarters of the time, i.e. saves a quarter.
+    out["runtime_ratio_vs_classical"] = _ratio(timings["lazy"], timings["classical"])
 
     ratios: List[float] = []
     for lazy_iso, exact_iso in zip(profiles["lazy"], profiles["classical"]):
@@ -261,10 +275,7 @@ def bench_joint_solve_bands() -> Dict[str, object]:
     the first version of this script did --- would describe a path most users
     never take after iteration zero.
     """
-    from isoster.multiband.fitting_mb import (
-        fit_first_and_second_harmonics_geometry,
-        fit_first_and_second_harmonics_joint,
-    )
+    from isoster.multiband.fitting_mb import fit_first_and_second_harmonics_joint
 
     n_samples = 700
     angles = np.linspace(0.0, 2.0 * np.pi, n_samples, endpoint=False)
@@ -281,8 +292,12 @@ def bench_joint_solve_bands() -> Dict[str, object]:
             calls[f"amplitude_B={n_bands}"] = lambda a=angles, i=intens, w=weights, v=variances: (
                 fit_first_and_second_harmonics_joint(a, i, w, v)
             )
+            # The production entry point with per-band gradients supplied --
+            # the call the fitting loop makes from an isophote's second
+            # iteration onward. Timing the ``_geometry`` helper directly would
+            # measure a function only the tests reach.
             calls[f"geometry_B={n_bands}"] = lambda a=angles, i=intens, w=weights, g=gradients, v=variances: (
-                fit_first_and_second_harmonics_geometry(a, i, w, g, v)
+                fit_first_and_second_harmonics_joint(a, i, w, v, per_band_gradients=g)
             )
         timings = _time_interleaved(calls, repeats=7)
 
@@ -376,13 +391,18 @@ def bench_cold_start() -> Dict[str, object]:
     ``NUMBA_CACHE_DIR`` is the only way to observe genuine compilation: with a
     populated cache, first dispatch merely loads objects from disk, which is
     much cheaper and is what a user sees on every run *after* the first.
+
+    Unlike the in-process blocks this one cannot be batched — each observation
+    costs a whole interpreter start — so it takes independent empty/populated
+    *pairs* instead, and reports the same median-and-IQR summary over them.
+    ``COLD_START_PAIRS`` is small, so treat these as one-significant-figure
+    quantities.
     """
     child = _COLD_START_CHILD.format(repo=str(REPO_ROOT))
 
-    def run(cache_dir: str | None) -> Dict[str, float]:
+    def run(cache_dir: str) -> Dict[str, float]:
         env = dict(os.environ)
-        if cache_dir is not None:
-            env["NUMBA_CACHE_DIR"] = cache_dir
+        env["NUMBA_CACHE_DIR"] = cache_dir
         proc = subprocess.run(
             [sys.executable, "-c", child], capture_output=True, text=True, cwd=str(REPO_ROOT), env=env
         )
@@ -390,20 +410,30 @@ def bench_cold_start() -> Dict[str, object]:
             raise RuntimeError(f"cold-start child failed: {proc.stderr[-2000:]}")
         return json.loads(proc.stdout.strip().splitlines()[-1])
 
-    with tempfile.TemporaryDirectory() as empty_cache:
-        fresh = run(empty_cache)
-        # Same directory, now populated by the run above: this is a cache load.
-        warm = run(empty_cache)
+    imports_ms: List[float] = []
+    compile_ms: List[float] = []
+    cache_load_ms: List[float] = []
+    pairs: List[Dict[str, object]] = []
+
+    for _ in range(COLD_START_PAIRS):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            fresh = run(cache_dir)  # empty cache: compiles
+            warm = run(cache_dir)  # same dir, now populated: loads
+        pairs.append({"fresh": fresh, "warm": warm})
+        imports_ms.append(warm["import_s"] * 1e3)
+        compile_ms.append((fresh["first_fit_s"] - warm["first_fit_s"]) * 1e3)
+        cache_load_ms.append((warm["first_fit_s"] - warm["second_fit_s"]) * 1e3)
 
     return {
-        "fresh_numba_cache": {key: round(value, 3) for key, value in fresh.items()},
-        "warm_numba_cache": {key: round(value, 3) for key, value in warm.items()},
-        "compilation_s": round(fresh["first_fit_s"] - warm["first_fit_s"], 3),
-        "cache_load_s": round(warm["first_fit_s"] - warm["second_fit_s"], 3),
+        "import": _summarize(imports_ms),
+        "compilation": _summarize(compile_ms),
+        "cache_load": _summarize(cache_load_ms),
+        "pairs": pairs,
         "note": (
-            "compilation_s is the extra first-fit cost against an empty cache; "
-            "cache_load_s is the extra first-fit cost once the cache exists. "
-            "Only the former is compilation."
+            "compilation is the extra first-fit cost against an empty cache; "
+            "cache_load is the extra first-fit cost once the cache exists. Only "
+            "the former is compilation, and it recurs whenever the cache is "
+            "invalidated (a Numba or ISOSTER upgrade), not only at first install."
         ),
     }
 
@@ -445,20 +475,78 @@ def _environment() -> Dict[str, object]:
     }
 
 
+def _collect_ratio(sessions: List[Dict[str, object]], path: Sequence[str]) -> Dict[str, object] | None:
+    """Pull one ratio's median out of every session and summarise the spread."""
+    values: List[float] = []
+    for session in sessions:
+        node: object = session
+        for key in path:
+            if not isinstance(node, dict) or key not in node:
+                node = None
+                break
+            node = node[key]
+        if isinstance(node, (int, float)):
+            values.append(float(node))
+    if len(values) < 2:
+        return None
+    ordered = sorted(values)
+    return {
+        "n_sessions": len(ordered),
+        "min": round(ordered[0], 4),
+        "median": round(statistics.median(ordered), 4),
+        "max": round(ordered[-1], 4),
+        "values": [round(v, 4) for v in ordered],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", choices=sorted(BLOCKS), help="Run a single block.")
+    parser.add_argument(
+        "--sessions",
+        type=int,
+        default=1,
+        help=(
+            "Repeat the whole run this many times and archive each. Ratios that "
+            "vary between sessions -- the lazy-gradient one especially -- can only "
+            "be characterised across sessions, not within one, because a session "
+            "shares a process, a thermal state and a page cache."
+        ),
+    )
     args = parser.parse_args()
 
     selected = [args.only] if args.only else list(BLOCKS)
-    results: Dict[str, object] = {"environment": _environment()}
-    for name in selected:
-        print(f"[draft-timings] {name} ...", flush=True)
-        results[name] = BLOCKS[name]()
+    sessions: List[Dict[str, object]] = []
+    for index in range(max(1, args.sessions)):
+        session: Dict[str, object] = {}
+        for name in selected:
+            print(f"[draft-timings] session {index + 1}/{args.sessions}: {name} ...", flush=True)
+            session[name] = BLOCKS[name]()
+        sessions.append(session)
+
+    results: Dict[str, object] = {"environment": _environment(), "sessions": sessions}
+    results.update(sessions[0])  # convenience: the first session at the top level
+
+    if len(sessions) > 1:
+        across = {
+            "lazy_gradient_runtime_ratio": _collect_ratio(
+                sessions, ("lazy_gradient", "runtime_ratio_vs_classical", "median")
+            ),
+            "ea_isofit_ratio": _collect_ratio(
+                sessions, ("ea_isofit", "eccentric_anomaly_plus_isofit", "ratio_to_default", "median")
+            ),
+            "joint_geometry_B24_over_B12": _collect_ratio(
+                sessions, ("joint_solve_bands", "ols", "geometry_B=24", "ratio_to_previous", "median")
+            ),
+        }
+        results["across_sessions"] = {key: value for key, value in across.items() if value is not None}
 
     out_path = Path(resolve_output_directory("benchmark_draft_timings")) / "timings.json"
     out_path.write_text(json.dumps(results, indent=2))
-    print(json.dumps(results, indent=2))
+    if "across_sessions" in results:
+        print(json.dumps(results["across_sessions"], indent=2))
+    else:
+        print(json.dumps(sessions[0], indent=2))
     print(f"\n[draft-timings] wrote {out_path}")
 
 
