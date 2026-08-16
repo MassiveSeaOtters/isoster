@@ -9,7 +9,11 @@ noisy to lean on.
 
 Measurement protocol
 --------------------
-Short operations are **batched** to a floor duration before timing, because a
+Sessions are separate *processes*: ``--sessions N`` fans out N interpreters,
+each with its own arm-ordering seed, because repeating the blocks inside one
+process would share the imports, page cache and warmed allocators that make two
+measurements agree. Within a session, short operations are **batched** to a
+floor duration before timing, because a
 sub-millisecond call timed one at a time is dominated by clock and dispatch
 overhead. Repetitions of the configurations being compared are **interleaved**
 rather than run in blocks, so that a machine that warms up or throttles part-way
@@ -88,6 +92,11 @@ MIN_BATCH_SECONDS = 0.02
 ORDER_SEED = 20260816
 COLD_START_PAIRS = 3
 
+# Set once from ``--seed``. A session's arm-visiting order derives from it, so
+# two sessions sharing a seed visit the arms identically and cannot reveal
+# order-dependent variability.
+ACTIVE_SEED = ORDER_SEED
+
 
 def _summarize(samples_ms: Sequence[float]) -> Dict[str, object]:
     """Median with an interquartile range, plus the raw repetitions."""
@@ -123,7 +132,7 @@ def _batch_size(call: Callable[[], object]) -> int:
 def _time_interleaved(
     calls: Dict[str, Callable[[], object]],
     repeats: int = REPEATS,
-    seed: int = ORDER_SEED,
+    seed: int | None = None,
 ) -> Dict[str, object]:
     """Time several configurations, interleaving *and reordering* repetitions.
 
@@ -139,7 +148,7 @@ def _time_interleaved(
     labels = list(calls)
     batches = {label: _batch_size(calls[label]) for label in labels}
     samples: Dict[str, List[float]] = {label: [] for label in labels}
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(ACTIVE_SEED if seed is None else seed)
 
     for _ in range(repeats):
         for label in rng.permutation(labels):
@@ -499,7 +508,25 @@ def _collect_ratio(sessions: List[Dict[str, object]], path: Sequence[str]) -> Di
     }
 
 
+def _run_session_subprocess(seed: int, selected: Sequence[str]) -> Dict[str, object]:
+    """Run one session in a fresh interpreter, so sessions really are separate.
+
+    Repeating the blocks inside one process would share the imported modules,
+    the page cache and every warmed-up allocator, which is most of what makes
+    two runs agree. A session that means anything has to pay those costs again.
+    """
+    argv = [sys.executable, str(Path(__file__).resolve()), "--json-only", "--seed", str(seed)]
+    if len(selected) == 1:
+        argv += ["--only", selected[0]]
+    proc = subprocess.run(argv, capture_output=True, text=True, cwd=str(REPO_ROOT))
+    if proc.returncode != 0:
+        raise RuntimeError(f"session (seed={seed}) failed: {proc.stderr[-2000:]}")
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
 def main() -> None:
+    global ACTIVE_SEED
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", choices=sorted(BLOCKS), help="Run a single block.")
     parser.add_argument(
@@ -507,46 +534,67 @@ def main() -> None:
         type=int,
         default=1,
         help=(
-            "Repeat the whole run this many times and archive each. Ratios that "
-            "vary between sessions -- the lazy-gradient one especially -- can only "
-            "be characterised across sessions, not within one, because a session "
-            "shares a process, a thermal state and a page cache."
+            "Run this many sessions, each in its own interpreter and with its "
+            "own arm-ordering seed. Ratios that vary between runs can only be "
+            "characterised this way: repeating blocks inside one process shares "
+            "the imports, page cache and warmed allocators that make two "
+            "measurements agree."
         ),
+    )
+    parser.add_argument("--seed", type=int, default=ORDER_SEED, help="Arm-ordering seed for this session.")
+    parser.add_argument(
+        "--json-only",
+        action="store_true",
+        help="Emit only the results JSON on stdout (used for child sessions).",
     )
     args = parser.parse_args()
 
+    ACTIVE_SEED = args.seed
     selected = [args.only] if args.only else list(BLOCKS)
-    sessions: List[Dict[str, object]] = []
-    for index in range(max(1, args.sessions)):
-        session: Dict[str, object] = {}
+
+    # Child session, or a plain single-session run.
+    if args.sessions <= 1:
+        session: Dict[str, object] = {"seed": args.seed}
         for name in selected:
-            print(f"[draft-timings] session {index + 1}/{args.sessions}: {name} ...", flush=True)
+            if not args.json_only:
+                print(f"[draft-timings] {name} ...", flush=True)
             session[name] = BLOCKS[name]()
-        sessions.append(session)
+        if args.json_only:
+            print(json.dumps(session))
+            return
+        results: Dict[str, object] = {"environment": _environment(), "sessions": [session]}
+        results.update(session)
+        _write(results)
+        return
 
-    results: Dict[str, object] = {"environment": _environment(), "sessions": sessions}
-    results.update(sessions[0])  # convenience: the first session at the top level
+    # Parent: fan out one interpreter per session, each with a distinct seed.
+    sessions: List[Dict[str, object]] = []
+    for index in range(args.sessions):
+        seed = args.seed + index
+        print(f"[draft-timings] session {index + 1}/{args.sessions} (seed={seed}) ...", flush=True)
+        sessions.append(_run_session_subprocess(seed, selected))
 
-    if len(sessions) > 1:
-        across = {
-            "lazy_gradient_runtime_ratio": _collect_ratio(
-                sessions, ("lazy_gradient", "runtime_ratio_vs_classical", "median")
-            ),
-            "ea_isofit_ratio": _collect_ratio(
-                sessions, ("ea_isofit", "eccentric_anomaly_plus_isofit", "ratio_to_default", "median")
-            ),
-            "joint_geometry_B24_over_B12": _collect_ratio(
-                sessions, ("joint_solve_bands", "ols", "geometry_B=24", "ratio_to_previous", "median")
-            ),
-        }
-        results["across_sessions"] = {key: value for key, value in across.items() if value is not None}
+    results = {"environment": _environment(), "sessions": sessions}
+    results.update(sessions[0])
+    across = {
+        "lazy_gradient_runtime_ratio": _collect_ratio(
+            sessions, ("lazy_gradient", "runtime_ratio_vs_classical", "median")
+        ),
+        "ea_isofit_ratio": _collect_ratio(
+            sessions, ("ea_isofit", "eccentric_anomaly_plus_isofit", "ratio_to_default", "median")
+        ),
+        "joint_geometry_B24_over_B12": _collect_ratio(
+            sessions, ("joint_solve_bands", "ols", "geometry_B=24", "ratio_to_previous", "median")
+        ),
+    }
+    results["across_sessions"] = {key: value for key, value in across.items() if value is not None}
+    print(json.dumps(results["across_sessions"], indent=2))
+    _write(results)
 
+
+def _write(results: Dict[str, object]) -> None:
     out_path = Path(resolve_output_directory("benchmark_draft_timings")) / "timings.json"
     out_path.write_text(json.dumps(results, indent=2))
-    if "across_sessions" in results:
-        print(json.dumps(results["across_sessions"], indent=2))
-    else:
-        print(json.dumps(sessions[0], indent=2))
     print(f"\n[draft-timings] wrote {out_path}")
 
 
