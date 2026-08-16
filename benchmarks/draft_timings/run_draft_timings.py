@@ -11,8 +11,11 @@ Measurement protocol
 --------------------
 Sessions are separate *processes*: ``--sessions N`` fans out N interpreters,
 each with its own arm-ordering seed, because repeating the blocks inside one
-process would share the imports, page cache and warmed allocators that make two
-measurements agree. Within a session, short operations are **batched** to a
+process would share the Python imports, module state, warmed allocators and arm
+ordering that make two measurements agree. Note what this does *not* isolate:
+the operating system's filesystem page cache is machine-wide, as is the
+machine's thermal and load state, so sessions are independent of each other's
+*process* state only. Within a session, short operations are **batched** to a
 floor duration before timing, because a
 sub-millisecond call timed one at a time is dominated by clock and dispatch
 overhead. Repetitions of the configurations being compared are **interleaved**
@@ -499,21 +502,30 @@ def _collect_ratio(sessions: List[Dict[str, object]], path: Sequence[str]) -> Di
     if len(values) < 2:
         return None
     ordered = sorted(values)
+    if len(ordered) >= 4:
+        quartiles = statistics.quantiles(ordered, n=4)
+        q1, q3 = quartiles[0], quartiles[2]
+    else:
+        q1, q3 = ordered[0], ordered[-1]
     return {
         "n_sessions": len(ordered),
         "min": round(ordered[0], 4),
+        "q1": round(q1, 4),
         "median": round(statistics.median(ordered), 4),
+        "q3": round(q3, 4),
         "max": round(ordered[-1], 4),
         "values": [round(v, 4) for v in ordered],
     }
 
 
 def _run_session_subprocess(seed: int, selected: Sequence[str]) -> Dict[str, object]:
-    """Run one session in a fresh interpreter, so sessions really are separate.
+    """Run one session in a fresh interpreter, with its own arm ordering.
 
     Repeating the blocks inside one process would share the imported modules,
-    the page cache and every warmed-up allocator, which is most of what makes
-    two runs agree. A session that means anything has to pay those costs again.
+    the module-level state and every warmed-up allocator, which is much of what
+    makes two runs agree. This does not buy a cold *page* cache — that is
+    machine-wide — nor a reset thermal state, so the isolation is of process
+    state only.
     """
     argv = [sys.executable, str(Path(__file__).resolve()), "--json-only", "--seed", str(seed)]
     if len(selected) == 1:
@@ -547,6 +559,16 @@ def main() -> None:
         action="store_true",
         help="Emit only the results JSON on stdout (used for child sessions).",
     )
+    parser.add_argument(
+        "--archive",
+        action="store_true",
+        help=(
+            "Also write the result next to this script as reference_timings.json, "
+            "which is committed. The manuscript's numbers should come from an "
+            "archived run so they have a stable provenance; the outputs/ copy is "
+            "overwritten by every invocation."
+        ),
+    )
     args = parser.parse_args()
 
     ACTIVE_SEED = args.seed
@@ -564,7 +586,7 @@ def main() -> None:
             return
         results: Dict[str, object] = {"environment": _environment(), "sessions": [session]}
         results.update(session)
-        _write(results)
+        _write(results, archive=args.archive)
         return
 
     # Parent: fan out one interpreter per session, each with a distinct seed.
@@ -589,13 +611,20 @@ def main() -> None:
     }
     results["across_sessions"] = {key: value for key, value in across.items() if value is not None}
     print(json.dumps(results["across_sessions"], indent=2))
-    _write(results)
+    _write(results, archive=args.archive)
 
 
-def _write(results: Dict[str, object]) -> None:
+ARCHIVE_PATH = Path(__file__).resolve().parent / "reference_timings.json"
+
+
+def _write(results: Dict[str, object], archive: bool = False) -> None:
+    payload = json.dumps(results, indent=2)
     out_path = Path(resolve_output_directory("benchmark_draft_timings")) / "timings.json"
-    out_path.write_text(json.dumps(results, indent=2))
+    out_path.write_text(payload)
     print(f"\n[draft-timings] wrote {out_path}")
+    if archive:
+        ARCHIVE_PATH.write_text(payload)
+        print(f"[draft-timings] archived {ARCHIVE_PATH}")
 
 
 if __name__ == "__main__":
