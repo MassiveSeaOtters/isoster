@@ -571,7 +571,24 @@ def main() -> None:
             "overwritten by every invocation."
         ),
     )
+    parser.add_argument(
+        "--reaggregate",
+        type=Path,
+        help=(
+            "Recompute the across-session summaries from an existing archive's "
+            "stored per-session results and rewrite it. Adds new aggregates "
+            "without re-timing anything."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.reaggregate is not None:
+        payload = json.loads(args.reaggregate.read_text())
+        payload["across_sessions"] = _aggregate(payload.get("sessions", []))
+        args.reaggregate.write_text(json.dumps(payload, indent=2))
+        print(json.dumps(payload["across_sessions"], indent=2))
+        print(f"\n[draft-timings] reaggregated {args.reaggregate}")
+        return
 
     ACTIVE_SEED = args.seed
     selected = [args.only] if args.only else list(BLOCKS)
@@ -600,6 +617,48 @@ def main() -> None:
 
     results = {"environment": _environment(), "sessions": sessions}
     results.update(sessions[0])
+    across = _aggregate(sessions)
+    results["across_sessions"] = across
+    print(json.dumps(across, indent=2))
+    _write(results, archive=args.archive)
+
+
+def _maxsma_step_ratios(sessions: Sequence[Dict[str, object]], lo: str, hi: str) -> List[float]:
+    """Per-session wall-time ratio between two ``maxsma`` settings."""
+    out: List[float] = []
+    for session in sessions:
+        block = session.get("maxsma")
+        if not isinstance(block, dict):
+            continue
+        try:
+            out.append(float(block[hi]["median_ms"]) / float(block[lo]["median_ms"]))
+        except (KeyError, TypeError, ZeroDivisionError):
+            continue
+    return out
+
+
+def _summarize_values(values: Sequence[float]) -> Dict[str, object] | None:
+    if len(values) < 2:
+        return None
+    ordered = sorted(values)
+    if len(ordered) >= 4:
+        quartiles = statistics.quantiles(ordered, n=4)
+        q1, q3 = quartiles[0], quartiles[2]
+    else:
+        q1, q3 = ordered[0], ordered[-1]
+    return {
+        "n_sessions": len(ordered),
+        "min": round(ordered[0], 4),
+        "q1": round(q1, 4),
+        "median": round(statistics.median(ordered), 4),
+        "q3": round(q3, 4),
+        "max": round(ordered[-1], 4),
+        "values": [round(v, 4) for v in ordered],
+    }
+
+
+def _aggregate(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]:
+    """Across-session summaries for every ratio the draft quotes."""
     across = {
         "lazy_gradient_runtime_ratio": _collect_ratio(
             sessions, ("lazy_gradient", "runtime_ratio_vs_classical", "median")
@@ -610,10 +669,13 @@ def main() -> None:
         "joint_geometry_B24_over_B12": _collect_ratio(
             sessions, ("joint_solve_bands", "ols", "geometry_B=24", "ratio_to_previous", "median")
         ),
+        # Wall-time growth per maxsma doubling. Quoting per-session extremes of
+        # these was how a stale three-session range survived into the draft;
+        # the median and quartiles are the reproducible summary.
+        "maxsma_ratio_100_to_200": _summarize_values(_maxsma_step_ratios(sessions, "maxsma=100", "maxsma=200")),
+        "maxsma_ratio_200_to_400": _summarize_values(_maxsma_step_ratios(sessions, "maxsma=200", "maxsma=400")),
     }
-    results["across_sessions"] = {key: value for key, value in across.items() if value is not None}
-    print(json.dumps(results["across_sessions"], indent=2))
-    _write(results, archive=args.archive)
+    return {key: value for key, value in across.items() if value is not None}
 
 
 ARCHIVE_PATH = Path(__file__).resolve().parent / "reference_timings.json"
