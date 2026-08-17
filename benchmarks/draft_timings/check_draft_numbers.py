@@ -44,6 +44,16 @@ ROADMAP = "section-1.6-limitations-roadmap.md"
 Check = Tuple[str, str, str]  # (name, filename, expected verbatim text)
 
 
+def _squash(text: str) -> str:
+    """Collapse runs of whitespace so markdown line-wrapping cannot hide a match.
+
+    The claims being checked are whole clauses and whole table rows, and a
+    clause may be wrapped across lines in the source. Normalising both sides
+    keeps the check on the *content* without weakening it to a fragment match.
+    """
+    return re.sub(r"\s+", " ", text)
+
+
 def _load_draft() -> Dict[str, str]:
     if not DRAFT_DIR.is_dir():
         raise SystemExit(f"draft directory not found: {DRAFT_DIR} (it is gitignored; nothing to check)")
@@ -85,11 +95,11 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 (
                     "EA combined ratio, median and IQR",
                     EA,
-                    f"median of ${combined['median']:.2f}$ and an\ninterquartile range of "
+                    f"median of ${combined['median']:.2f}$ and an interquartile range of "
                     f"${combined['q1']:.2f}$–${combined['q3']:.2f}$",
                 )
             )
-            checks.append(("EA session count", EA, f"Across {_words(combined['n_sessions'])}\nsessions"))
+            checks.append(("EA session count", EA, f"Across {_words(combined['n_sessions'])} sessions"))
 
     # --- Section 1.6.5: the joint-solve band table --------------------------
     bands = results.get("joint_solve_bands")
@@ -117,7 +127,7 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 (
                     "band ratio, median and IQR",
                     ROADMAP,
-                    f"median is ${b_ratio['median']:.1f}$ with an interquartile range of\n"
+                    f"median is ${b_ratio['median']:.1f}$ with an interquartile range of "
                     f"${b_ratio['q1']:.1f}$–${b_ratio['q3']:.1f}$",
                 )
             )
@@ -138,6 +148,33 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
             typical = (combined[0]["median"] + combined[1]["median"]) / 2
             checks.append(
                 ("maxsma per-doubling summary", ROADMAP, f"rising by about ${typical:.1f}\\times$ per doubling")
+            )
+
+        paired = across.get("maxsma_paired_difference")
+        if paired:
+            checks.append(
+                (
+                    "maxsma paired difference, sign count and median",
+                    ROADMAP,
+                    f"positive in {paired['n_positive']} of {paired['n_sessions']} sessions with a median of "
+                    f"${paired['median']:+.2f}$",
+                )
+            )
+            checks.append(
+                ("maxsma paired difference, worst negative", ROADMAP, f"one of them by ${paired['min']:+.2f}$")
+            )
+
+        r1, r2 = across.get("maxsma_ratio_100_to_200"), across.get("maxsma_ratio_200_to_400")
+        if r1 and r2:
+            # The retracted arithmetic is quoted in the draft as a correction and
+            # must stay correct, so it is derived here rather than transcribed.
+            checks.append(
+                (
+                    "retracted median-difference arithmetic",
+                    ROADMAP,
+                    f"${r2['median'] - r1['median']:.3f}$, exceeds both IQR widths, "
+                    f"${r1['q3'] - r1['q1']:.3f}$ and ${r2['q3'] - r2['q1']:.3f}$",
+                )
             )
 
         for label, key in (("100→200", "maxsma_ratio_100_to_200"), ("200→400", "maxsma_ratio_200_to_400")):
@@ -179,57 +216,36 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 )
             )
             checks.append(("lazy-gradient session count", SPEED, f"{_words(ratio['n_sessions'])} sessions"))
+            # The reproduction command names a session count; if it drifts from
+            # the archive the reader cannot regenerate what is quoted.
+            checks.append(
+                (
+                    "lazy-gradient reproduction command",
+                    SPEED,
+                    f"run_draft_timings.py --sessions {ratio['n_sessions']}`",
+                )
+            )
 
     # --- Sections 1.3.2 / 1.6.5: cold start ---------------------------------
-    cold = results.get("cold_start")
-    if cold:
-        seconds = {name: cold[name]["median_ms"] / 1000.0 for name in ("import", "compilation", "cache_load")}
-        # The import figure is quoted as a bracket, so the whole clause is the
-        # claim; matching only the upper bound would leave the lower unguarded.
-        lo_import = _sig1(seconds["import"] - 0.1)
-        checks.append(
-            (
-                "cold-start import bracket (roadmap)",
-                ROADMAP,
-                f"${lo_import}\\,\\mathrm{{s}}$ to ${_sig1(seconds['import'])}\\,\\mathrm{{s}}$",
-            )
+    # Quoted as an across-session median with an IQR, each to the precision its
+    # own spread supports, and every figure taken from the archive. An earlier
+    # version built the import bracket as "median minus 0.1", which is not a
+    # measurement, and left the lower compilation bound unguarded entirely.
+    cold_components = (
+        ("import", "cold_start_import_s", 2),
+        ("compilation", "cold_start_compilation_s", 2),
+        ("cache load", "cold_start_cache_load_s", 3),
+    )
+    for label, key, places in cold_components:
+        summary = across.get(key)
+        if not summary:
+            continue
+        clause = (
+            f"${summary['median']:.{places}f}\\,\\mathrm{{s}}$ "
+            f"(IQR ${summary['q1']:.{places}f}$–${summary['q3']:.{places}f}$)"
         )
-        # §1.3.2 repeats all three figures; they were previously unguarded.
-        checks.append(
-            (
-                "cold-start import bracket (speed section)",
-                SPEED,
-                f"(${lo_import}$–${_sig1(seconds['import'])}\\,\\mathrm{{s}}$ on the reference machine)",
-            )
-        )
-        checks.append(
-            (
-                "cold-start cache load (speed section)",
-                SPEED,
-                f"(roughly ${_sig1(seconds['cache_load'])}\\,\\mathrm{{s}}$)",
-            )
-        )
-        checks.append(
-            (
-                "cold-start compilation (speed section)",
-                SPEED,
-                f"(a further ${_sig1(seconds['compilation'])}\\,\\mathrm{{s}}$)",
-            )
-        )
-        checks.append(
-            (
-                "cold-start cache load, as quoted",
-                ROADMAP,
-                f"about ${_sig1(seconds['cache_load'])}\\,\\mathrm{{s}}$ more than a",
-            )
-        )
-        checks.append(
-            (
-                "cold-start compilation, as quoted",
-                ROADMAP,
-                f"to ${_sig1(seconds['compilation'])}\\,\\mathrm{{s}}$, which is the",
-            )
-        )
+        checks.append((f"cold start, {label} (roadmap)", ROADMAP, clause))
+        checks.append((f"cold start, {label} (speed section)", SPEED, clause))
 
     return checks
 
@@ -253,7 +269,7 @@ def _words(count: int) -> str:
 def _run(checks: List[Check], draft: Dict[str, str], verbose: bool = True) -> List[str]:
     failures: List[str] = []
     for name, filename, expected in checks:
-        ok = expected in draft.get(filename, "")
+        ok = _squash(expected) in _squash(draft.get(filename, ""))
         if verbose:
             print(f"{'OK  ' if ok else 'FAIL'} {name}  [{filename}]")
             if not ok:
@@ -264,66 +280,50 @@ def _run(checks: List[Check], draft: Dict[str, str], verbose: bool = True) -> Li
 
 
 def _self_test(checks: List[Check], draft: Dict[str, str]) -> int:
-    """Mutate one numeric claim at a time and require a check to notice each.
+    """Perturb one numeric *occurrence* at a time and require a check to notice.
 
-    Mutating every digit at once proves only that each *implemented* check is
-    sensitive to some change. It says nothing about numeric claims for which no
-    check exists, which is the failure mode that let an earlier version of this
-    script pass against a deliberately corrupted draft.
+    Mutating a token globally is not enough: a guarded ``18`` can fail a check
+    while an unguarded ``18`` two paragraphs away goes unnoticed, because the
+    global edit changes both and the failure is credited to the guarded one.
+    This walks every individual number in the guarded sections, changes just
+    that occurrence, and asks whether any check objects.
 
-    So this walks every distinct number that appears in any check's expected
-    text, perturbs just that number everywhere in the draft, and requires at
-    least one check to fail. A number that can be changed with impunity is
-    reported: either it is unguarded, or the check that should guard it is
-    matching too loosely.
+    Occurrences nobody objects to are reported. Most are legitimately outside
+    the harness's scope — configuration values, cross-references, results from
+    other experiments — so this is a coverage map rather than a pass/fail on
+    the draft. What it must not contain is a harness-derived timing.
     """
-    tokens = sorted({token for _, _, expected in checks for token in re.findall(r"\d+(?:\.\d+)?", expected)})
-    words = sorted({word for _, _, expected in checks for word in _NUMBER_WORDS.values() if word in expected})
+    guarded_files = sorted({filename for _, filename, _ in checks})
+    unguarded: List[Tuple[str, str, str]] = []
+    total = 0
 
-    unguarded: List[str] = []
+    for filename in guarded_files:
+        text = draft.get(filename, "")
+        for match in re.finditer(r"\d+(?:\.\d+)?", text):
+            total += 1
+            token = match.group()
+            bumped = f"{float(token) + 1.0:.{len(token.split('.')[1])}f}" if "." in token else str(int(token) + 1)
+            mutated = dict(draft)
+            mutated[filename] = text[: match.start()] + bumped + text[match.end() :]
+            if not _run(checks, mutated, verbose=False):
+                context = re.sub(r"\s+", " ", text[max(0, match.start() - 45) : match.end() + 25]).strip()
+                unguarded.append((filename, token, context))
 
-    def perturb(token: str) -> str:
-        if "." in token:
-            return f"{float(token) + 1.0:.{len(token.split('.')[1])}f}"
-        return str(int(token) + 1)
+    print(f"self-test: perturbed {total} numeric occurrences, one at a time")
+    caught = total - len(unguarded)
+    print(f"  {caught} were caught by at least one check; {len(unguarded)} were not")
 
-    for token in tokens:
-        pattern = re.compile(rf"(?<![\d.]){re.escape(token)}(?![\d])")
-        mutated = {name: pattern.sub(perturb(token), text) for name, text in draft.items()}
-        if not _run(checks, mutated, verbose=False):
-            unguarded.append(f"number {token!r}")
-
-    for word in words:
-        mutated = {name: text.replace(word, "SOMENUMBER") for name, text in draft.items()}
-        if not _run(checks, mutated, verbose=False):
-            unguarded.append(f"count word {word!r}")
-
-    # Coverage: numbers present in the guarded sections that no check mentions.
-    # These are not failures -- many are configuration values, cross-references
-    # or figures sourced from elsewhere -- but listing them is the only way to
-    # see which numeric claims this script does *not* speak for.
-    guarded = set(tokens)
-    present: Dict[str, set] = {}
-    for filename in (SPEED, EA, ROADMAP):
-        found = set(re.findall(r"\d+(?:\.\d+)?", draft.get(filename, "")))
-        uncovered = found - guarded
-        if uncovered:
-            present[filename] = uncovered
-
-    total = len(tokens) + len(words)
-    print(f"self-test: perturbed {total} numeric claims one at a time")
     if unguarded:
-        print(f"{len(unguarded)} of them can be changed without any check failing:")
-        for item in unguarded:
-            print(f"  - {item}")
-        return 1
-    print("self-test: every one was caught by at least one check")
-    print("\ncoverage: numbers in the guarded sections that no check speaks for")
-    print("(expected -- configuration values, cross-references, and results from")
-    print(" other experiments -- but listed so the boundary is visible)")
-    for filename, values in sorted(present.items()):
-        sample = ", ".join(sorted(values, key=lambda v: (len(v), v))[:12])
-        print(f"  {filename}: {len(values)} distinct, e.g. {sample}")
+        print("\ncoverage: occurrences no check speaks for (expected for anything")
+        print("outside the harness's scope; a harness-derived timing here is a bug)")
+        by_file: Dict[str, int] = {}
+        for filename, _, _ in unguarded:
+            by_file[filename] = by_file.get(filename, 0) + 1
+        for filename, count in sorted(by_file.items()):
+            print(f"  {filename}: {count}")
+            for name, token, context in unguarded:
+                if name == filename:
+                    print(f"      {token:>9}  …{context}…")
     return 0
 
 

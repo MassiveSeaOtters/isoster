@@ -696,8 +696,43 @@ def _aggregate(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]:
         # the median and quartiles are the reproducible summary.
         "maxsma_ratio_100_to_200": _summarize_values(_maxsma_step_ratios(sessions, "maxsma=100", "maxsma=200")),
         "maxsma_ratio_200_to_400": _summarize_values(_maxsma_step_ratios(sessions, "maxsma=200", "maxsma=400")),
+        # The two step ratios come from the *same* sessions, so the paired
+        # difference -- not the gap between their marginal spreads -- is the
+        # quantity with any power. Stored so the draft's paired claim is
+        # archive-derived rather than recomputed by hand.
+        "maxsma_paired_difference": _paired_difference(sessions),
+        # Cold start is measured per session; these pool all of them so the
+        # quoted brackets come from an across-session statistic rather than
+        # from one session's median plus a guessed margin.
+        "cold_start_import_s": _cold_start_across(sessions, "import"),
+        "cold_start_compilation_s": _cold_start_across(sessions, "compilation"),
+        "cold_start_cache_load_s": _cold_start_across(sessions, "cache_load"),
     }
     return {key: value for key, value in across.items() if value is not None}
+
+
+def _paired_difference(sessions: Sequence[Dict[str, object]]) -> Dict[str, object] | None:
+    """Per-session (200→400 ratio) − (100→200 ratio), with a sign count."""
+    first = _maxsma_step_ratios(sessions, "maxsma=100", "maxsma=200")
+    second = _maxsma_step_ratios(sessions, "maxsma=200", "maxsma=400")
+    if len(first) != len(second) or len(first) < 2:
+        return None
+    differences = [b - a for a, b in zip(first, second)]
+    summary = _summarize_values(differences)
+    if summary is None:
+        return None
+    summary["n_positive"] = sum(1 for value in differences if value > 0)
+    return summary
+
+
+def _cold_start_across(sessions: Sequence[Dict[str, object]], component: str) -> Dict[str, object] | None:
+    """Pool one cold-start component's per-session medians, in seconds."""
+    values: List[float] = []
+    for session in sessions:
+        block = session.get("cold_start")
+        if isinstance(block, dict) and component in block:
+            values.append(float(block[component]["median_ms"]) / 1000.0)
+    return _summarize_values(values)
 
 
 ARCHIVE_PATH = Path(__file__).resolve().parent / "reference_timings.json"
