@@ -95,6 +95,11 @@ MIN_BATCH_SECONDS = 0.02
 ORDER_SEED = 20260816
 COLD_START_PAIRS = 3
 
+# The committed archive backs the manuscript's numbers, so promoting a run to
+# it is a deliberate act. A partial or single-session run must not be able to
+# replace it by accident.
+ARCHIVE_MIN_SESSIONS = 18
+
 # Set once from ``--seed``. A session's arm-visiting order derives from it, so
 # two sessions sharing a seed visit the arms identically and cannot reveal
 # order-dependent variability.
@@ -565,10 +570,11 @@ def main() -> None:
         "--archive",
         action="store_true",
         help=(
-            "Also write the result next to this script as reference_timings.json, "
-            "which is committed. The manuscript's numbers should come from an "
-            "archived run so they have a stable provenance; the outputs/ copy is "
-            "overwritten by every invocation."
+            "Promote this run to reference_timings.json, the committed archive "
+            "the manuscript's numbers are drawn from. Requires all blocks and at "
+            "least "
+            f"{ARCHIVE_MIN_SESSIONS} sessions, so a partial or single-session run "
+            "cannot replace the canonical evidence by accident."
         ),
     )
     parser.add_argument(
@@ -592,6 +598,22 @@ def main() -> None:
 
     ACTIVE_SEED = args.seed
     selected = [args.only] if args.only else list(BLOCKS)
+
+    if args.archive:
+        problems = []
+        if args.only:
+            problems.append(f"--only {args.only} runs one block; the archive must contain all of them")
+        if args.sessions < ARCHIVE_MIN_SESSIONS:
+            problems.append(
+                f"--sessions {args.sessions} is below the {ARCHIVE_MIN_SESSIONS} the archive requires; "
+                "fewer sessions do not pin the medians and quartiles the draft quotes"
+            )
+        if problems:
+            raise SystemExit(
+                "refusing to overwrite the committed archive:\n  - "
+                + "\n  - ".join(problems)
+                + f"\n\nRun without --archive to write only {resolve_output_directory('benchmark_draft_timings')}."
+            )
 
     # Child session, or a plain single-session run.
     if args.sessions <= 1:

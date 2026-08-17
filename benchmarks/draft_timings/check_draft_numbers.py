@@ -112,6 +112,7 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
 
         b_ratio = across.get("joint_geometry_B24_over_B12")
         if b_ratio:
+            checks.append(("band ratio session count", ROADMAP, f"over {_words(b_ratio['n_sessions'])} sessions its"))
             checks.append(
                 (
                     "band ratio, median and IQR",
@@ -131,6 +132,13 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 f"{_thousands(entry['sampled_points'])} | {entry['median_ms']:.1f} ms |"
             )
             checks.append((f"maxsma table row: {limit} px", ROADMAP, row))
+
+        combined = across.get("maxsma_ratio_100_to_200"), across.get("maxsma_ratio_200_to_400")
+        if all(combined):
+            typical = (combined[0]["median"] + combined[1]["median"]) / 2
+            checks.append(
+                ("maxsma per-doubling summary", ROADMAP, f"rising by about ${typical:.1f}\\times$ per doubling")
+            )
 
         for label, key in (("100→200", "maxsma_ratio_100_to_200"), ("200→400", "maxsma_ratio_200_to_400")):
             summary = across.get(key)
@@ -176,11 +184,36 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
     cold = results.get("cold_start")
     if cold:
         seconds = {name: cold[name]["median_ms"] / 1000.0 for name in ("import", "compilation", "cache_load")}
+        # The import figure is quoted as a bracket, so the whole clause is the
+        # claim; matching only the upper bound would leave the lower unguarded.
+        lo_import = _sig1(seconds["import"] - 0.1)
         checks.append(
             (
-                "cold-start import, as quoted",
+                "cold-start import bracket (roadmap)",
                 ROADMAP,
-                f"${_sig1(seconds['import'])}\\,\\mathrm{{s}}$",
+                f"${lo_import}\\,\\mathrm{{s}}$ to ${_sig1(seconds['import'])}\\,\\mathrm{{s}}$",
+            )
+        )
+        # §1.3.2 repeats all three figures; they were previously unguarded.
+        checks.append(
+            (
+                "cold-start import bracket (speed section)",
+                SPEED,
+                f"(${lo_import}$–${_sig1(seconds['import'])}\\,\\mathrm{{s}}$ on the reference machine)",
+            )
+        )
+        checks.append(
+            (
+                "cold-start cache load (speed section)",
+                SPEED,
+                f"(roughly ${_sig1(seconds['cache_load'])}\\,\\mathrm{{s}}$)",
+            )
+        )
+        checks.append(
+            (
+                "cold-start compilation (speed section)",
+                SPEED,
+                f"(a further ${_sig1(seconds['compilation'])}\\,\\mathrm{{s}}$)",
             )
         )
         checks.append(
@@ -231,29 +264,66 @@ def _run(checks: List[Check], draft: Dict[str, str], verbose: bool = True) -> Li
 
 
 def _self_test(checks: List[Check], draft: Dict[str, str]) -> int:
-    """Confirm the checks fail on corrupted text.
+    """Mutate one numeric claim at a time and require a check to notice each.
 
-    A checker that has never been shown to fail is not evidence. This mutates
-    every digit in the draft and asserts that *every* check notices.
+    Mutating every digit at once proves only that each *implemented* check is
+    sensitive to some change. It says nothing about numeric claims for which no
+    check exists, which is the failure mode that let an earlier version of this
+    script pass against a deliberately corrupted draft.
+
+    So this walks every distinct number that appears in any check's expected
+    text, perturbs just that number everywhere in the draft, and requires at
+    least one check to fail. A number that can be changed with impunity is
+    reported: either it is unguarded, or the check that should guard it is
+    matching too loosely.
     """
+    tokens = sorted({token for _, _, expected in checks for token in re.findall(r"\d+(?:\.\d+)?", expected)})
+    words = sorted({word for _, _, expected in checks for word in _NUMBER_WORDS.values() if word in expected})
 
-    def corrupt(text: str) -> str:
-        # Digits, and also the spelled-out counts, since some claims name a
-        # session count in words and would otherwise survive a digit-only edit.
-        text = re.sub(r"\d", lambda m: str((int(m.group()) + 5) % 10), text)
-        for word in _NUMBER_WORDS.values():
-            text = text.replace(word, "SOMENUMBER")
-        return text
+    unguarded: List[str] = []
 
-    mutated = {name: corrupt(text) for name, text in draft.items()}
-    survivors = [name for name, filename, expected in checks if expected in mutated.get(filename, "")]
-    print(f"self-test: mutated every digit in the draft; {len(survivors)} of {len(checks)} checks still passed")
-    if survivors:
-        print("These checks do not actually constrain the manuscript:")
-        for name in survivors:
-            print(f"  - {name}")
+    def perturb(token: str) -> str:
+        if "." in token:
+            return f"{float(token) + 1.0:.{len(token.split('.')[1])}f}"
+        return str(int(token) + 1)
+
+    for token in tokens:
+        pattern = re.compile(rf"(?<![\d.]){re.escape(token)}(?![\d])")
+        mutated = {name: pattern.sub(perturb(token), text) for name, text in draft.items()}
+        if not _run(checks, mutated, verbose=False):
+            unguarded.append(f"number {token!r}")
+
+    for word in words:
+        mutated = {name: text.replace(word, "SOMENUMBER") for name, text in draft.items()}
+        if not _run(checks, mutated, verbose=False):
+            unguarded.append(f"count word {word!r}")
+
+    # Coverage: numbers present in the guarded sections that no check mentions.
+    # These are not failures -- many are configuration values, cross-references
+    # or figures sourced from elsewhere -- but listing them is the only way to
+    # see which numeric claims this script does *not* speak for.
+    guarded = set(tokens)
+    present: Dict[str, set] = {}
+    for filename in (SPEED, EA, ROADMAP):
+        found = set(re.findall(r"\d+(?:\.\d+)?", draft.get(filename, "")))
+        uncovered = found - guarded
+        if uncovered:
+            present[filename] = uncovered
+
+    total = len(tokens) + len(words)
+    print(f"self-test: perturbed {total} numeric claims one at a time")
+    if unguarded:
+        print(f"{len(unguarded)} of them can be changed without any check failing:")
+        for item in unguarded:
+            print(f"  - {item}")
         return 1
-    print("self-test: every check failed as it should")
+    print("self-test: every one was caught by at least one check")
+    print("\ncoverage: numbers in the guarded sections that no check speaks for")
+    print("(expected -- configuration values, cross-references, and results from")
+    print(" other experiments -- but listed so the boundary is visible)")
+    for filename, values in sorted(present.items()):
+        sample = ", ".join(sorted(values, key=lambda v: (len(v), v))[:12])
+        print(f"  {filename}: {len(values)} distinct, e.g. {sample}")
     return 0
 
 
