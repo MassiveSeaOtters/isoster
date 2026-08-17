@@ -549,8 +549,10 @@ def main() -> None:
             "Run this many sessions, each in its own interpreter and with its "
             "own arm-ordering seed. Ratios that vary between runs can only be "
             "characterised this way: repeating blocks inside one process shares "
-            "the imports, page cache and warmed allocators that make two "
-            "measurements agree."
+            "the Python imports, module state, warmed allocators and arm "
+            "ordering that make two measurements agree. Use enough sessions to "
+            "report a median and an interquartile range -- three is too few, and "
+            "produces an interval that moves between attempts."
         ),
     )
     parser.add_argument("--seed", type=int, default=ORDER_SEED, help="Arm-ordering seed for this session.")

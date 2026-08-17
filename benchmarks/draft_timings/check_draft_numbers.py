@@ -98,6 +98,40 @@ def build_checks(results: Dict[str, object], draft: Dict[str, str]) -> List[Tupl
             [str(lazy["lazy"]["gradient_evaluations"]), str(lazy["classical"]["gradient_evaluations"])],
         )
 
+    if maxsma:
+        require(
+            "maxsma wall times",
+            "section-1.6-limitations-roadmap.md",
+            [f"{maxsma[key]['median_ms']:.1f} ms" for key in ("maxsma=100", "maxsma=200", "maxsma=400")],
+        )
+
+    cold = results.get("cold_start", {})
+    if cold:
+        # Quoted to one significant figure in seconds, so check the bracket the
+        # draft states rather than an exact string.
+        seconds = {name: cold[name]["median_ms"] / 1000.0 for name in ("import", "compilation", "cache_load")}
+        checks.append(
+            (
+                "cold-start import within the quoted 0.8-0.9 s",
+                "section-1.6-limitations-roadmap.md",
+                0.75 <= seconds["import"] <= 0.95,
+            )
+        )
+        checks.append(
+            (
+                "cold-start compilation within the quoted 0.35-0.4 s",
+                "section-1.6-limitations-roadmap.md",
+                0.30 <= seconds["compilation"] <= 0.45,
+            )
+        )
+        checks.append(
+            (
+                "cold-start cache load within the quoted 0.1 s",
+                "section-1.6-limitations-roadmap.md",
+                0.05 <= seconds["cache_load"] <= 0.15,
+            )
+        )
+
     across = results.get("across_sessions", {})
     ratio = across.get("lazy_gradient_runtime_ratio") if isinstance(across, dict) else None
     if ratio:
