@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -68,6 +69,17 @@ def _thousands(value: int) -> str:
 def _pct_saving(runtime_ratio: float) -> int:
     """A runtime ratio expressed as the whole-percent saving the draft quotes."""
     return round(100 * (1 - runtime_ratio))
+
+
+def _pct_saving_precise(runtime_ratio: float) -> str:
+    """The same saving to one decimal place.
+
+    The headline median is quoted to the whole percent, which is the precision
+    its between-run reproducibility supports. The interquartile range needs one
+    more digit: this archive's quartiles are close enough together that rounding
+    both to the whole percent would print the width of the interval as zero.
+    """
+    return f"{100 * (1 - runtime_ratio):.1f}"
 
 
 def build_checks(results: Dict[str, object]) -> List[Check]:
@@ -160,8 +172,18 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                     f"${paired['median']:+.2f}$",
                 )
             )
+            # The count of negative sessions is prose ("the two negative
+            # sessions"), so it has to be derived too — otherwise a re-archive
+            # that changes the sign split leaves a stale word behind a fresh
+            # number.
+            n_negative = int(paired["n_sessions"]) - int(paired["n_positive"])
             checks.append(
-                ("maxsma paired difference, worst negative", ROADMAP, f"one of them by ${paired['min']:+.2f}$")
+                (
+                    "maxsma paired difference, negative sessions",
+                    ROADMAP,
+                    f"the {_words(n_negative)} negative sessions are small, the worse of them by "
+                    f"${paired['min']:+.2f}$",
+                )
             )
 
         r1, r2 = across.get("maxsma_ratio_100_to_200"), across.get("maxsma_ratio_200_to_400")
@@ -212,10 +234,21 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 (
                     "lazy-gradient saving, IQR",
                     SPEED,
-                    f"interquartile range of ${_pct_saving(ratio['q3'])}\\%$ to ${_pct_saving(ratio['q1'])}\\%$",
+                    f"interquartile range of ${_pct_saving_precise(ratio['q3'])}\\%$ to "
+                    f"${_pct_saving_precise(ratio['q1'])}\\%$",
                 )
             )
             checks.append(("lazy-gradient session count", SPEED, f"{_words(ratio['n_sessions'])} sessions"))
+            # The draft argues for median-and-IQR by contrasting this archive's
+            # extremes with the previous archive's. The claim about *this* one
+            # has to come from it rather than from memory of an earlier run.
+            checks.append(
+                (
+                    "lazy-gradient extremes in this archive",
+                    SPEED,
+                    f"between ${_pct_saving_precise(ratio['max'])}\\%$ and ${_pct_saving_precise(ratio['min'])}\\%$",
+                )
+            )
             # The reproduction command names a session count; if it drifts from
             # the archive the reader cannot regenerate what is quoted.
             checks.append(
@@ -223,6 +256,64 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                     "lazy-gradient reproduction command",
                     SPEED,
                     f"run_draft_timings.py --sessions {ratio['n_sessions']}`",
+                )
+            )
+
+    # --- Section 1.3.2: the lazy-gradient accuracy table --------------------
+    # Each cell is the across-session median, the sessions differing in their
+    # noise realisation. The table's own spread claim is checked too: without it
+    # a reader would take the digits at face value, and the tail moves.
+    sweep = across.get("snr_sweep")
+    if isinstance(sweep, dict):
+        for snr in (200, 50, 10):
+            row_key = f"snr={snr}"
+            row_data = sweep.get(row_key)
+            if not isinstance(row_data, dict):
+                continue
+            row = (
+                f"| {snr} | {_sci1(row_data['median_abs_delta_sigma']['median'])} "
+                f"| {_sig2(row_data['max_abs_delta_sigma']['median'])} "
+                f"| {_sig2(row_data['max_abs_dx0_px']['median'])} "
+                f"| {_sig2(row_data['max_abs_dpa_rad']['median'])} |"
+            )
+            checks.append((f"accuracy table row: S/N = {snr}", SPEED, row))
+
+        tail = sweep.get("snr=50", {}).get("max_abs_delta_sigma")
+        if tail:
+            checks.append(
+                (
+                    "accuracy table, tail spread at S/N = 50",
+                    SPEED,
+                    # The S/N label is inside the claim on purpose: a spread
+                    # attached to the wrong row is as wrong as a bad digit.
+                    f"$S/N = 50$ maximum has an interquartile range of ${_sig2(tail['q1'])}$–${_sig2(tail['q3'])}$",
+                )
+            )
+            checks.append(
+                (
+                    "accuracy table, noise-realisation count",
+                    SPEED,
+                    f"median across {_words(tail['n_sessions'])} noise realisations",
+                )
+            )
+            checks.append(
+                (
+                    "accuracy table, tail extremes at S/N = 50",
+                    SPEED,
+                    f"range from ${_sig2(tail['min'])}$ to ${_sig2(tail['max'])}$",
+                )
+            )
+
+        # §1.6.2 restates the worst-case figure when it lists the lazy gradient
+        # as an accuracy limitation. Restated numbers drift the most, because
+        # nothing about editing one section prompts a look at the other.
+        worst = sweep.get("snr=10", {}).get("max_abs_delta_sigma")
+        if worst:
+            checks.append(
+                (
+                    "lazy-gradient worst case restated in the limitations list",
+                    ROADMAP,
+                    f"reaching ${_sig2(worst['median'])}\\sigma$ on the worst isophote",
                 )
             )
 
@@ -255,11 +346,32 @@ def _ms(value: float) -> str:
     return f"{value:.3f} ms" if value < 1.0 else f"{value:.2f} ms"
 
 
-def _sig1(seconds: float) -> str:
-    return f"{seconds:.1f}"
+def _sci1(value: float) -> str:
+    """One significant figure in the LaTeX scientific notation the table uses.
+
+    The accuracy table's median column spans three decades, so a fixed number of
+    decimal places would either truncate the smallest entry to zero or pad the
+    largest with digits the measurement does not support. One significant figure
+    is all the run-to-run spread justifies.
+    """
+    if value <= 0:
+        raise ValueError(f"cannot render {value} in scientific notation")
+    exponent = math.floor(math.log10(value))
+    mantissa = round(value / 10.0**exponent)
+    if mantissa == 10:  # e.g. 9.7e-4 rounds up into the next decade
+        mantissa, exponent = 1, exponent + 1
+    return f"${mantissa} \\times 10^{{{exponent}}}$"
 
 
-_NUMBER_WORDS = {3: "three", 9: "nine", 18: "eighteen"}
+def _sig2(value: float) -> str:
+    """Two significant figures as a plain decimal, as the table's later columns."""
+    if value <= 0:
+        raise ValueError(f"cannot render {value} to two significant figures")
+    places = max(0, 1 - math.floor(math.log10(value)))
+    return f"{value:.{places}f}"
+
+
+_NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 9: "nine", 18: "eighteen"}
 
 
 def _words(count: int) -> str:

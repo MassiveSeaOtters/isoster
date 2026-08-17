@@ -30,6 +30,11 @@ Blocks
     Section 1.3.2: gradient-evaluation count, wall time and the geometry
     difference between the cached and uncached paths, in units of each
     isophote's own reported uncertainty.
+``snr_sweep``
+    Section 1.3.2: the same cached-versus-uncached geometry difference at three
+    noise levels, which is what the accuracy table in that section quotes. The
+    quantity is a difference between two converged fits rather than a time, so
+    each session draws its own noise realisation --- see ``bench_snr_sweep``.
 ``ea_isofit``
     Section 1.4.1.4: the 2x2 of eccentric-anomaly sampling and ISOFIT.
 ``joint_solve_bands``
@@ -89,6 +94,18 @@ from isoster.output_paths import resolve_output_directory  # noqa: E402
 # the scaling question being asked.
 FIXTURE_COMPACT = dict(R_e=30.0, n=2.0, I_e=100.0, eps=0.4, pa=0.6, noise_snr=50.0, seed=7)
 FIXTURE_WIDE = dict(R_e=80.0, n=2.0, I_e=100.0, eps=0.4, pa=0.6, noise_snr=200.0, seed=7)
+
+# Noise levels for the accuracy table in section 1.3.2. The middle one is the
+# compact fixture's own S/N, so the sweep's centre row and the ``lazy_gradient``
+# block describe the same galaxy at the same noise level -- though not the same
+# noise *realisation*, since the sweep redraws one per session (see
+# ``bench_snr_sweep``) and ``lazy_gradient`` keeps the fixture's fixed seed.
+SNR_SWEEP_LEVELS = (200.0, 50.0, 10.0)
+
+# Outer limit for the cached-versus-uncached comparison, shared by the
+# ``lazy_gradient`` and ``snr_sweep`` blocks so their S/N = 50 numbers refer to
+# the same fit rather than to two fits that merely resemble each other.
+LAZY_PAIR_MAXSMA = 120.0
 
 REPEATS = 9
 MIN_BATCH_SECONDS = 0.02
@@ -211,15 +228,70 @@ def _config(centre: float, **overrides) -> IsosterConfig:
     return IsosterConfig(**base)
 
 
+def _lazy_pair_configs(centre: float) -> Dict[str, IsosterConfig]:
+    """The cached and uncached configurations that §1.3.2 compares."""
+    return {
+        "lazy": _config(centre, maxsma=LAZY_PAIR_MAXSMA, use_lazy_gradient=True),
+        "classical": _config(centre, maxsma=LAZY_PAIR_MAXSMA, use_lazy_gradient=False),
+    }
+
+
+def _pa_difference(lazy_pa: float, exact_pa: float) -> float:
+    """Absolute position-angle difference, taken modulo pi.
+
+    An ellipse's position angle is defined only up to a half turn, so a raw
+    subtraction can report a difference of nearly pi for two orientations that
+    are in fact identical. This folds the difference into [-pi/2, pi/2] before
+    taking its size.
+    """
+    delta = (lazy_pa - exact_pa + np.pi / 2.0) % np.pi - np.pi / 2.0
+    return abs(delta)
+
+
+def _geometry_difference(lazy_profile, classical_profile) -> Dict[str, object]:
+    """Summarise how far the cached-gradient geometry lands from the exact one.
+
+    Returns the four quantities the §1.3.2 accuracy table quotes: the median and
+    the maximum disagreement in units of each isophote's *own* reported
+    uncertainty --- pooled over ``x0``, ``y0``, ``eps`` and PA, because the
+    normalisation makes them commensurable --- plus the largest absolute centre
+    and position-angle shifts, which are the two a reader can picture directly.
+    """
+    in_sigma: List[float] = []
+    centre_shift: List[float] = []
+    pa_shift: List[float] = []
+
+    for lazy_iso, exact_iso in zip(lazy_profile, classical_profile):
+        if not lazy_iso.get("sma"):
+            continue
+        for key, err_key in (("x0", "x0_err"), ("y0", "y0_err"), ("eps", "eps_err"), ("pa", "pa_err")):
+            if key == "pa":
+                delta = _pa_difference(float(lazy_iso[key]), float(exact_iso[key]))
+                pa_shift.append(delta)
+            else:
+                delta = abs(float(lazy_iso[key]) - float(exact_iso[key]))
+                if key == "x0":
+                    centre_shift.append(delta)
+            sigma = float(exact_iso.get(err_key) or 0.0)
+            if sigma > 0:
+                in_sigma.append(delta / sigma)
+
+    return {
+        "median_abs_delta_sigma": float(np.median(in_sigma)),
+        "max_abs_delta_sigma": float(np.max(in_sigma)),
+        "max_abs_dx0_px": float(np.max(centre_shift)),
+        "max_abs_dpa_rad": float(np.max(pa_shift)),
+        "n_comparisons": len(in_sigma),
+        "n_isophotes": len(centre_shift),
+    }
+
+
 def bench_lazy_gradient() -> Dict[str, object]:
     """Section 1.3.2: what the gradient cache saves, and what it costs."""
     import isoster.fitting as fitting_module
 
     image, centre = _build_fixture(FIXTURE_COMPACT)
-    configs = {
-        "lazy": _config(centre, maxsma=120.0, use_lazy_gradient=True),
-        "classical": _config(centre, maxsma=120.0, use_lazy_gradient=False),
-    }
+    configs = _lazy_pair_configs(centre)
 
     original = fitting_module.compute_gradient
     counter = {"n": 0}
@@ -244,20 +316,34 @@ def bench_lazy_gradient() -> Dict[str, object]:
     # A ratio of runtimes, not a fractional saving: 0.75 means the lazy path
     # takes three-quarters of the time, i.e. saves a quarter.
     out["runtime_ratio_vs_classical"] = _ratio(timings["lazy"], timings["classical"])
+    out["geometry_difference"] = _geometry_difference(profiles["lazy"], profiles["classical"])
+    return out
 
-    ratios: List[float] = []
-    for lazy_iso, exact_iso in zip(profiles["lazy"], profiles["classical"]):
-        if not lazy_iso.get("sma"):
-            continue
-        for key, err_key in (("x0", "x0_err"), ("y0", "y0_err"), ("eps", "eps_err"), ("pa", "pa_err")):
-            sigma = float(exact_iso.get(err_key) or 0.0)
-            if sigma > 0:
-                ratios.append(abs(float(lazy_iso[key]) - float(exact_iso[key])) / sigma)
-    out["geometry_difference_in_sigma"] = {
-        "median": round(float(np.median(ratios)), 5),
-        "max": round(float(np.max(ratios)), 3),
-        "n_comparisons": len(ratios),
-    }
+
+def bench_snr_sweep() -> Dict[str, object]:
+    """Section 1.3.2: the cached-gradient accuracy cost against noise level.
+
+    The same compact fixture and the same pair of configurations as
+    ``lazy_gradient``, at three signal-to-noise ratios, because the size of the
+    approximation is the thing that depends on noise: a cached gradient is least
+    representative exactly where the gradient is poorly measured.
+
+    Unlike every other block here the measured quantity is not a time but the
+    difference between two converged fits, which is fully determined by the
+    image. Repeating it across sessions with one fixed noise realisation would
+    therefore return the identical number eighteen times and report an
+    interquartile range of exactly zero --- a spurious claim of precision. Each
+    session instead draws its own noise realisation from its session seed, so
+    the across-session spread is a spread over noise realisations, which is the
+    variability a reader of the table actually needs to know about.
+    """
+    out: Dict[str, object] = {"noise_seed": ACTIVE_SEED, "levels": list(SNR_SWEEP_LEVELS)}
+    for snr in SNR_SWEEP_LEVELS:
+        image, centre = _build_fixture(dict(FIXTURE_COMPACT, noise_snr=snr, seed=ACTIVE_SEED))
+        profiles = {
+            label: fit_image(image, config=cfg)["isophotes"] for label, cfg in _lazy_pair_configs(centre).items()
+        }
+        out[f"snr={snr:g}"] = _geometry_difference(profiles["lazy"], profiles["classical"])
     return out
 
 
@@ -457,6 +543,7 @@ def bench_cold_start() -> Dict[str, object]:
 
 BLOCKS: Dict[str, Callable[[], Dict[str, object]]] = {
     "lazy_gradient": bench_lazy_gradient,
+    "snr_sweep": bench_snr_sweep,
     "ea_isofit": bench_ea_isofit,
     "joint_solve_bands": bench_joint_solve_bands,
     "maxsma": bench_maxsma,
@@ -659,7 +746,13 @@ def _maxsma_step_ratios(sessions: Sequence[Dict[str, object]], lo: str, hi: str)
     return out
 
 
-def _summarize_values(values: Sequence[float]) -> Dict[str, object] | None:
+def _summarize_values(values: Sequence[float], digits: int = 4) -> Dict[str, object] | None:
+    """Median and quartiles across sessions.
+
+    ``digits`` exists because the default rounding is chosen for ratios of order
+    one; the accuracy sweep reports quantities down to ~1e-4, which four decimal
+    places would flatten to one digit or to zero.
+    """
     if len(values) < 2:
         return None
     ordered = sorted(values)
@@ -670,12 +763,12 @@ def _summarize_values(values: Sequence[float]) -> Dict[str, object] | None:
         q1, q3 = ordered[0], ordered[-1]
     return {
         "n_sessions": len(ordered),
-        "min": round(ordered[0], 4),
-        "q1": round(q1, 4),
-        "median": round(statistics.median(ordered), 4),
-        "q3": round(q3, 4),
-        "max": round(ordered[-1], 4),
-        "values": [round(v, 4) for v in ordered],
+        "min": round(ordered[0], digits),
+        "q1": round(q1, digits),
+        "median": round(statistics.median(ordered), digits),
+        "q3": round(q3, digits),
+        "max": round(ordered[-1], digits),
+        "values": [round(v, digits) for v in ordered],
     }
 
 
@@ -707,8 +800,39 @@ def _aggregate(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]:
         "cold_start_import_s": _cold_start_across(sessions, "import"),
         "cold_start_compilation_s": _cold_start_across(sessions, "compilation"),
         "cold_start_cache_load_s": _cold_start_across(sessions, "cache_load"),
+        # Every cell of the §1.3.2 accuracy table, pooled over the sessions'
+        # independent noise realisations.
+        "snr_sweep": _snr_sweep_across(sessions),
     }
     return {key: value for key, value in across.items() if value is not None}
+
+
+SNR_SWEEP_COLUMNS = (
+    "median_abs_delta_sigma",
+    "max_abs_delta_sigma",
+    "max_abs_dx0_px",
+    "max_abs_dpa_rad",
+)
+
+
+def _snr_sweep_across(sessions: Sequence[Dict[str, object]]) -> Dict[str, object] | None:
+    """Pool each accuracy-table cell across sessions, one summary per cell."""
+    out: Dict[str, object] = {}
+    for snr in SNR_SWEEP_LEVELS:
+        row_key = f"snr={snr:g}"
+        row: Dict[str, object] = {}
+        for column in SNR_SWEEP_COLUMNS:
+            values: List[float] = []
+            for session in sessions:
+                block = session.get("snr_sweep")
+                if isinstance(block, dict) and isinstance(block.get(row_key), dict):
+                    values.append(float(block[row_key][column]))  # type: ignore[index]
+            summary = _summarize_values(values, digits=8)
+            if summary is not None:
+                row[column] = summary
+        if row:
+            out[row_key] = row
+    return out or None
 
 
 def _paired_difference(sessions: Sequence[Dict[str, object]]) -> Dict[str, object] | None:
