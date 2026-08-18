@@ -546,6 +546,7 @@ def bench_cold_start() -> Dict[str, object]:
     imports_ms: List[float] = []
     compile_ms: List[float] = []
     cache_load_ms: List[float] = []
+    startup_ms: List[float] = []
     pairs: List[Dict[str, object]] = []
 
     for _ in range(COLD_START_PAIRS):
@@ -556,11 +557,19 @@ def bench_cold_start() -> Dict[str, object]:
         imports_ms.append(warm["import_s"] * 1e3)
         compile_ms.append((fresh["first_fit_s"] - warm["first_fit_s"]) * 1e3)
         cache_load_ms.append((warm["first_fit_s"] - warm["second_fit_s"]) * 1e3)
+        # The whole one-time cost an empty-cache process pays above its own
+        # steady state. This is *not* ``compilation`` as decomposed above:
+        # that term is measured against the warm first fit, so it nets off a
+        # cache load the fresh run never performs. Anything comparing the
+        # compiled path against one that neither compiles nor loads a cache --
+        # the NumPy fallback -- needs this total, not the component.
+        startup_ms.append((fresh["first_fit_s"] - warm["second_fit_s"]) * 1e3)
 
     return {
         "import": _summarize(imports_ms),
         "compilation": _summarize(compile_ms),
         "cache_load": _summarize(cache_load_ms),
+        "empty_cache_startup": _summarize(startup_ms),
         "pairs": pairs,
         "note": (
             "compilation is the extra first-fit cost against an empty cache; "
@@ -612,8 +621,17 @@ def bench_numba_fallback() -> Dict[str, object]:
     ``numba_available`` is reported for each arm and checked: if the fallback
     arm were to keep using the compiled kernels the penalty would come out at
     zero, and a zero penalty is indistinguishable from a fast fallback.
+
+    The two arms are visited in a **shuffled order** within each paired
+    observation, for the same reason the in-process blocks interleave: the
+    penalty is a small difference between two timings, so an arm that always
+    ran second would absorb any thermal or background-load drift and report it
+    as a property of the fallback. Running both arms once each and always in
+    the same order --- as the first version of this block did --- cannot
+    distinguish the two.
     """
     repeats = 7
+    observations = 3
 
     def run(disable_jit: bool) -> Dict[str, object]:
         env = dict(os.environ)
@@ -626,16 +644,28 @@ def bench_numba_fallback() -> Dict[str, object]:
             raise RuntimeError(f"numba-fallback child failed: {proc.stderr[-2000:]}")
         return json.loads(proc.stdout.strip().splitlines()[-1])
 
-    compiled = run(disable_jit=False)
-    fallback = run(disable_jit=True)
+    rng = np.random.default_rng(ACTIVE_SEED)
+    compiled_samples: List[float] = []
+    fallback_samples: List[float] = []
+    order_log: List[List[str]] = []
 
-    if not compiled["numba_available"]:
-        raise RuntimeError("the compiled arm reported Numba unavailable; there is nothing to compare against")
-    if fallback["numba_available"]:
-        raise RuntimeError("NUMBA_DISABLE_JIT=1 did not select the NumPy fallback; the penalty would read as zero")
+    for _ in range(observations):
+        arms = ["compiled", "fallback"]
+        order = list(rng.permutation(arms))
+        order_log.append(order)
+        for arm in order:
+            result = run(disable_jit=(arm == "fallback"))
+            if arm == "compiled" and not result["numba_available"]:
+                raise RuntimeError("the compiled arm reported Numba unavailable; there is nothing to compare against")
+            if arm == "fallback" and result["numba_available"]:
+                raise RuntimeError(
+                    "NUMBA_DISABLE_JIT=1 did not select the NumPy fallback; the penalty would read as zero"
+                )
+            target = compiled_samples if arm == "compiled" else fallback_samples
+            target.append(float(result["median_fit_s"]))
 
-    compiled_s = float(compiled["median_fit_s"])
-    fallback_s = float(fallback["median_fit_s"])
+    compiled_s = statistics.median(compiled_samples)
+    fallback_s = statistics.median(fallback_samples)
     penalty_s = fallback_s - compiled_s
 
     return {
@@ -644,12 +674,16 @@ def bench_numba_fallback() -> Dict[str, object]:
         "fallback_penalty_s": round(penalty_s, 6),
         "fallback_slowdown": round(fallback_s / compiled_s, 3) if compiled_s else None,
         "repeats": repeats,
-        "raw": {"compiled_s": compiled["raw_s"], "fallback_s": fallback["raw_s"]},
+        "observations": observations,
+        "arm_order": order_log,
+        "raw": {"compiled_s": compiled_samples, "fallback_s": fallback_samples},
         "note": (
             "steady-state medians after a warm-up fit, on the same 200x200 "
-            "fixture the cold_start block uses. The break-even fit count is "
-            "derived across sessions, since it divides this penalty by the "
-            "separately measured compilation cost."
+            "fixture the cold_start block uses, over paired observations whose "
+            "arm order is shuffled. The break-even fit count is derived across "
+            "sessions against cold_start's empty_cache_startup -- the compiled "
+            "path's whole excess over steady state, since a fallback process "
+            "neither compiles nor loads a cache."
         ),
     }
 
@@ -973,10 +1007,16 @@ def _break_even_fits(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]
 
     Compiling costs a one-off ``C`` and then saves ``P`` on every fit relative
     to the NumPy fallback, so after ``n`` fits it is ahead once ``n > C / P``.
-    Both terms are measured in the *same* session --- the compilation cost by
+    Both terms are measured in the *same* session --- the start-up cost by
     ``cold_start``, the per-fit penalty by ``numba_fallback`` --- because they
     are the two halves of one comparison and mixing sessions would pair a fast
     machine's compile with a slow machine's fit.
+
+    ``C`` is ``empty_cache_startup``, not the ``compilation`` component. A
+    fallback process compiles nothing *and* loads no cached objects, so what it
+    avoids is the compiled path's entire excess over steady state. Using the
+    compilation component instead nets off a cache load that the empty-cache
+    run never performs, and understates the crossing point by about a quarter.
     """
     values: List[float] = []
     for session in sessions:
@@ -985,15 +1025,15 @@ def _break_even_fits(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]
         if not isinstance(cold, dict) or not isinstance(fallback, dict):
             continue
         try:
-            compilation_s = float(cold["compilation"]["median_ms"]) / 1000.0
+            startup_s = float(cold["empty_cache_startup"]["median_ms"]) / 1000.0
             penalty_s = float(fallback["fallback_penalty_s"])
         except (KeyError, TypeError):
             continue
         # A non-positive penalty means the fallback was not slower in that
         # session, so there is no crossing point to report rather than an
         # infinite or negative one.
-        if penalty_s > 0 and compilation_s > 0:
-            values.append(compilation_s / penalty_s)
+        if penalty_s > 0 and startup_s > 0:
+            values.append(startup_s / penalty_s)
     return _summarize_values(values, digits=1)
 
 

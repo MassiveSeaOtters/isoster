@@ -383,7 +383,7 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
             (
                 "NumPy fallback break-even extremes",
                 ROADMAP,
-                f"break-even at {round(break_even['min'])} fits and another at {round(break_even['max'])}",
+                f"spread is narrow, {round(break_even['min'])} to {round(break_even['max'])} fits",
             )
         )
 
