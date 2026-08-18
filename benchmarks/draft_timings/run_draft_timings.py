@@ -51,6 +51,11 @@ Blocks
     Sections 1.3.2 and 1.6.5: package import, first dispatch against a *warm*
     Numba cache, and first dispatch against an explicitly **empty** cache, which
     is the only one of the three that measures compilation.
+``numba_fallback``
+    Section 1.6.5: the steady-state cost of the pure-NumPy fallback against the
+    compiled kernels. Combined with ``cold_start``'s compilation figure this
+    gives the fit count at which compiling starts to pay, which is what the
+    draft's advice about the fallback turns on.
 
 Usage::
 
@@ -257,12 +262,37 @@ def _geometry_difference(lazy_profile, classical_profile) -> Dict[str, object]:
     normalisation makes them commensurable --- plus the largest absolute centre
     and position-angle shifts, which are the two a reader can picture directly.
     """
+    # The two profiles are compared ring by ring, so they have to *be* the same
+    # rings. Nothing guarantees that: the two modes run independent fits, and a
+    # divergent stopping point would leave ``zip`` silently truncating one
+    # profile and pairing rings at different radii from there on. That failure
+    # would look like a large approximation error rather than like a bug, so it
+    # is checked rather than assumed.
+    if len(lazy_profile) != len(classical_profile):
+        raise RuntimeError(
+            f"cached and uncached fits returned different ring counts "
+            f"({len(lazy_profile)} vs {len(classical_profile)}); the geometry "
+            "comparison assumes one shared ring sequence"
+        )
+
     in_sigma: List[float] = []
     centre_shift: List[float] = []
     pa_shift: List[float] = []
 
-    for lazy_iso, exact_iso in zip(lazy_profile, classical_profile):
-        if not lazy_iso.get("sma"):
+    for index, (lazy_iso, exact_iso) in enumerate(zip(lazy_profile, classical_profile)):
+        lazy_sma = float(lazy_iso.get("sma") or 0.0)
+        exact_sma = float(exact_iso.get("sma") or 0.0)
+        # The SMA grid is set before fitting and is not one of the fitted
+        # parameters, so the two modes should agree on it exactly. A loose
+        # tolerance still catches a misalignment without asserting bit equality
+        # of a value neither mode computes.
+        if abs(lazy_sma - exact_sma) > 1e-9 * max(1.0, abs(exact_sma)):
+            raise RuntimeError(
+                f"cached and uncached fits disagree on ring {index}'s semi-major "
+                f"axis ({lazy_sma} vs {exact_sma}); the comparison would be "
+                "between different radii"
+            )
+        if not lazy_sma:
             continue
         for key, err_key in (("x0", "x0_err"), ("y0", "y0_err"), ("eps", "eps_err"), ("pa", "pa_err")):
             if key == "pa":
@@ -541,6 +571,89 @@ def bench_cold_start() -> Dict[str, object]:
     }
 
 
+_NUMBA_FALLBACK_CHILD = r"""
+import json, statistics, sys, time
+sys.path.insert(0, {repo!r})
+import numpy as np
+from isoster import fit_image
+from isoster.config import IsosterConfig
+from isoster.numba_kernels import check_numba_available
+
+rng = np.random.default_rng(0)
+yy, xx = np.indices((200, 200))
+image = 100.0 * np.exp(-np.hypot(yy - 100, xx - 100) / 30.0) + rng.normal(0, 0.1, (200, 200))
+cfg = IsosterConfig(sma0=10.0, maxsma=60.0, x0=100.0, y0=100.0)
+
+fit_image(image, config=cfg)  # warm up: compile or first-touch, not measured
+samples = []
+for _ in range({repeats}):
+    t = time.perf_counter(); fit_image(image, config=cfg); samples.append(time.perf_counter() - t)
+print(json.dumps({{"numba_available": bool(check_numba_available()),
+                  "median_fit_s": statistics.median(samples),
+                  "raw_s": samples}}))
+"""
+
+
+def bench_numba_fallback() -> Dict[str, object]:
+    """Section 1.6.5: when the pure-NumPy fallback is the cheaper choice.
+
+    Every Numba kernel has a NumPy fallback, reachable by setting
+    ``NUMBA_DISABLE_JIT=1``. It skips compilation but runs the hot kernels
+    slower, so which is cheaper depends on how many fits the process performs.
+    The draft advises on that trade-off, and the advice needs the break-even
+    point rather than an intuition about it.
+
+    Both arms are *steady-state* medians, taken after a warm-up fit, so this
+    measures the ongoing penalty rather than the start-up cost --- the start-up
+    cost is what ``cold_start`` measures, and the break-even below combines the
+    two. Both run in child processes because the fallback is selected from the
+    environment at import time.
+
+    ``numba_available`` is reported for each arm and checked: if the fallback
+    arm were to keep using the compiled kernels the penalty would come out at
+    zero, and a zero penalty is indistinguishable from a fast fallback.
+    """
+    repeats = 7
+
+    def run(disable_jit: bool) -> Dict[str, object]:
+        env = dict(os.environ)
+        env["NUMBA_DISABLE_JIT"] = "1" if disable_jit else "0"
+        child = _NUMBA_FALLBACK_CHILD.format(repo=str(REPO_ROOT), repeats=repeats)
+        proc = subprocess.run(
+            [sys.executable, "-c", child], capture_output=True, text=True, cwd=str(REPO_ROOT), env=env
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"numba-fallback child failed: {proc.stderr[-2000:]}")
+        return json.loads(proc.stdout.strip().splitlines()[-1])
+
+    compiled = run(disable_jit=False)
+    fallback = run(disable_jit=True)
+
+    if not compiled["numba_available"]:
+        raise RuntimeError("the compiled arm reported Numba unavailable; there is nothing to compare against")
+    if fallback["numba_available"]:
+        raise RuntimeError("NUMBA_DISABLE_JIT=1 did not select the NumPy fallback; the penalty would read as zero")
+
+    compiled_s = float(compiled["median_fit_s"])
+    fallback_s = float(fallback["median_fit_s"])
+    penalty_s = fallback_s - compiled_s
+
+    return {
+        "compiled_fit_s": round(compiled_s, 6),
+        "fallback_fit_s": round(fallback_s, 6),
+        "fallback_penalty_s": round(penalty_s, 6),
+        "fallback_slowdown": round(fallback_s / compiled_s, 3) if compiled_s else None,
+        "repeats": repeats,
+        "raw": {"compiled_s": compiled["raw_s"], "fallback_s": fallback["raw_s"]},
+        "note": (
+            "steady-state medians after a warm-up fit, on the same 200x200 "
+            "fixture the cold_start block uses. The break-even fit count is "
+            "derived across sessions, since it divides this penalty by the "
+            "separately measured compilation cost."
+        ),
+    }
+
+
 BLOCKS: Dict[str, Callable[[], Dict[str, object]]] = {
     "lazy_gradient": bench_lazy_gradient,
     "snr_sweep": bench_snr_sweep,
@@ -548,6 +661,7 @@ BLOCKS: Dict[str, Callable[[], Dict[str, object]]] = {
     "joint_solve_bands": bench_joint_solve_bands,
     "maxsma": bench_maxsma,
     "cold_start": bench_cold_start,
+    "numba_fallback": bench_numba_fallback,
 }
 
 
@@ -803,6 +917,11 @@ def _aggregate(sessions: Sequence[Dict[str, object]]) -> Dict[str, object]:
         # Every cell of the §1.3.2 accuracy table, pooled over the sessions'
         # independent noise realisations.
         "snr_sweep": _snr_sweep_across(sessions),
+        # The NumPy fallback's steady-state cost, and the fit count at which
+        # paying for compilation starts to win.
+        "numba_fallback_slowdown": _collect_ratio(sessions, ("numba_fallback", "fallback_slowdown")),
+        "numba_fallback_penalty_s": _collect_ratio(sessions, ("numba_fallback", "fallback_penalty_s")),
+        "numba_fallback_break_even_fits": _break_even_fits(sessions),
     }
     return {key: value for key, value in across.items() if value is not None}
 
@@ -847,6 +966,35 @@ def _paired_difference(sessions: Sequence[Dict[str, object]]) -> Dict[str, objec
         return None
     summary["n_positive"] = sum(1 for value in differences if value > 0)
     return summary
+
+
+def _break_even_fits(sessions: Sequence[Dict[str, object]]) -> Dict[str, object] | None:
+    """How many fits a process must run before compiling beats the fallback.
+
+    Compiling costs a one-off ``C`` and then saves ``P`` on every fit relative
+    to the NumPy fallback, so after ``n`` fits it is ahead once ``n > C / P``.
+    Both terms are measured in the *same* session --- the compilation cost by
+    ``cold_start``, the per-fit penalty by ``numba_fallback`` --- because they
+    are the two halves of one comparison and mixing sessions would pair a fast
+    machine's compile with a slow machine's fit.
+    """
+    values: List[float] = []
+    for session in sessions:
+        cold = session.get("cold_start")
+        fallback = session.get("numba_fallback")
+        if not isinstance(cold, dict) or not isinstance(fallback, dict):
+            continue
+        try:
+            compilation_s = float(cold["compilation"]["median_ms"]) / 1000.0
+            penalty_s = float(fallback["fallback_penalty_s"])
+        except (KeyError, TypeError):
+            continue
+        # A non-positive penalty means the fallback was not slower in that
+        # session, so there is no crossing point to report rather than an
+        # infinite or negative one.
+        if penalty_s > 0 and compilation_s > 0:
+            values.append(compilation_s / penalty_s)
+    return _summarize_values(values, digits=1)
 
 
 def _cold_start_across(sessions: Sequence[Dict[str, object]], component: str) -> Dict[str, object] | None:

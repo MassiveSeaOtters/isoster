@@ -82,6 +82,18 @@ def _pct_saving_precise(runtime_ratio: float) -> str:
     return f"{100 * (1 - runtime_ratio):.1f}"
 
 
+def _pct_surcharge(runtime_ratio: float) -> int:
+    """What the *uncached* path costs extra, as a whole percent.
+
+    Not the saving with its sign flipped. The saving is measured against the
+    uncached path and the surcharge against the cached one, so they have
+    different denominators: a ratio of 0.762 is a 24% saving but a 31%
+    surcharge. Quoting the saving where the sentence says "surcharge" is an
+    easy error to make and a hard one to see, which is why it is derived here.
+    """
+    return round(100 * (1.0 / runtime_ratio - 1.0))
+
+
 def build_checks(results: Dict[str, object]) -> List[Check]:
     """Rebuild every quoted row and sentence from the archive."""
     checks: List[Check] = []
@@ -239,6 +251,24 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 )
             )
             checks.append(("lazy-gradient session count", SPEED, f"{_words(ratio['n_sessions'])} sessions"))
+            # Both sections advise setting use_lazy_gradient=False in the LSB
+            # regime and name the price. It is the reciprocal of the saving,
+            # and both had been quoting the saving.
+            surcharge = _pct_surcharge(ratio["median"])
+            checks.append(
+                (
+                    "exact-path surcharge (speed section)",
+                    SPEED,
+                    f"pay the roughly {surcharge}% surcharge",
+                )
+            )
+            checks.append(
+                (
+                    "exact-path surcharge (limitations list)",
+                    ROADMAP,
+                    f"paying the roughly {surcharge}% surcharge",
+                )
+            )
             # The draft argues for median-and-IQR by contrasting this archive's
             # extremes with the previous archive's. The claim about *this* one
             # has to come from it rather than from memory of an earlier run.
@@ -316,6 +346,46 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                     f"reaching ${_sig2(worst['median'])}\\sigma$ on the worst isophote",
                 )
             )
+
+    # --- Section 1.6.5: the NumPy fallback trade-off ------------------------
+    # The draft advises when to prefer the fallback, so the break-even fit
+    # count and the slowdown behind that advice are both derived here. An
+    # earlier version asserted the fallback "can be net faster" for a single
+    # fit while stating in the next sentence that the penalty was unmeasured.
+    slowdown = across.get("numba_fallback_slowdown")
+    break_even = across.get("numba_fallback_break_even_fits")
+    if slowdown and break_even:
+        checks.append(
+            (
+                "NumPy fallback slowdown",
+                ROADMAP,
+                f"about ${slowdown['median']:.2f}\\times$ slower per fit",
+            )
+        )
+        checks.append(
+            (
+                "NumPy fallback break-even fit count",
+                ROADMAP,
+                f"break-even at about {round(break_even['median'])} fits per process",
+            )
+        )
+        checks.append(
+            (
+                "NumPy fallback break-even spread",
+                ROADMAP,
+                f"IQR {round(break_even['q1'])}–{round(break_even['q3'])}",
+            )
+        )
+        # The extremes are quoted here on purpose, as evidence that the
+        # crossing point is noisy rather than as a bound on it -- so they are
+        # derived like everything else.
+        checks.append(
+            (
+                "NumPy fallback break-even extremes",
+                ROADMAP,
+                f"break-even at {round(break_even['min'])} fits and another at {round(break_even['max'])}",
+            )
+        )
 
     # --- Sections 1.3.2 / 1.6.5: cold start ---------------------------------
     # Quoted as an across-session median with an IQR, each to the precision its
