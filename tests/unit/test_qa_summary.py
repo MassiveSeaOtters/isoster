@@ -42,7 +42,7 @@ def test_harmonic_panel_plots_stored_coefficients(tmp_path, monkeypatch):
     fig = plt.gcf()
 
     # Locate the harmonic panel by its ylabel
-    harm_ax = next(ax for ax in fig.axes if ax.get_ylabel() == r"$A_n$ or $B_n$ (norm)")
+    harm_ax = next(ax for ax in fig.axes if ax.get_ylabel() == r"$a_n, b_n$")
 
     sma = np.array([iso["sma"] for iso in isophotes])
     x_axis = sma**0.25
@@ -55,10 +55,10 @@ def test_harmonic_panel_plots_stored_coefficients(tmp_path, monkeypatch):
         plotted[label] = np.asarray(offsets[:, 1]) if len(offsets) else np.array([])
 
     for label, key in (
-        (r"$A_3^{\mathrm{n}}$", "a3"),
-        (r"$B_3^{\mathrm{n}}$", "b3"),
-        (r"$A_4^{\mathrm{n}}$", "a4"),
-        (r"$B_4^{\mathrm{n}}$", "b4"),
+        (r"$a_3$", "a3"),
+        (r"$b_3$", "b3"),
+        (r"$a_4$", "a4"),
+        (r"$b_4$", "b4"),
     ):
         stored = np.array([iso[key] for iso in isophotes])[valid_mask]
         assert label in plotted, f"missing harmonic collection {label}"
@@ -71,7 +71,7 @@ def test_harmonic_panel_plots_stored_coefficients(tmp_path, monkeypatch):
         )
 
     # Sanity: the planted boxiness must show up with the right sign and scale
-    b4_plotted = plotted[r"$B_4^{\mathrm{n}}$"]
+    b4_plotted = plotted[r"$b_4$"]
     assert np.median(b4_plotted) < -0.01, f"planted b4 not visible in panel (median {np.median(b4_plotted)})"
 
     plt.close("all")

@@ -1269,7 +1269,7 @@ def plot_qa_summary(
             facecolors="#1f77b4",
             edgecolors="#1f77b4",
             alpha=0.7,
-            label=r"$A_3^{\mathrm{n}}$",
+            label=r"$a_3$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1279,7 +1279,7 @@ def plot_qa_summary(
             facecolors="none",
             edgecolors="#1f77b4",
             alpha=0.7,
-            label=r"$B_3^{\mathrm{n}}$",
+            label=r"$b_3$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1289,7 +1289,7 @@ def plot_qa_summary(
             facecolors="#d62728",
             edgecolors="#d62728",
             alpha=0.7,
-            label=r"$A_4^{\mathrm{n}}$",
+            label=r"$a_4$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1299,7 +1299,7 @@ def plot_qa_summary(
             facecolors="none",
             edgecolors="#d62728",
             alpha=0.7,
-            label=r"$B_4^{\mathrm{n}}$",
+            label=r"$b_4$",
         )
         harm_values = np.concatenate(
             [
@@ -1316,7 +1316,7 @@ def plot_qa_summary(
             min_margin=0.005,
         )
         ax_harm.axhline(0.0, color="gray", linestyle=":", linewidth=0.8, alpha=0.6)
-        ax_harm.set_ylabel(r"$A_n$ or $B_n$ (norm)")
+        ax_harm.set_ylabel(r"$a_n, b_n$")
         ax_harm.legend(loc="upper right", fontsize=12, ncol=4)
         ax_harm.grid(alpha=0.25)
 
@@ -1718,7 +1718,7 @@ def plot_qa_summary_extended(
                         facecolors=col,
                         edgecolors=col,
                         alpha=0.75,
-                        label=f"$A_{{{order}}}$",
+                        label=f"$n={{{order}}}$",
                     )
                     all_values.append(amplitude[show])
             else:
@@ -1763,7 +1763,7 @@ def plot_qa_summary_extended(
 
         # Y-axis label
         if harmonic_mode == "amplitude":
-            ax.set_ylabel(f"$A_n / (a\\,dI/da)$ ({panel_label})")
+            ax.set_ylabel(f"$\\sqrt{{a_n^2 + b_n^2}}$ ({panel_label})")
         else:
             ax.set_ylabel(f"$a_n, b_n$ ({panel_label})")
 

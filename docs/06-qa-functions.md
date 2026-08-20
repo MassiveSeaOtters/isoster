@@ -172,13 +172,29 @@ Extended QA figure with dedicated harmonic visualization panels.
 Adds odd-order (3, 5, 7) and even-order (4, 6) harmonic panels below
 the standard profile plots.
 
-The harmonic coefficients plotted here are the ones stored in the results
-dict, which `compute_deviations` has **already** Bender-normalized by
-`sma * |dI/da|`. They are therefore dimensionless and directly comparable
-across radius, galaxies and tools, and must not be normalized a second time.
-A `normalize_harmonics` option that divided them by intensity was removed in
-1.0.0: it produced `A_n / (a·dI/da·I)`, which carries units of one over
-intensity and changes if the image's flux units change.
+**Harmonic notation used throughout ISOSTER.** Three quantities, kept
+distinct because conflating them is how coefficients get normalized twice:
+
+| Symbol | Meaning | Where it lives |
+|---|---|---|
+| $A_n^\mathrm{raw}$, $B_n^\mathrm{raw}$ | Raw fit amplitudes, in intensity units | Internal to the harmonic solve; never stored or plotted in single-band |
+| $a_n$, $b_n$ | Bender-normalized coefficients, $a_n = -A_n^\mathrm{raw} / (a \cdot dI/da)$. Signed and dimensionless | The results-dict keys `a3`, `b3`, `a4`, … — i.e. what you get back |
+| $\sqrt{a_n^2 + b_n^2}$ | Combined amplitude. Non-negative and dimensionless | Computed at plot time in `harmonic_mode="amplitude"` |
+
+Lowercase means normalized: the label on a figure matches the column name in
+the results dict.
+
+`compute_deviations` performs the normalization at fit time, so the stored
+values are dimensionless as they stand and **must not be normalized a second
+time**. They are directly comparable across radius and across galaxies. They
+are comparable across *tools* only where the tools share the basis and the
+normalization convention — true of `photutils`, not currently of AutoProf,
+whose coefficients are on a different scale (see
+[`technical/1.4.6`](technical/1.4.6-diagnostics-qa.md)).
+
+A `normalize_harmonics` option that divided the stored values by intensity was
+removed in 1.0.0: it produced a quantity with units of one over intensity,
+which changed if the image's flux calibration changed.
 
 ```python
 isoster.plot_qa_summary_extended(

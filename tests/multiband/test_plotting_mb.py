@@ -128,7 +128,7 @@ def test_harmonic_panel_plots_stored_values_independent_mode(three_band_result):
     cfg, images, result = three_band_result
     assert result["harmonics_shared"] is False  # default 'independent' mode
     fig = plot_qa_summary_mb(result, images)
-    lines = _harmonic_panel_lines(fig, r"$A_4 / (a\,dI/da)$")
+    lines = _harmonic_panel_lines(fig, r"$a_4$")
 
     bands = list(result["bands"])
     isophotes = result["isophotes"]
@@ -167,7 +167,7 @@ def test_harmonic_panel_normalizes_raw_shared_coefficients():
     result = fit_image_multiband([img_g, img_r], None, cfg)
     assert result["harmonics_shared"] is True
     fig = plot_qa_summary_mb(result, [img_g, img_r])
-    lines = _harmonic_panel_lines(fig, r"$A_4 / (a\,dI/da)$")
+    lines = _harmonic_panel_lines(fig, r"$a_4$")
 
     bands = list(result["bands"])
     isophotes = result["isophotes"]

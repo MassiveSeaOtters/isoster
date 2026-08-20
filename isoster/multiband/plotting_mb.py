@@ -815,10 +815,10 @@ def plot_qa_summary_mb(
     ax_b3 = fig.add_subplot(gs_harm[1], sharex=ax_a3)
     ax_a4 = fig.add_subplot(gs_harm[2], sharex=ax_a3)
     ax_b4 = fig.add_subplot(gs_harm[3], sharex=ax_a3)
-    _plot_harmonic(ax_a3, "a3", r"$A_3 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
-    _plot_harmonic(ax_b3, "b3", r"$B_3 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
-    _plot_harmonic(ax_a4, "a4", r"$A_4 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
-    _plot_harmonic(ax_b4, "b4", r"$B_4 / (a\,dI/da)$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_a3, "a3", r"$a_3$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_b3, "b3", r"$b_3$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_a4, "a4", r"$a_4$", isophotes, bands, pix, normalize=harm_normalize)
+    _plot_harmonic(ax_b4, "b4", r"$b_4$", isophotes, bands, pix, normalize=harm_normalize)
     for ax in (ax_a3, ax_b3, ax_a4):
         plt.setp(ax.get_xticklabels(), visible=False)
     # Prune the tick labels at panel boundaries so stacked panels look
