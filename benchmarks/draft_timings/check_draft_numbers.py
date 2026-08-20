@@ -187,16 +187,18 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
             # The count of negative sessions is prose ("the two negative
             # sessions"), so it has to be derived too — otherwise a re-archive
             # that changes the sign split leaves a stale word behind a fresh
-            # number.
+            # number. A clean sweep needs different wording entirely: there is
+            # no "worst negative session" to describe when there are none, and
+            # an earlier version of this check happily generated "the 0
+            # negative sessions are small, the worse of them by +0.04".
             n_negative = int(paired["n_sessions"]) - int(paired["n_positive"])
-            checks.append(
-                (
-                    "maxsma paired difference, negative sessions",
-                    ROADMAP,
-                    f"the {_words(n_negative)} negative sessions are small, the worse of them by "
-                    f"${paired['min']:+.2f}$",
+            if n_negative:
+                clause = (
+                    f"the {_words(n_negative)} negative sessions are small, the worse of them by ${paired['min']:+.2f}$"
                 )
-            )
+            else:
+                clause = f"the smallest of them ${paired['min']:+.2f}$"
+            checks.append(("maxsma paired difference, negative sessions", ROADMAP, clause))
 
         r1, r2 = across.get("maxsma_ratio_100_to_200"), across.get("maxsma_ratio_200_to_400")
         if r1 and r2:
@@ -376,14 +378,14 @@ def build_checks(results: Dict[str, object]) -> List[Check]:
                 f"IQR {round(break_even['q1'])}–{round(break_even['q3'])}",
             )
         )
-        # The extremes are quoted here on purpose, as evidence that the
-        # crossing point is noisy rather than as a bound on it -- so they are
-        # derived like everything else.
+        # The extremes are quoted on purpose, so a reader can see how far the
+        # tail runs past the quartiles -- so they are derived like everything
+        # else rather than characterised in a word.
         checks.append(
             (
                 "NumPy fallback break-even extremes",
                 ROADMAP,
-                f"spread is narrow, {round(break_even['min'])} to {round(break_even['max'])} fits",
+                f"sessions ranged from {round(break_even['min'])} to {round(break_even['max'])} fits",
             )
         )
 

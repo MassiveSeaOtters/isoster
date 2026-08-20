@@ -629,6 +629,15 @@ def bench_numba_fallback() -> Dict[str, object]:
     as a property of the fallback. Running both arms once each and always in
     the same order --- as the first version of this block did --- cannot
     distinguish the two.
+
+    The pairing is then carried through the *analysis*: the penalty and the
+    slowdown are formed within each observation and only then reduced to a
+    median. Taking each arm's median first and subtracting them afterwards
+    would throw away the very drift cancellation the pairing was arranged to
+    buy, since the two marginal medians can come from different observations.
+
+    Every child's raw repetitions are retained in the returned record, not just
+    its median, because the draft claims that of the harness as a whole.
     """
     repeats = 7
     observations = 3
@@ -645,14 +654,11 @@ def bench_numba_fallback() -> Dict[str, object]:
         return json.loads(proc.stdout.strip().splitlines()[-1])
 
     rng = np.random.default_rng(ACTIVE_SEED)
-    compiled_samples: List[float] = []
-    fallback_samples: List[float] = []
-    order_log: List[List[str]] = []
+    records: List[Dict[str, object]] = []
 
     for _ in range(observations):
-        arms = ["compiled", "fallback"]
-        order = list(rng.permutation(arms))
-        order_log.append(order)
+        order = [str(arm) for arm in rng.permutation(["compiled", "fallback"])]
+        arms: Dict[str, Dict[str, object]] = {}
         for arm in order:
             result = run(disable_jit=(arm == "fallback"))
             if arm == "compiled" and not result["numba_available"]:
@@ -661,29 +667,49 @@ def bench_numba_fallback() -> Dict[str, object]:
                 raise RuntimeError(
                     "NUMBA_DISABLE_JIT=1 did not select the NumPy fallback; the penalty would read as zero"
                 )
-            target = compiled_samples if arm == "compiled" else fallback_samples
-            target.append(float(result["median_fit_s"]))
+            arms[arm] = result
 
-    compiled_s = statistics.median(compiled_samples)
-    fallback_s = statistics.median(fallback_samples)
-    penalty_s = fallback_s - compiled_s
+        compiled_i = float(arms["compiled"]["median_fit_s"])
+        fallback_i = float(arms["fallback"]["median_fit_s"])
+        records.append(
+            {
+                "arm_order": order,
+                # Whole child results, raw repetitions included.
+                "compiled": arms["compiled"],
+                "fallback": arms["fallback"],
+                "penalty_s": fallback_i - compiled_i,
+                "slowdown": fallback_i / compiled_i if compiled_i else None,
+            }
+        )
+
+    # Paired reductions: formed within an observation, then reduced.
+    penalty_s = statistics.median([float(record["penalty_s"]) for record in records])
+    slowdown = statistics.median([float(record["slowdown"]) for record in records])
+    # Reported for orientation only. The penalty is *not* their difference,
+    # and quoting these as though it were would reintroduce the unpaired
+    # comparison the observations above were arranged to avoid.
+    compiled_s = statistics.median([float(record["compiled"]["median_fit_s"]) for record in records])
+    fallback_s = statistics.median([float(record["fallback"]["median_fit_s"]) for record in records])
 
     return {
         "compiled_fit_s": round(compiled_s, 6),
         "fallback_fit_s": round(fallback_s, 6),
         "fallback_penalty_s": round(penalty_s, 6),
-        "fallback_slowdown": round(fallback_s / compiled_s, 3) if compiled_s else None,
+        "fallback_slowdown": round(slowdown, 3),
         "repeats": repeats,
-        "observations": observations,
-        "arm_order": order_log,
-        "raw": {"compiled_s": compiled_samples, "fallback_s": fallback_samples},
+        "observations": records,
+        "n_observations": len(records),
         "note": (
-            "steady-state medians after a warm-up fit, on the same 200x200 "
+            "steady-state timings after a warm-up fit, on the same 200x200 "
             "fixture the cold_start block uses, over paired observations whose "
-            "arm order is shuffled. The break-even fit count is derived across "
-            "sessions against cold_start's empty_cache_startup -- the compiled "
-            "path's whole excess over steady state, since a fallback process "
-            "neither compiles nor loads a cache."
+            "arm order is shuffled. fallback_penalty_s and fallback_slowdown "
+            "are medians of the *per-observation* paired differences and "
+            "ratios; compiled_fit_s and fallback_fit_s are per-arm medians "
+            "given for orientation and are not the terms of that comparison. "
+            "The break-even fit count is derived across sessions against "
+            "cold_start's empty_cache_startup -- the compiled path's whole "
+            "excess over steady state, since a fallback process neither "
+            "compiles nor loads a cache."
         ),
     }
 
