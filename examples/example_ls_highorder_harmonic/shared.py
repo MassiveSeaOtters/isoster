@@ -231,7 +231,6 @@ def plot_harmonic_comparison_qa(
     *,
     condition_models: dict[str, np.ndarray] | None = None,
     harmonic_mode: str = "coefficients",
-    normalize_harmonics: bool = False,
     filename: str = "comparison_qa.png",
 ) -> None:
     """All-condition comparison figure for a single galaxy/band.
@@ -265,9 +264,6 @@ def plot_harmonic_comparison_qa(
     harmonic_mode : str
         ``'coefficients'`` (default) shows ``a_n`` (filled) per condition.
         ``'amplitude'`` shows ``A_n = sqrt(a_n^2 + b_n^2)`` per condition.
-    normalize_harmonics : bool
-        Only used when ``harmonic_mode='amplitude'``.  When True, shows
-        ``A_n / I`` instead of raw ``A_n``.
     filename : str
         Output path.
     """
@@ -381,7 +377,6 @@ def plot_harmonic_comparison_qa(
 
         xax = sma ** 0.25
         vm = np.isfinite(xax) & (sma > 1.0)
-        safe_i = np.where(np.isfinite(intens) & (intens > 0.0), intens, np.nan)
 
         col = CONDITION_COLORS[cond]
         mrk = CONDITION_MARKERS[cond]
@@ -408,8 +403,6 @@ def plot_harmonic_comparison_qa(
                     + np.where(np.isfinite(bn), bn, 0.0) ** 2
                 )
                 vals[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    vals = vals / safe_i
             else:
                 vals = an  # show a_n only in comparison (b_n too crowded)
             ok = vm & np.isfinite(vals)
@@ -427,8 +420,6 @@ def plot_harmonic_comparison_qa(
                     + np.where(np.isfinite(bn), bn, 0.0) ** 2
                 )
                 vals[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    vals = vals / safe_i
             else:
                 vals = an
             ok = vm & np.isfinite(vals)
@@ -456,8 +447,8 @@ def plot_harmonic_comparison_qa(
     ax_sb.set_title("Surface brightness")
 
     if harmonic_mode == "amplitude":
-        odd_label = r"$A_n / I$" if normalize_harmonics else r"$A_n$"
-        even_label = r"$A_n / I$" if normalize_harmonics else r"$A_n$"
+        odd_label = r"$A_n / (a\,dI/da)$"
+        even_label = r"$A_n / (a\,dI/da)$"
     else:
         odd_label = r"$a_n$"
         even_label = r"$a_n$"

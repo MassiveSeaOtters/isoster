@@ -172,6 +172,14 @@ Extended QA figure with dedicated harmonic visualization panels.
 Adds odd-order (3, 5, 7) and even-order (4, 6) harmonic panels below
 the standard profile plots.
 
+The harmonic coefficients plotted here are the ones stored in the results
+dict, which `compute_deviations` has **already** Bender-normalized by
+`sma * |dI/da|`. They are therefore dimensionless and directly comparable
+across radius, galaxies and tools, and must not be normalized a second time.
+A `normalize_harmonics` option that divided them by intensity was removed in
+1.0.0: it produced `A_n / (a·dI/da·I)`, which carries units of one over
+intensity and changes if the image's flux units change.
+
 ```python
 isoster.plot_qa_summary_extended(
     title,
@@ -180,7 +188,6 @@ isoster.plot_qa_summary_extended(
     isoster_res,
     harmonic_orders=None,       # auto-detect from isophote keys
     harmonic_mode="coefficients",  # "coefficients" or "amplitude"
-    normalize_harmonics=False,  # show A_n/I when mode="amplitude"
     relative_residual=False,
     mask=None,
     filename="qa_summary_extended.png",

@@ -76,13 +76,15 @@ the same colour.
 ### Alternative: Amplitude mode (`harmonic_mode='amplitude'`)
 
 Shows `A_n = sqrt(a_n^2 + b_n^2)` per order, where `a_n` and `b_n` are the
-values stored in the results dict — already Bender-normalized (see below).
+values stored in the results dict — already Bender-normalized (see below), so
+`A_n` is dimensionless as plotted. The panels are labelled
+`A_n / (a dI/da)` accordingly.
 
-`normalize_harmonics=True` divides that amplitude by the isophote intensity
-as well. Because the stored coefficients are *already* normalized, the result
-is `A_n_raw / (a · |dI/da| · I)`, a compound quantity rather than the `A_n / I`
-its name suggests. It is retained for backwards compatibility with existing
-figures; prefer the default for interpretation.
+There is deliberately no option to normalize again. A `normalize_harmonics`
+flag that divided by intensity existed until 1.0.0 and was removed: since the
+stored values are already normalized, it produced `A_n_raw / (a · |dI/da| · I)`
+— a quantity with units of one over intensity, whose value changes with the
+image's flux calibration even though the galaxy's shape does not.
 
 ### a4 panel
 

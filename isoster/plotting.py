@@ -1377,7 +1377,6 @@ def plot_qa_summary_extended(
     *,
     harmonic_orders: list[int] | None = None,
     harmonic_mode: str = "coefficients",
-    normalize_harmonics: bool = False,
     relative_residual: bool = False,
     mask=None,
     filename="qa_summary_extended.png",
@@ -1410,20 +1409,6 @@ def plot_qa_summary_extended(
         ``'coefficients'`` (default) shows individual ``a_n`` (filled) and
         ``b_n`` (open) per order.  ``'amplitude'`` shows
         ``A_n = sqrt(a_n^2 + b_n^2)`` per order.
-    normalize_harmonics : bool
-        Only used when ``harmonic_mode='amplitude'``.  When True, divides the
-        plotted amplitude by the isophote intensity.
-
-        Note what this actually produces. The ``a_n`` / ``b_n`` stored by
-        ``compute_deviations`` are **already** Bender-normalized -- divided by
-        ``sma * abs(gradient)`` at the point of computation -- so this option
-        applies a *second* normalization and yields
-        ``A_n_raw / (sma * |dI/da| * I)``, not ``A_n / I``. That is a compound
-        quantity with no standard interpretation. It is kept for backwards
-        compatibility with existing figures; the default (``False``) already
-        gives the scale-invariant Bender amplitude, which is what should
-        normally be plotted. The multi-band plotter hit the same trap and was
-        corrected (``plotting_mb.py``, review P1).
     relative_residual : bool
         When False (default), the residual map shows ``data - model``
         (absolute).  When True, shows ``100 * (model - data) / data``
@@ -1490,8 +1475,6 @@ def plot_qa_summary_extended(
     median_y0 = np.nanmedian(i_y0[valid_mask]) if np.any(valid_mask) else 0.0
     i_dx = i_x0 - median_x0
     i_dy = i_y0 - median_y0
-
-    safe_intens = np.where(np.isfinite(i_intens) & (i_intens > 0.0), i_intens, np.nan)
 
     # 6 panels: SB, centroid, b/a, PA, odd harmonics, even harmonics
     n_panels = 6
@@ -1718,11 +1701,13 @@ def plot_qa_summary_extended(
             mrk = order_markers[idx_o % len(order_markers)]
 
             if harmonic_mode == "amplitude":
-                # A_n = sqrt(a_n^2 + b_n^2), optionally normalized by I
+                # A_n = sqrt(a_n^2 + b_n^2). The stored a_n / b_n are already
+                # Bender-normalized by compute_deviations (divided by
+                # sma * abs(gradient)), so A_n is dimensionless as it stands and
+                # must not be normalized again -- see the note in the module
+                # docstring of isoster/_shared.py.
                 amplitude = np.sqrt(np.where(np.isfinite(an), an, 0.0) ** 2 + np.where(np.isfinite(bn), bn, 0.0) ** 2)
                 amplitude[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    amplitude = amplitude / safe_intens
                 show = valid_mask & np.isfinite(amplitude)
                 if np.any(show):
                     ax.scatter(
@@ -1778,10 +1763,7 @@ def plot_qa_summary_extended(
 
         # Y-axis label
         if harmonic_mode == "amplitude":
-            if normalize_harmonics:
-                ax.set_ylabel(f"$A_n / I$ ({panel_label})")
-            else:
-                ax.set_ylabel(f"$A_n$ ({panel_label})")
+            ax.set_ylabel(f"$A_n / (a\\,dI/da)$ ({panel_label})")
         else:
             ax.set_ylabel(f"$a_n, b_n$ ({panel_label})")
 
