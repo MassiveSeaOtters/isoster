@@ -208,14 +208,19 @@ Sampling mode for high-ellipticity isophotes.
 
 | Parameter | Default | Type | Description |
 |-----------|---------|------|-------------|
-| `use_eccentric_anomaly` | `False` | `bool` | Use eccentric anomaly (psi) for uniform arc-length ellipse sampling. |
+| `use_eccentric_anomaly` | `False` | `bool` | Step the eccentric anomaly (psi) uniformly instead of the position angle, distributing samples more evenly around an elongated ellipse. |
 
 **Interaction notes:**
 
-- When `True`, sampling is uniform in eccentric anomaly psi, which provides uniform
-  arc-length coverage on the ellipse. Recommended for eps > 0.3.
-- Harmonics are fitted in psi-space; geometry updates are always performed in phi-space
-  (position angle) to maintain correct geometric interpretation.
+- When `True`, sampling steps psi uniformly. This is *more* even than stepping phi —
+  the arc length per unit psi varies by a factor of `a/b` over the ellipse, against a
+  larger variation per unit phi — but it is **not** uniform in arc length. Recommended
+  for eps > 0.3.
+- Harmonics are fitted in psi-space and the geometry update consumes those psi-basis
+  coefficients **directly**; there is no conversion back to phi. That is the correct
+  operation rather than an approximation, because the Jedrzejewski corrections are
+  themselves derived from an eccentric-anomaly parametrisation. See
+  [`03-algorithm.md`](03-algorithm.md) for the derivation.
 - Affects both regular fitting and template-based forced photometry extraction.
 - `build_isoster_model()` auto-detects whether eccentric anomaly was used from the
   isophote dicts (presence of `'use_eccentric_anomaly'` key). Can be overridden

@@ -9,12 +9,38 @@ tools, QA, and aggregated statistics.
 This document is the reference for operators and the recipe for new
 contributions (new tools, new datasets, new arms).
 
+## 0. AutoProf setup (one-time, optional)
+
+AutoProf 1.3.4 pins `numpy<2` and `photutils==1.5`, so it cannot share the
+main `uv` environment. Install it in its own venv at a **stable** location —
+not `/tmp`, which macOS prunes periodically and will silently strip individual
+`.py` files mid-campaign:
+
+```bash
+mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
+~/.venvs/autoprof_venv/bin/pip install --upgrade pip
+~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+~/.venvs/autoprof_venv/bin/python -c "from autoprof.Pipeline import Isophote_Pipeline; print('ok')"
+```
+
+Point the code at it by whichever entry point applies:
+
+| Consumer | How to point it at the venv |
+|---|---|
+| Exhausted campaigns (`benchmarks/exhausted/`) | `tools.autoprof.venv_python` in the campaign YAML |
+| `bench_vs_autoprof.py` (`benchmarks/utils/autoprof_adapter.py`) | `AUTOPROF_PYTHON` environment variable |
+
+Both carry machine-specific defaults that will not exist on your system; set
+one of the two above rather than relying on them. When the venv is absent,
+AutoProf arms skip cleanly with a regeneration hint.
+
 ## 1. Quick Start
 
 ```bash
 # (one-time) set up the AutoProf venv if you want that tool active.
-uv venv /tmp/autoprof_venv
-uv pip install --python /tmp/autoprof_venv/bin/python 'autoprof==1.3.4'
+# See "AutoProf setup" below -- use a stable path, never /tmp.
+mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
+~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
 
 # Dry-run the planned fit matrix.
 uv run python -m benchmarks.exhausted.orchestrator.cli dry-run \
@@ -64,7 +90,7 @@ tools:
   autoprof:
     enabled: true
     arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
-    venv_python: "/tmp/autoprof_venv/bin/python"
+    venv_python: "~/.venvs/autoprof_venv/bin/python"   # stable path; see §0
     timeout: 300        # seconds per arm
 ```
 
@@ -500,14 +526,14 @@ AutoProf 1.3.4 requires `numpy < 2` and `photutils == 1.5`, which
 cannot coexist in `isoster`'s `uv` environment (numpy 2.x). The
 campaign runs it via subprocess against a dedicated venv.
 
-```bash
-uv venv /tmp/autoprof_venv
-uv pip install --python /tmp/autoprof_venv/bin/python 'autoprof==1.3.4'
-/tmp/autoprof_venv/bin/python -c "from autoprof.Pipeline import Isophote_Pipeline; print('ok')"
-```
+See §0 for the install recipe. In short: put the venv at a stable path such
+as `~/.venvs/autoprof_venv`, never under `/tmp`, which macOS prunes and which
+will strip individual `.py` files out from under a running campaign.
 
-Point `tools.autoprof.venv_python` at the venv's Python (default
-`/tmp/autoprof_venv/bin/python`). If the path is missing or the import
+Point `tools.autoprof.venv_python` at that venv's Python. The compiled-in
+default is `/tmp/autoprof_venv/bin/python`, which is exactly the location this
+document advises against — set the YAML key rather than relying on it. If the
+path is missing or the import
 fails, every autoprof arm is reported as `status="skipped"` with a
 clear regeneration hint — the rest of the campaign continues.
 

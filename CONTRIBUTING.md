@@ -8,7 +8,7 @@ ISOSTER uses [uv](https://docs.astral.sh/uv/) exclusively for environment and de
 
 ```bash
 # Clone the repository
-git clone https://github.com/shuang-stat/isoster.git
+git clone https://github.com/MassiveSeaOtters/isoster.git
 cd isoster
 
 # Sync environment with core + development + docs tools
@@ -67,4 +67,4 @@ When reporting a bug or requesting a feature, please include:
 - The full traceback for errors.
 - Expected vs. actual behavior.
 
-Open issues at: <https://github.com/shuang-stat/isoster/issues>
+Open issues at: <https://github.com/MassiveSeaOtters/isoster/issues>

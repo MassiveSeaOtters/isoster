@@ -15,7 +15,7 @@
 
 ---
 
-ISOSTER is a Python library for elliptical isophote fitting that runs **tens of times faster** than `photutils.isophote` — a median of $45\times$ across a 237-configuration synthetic Sérsic sweep (interquartile range $35$–$57\times$; the slowest case was $16\times$), with every case also meeting the benchmark's accuracy criteria against the true profile. Reproduce with [`benchmarks/performance/bench_vs_photutils.py`](benchmarks/performance/bench_vs_photutils.py); the archived summary is [`benchmarks/performance/reference_speedup.json`](benchmarks/performance/reference_speedup.json). Absolute times are machine-specific, so the ratio is the portable part, and the speedup varies with image size and isophote count. ISOSTER uses vectorized path-based sampling via scipy's `map_coordinates` while maintaining scientific accuracy and full compatibility with the photutils isophote analysis workflow.
+ISOSTER is a Python library for elliptical isophote fitting that runs **tens of times faster** than `photutils.isophote` — a median of $45\times$ across a 237-configuration synthetic Sérsic sweep (interquartile range $35$–$57\times$; the slowest case was $16\times$), with every case also meeting the benchmark's accuracy criteria against the true profile. Reproduce with [`benchmarks/performance/bench_vs_photutils.py`](benchmarks/performance/bench_vs_photutils.py); the archived summary is [`benchmarks/performance/reference_speedup.json`](benchmarks/performance/reference_speedup.json). Absolute times are machine-specific, so the ratio is the portable part, and the speedup varies with image size and isophote count. ISOSTER uses vectorized path-based sampling via scipy's `map_coordinates`. It shares the Jedrzejewski (1987) algorithmic ancestry of `photutils.isophote` and its geometry and intensity profiles have been validated against it on the sweep above, but it is **not** a drop-in replacement: sampling, convergence handling, defaults, output schema and serialization all differ deliberately. See [`docs/technical/1.5-comparison.md`](docs/technical/1.5-comparison.md) for what matches and what does not.
 
 ## Installation
 
@@ -23,7 +23,7 @@ ISOSTER requires Python 3.9+ and uses [uv](https://docs.astral.sh/uv/) for envir
 
 ```bash
 # Clone and install
-git clone https://github.com/shuang-stat/isoster.git
+git clone https://github.com/MassiveSeaOtters/isoster.git
 cd isoster
 uv sync                          # core dependencies only
 
@@ -78,7 +78,7 @@ results_i = isoster.fit_image(image_i, None, config, template='galaxy_g.fits')
 
 - **High performance**: tens of times faster than `photutils.isophote` via vectorized sampling (median $45\times$ on the synthetic Sérsic sweep; see above).
 - **Template-based forced photometry**: Consistent multiband photometry using geometry from a reference band.
-- **Eccentric anomaly sampling**: Uniform arc-length coverage for high-ellipticity galaxies (Ciambur 2015).
+- **Eccentric anomaly sampling**: More even sampling around high-ellipticity isophotes than stepping the position angle (Ciambur 2015).
 - **Simultaneous harmonics**: ISOFIT-style joint fitting of higher-order harmonics within the iteration loop.
 - **2D model building**: Reconstruct galaxy images from isophote profiles with optional harmonic deviations.
 - **Convergence controls**: Sector-area scaling, geometry damping, and geometry-stability convergence.

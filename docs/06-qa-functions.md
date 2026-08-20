@@ -1,7 +1,7 @@
 # QA Plotting Reference
 
 This document covers the QA plotting functions exported by `isoster.plotting`.
-For style conventions and layout rules, see `docs/agent/qa-figures.md` (internal reference).
+For style conventions and layout rules, see `docs/agent/qa-figures.md` (agent-internal, not published) — available in a source checkout, not on the published site.
 
 ## Quick Start
 

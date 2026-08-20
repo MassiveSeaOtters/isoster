@@ -12,10 +12,10 @@
 > campaign (joint-WLS gradient pooling, geometry-parameterised solve,
 > shared-*shape* higher harmonics, `loose_validity` repair) merged to
 > `main` on 2026-08-15. See
-> `docs/agent/plan-2026-04-29-multiband-feasibility.md` for the locked
+> `docs/agent/plan-2026-04-29-multiband-feasibility.md` (agent-internal, not published) for the locked
 > design record (24 decisions captured from a structured interview
 > before any code was written) and
-> `docs/agent/plans/2026-08-14-multiband-maturity.md` for the maturity
+> `docs/agent/plans/2026-08-14-multiband-maturity.md` (agent-internal, not published) for the maturity
 > campaign.
 
 ## Status
@@ -25,14 +25,24 @@ geometry-parameterised solve and `independent` higher harmonics, in OLS or WLS �
 is **supported**, not experimental, as of 2026-08-15. Two features keep their own
 warnings and are called out where they appear below:
 
-- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`,
-  because the single-band equivalent has benchmark regressions;
-- `loose_validity=True`, which is repaired and tested end to end but not yet
-  the default.
+- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`
+  are **experimental** and emit a `UserWarning` when selected, because the
+  single-band equivalent has benchmark regressions;
+- `loose_validity=True` is **supported but non-default**. It is repaired and
+  tested end to end, and it does *not* warn. It is a masking-policy choice
+  (§"Validity policy" below), not an unfinished feature.
 
-Real-data validation is concentrated on a small number of targets, and the B=5
-path has synthetic coverage only — the asteris five-band cutouts are not
-available on the development machine.
+Real-data validation is concentrated on a small number of targets. The B=5
+results quoted below (the Performance section and the Stage-1 performance bar)
+**were** measured on real five-band asteris cutouts, in May 2026, but that data
+is not present on the current development machine: those numbers are historical
+and cannot be re-run here. They are labelled where they appear. Ongoing,
+reproducible B=5 coverage is synthetic only.
+
+Unlike the timings in the technical chapter, none of the multi-band numbers on
+this page are produced by a committed harness or checked against an archive.
+Treat them as recorded measurements with a date attached, not as reproducible
+results.
 
 ## Shared higher harmonics mean a shared *shape*
 
@@ -223,9 +233,19 @@ pre-merge review pass.
 simultaneously on multiple aligned, same-pixel-grid images of the same
 target (e.g. HSC g/r/i/z/y coadds). It produces a **single shared
 geometry per SMA** with **per-band intensities and per-band harmonic
-deviations**. This replaces the traditional forced-photometry workflow
-("fit one band, apply the geometry to others") with a joint fit where
-every band contributes to the geometry.
+deviations**.
+
+This *complements* the traditional forced-photometry workflow ("fit one
+band, apply that geometry to the others") rather than replacing it,
+because the two estimate different quantities. Forced photometry
+measures each band through the reference band's geometry, which is what
+you want when the reference geometry is the definition of the aperture.
+The joint fit measures one geometry to which every band contributes,
+which is what you want when the geometry itself is the target and no
+single band should define it. Where the galaxy's morphology genuinely
+differs between bands, neither is "unbiased" in the abstract — they
+answer different questions. The demonstrated benefit of the joint fit
+is *precision* at low signal-to-noise, not unbiasedness.
 
 The joint design matrix per ellipse, B bands, N kept samples:
 
@@ -239,8 +259,10 @@ The joint design matrix per ellipse, B bands, N kept samples:
                                               [B2   ]
 ```
 
-Free parameters: `(5 + B)` per ellipse (per-band background `I0_b` plus
-shared geometric harmonic coefficients). Solved once per iteration in
+Free parameters: `(4 + B)` per ellipse — `B` per-band backgrounds `I0_b`
+plus the four shared harmonic coefficients `A1, B1, A2, B2` drawn in the
+diagram above. This matches the `(B*N, B + 4)` design-matrix shape used
+below and in the solver. Solved once per iteration in
 WLS or OLS mode. Per-band weights `w_b` enter the joint normal
 equations as a diagonal weight matrix: each band's row block
 contributes `Aᵀ W A` with `W = diag(w_b)` in OLS, or
@@ -304,6 +326,12 @@ name. The multi-band path is pre-production so we take a clean
 break with no auto-translation.
 
 ## Performance
+
+> **Historical measurement (2026-05-03).** The asteris five-band cutouts are
+> not on the current development machine, so the figures in this section cannot
+> be reproduced here and are not covered by any committed archive. They are
+> retained because they are the only real-data B=5 timings taken, and are dated
+> so a reader can weigh them accordingly.
 
 On the asteris denoised dataset (768×768 cutouts, 74 isophotes, all five
 HSC bands), the joint multi-band fit runs in **~2× single-band wall
@@ -822,7 +850,9 @@ independent reasons**:
 #### Performance bar (Stage-1 D17 / Section 6.1 Q11)
 
 All four modes must stay within ≤ 2.5× single-band wall time on the
-asteris perf benchmark. Measured on the B=5 768² cutout (2026-05-03):
+asteris perf benchmark. Measured on the B=5 768² cutout on 2026-05-03.
+**Historical:** as noted under Status, this dataset is no longer available
+locally, so the table below cannot currently be regenerated:
 
 | Configuration | Median (s) | Ratio vs SB |
 |---|---:|---:|

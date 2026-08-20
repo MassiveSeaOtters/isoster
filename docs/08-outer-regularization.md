@@ -18,8 +18,8 @@ galaxies spanning synthetic edge cases and real HSC cluster-central
 brightest-cluster galaxies (BCGs), `damping` mode with default tuning
 preserves physical b/a(s) and PA(s) walks in the meaningful fit regime
 (sma ≲ 80 px on HSC coadds) while suppressing clip-saturated jumps in
-the LSB outskirts, at runtime within 3% of the no-regularization
-baseline.
+the LSB outskirts, at no runtime cost measurable against the
+no-regularization baseline (§6.2).
 
 ## 1. Background and motivation
 
@@ -535,8 +535,15 @@ Median runtime per galaxy × arm (s), warm cache:
 | 42310032070569600 (real BCG)                 | 0.24 | 0.27 | 0.24 | 0.30 | 0.27 | 0.34 |
 | **total** (9 galaxies)                       | **2.56** | **2.52** | **2.44** | **2.43** | **2.39** | **2.46** |
 
-Damping modes match baseline to within ±3% total; solver modes are
-equivalent because both rely on the auto-enabled
+Every arm's total lands within about 7% of baseline (`damp_default`
+−1.6%, `damp_full` −4.7%, `damp_recom` −5.1%, `solver_std` −6.6%,
+`solver_strong` −3.9%). All five are *faster* than baseline, which is
+the giveaway: these are medians of three runs on sub-second fits, so
+the spread is timing noise rather than a systematic saving, and the
+honest reading is that regularization costs nothing measurable at this
+precision — not that it speeds the fit up. An earlier version of this
+sentence claimed ±3%, which its own table does not support. Solver
+modes are equivalent because both rely on the auto-enabled
 `geometry_convergence`. The Tikhonov arithmetic adds negligible
 per-iteration overhead (≲ 10 FLOP per axis).
 

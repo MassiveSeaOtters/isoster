@@ -99,7 +99,8 @@ class IsosterConfigMB(BaseModel):
         default="joint",
         description="Strategy for combining per-band harmonic information into "
         "the geometry update. ``'joint'`` (default): solve a single "
-        "``(5 + B)``-column design matrix once per iteration, with per-band "
+        "``(B + 4)``-column design matrix once per iteration (B per-band "
+        "intercepts plus four shared geometry columns), with per-band "
         "``I0_b`` nuisance parameters and shared ``(A1, B1, A2, B2)`` "
         "geometric coefficients. ``'ref'``: drive geometry from the reference "
         "band only; other bands are passive (post-hoc intensity and harmonic "

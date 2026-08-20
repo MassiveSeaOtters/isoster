@@ -3,12 +3,19 @@ Multi-band isoster.
 
 Joint elliptical isophote fitting on multiple aligned same-pixel-grid
 images. Produces a single shared geometry per SMA with per-band
-intensities and per-band harmonic deviations, replacing the traditional
-forced-photometry workflow.
+intensities and per-band harmonic deviations.
 
-The default configuration is supported as of 2026-08-15; the
-``simultaneous_*`` higher-harmonic modes and ``loose_validity=True``
-remain experimental and warn where they are configured. See
+This *complements* the traditional forced-photometry workflow rather
+than replacing it: the two estimate different quantities. Forced
+photometry measures each band through the reference band's geometry;
+the joint fit measures one geometry informed by every band. Which is
+appropriate depends on the question being asked -- see
+``docs/10-multiband.md``.
+
+The default configuration is supported as of 2026-08-15. The
+``simultaneous_*`` higher-harmonic modes remain experimental and warn
+when configured; ``loose_validity=True`` is supported but non-default
+and does not warn. See
 :class:`~isoster.multiband.config_mb.IsosterConfigMB` for the exact
 line.
 

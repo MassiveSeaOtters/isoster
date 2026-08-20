@@ -1411,8 +1411,19 @@ def plot_qa_summary_extended(
         ``b_n`` (open) per order.  ``'amplitude'`` shows
         ``A_n = sqrt(a_n^2 + b_n^2)`` per order.
     normalize_harmonics : bool
-        Only used when ``harmonic_mode='amplitude'``.  When True, shows
-        ``A_n / I`` instead of raw ``A_n``.
+        Only used when ``harmonic_mode='amplitude'``.  When True, divides the
+        plotted amplitude by the isophote intensity.
+
+        Note what this actually produces. The ``a_n`` / ``b_n`` stored by
+        ``compute_deviations`` are **already** Bender-normalized -- divided by
+        ``sma * abs(gradient)`` at the point of computation -- so this option
+        applies a *second* normalization and yields
+        ``A_n_raw / (sma * |dI/da| * I)``, not ``A_n / I``. That is a compound
+        quantity with no standard interpretation. It is kept for backwards
+        compatibility with existing figures; the default (``False``) already
+        gives the scale-invariant Bender amplitude, which is what should
+        normally be plotted. The multi-band plotter hit the same trap and was
+        corrected (``plotting_mb.py``, review P1).
     relative_residual : bool
         When False (default), the residual map shows ``data - model``
         (absolute).  When True, shows ``100 * (model - data) / data``

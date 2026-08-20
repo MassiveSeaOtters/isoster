@@ -15,7 +15,7 @@ Use this page as the entry point and map for project documentation.
 - `docs/07-lsb-features.md`: design and implementation of the LSB auto-lock and outer-region center regularization features
 - `docs/08-outer-regularization.md`: publication-grade reference for the outer-region Tikhonov regularization (math, algorithm, config, benchmarks)
 - `docs/09-exhausted-benchmark.md`: exhausted benchmark campaign framework reference (YAML schema, arms, output layout, model-evaluation standard, scoring, adapter recipe)
-- `docs/10-multiband.md`: experimental multi-band interface, CLI, I/O, and benchmark notes
+- `docs/10-multiband.md`: multi-band joint fitting — API, CLI, I/O, and benchmark notes. The default configuration is supported; the `simultaneous_*` higher-harmonic modes remain experimental, and the CLI/Schema-1 layout may still change.
 
 ## Technical Chapter
 
@@ -69,6 +69,9 @@ quick visual lookup alongside the prose chapters above.
 ## Agent-Internal Documents
 
 Agent-internal docs live in `docs/agent/` and are not tracked in git:
+
+The following live in a source checkout only. They are untracked or excluded
+from this site, so the paths below are not links you can follow here.
 
 - `docs/agent/todo.md`: active execution checklist and review notes.
 - `docs/agent/lessons.md`: development lessons to avoid repeated mistakes.

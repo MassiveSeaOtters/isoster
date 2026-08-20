@@ -146,9 +146,9 @@ def isophote_results_from_fits(filename):
     forced photometry workflows where geometry from one band is applied
     to other bands.
 
-    Supports both the new 3-HDU layout (with CONFIG extension) and legacy
-    files where config was stored as header keywords (returns config=None
-    for legacy files).
+    Supports both the current layout (PRIMARY, ISOPHOTES, CONFIG, META) and
+    legacy files where config was stored as header keywords (returns
+    config=None for legacy files).
 
     Parameters
     ----------
