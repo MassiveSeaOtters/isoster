@@ -16,7 +16,6 @@ Use this page as the entry point and map for project documentation.
 - `docs/08-outer-regularization.md`: publication-grade reference for the outer-region Tikhonov regularization (math, algorithm, config, benchmarks)
 - `docs/09-exhausted-benchmark.md`: exhausted benchmark campaign framework reference (YAML schema, arms, output layout, model-evaluation standard, scoring, adapter recipe)
 - `docs/10-multiband.md`: experimental multi-band interface, CLI, I/O, and benchmark notes
-- `docs/11-qa-evaluation-refresh-2026-05-10.md`: completed exhausted-campaign QA/evaluation refresh report, including commands, counts, output locations, and known remaining issue
 
 ## Technical Chapter
 
@@ -24,6 +23,13 @@ A long-form, math-heavy walkthrough of ISOSTER's design,
 performance argument, and feature surface. Twelve linked pages,
 intended as a publication-style reference resource that the user
 guides above point into for deeper context.
+
+Every timing quoted in the chapter is produced by
+`benchmarks/draft_timings/run_draft_timings.py` and checked against the
+committed archive `reference_timings.json` by `check_draft_numbers.py`,
+which runs in CI before the site is published. A number that drifts out
+of step with the archive fails the build rather than appearing as a
+measurement.
 
 - [`technical/1.0-overview.md`](technical/1.0-overview.md): chapter
   framing — speed, flexibility, scientific power.

@@ -1,6 +1,7 @@
 site_name: Isoster Documentation
 site_description: Fast isophote fitting for galaxy images.
 site_author: Shuang
+site_url: https://massiveseaotters.github.io/isoster/
 repo_url: https://github.com/MassiveSeaOtters/isoster
 repo_name: MassiveSeaOtters/isoster
 
@@ -8,6 +9,7 @@ exclude_docs: |
   agent/
   publication/
   journal/
+  archive/
 
 theme:
   name: material
@@ -33,7 +35,6 @@ nav:
   - Outer Regularization: 08-outer-regularization.md
   - Exhausted Benchmark: 09-exhausted-benchmark.md
   - Multi-Band: 10-multiband.md
-  - QA Evaluation Refresh 2026-05-10: 11-qa-evaluation-refresh-2026-05-10.md
   - Technical Chapter:
       - "1.0 Overview": technical/1.0-overview.md
       - "1.1 Algorithmic Foundation": technical/1.1-algorithmic-foundation.md

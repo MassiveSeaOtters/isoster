@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Project Overview
 
-ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It provides 10-15x faster performance compared to `photutils.isophote` using vectorized path-based sampling via scipy's `map_coordinates`.
+ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It runs tens of times faster than `photutils.isophote` (median 45x on the synthetic Sersic sweep in `benchmarks/performance/`; archived in `reference_speedup.json`) using vectorized path-based sampling via scipy's `map_coordinates`.
 
 ## Non-negotiable Rules for developing
 
@@ -87,6 +87,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 | Document | Description |
 |----------|-------------|
 | `docs/index.md` | Documentation home page and map |
+| `docs/archive/` | Retired dated reports (pre-publication review, QA refresh). Tracked so the history survives, excluded from the published site. |
 | `docs/01-user-guide.md` | Usage guidance, stop-code reference, public API |
 | `docs/02-configuration-reference.md` | All configuration parameters and guidelines |
 | `docs/03-algorithm.md` | Fitting and sampling implementation notes |
@@ -97,6 +98,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 | `docs/08-outer-regularization.md` | Publication-grade reference for the outer-region Tikhonov regularization: math, algorithm, config, benchmarks |
 | `docs/09-exhausted-benchmark.md` | Exhausted benchmark campaign framework: YAML schema, arm sentinels, output layout, composite score, adapter recipe |
 | `docs/10-multiband.md` | Multi-band isoster (experimental): joint free fit replacing forced photometry; API, Schema 1 column reference, joint-solver math, demo |
+| `docs/technical/1.0`–`1.6` | Long-form technical chapter. **Tracked and published.** Every timing in it is produced by `benchmarks/draft_timings/run_draft_timings.py` and checked against `reference_timings.json` by `check_draft_numbers.py`, which gates the docs CI job. Do not hand-edit a quoted number: re-archive and let the checker print the replacements. |
 
 ### Agent-internal docs (untracked, in `docs/agent/`)
 
@@ -107,6 +109,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 | `docs/agent/future.md` | Long-term upgrades and research roadmap |
 | `docs/agent/qa-figures.md` | QA figure layout and style conventions |
 | `docs/agent/journal/` | Chronological project journal notes |
+
 
 ## Testing and Benchmark Directives
 

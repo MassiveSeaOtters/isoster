@@ -8,6 +8,7 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
+      - "benchmarks/draft_timings/**"
       - "pyproject.toml"
       - "uv.lock"
   workflow_dispatch:
@@ -38,6 +39,12 @@ jobs:
 
       - name: Sync docs environment
         run: uv sync --extra docs
+
+      - name: Check the technical chapter against the archived measurements
+        # The chapter quotes timings transcribed from
+        # benchmarks/draft_timings/reference_timings.json. A transcription that
+        # drifts still looks measured, so fail the build rather than publish it.
+        run: uv run python benchmarks/draft_timings/check_draft_numbers.py
 
       - name: Build site (strict)
         run: uv run mkdocs build --strict

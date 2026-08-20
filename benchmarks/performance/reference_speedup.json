@@ -1,0 +1,51 @@
+{
+  "source": "benchmarks/performance/bench_vs_photutils.py",
+  "what": "Wall-time ratio photutils.isophote / isoster on a synthetic Sersic grid. Every case also had to pass the script's accuracy criteria against the true profile; a case that failed those would not be a valid speed comparison. This is a synthetic sweep, not a real-image benchmark.",
+  "environment": {
+    "cpu_count": 10,
+    "environment_variables": {
+      "MKL_NUM_THREADS": "",
+      "NUMBA_DISABLE_JIT": "",
+      "OMP_NUM_THREADS": "",
+      "OPENBLAS_NUM_THREADS": ""
+    },
+    "generated_at_utc": "2026-08-20T14:40:00.518871+00:00",
+    "git_sha": "db4bc96c5c39ff74cccdeed87971a498ddd4c936",
+    "numba": "0.63.1",
+    "numpy": "2.3.5",
+    "platform": "macOS-15.7.4-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.12.7",
+    "scipy": "1.17.0"
+  },
+  "n_cases": 237,
+  "all_accuracy_criteria_passed": true,
+  "speedup": {
+    "median": 45.1,
+    "q1": 34.9,
+    "q3": 57.4,
+    "min": 16.2,
+    "max": 108.3
+  },
+  "speedup_by_R_e": {
+    "20": {
+      "n": 79,
+      "median": 40.9,
+      "min": 16.2,
+      "max": 72.0
+    },
+    "50": {
+      "n": 79,
+      "median": 52.1,
+      "min": 31.1,
+      "max": 108.3
+    },
+    "100": {
+      "n": 79,
+      "median": 43.5,
+      "min": 29.5,
+      "max": 90.6
+    }
+  },
+  "caveat": "Absolute times are machine-specific; the ratio is the portable part. One run on one machine: treat the median and quartiles as the reproducible summary and the extremes as provisional."
+}
