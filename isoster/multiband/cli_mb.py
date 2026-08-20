@@ -3,8 +3,11 @@ Command-line interface for multi-band isoster (``isoster-mb``).
 
 This is a **parallel CLI** to the single-band ``isoster`` entry point —
 deliberately not sharing implementation with :mod:`isoster.cli` so that
-multi-band CLI changes cannot regress the single-band path while the
-multi-band code remains experimental. The argument layout mirrors the
+multi-band CLI changes cannot regress the single-band path. Multi-band
+carries operational failure modes with no single-band counterpart —
+per-band mask asymmetry, missing variance maps in some bands, alignment
+mismatches — and the split keeps each path's handling of them local to
+its own implementation. The argument layout mirrors the
 single-band CLI for user familiarity (``--config``, ``--output``,
 ``--x0``, ``--y0``, ``--sma0``, ``--fix-center``, etc.) but takes one
 positional FITS path per band plus a ``--bands`` flag listing the band
@@ -25,8 +28,10 @@ values. Output extension drives the writer:
 * anything else → astropy ``Table.write`` of the per-isophote table
   (``.csv``, ``.ecsv``, …).
 
-The CLI prints an "experimental" banner per invocation (suppressible
-with ``--quiet``) while the multi-band path is in beta.
+The CLI prints an interface-stability banner per invocation
+(suppressible with ``--quiet``): the fit itself is supported in its
+default configuration, but the CLI arguments and the Schema-1 output
+layout may still change between releases.
 """
 
 from __future__ import annotations
@@ -47,10 +52,13 @@ from .utils_mb import (
     isophote_results_mb_to_fits,
 )
 
-EXPERIMENTAL_BANNER = (
+INTERFACE_STABILITY_BANNER = (
     "============================================================\n"
-    " isoster-mb: EXPERIMENTAL multi-band CLI (beta)\n"
-    " API and output schema may change. See docs/10-multiband.md.\n"
+    " isoster-mb: multi-band CLI — UNSTABLE INTERFACE\n"
+    " The default configuration is supported; the CLI arguments and\n"
+    " the Schema-1 output layout may still change between releases.\n"
+    " simultaneous_* harmonics and loose_validity are experimental.\n"
+    " See docs/10-multiband.md.\n"
     "============================================================"
 )
 
@@ -96,7 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="isoster-mb",
         description=(
-            "Multi-band isoster CLI (experimental, beta). Fits a single "
+            "Multi-band isoster CLI (unstable interface). Fits a single "
             "shared elliptical-isophote geometry across multiple aligned, "
             "same-pixel-grid images and reports per-band intensities and "
             "harmonics."
@@ -186,7 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--quiet",
         action="store_true",
-        help="Suppress the experimental banner.",
+        help="Suppress the interface-stability banner.",
     )
     return parser
 
@@ -280,7 +288,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     args = parser.parse_args(argv)
 
     if not args.quiet:
-        print(EXPERIMENTAL_BANNER, file=sys.stderr)
+        print(INTERFACE_STABILITY_BANNER, file=sys.stderr)
 
     cfg_dict: dict = _load_yaml_config(args.config) if args.config else {}
     cfg_dict = _apply_cli_overrides(cfg_dict, args)

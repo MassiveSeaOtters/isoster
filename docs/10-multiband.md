@@ -1,14 +1,22 @@
-# Multi-Band Isoster (Experimental)
+# Multi-Band Isoster
 
-> **Status: experimental.** Stage-1 (joint fit) shipped 2026-04-30; the
-> Stage-3 backport campaign + Phase 39 finalization shipped 2026-05-04
-> on `feat/multiband-feasibility`. API and output schema are subject
-> to change before the feature is merged to `main`. The pre-merge code
-> review (see `docs/agent/journal/`) cleared three correctness blockers
-> (B1/B2/B3) and six high-priority issues (H1–H6). See
+> **The default configuration is supported; some options are not.** See
+> "Status" immediately below for exactly where the line falls. The
+> public API and the Schema-1 output layout may still change between
+> releases — that is a statement about interface stability, not about
+> the correctness of the fit, and it is what the `isoster-mb` CLI
+> banner refers to.
+>
+> History: Stage-1 (joint fit) shipped 2026-04-30; the Stage-3 backport
+> campaign + Phase 39 finalization shipped 2026-05-04; the maturity
+> campaign (joint-WLS gradient pooling, geometry-parameterised solve,
+> shared-*shape* higher harmonics, `loose_validity` repair) merged to
+> `main` on 2026-08-15. See
 > `docs/agent/plan-2026-04-29-multiband-feasibility.md` for the locked
 > design record (24 decisions captured from a structured interview
-> before any code was written) plus Phase-38 / Phase-39 update.
+> before any code was written) and
+> `docs/agent/plans/2026-08-14-multiband-maturity.md` for the maturity
+> campaign.
 
 ## Status
 
@@ -448,13 +456,28 @@ Each isophote row carries shared columns and per-band-suffixed columns:
   sigma clipping; under shared validity it equals the shared `ndata`).
 - Per band per order `<n>`: `a<n>_<b>, b<n>_<b>, a<n>_err_<b>,
   b<n>_err_<b>` for each `n` in ``harmonic_orders`` (default `[3, 4]`,
-  extensible to `[3, 4, 5, 6]` etc.). Under non-``'independent'``
-  ``multiband_higher_harmonics`` modes these per-band columns all
-  carry the **identical shared value** across bands at every isophote
-  (the joint refit / in-loop solve produces one shared coefficient per
-  order). Per-band Bender normalization at plotting time scales the
-  shared raw value by ``-1/(sma·|dI/da_b|)``, which still produces
-  band-distinct curves because per-band gradients differ.
+  extensible to `[3, 4, 5, 6]` etc.). **The stored units differ by
+  mode**, and ``result['harmonics_shared']`` is the flag that says
+  which convention applies:
+  - ``'independent'`` (``harmonics_shared=False``): per-band fits,
+    stored **already Bender-normalised** (the single-band
+    ``compute_deviations`` solver normalises at fit time). Do **not**
+    normalise these a second time.
+  - ``'shared'`` (``harmonics_shared=True``): stored **raw**, and
+    **band-distinct** — one shared dimensionless shape reconstructed
+    into each band's own raw units via ``-sma·grad_b``. The invariant
+    to check is that they all *normalise* to one value. See "Shared
+    higher harmonics mean a shared *shape*" above.
+  - ``'simultaneous_in_loop'`` / ``'simultaneous_original'``
+    (``harmonics_shared=True``): stored **raw** and **identical across
+    bands**, so they represent a shared raw intensity residual rather
+    than a shared shape. This is why they no longer agree with
+    ``'shared'`` column-by-column, and one more reason they keep their
+    experimental warning.
+
+  Per-band Bender normalisation at plotting time scales the raw value
+  by ``-1/(sma·|dI/da_b|)`` and is applied only when
+  ``harmonics_shared`` is true.
 - Debug-only per band: `grad_<b>, grad_error_<b>, grad_r_error_<b>`
   when `debug=True`.
 
@@ -538,28 +561,130 @@ WLS). With B=1 and `w_b = 1` the joint solver reduces to the existing
 single-band 5-parameter system bit-for-bit (verified by
 `test_joint_solver_b1_matches_single_band_solver`).
 
-### Combined gradient (decision D10)
+### Geometry-parameterised solve (default since 2026-08-15)
+
+The system above shares a harmonic **amplitude** across bands, and an
+amplitude is not a geometric quantity. A common geometry step `delta` —
+the same ellipse misplaced the same way in every band — produces a ring
+harmonic of amplitude `delta * grad_b` in band `b`, proportional to *that
+band's* radial gradient. Forcing one amplitude on bands with different
+gradients is therefore a misspecified model: what it fits is `delta` times
+a weight-averaged gradient, which then has to be divided back out by a
+separately pooled gradient.
+
+With `geometry_parameterized_solve=True` (the default) each band's four
+**shared** columns are scaled by that band's gradient, so the shared free
+parameters are the geometry steps themselves:
+
+```
+intens_b(φ) = I0_b + grad_b · (D1·sin φ + E1·cos φ + D2·sin 2φ + E2·cos 2φ)
+```
+
+The per-band intercept columns are never scaled — `I0_b` stays an
+intensity. Consequences:
+
+- The effective per-band weight becomes `w_b · grad_b² / var_b`
+  (minimum-variance) instead of `w_b / var_b`. On HSC g/r/i the amplitude
+  weighting was measured close to *inverted* against the bands'
+  information content (band g: 65 % of the weight, 10 % of the
+  information). Against synthetic common-geometry truth the geometry form
+  leaves the bias unchanged and cuts the geometry scatter by ~25–30 %
+  wherever the two weightings disagree.
+- The shared coefficients and the residual scatter end up in the same
+  units, so the convergence comparison stops depending on a band's flux
+  units.
+- A band whose gradient is zero or non-finite contributes zero columns and
+  therefore no geometry information — correct, not a special case.
+
+The scaling uses the **previous iteration's** per-band gradients (slowly
+varying nuisance scale factors); the first iteration of each isophote
+falls back to the amplitude form because it has no previous gradients yet.
+The parameterisation is threaded into every solve path — shared and loose
+validity, joint and decoupled intercepts, plain and simultaneous higher
+harmonics — so it does not depend on which other options are set. Set
+`False` to reproduce pre-2026-08-15 results or to compare the two forms.
+
+**The `band_scale` invariant.** After the solve, the shared block is
+multiplied by the pooled gradient `grad_joint` so that every downstream
+consumer (`max_amp`, the convergence test, the covariance-based geometry
+errors, the harmonic attachers) keeps working in the units it already
+expected; the geometry update divides by the same `grad_joint`, so the
+round trip is exact. But band `b`'s *fitted* amplitude is `delta·grad_b`,
+not `delta·grad_joint`. Anything that **reconstructs the model** for band
+`b` must therefore apply `band_scale[b] = grad_b / grad_joint`: the
+per-band residuals, the convergence RMS built from them, the OLS error
+rescaling, and the harmonic subtraction in the shared / simultaneous
+modes. Omitting the factor leaves the geometry step itself exact while
+making every residual-derived quantity wrong — a failure mode that
+survives tests aimed only at the fitted parameters.
+
+### Combined gradient (decision D10, reweighted 2026-08-15)
 
 The geometry-update math (Jedrzejewski 1987) requires a single radial
-gradient. For multi-band the driver computes per-band gradients
-separately and combines them with the same per-band weights:
+gradient. The driver computes per-band gradients separately and pools
+them:
 
 ```
-gradient_joint = Σ_b w_b · grad_b / Σ_b w_b
-σ²_joint       = Σ_b w_b² · σ_b² / (Σ_b w_b)²    (independent measurements)
+gradient_joint = Σ_b W_b · grad_b / Σ_b W_b
+σ²_joint       = Σ_b W_b² · σ_b² / (Σ_b W_b)²    (independent measurements)
 ```
 
-Plugged into the standard geometry-update formulas; the gradient-error
-gate (`maxgerr`) reads `σ_joint / |gradient_joint|`.
+`W_b` is the weight the band actually carried **in the harmonic solve**,
+not the bare `band_weights` value:
+
+```
+W_b = w_b · Σ_i (1 / var_{b,i})     (WLS)
+W_b = w_b                            (OLS — no variance map)
+```
+
+`gradient_joint` is plugged into the standard geometry-update formulas;
+the gradient-error gate (`maxgerr`) reads `σ_joint / |gradient_joint|`.
+Bands whose gradient is non-finite are skipped rather than allowed to
+poison the sum.
+
+See "Joint gradient weighting" below for why the bare `w_b` is wrong and
+where `W_b` is itself an approximation.
+
+### Joint gradient weighting
+
+Under the amplitude parameterisation the shared fitted amplitude is
+`delta · Σ W_b grad_b / Σ W_b`. Dividing that by a gradient pooled with
+the **same** `W_b` returns `delta` exactly; pooling with the bare `w_b`
+does not, and the error is not even one-signed — against a planted truth
+of 0.100, two band configurations recovered **0.180** and **0.045**.
+
+Two implementation requirements follow:
+
+- The variances fed to `joint_gradient_pooling_weights` must be the
+  **post-clipping** arrays handed to the solve. Taking them from the
+  sampler's unfiltered ring would put the pooled gradient and the fitted
+  amplitude back on different sample sets.
+- Under loose validity with dropped bands, `band_indices` maps jagged
+  entries back to their position in the full band list; absent bands keep
+  their bare weight, which is unused because they do not enter the solve.
+
+Under `harmonic_combination='ref'` the geometry is driven by one band, so
+the pooling collapses to a one-hot weight on the reference band and
+`gradient_joint` is that band's own gradient.
+
+**Exactness.** The exactly correct weight is
+`Σ_i w_b · sin²(φ_i) / var_{b,i}`, which differs per harmonic once the
+variance varies *azimuthally within* a band — no single scalar can then be
+right for `A1, B1, A2, B2` at once. `W_b` as defined above is exact for
+shared angular coverage with azimuthally uniform variance inside each band
+(the common case: bands differ in sky level, each band's own ring is
+uniform) and an approximation otherwise.
 
 ### Sample-validity rule (decision D9)
 
-A sample on the ellipse is dropped from the joint solve if **any**
-band's mask flags it, **any** band has NaN at that location, or
-**any** band's variance is non-positive after sanitization. This
-guarantees that every band's row block in the joint design matrix has
-the same `N` samples, which the joint solve requires. Edge cases where
-one bad band drops samples in all bands are a known revisit item.
+Under the default shared validity, a sample on the ellipse is dropped from
+the joint solve if **any** band's mask flags it, **any** band has NaN at
+that location, or **any** band's variance is invalid after sanitization.
+This guarantees that every band's row block in the joint design matrix has
+the same `N` samples, which the rectangular joint solve requires. The cost
+is real: on the HSC demo the AND routinely discards 18–27 % of otherwise
+usable samples, and 100 % at one radius. Set `loose_validity=True` (next
+section but one) to keep each band's own surviving samples instead.
 
 ### Sigma clipping (decision D9)
 
@@ -616,9 +741,9 @@ in any of the three non-``'independent'`` modes.
 | Value | Where higher orders are solved | Cross-band coupling | Refits |
 |-------|-------------------------------|---------------------|--------|
 | ``independent`` (default) | Post-hoc, per band, per order via the single-band ``compute_deviations`` solver | None — each band independent | a3_b, b3_b, a4_b, b4_b ... |
-| ``shared`` | Post-hoc joint solve over residuals | Shared (A_n, B_n) for n ≥ 3 across bands | (A_n, B_n) for n ≥ 3 only |
-| ``simultaneous_in_loop`` | In every iteration's joint solve | Shared (A_n, B_n) for ALL n | (A1, B1, A2, B2, A_n, B_n) every iteration |
-| ``simultaneous_original`` | 5-param in loop; one wider post-hoc joint solve over all orders | Shared (A_n, B_n) for ALL n | One post-hoc solve refits all orders |
+| ``shared`` | Post-hoc joint solve over residuals | Shared dimensionless *shape* for n ≥ 3; raw per-band columns differ | (A_n, B_n) for n ≥ 3 only |
+| ``simultaneous_in_loop`` | In every iteration's joint solve | Shared *raw* amplitude for ALL n (identical columns) | (A1, B1, A2, B2, A_n, B_n) every iteration |
+| ``simultaneous_original`` | 5-param in loop; one wider post-hoc joint solve over all orders | Shared *raw* amplitude for ALL n (identical columns) | One post-hoc solve refits all orders |
 
 #### `independent` (default)
 
@@ -628,22 +753,33 @@ Stage-1 behavior: at convergence, the driver calls
 reflects its own ring's intensity, gradient, and noise. Per-band
 ``a_n_<b>`` and ``b_n_<b>`` typically differ across bands.
 
-#### `shared` (NEW DEVELOPMENT)
+#### `shared`
 
-Replaces the per-band post-hoc step with **one joint refit** of
-higher-order coefficients shared across bands. The geometry-loop
-values for ``(A1, B1, A2, B2)`` and per-band ``I0_b`` are frozen.
-Design matrix is the smallest possible: ``(B·N, 2·L)`` where
-``L = len(harmonic_orders)``. Per-band ``a_n_<b>`` columns all carry
-the same shared value at every isophote. Errors come from the joint
-covariance; per-band ``a_n_err_<b>`` is the same across bands too.
+Replaces the per-band post-hoc step with **one joint refit** of a
+higher-order coefficient shared across bands. The geometry-loop values
+for ``(A1, B1, A2, B2)`` and per-band ``I0_b`` are frozen, and the
+residuals subtract that frozen geometric model band by band (with the
+``band_scale`` factor, since the geometry solve fitted
+``delta·grad_b`` in band ``b``). Design matrix is the smallest
+possible: ``(B·N, 2·L)`` where ``L = len(harmonic_orders)``.
+
+**What is shared is the dimensionless shape, not the raw amplitude.**
+Each band's higher-order columns are scaled by ``-sma·grad_b``, so the
+fitted coefficient *is* the Bender-normalised amplitude; Schema 1 then
+stores each band's own raw value ``shared_norm · (-sma·grad_b)``. The
+per-band ``a_n_<b>`` columns therefore **differ** across bands, and
+the invariant to check is that they all normalise to one number. See
+"Shared higher harmonics mean a shared *shape*" at the top of this
+document for the unit-rescaling table that motivated the change.
+Errors come from the joint covariance, scaled back by ``|scale|`` per
+band, so ``a_n_err_<b>`` is band-distinct too.
 
 Astrophysical motivation: a multi-band joint fit is meant to produce
 a single 1-D profile of the galaxy across bands; if the higher-order
 geometric deviation genuinely differed band-to-band you should be
 running ``harmonic_combination='ref'`` plus forced photometry instead.
 
-#### `simultaneous_in_loop` and `simultaneous_original` (RECOVERED FEATURE)
+#### `simultaneous_in_loop` and `simultaneous_original` (experimental)
 
 Multi-band lifts of the single-band ``IsosterConfig.simultaneous_harmonics``
 / ``isofit_mode`` features. Both extend the joint design matrix to
@@ -657,9 +793,20 @@ difference is when the wider solve fires:
   wider joint solve over all orders runs after convergence (Ciambur
   2015 original variant).
 
-Both modes emit a ``UserWarning`` at config construction citing
-single-band benchmark concerns; validate carefully on PGC006669 and
-asteris before trusting.
+Both modes emit a ``UserWarning`` at config construction, for **two
+independent reasons**:
+
+1. *Inherited.* The single-band equivalent has shown benchmark
+   regressions; the joint constraint may or may not rescue it.
+   Validate on PGC006669 and asteris before trusting the output.
+2. *Multi-band specific.* Unlike ``shared``, these two modes still
+   stamp **one identical raw amplitude** into every band, so what they
+   share is a raw intensity residual rather than a shape: their raw
+   coefficients do not normalise to a common value once the per-band
+   gradients differ. Repairing this entangles with the geometry
+   rescale (``band_scale``) and has been deferred. ``shared`` is the
+   lower-risk choice for anyone who wants cross-band coupling of the
+   higher orders.
 
 #### Validators
 

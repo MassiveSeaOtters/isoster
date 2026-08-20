@@ -1,10 +1,16 @@
 """
-Multi-band isoster (experimental).
+Multi-band isoster.
 
 Joint elliptical isophote fitting on multiple aligned same-pixel-grid
 images. Produces a single shared geometry per SMA with per-band
 intensities and per-band harmonic deviations, replacing the traditional
 forced-photometry workflow.
+
+The default configuration is supported as of 2026-08-15; the
+``simultaneous_*`` higher-harmonic modes and ``loose_validity=True``
+remain experimental and warn where they are configured. See
+:class:`~isoster.multiband.config_mb.IsosterConfigMB` for the exact
+line.
 
 This is a parallel codebase: it does not modify any module under the
 top-level ``isoster`` package. See ``docs/10-multiband.md`` for the

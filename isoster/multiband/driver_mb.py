@@ -828,9 +828,12 @@ def fit_image_multiband(
     """
     Fit isophotes jointly across multiple aligned same-pixel-grid images.
 
-    **EXPERIMENTAL (beta):** the multi-band path is under active
-    development; the API and the Schema-1 output layout may change
-    between releases. See ``docs/10-multiband.md`` for the user-facing
+    The default configuration is supported as of 2026-08-15; the
+    ``simultaneous_*`` higher-harmonic modes and ``loose_validity=True``
+    are not, and warn where they are configured (see
+    :class:`~isoster.multiband.config_mb.IsosterConfigMB`). The public
+    API and the Schema-1 output layout may still change between
+    releases. See ``docs/10-multiband.md`` for the user-facing
     reference.
 
     Single shared geometry per SMA, per-band intensities and per-band

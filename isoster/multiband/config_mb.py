@@ -5,8 +5,9 @@ Sibling of :class:`isoster.config.IsosterConfig` with a deliberately
 reduced field set, plus multi-band-only fields. There is **no
 inheritance** between the two classes: changes to ``IsosterConfig`` do
 not propagate automatically. This is intentional — the multi-band path
-is experimental and we want it free to evolve independently of the
-stable single-band path. See
+is free to evolve independently of the single-band path, and a field
+that exists in both is a field whose multi-band semantics were decided
+deliberately rather than inherited by accident. See
 ``docs/agent/plan-2026-04-29-multiband-feasibility.md`` (decision D23)
 for the rationale.
 
@@ -43,12 +44,23 @@ _BAND_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
 class IsosterConfigMB(BaseModel):
     """
-    Configuration for multi-band isoster (experimental).
+    Configuration for multi-band isoster.
 
     The fitter consumes multiple aligned same-pixel-grid images of the
     same target, fits a single shared geometry per SMA, and reports
     per-band intensities and per-band harmonic deviations. See
     ``docs/10-multiband.md`` for the full user-facing reference.
+
+    **Maturity.** The default configuration — shared validity, joint
+    per-band intercepts, ``geometry_parameterized_solve=True`` and
+    ``multiband_higher_harmonics='independent'``, in OLS or WLS — is
+    supported as of 2026-08-15. Two options are not, and each carries
+    its own warning where it is defined:
+    ``multiband_higher_harmonics`` in
+    ``{'simultaneous_in_loop', 'simultaneous_original'}``, and
+    ``loose_validity=True`` (correct and tested end to end, but not the
+    default because turning it on changes every result on data with
+    per-band masks). The B=5 path has synthetic coverage only.
 
     **Stop codes** are inherited from single-band isoster (see
     :class:`isoster.config.IsosterConfig`).
@@ -97,7 +109,7 @@ class IsosterConfigMB(BaseModel):
     geometry_parameterized_solve: bool = Field(
         default=True,
         description="Fit shared *geometry steps* instead of a shared harmonic "
-        "amplitude (experimental, under evaluation).\n\n"
+        "amplitude.\n\n"
         "A common geometry step ``delta`` produces a ring harmonic of amplitude "
         "``delta * grad_b`` in band ``b``, so one shared amplitude across bands "
         "is a misspecified model whenever the bands have different radial "
@@ -299,7 +311,7 @@ class IsosterConfigMB(BaseModel):
         "fits, one per band per order, uncoupled across bands "
         "(reproduces Stage-1 behavior bit-identically). ``'shared'``: "
         "after joint geometry has converged, run ONE post-hoc joint "
-        "WLS/OLS solve for higher-order coefficients shared across all "
+        "WLS/OLS solve for a higher-order coefficient shared across all "
         "bands; (A1, B1, A2, B2) and per-band ``I0_b`` stay frozen at "
         "their converged-loop values. ``'simultaneous_in_loop'``: "
         "extend the joint design matrix every iteration to "
@@ -308,10 +320,21 @@ class IsosterConfigMB(BaseModel):
         "iteration loop (Ciambur 2015 in-loop variant). "
         "``'simultaneous_original'``: standard 5-param iteration loop, "
         "then ONE post-hoc joint solve over all orders simultaneously "
-        "(Ciambur 2015 original variant). All non-``'independent'`` "
-        "modes share higher-order coefficients across bands; per-band "
-        "Schema-1 columns (``a3_<b>``, ...) carry the identical shared "
-        "value. Section 6 of plan-2026-04-29-multiband-feasibility.md.",
+        "(Ciambur 2015 original variant).\n\n"
+        "**What the Schema-1 columns hold differs by mode**, and "
+        "``result['harmonics_shared']`` is the flag that says which "
+        "convention applies. Under ``'independent'`` the per-band "
+        "``a3_<b>``, ... columns are already Bender-normalised (the "
+        "single-band ``compute_deviations`` solver normalises at fit "
+        "time) and must not be normalised again. Under ``'shared'`` they "
+        "are raw and **band-distinct**: the solve fits one dimensionless "
+        "shape (each band's columns scaled by ``-sma*grad_b``) and "
+        "converts back through each band's own scale, so the invariant is "
+        "that they all normalise to one value. Under ``'simultaneous_*'`` "
+        "they are raw and identical across bands, which represents a "
+        "shared raw intensity residual rather than a shared shape — one "
+        "of the two reasons those modes keep their experimental warning. "
+        "Section 6 of plan-2026-04-29-multiband-feasibility.md.",
     )
     harmonic_orders: List[int] = Field(
         default_factory=lambda: [3, 4],
