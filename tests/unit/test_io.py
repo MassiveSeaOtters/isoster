@@ -75,7 +75,7 @@ def _make_results(config_kwargs=None):
 
 
 class TestFitsWriter:
-    """Tests for the new 3-HDU FITS writer."""
+    """Tests for the FITS writer (PRIMARY / ISOPHOTES / CONFIG / META)."""
 
     def test_no_hierarch_warnings(self, tmp_path):
         """Writing results must produce zero VerifyWarning (HIERARCH noise)."""

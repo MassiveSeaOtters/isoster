@@ -20,8 +20,8 @@ Shared FITS datasets used by tests, benchmarks, and examples.
 - **Photometric zeropoint**: 27.0 (header `MAGZERO`)
 - **Pixel scale**: 0.168 arcsec/px — *adopted*, HSC coadd convention. The header
   carries no WCS scale keyword.
-- **Notes**: Primary benchmark target. Used in `benchmarks/ic3370_exhausted/` (39-config sweep)
-  and `benchmarks/performance/bench_vs_autoprof.py`.
+- **Notes**: Primary benchmark target. Used by `benchmarks/performance/bench_vs_autoprof.py` and the exhausted
+  campaign framework under `benchmarks/exhausted/`.
 - **Rights**: Synthetic data, no restrictions.
 
 ### eso243-49.fits

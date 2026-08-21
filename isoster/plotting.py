@@ -1718,7 +1718,7 @@ def plot_qa_summary_extended(
                         facecolors=col,
                         edgecolors=col,
                         alpha=0.75,
-                        label=f"$n={{{order}}}$",
+                        label=f"$n={order}$",
                     )
                     all_values.append(amplitude[show])
             else:

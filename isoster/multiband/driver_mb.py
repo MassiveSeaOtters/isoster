@@ -828,9 +828,10 @@ def fit_image_multiband(
     """
     Fit isophotes jointly across multiple aligned same-pixel-grid images.
 
-    The default configuration is supported as of 2026-08-15; the
-    ``simultaneous_*`` higher-harmonic modes and ``loose_validity=True``
-    are not, and warn where they are configured (see
+    The default configuration is supported as of 2026-08-15. The
+    ``simultaneous_*`` higher-harmonic modes are experimental and emit a
+    ``UserWarning`` when selected; ``loose_validity=True`` is supported but
+    non-default and does **not** warn (see
     :class:`~isoster.multiband.config_mb.IsosterConfigMB`). The public
     API and the Schema-1 output layout may still change between
     releases. See ``docs/10-multiband.md`` for the user-facing

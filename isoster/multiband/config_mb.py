@@ -54,13 +54,19 @@ class IsosterConfigMB(BaseModel):
     **Maturity.** The default configuration — shared validity, joint
     per-band intercepts, ``geometry_parameterized_solve=True`` and
     ``multiband_higher_harmonics='independent'``, in OLS or WLS — is
-    supported as of 2026-08-15. Two options are not, and each carries
-    its own warning where it is defined:
-    ``multiband_higher_harmonics`` in
-    ``{'simultaneous_in_loop', 'simultaneous_original'}``, and
-    ``loose_validity=True`` (correct and tested end to end, but not the
-    default because turning it on changes every result on data with
-    per-band masks). The B=5 path has synthetic coverage only.
+    supported as of 2026-08-15. Two options sit outside that guarantee,
+    in different ways, and the difference matters:
+
+    * ``multiband_higher_harmonics`` in
+      ``{'simultaneous_in_loop', 'simultaneous_original'}`` is
+      **experimental** and emits a ``UserWarning`` when selected.
+    * ``loose_validity=True`` is **supported but non-default**. It is
+      correct and tested end to end and does *not* warn; it is off by
+      default only because turning it on changes every result on data with
+      per-band masks. It is a masking-policy choice, not an unfinished
+      feature.
+
+    The B=5 path has synthetic coverage only.
 
     **Stop codes** are inherited from single-band isoster (see
     :class:`isoster.config.IsosterConfig`).

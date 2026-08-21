@@ -16,7 +16,9 @@ Feature arms
 Sampling / harmonic modes
 -------------------------
 - ``std``: default sampling (true anomaly) and post-hoc harmonics.
-- ``ea``: ``use_eccentric_anomaly=True`` (uniform arc-length sampling).
+- ``ea``: ``use_eccentric_anomaly=True`` (steps psi uniformly, distributing
+  samples more evenly around an elongated ellipse than stepping the position
+  angle -- though not exactly uniformly in arc length).
 - ``isofit``: ``simultaneous_harmonics=True`` (Ciambur 2015 joint fit),
   ``isofit_mode="in_loop"`` (the isoster default).
 

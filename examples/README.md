@@ -55,9 +55,6 @@ external mock datasets.
 - `example_hsc_edgecases/`
   - HSC edge-case sweeps for LSB auto-lock and LSB mode comparison.
   - Entry points: `run_lsb_auto_lock.py`, `run_lsb_mode_sweep.py`.
-- `example_gradient_free_fallback/`
-  - Exploration of the parked gradient-free fallback. Not a supported feature —
-    see the roadmap note in `docs/agent/` before relying on anything here.
 
 ## Shared Data
 

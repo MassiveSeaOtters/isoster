@@ -77,13 +77,13 @@ results_i = isoster.fit_image(image_i, None, config, template='galaxy_g.fits')
 ## Key Features
 
 - **High performance**: tens of times faster than `photutils.isophote` via vectorized sampling (median $45\times$ on the synthetic Sérsic sweep; see above).
-- **Template-based forced photometry**: Consistent multiband photometry using geometry from a reference band.
+- **Multi-band fitting**: a joint free fit that derives one geometry from every band (`isoster.multiband.fit_image_multiband`), plus template-based forced photometry that applies a reference band's geometry to the others. The two estimate different quantities and are complementary; see [`docs/10-multiband.md`](docs/10-multiband.md).
 - **Eccentric anomaly sampling**: More even sampling around high-ellipticity isophotes than stepping the position angle (Ciambur 2015).
 - **Simultaneous harmonics**: ISOFIT-style joint fitting of higher-order harmonics within the iteration loop.
 - **2D model building**: Reconstruct galaxy images from isophote profiles with optional harmonic deviations.
 - **Convergence controls**: Sector-area scaling, geometry damping, and geometry-stability convergence.
 - **Photometry metrics**: Integrated flux, curve-of-growth, and adaptive integration modes.
-- **Photutils compatibility**: Consistent algorithms and output format with industry standards.
+- **Shared algorithmic ancestry with photutils**: the same Jedrzejewski (1987) formulation, with geometry and intensity profiles validated against `photutils.isophote`. The output schema, defaults, sampling and serialization differ deliberately — see the note above.
 - **Function-based API**: Simple, stateless interface for easy integration and testing.
 
 ## Documentation

@@ -178,7 +178,7 @@ distinct because conflating them is how coefficients get normalized twice:
 | Symbol | Meaning | Where it lives |
 |---|---|---|
 | $A_n^\mathrm{raw}$, $B_n^\mathrm{raw}$ | Raw fit amplitudes, in intensity units | Internal to the harmonic solve; never stored or plotted in single-band |
-| $a_n$, $b_n$ | Bender-normalized coefficients, $a_n = -A_n^\mathrm{raw} / (a \cdot dI/da)$. Signed and dimensionless | The results-dict keys `a3`, `b3`, `a4`, … — i.e. what you get back |
+| $a_n$, $b_n$ | Stored coefficients: raw amplitudes divided by $a\,\lvert dI/da\rvert$ (`sma * abs(gradient)`, `isoster/fitting.py`). Signed, dimensionless, a fractional *radial* displacement of the isophote. Coincides with the Bender form $-A_n^\mathrm{raw}/(a\,dI/da)$ whenever the gradient is negative — the normal outward-declining case — and differs from it in sign on the rare positive-gradient row | The results-dict keys `a3`, `b3`, `a4`, … |
 | $\sqrt{a_n^2 + b_n^2}$ | Combined amplitude. Non-negative and dimensionless | Computed at plot time in `harmonic_mode="amplitude"` |
 
 Lowercase means normalized: the label on a figure matches the column name in
@@ -186,7 +186,11 @@ the results dict.
 
 `compute_deviations` performs the normalization at fit time, so the stored
 values are dimensionless as they stand and **must not be normalized a second
-time**. They are directly comparable across radius and across galaxies. They
+time**. Note the one place the two conventions part company: the plot-time
+helper `_normalize_harmonic_for_plot`, used only by the multi-band raw paths,
+applies the signed Bender form $-A_n/(a\,dI/da)$, whereas single-band storage
+uses the absolute value. They agree except on positive-gradient rows, where
+they differ in sign. They are directly comparable across radius and across galaxies. They
 are comparable across *tools* only where the tools share the basis and the
 normalization convention — true of `photutils`, not currently of AutoProf,
 whose coefficients are on a different scale (see

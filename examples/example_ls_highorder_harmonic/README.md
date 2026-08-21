@@ -78,7 +78,8 @@ the same colour.
 Shows `A_n = sqrt(a_n^2 + b_n^2)` per order, where `a_n` and `b_n` are the
 values stored in the results dict — already Bender-normalized (see below), so
 `A_n` is dimensionless as plotted. The panels are labelled
-`A_n / (a dI/da)` accordingly.
+`sqrt(a_n^2 + b_n^2)` accordingly — the quantity actually computed, with no
+further division.
 
 There is deliberately no option to normalize again. A `normalize_harmonics`
 flag that divided by intensity existed until 1.0.0 and was removed: since the

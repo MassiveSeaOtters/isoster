@@ -218,13 +218,13 @@ Input requirements and safeguards:
 
 Compatibility:
 - WLS works with all constraint modes: `fix_center`, `fix_pa`, `fix_eps`, and `simultaneous_harmonics` (isofit).
-- WLS error bars are typically 1.2–2.1x larger than OLS for outer isophotes, reflecting realistic per-pixel noise rather than fit-residual scatter.
+- WLS error bars are **not** systematically larger or smaller than OLS. Under independent samples with a common, correctly specified variance the two have the same expected covariance; they diverge only where those assumptions fail, and the direction depends on how. Unmodelled azimuthal structure (arms, dust, orders n >= 3) inflates the OLS residual-scatter estimate, making OLS the larger one in that regime.
 
 ## Key Configuration Options
 
 ### Sampling and Stability
 
-- `use_eccentric_anomaly=True`: harmonic fitting in `psi` with geometry updates in `phi`.
+- `use_eccentric_anomaly=True`: harmonics are fitted in `psi`, and the geometry update consumes those `psi`-basis coefficients **directly** — there is no conversion back to `phi`. That is correct rather than approximate, because the Jedrzejewski corrections are themselves derived from an eccentric-anomaly parametrisation (see [`03-algorithm.md`](03-algorithm.md)).
 - `permissive_geometry=True`: allows geometry propagation through weaker gradient diagnostics.
 - `maxgerr`: controls tolerance for gradient relative error checks.
 

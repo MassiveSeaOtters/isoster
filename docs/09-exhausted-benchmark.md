@@ -34,6 +34,21 @@ Both carry machine-specific defaults that will not exist on your system; set
 one of the two above rather than relying on them. When the venv is absent,
 AutoProf arms skip cleanly with a regeneration hint.
 
+!!! warning "Open question: AutoProf harmonic scale"
+
+    The cross-tool harmonic score (Prior 2) assumes all three tools report
+    coefficients on the same Bender-normalized scale. That is established for
+    ISOSTER and `photutils`, both of which divide by `sma * |grad|` at fit
+    time. It is **not** established for AutoProf: the adapter copies its
+    `a3`/`b3`/`a4`/`b4` columns through unconverted, while
+    `docs/technical/1.4.6` states that AutoProf's scale has not been matched.
+    One of the two is wrong.
+
+    Settling it needs an AutoProf run against a planted deviation, compared to
+    the ISOSTER and `photutils` values on the same fixture. Until that is done,
+    **treat Prior 2 scores for the autoprof tool as unverified** and do not
+    publish them. The ISOSTER-vs-`photutils` harmonic comparison is unaffected.
+
 ## 1. Quick Start
 
 ```bash

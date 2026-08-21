@@ -376,10 +376,22 @@ def compute_prior_metrics(
     drift_outer = zone_iw_centroid_drift(x0, y0, intens, zones.outer, true_x, true_y)
 
     # ---- Prior 2: normalized harmonics in outer zone ----------------
-    # All three tools store Bender-normalized coefficients (isoster and
-    # photutils divide by sma*|grad| at fit time; AutoProf reports photutils
-    # coefficients), so the stored values and their errors are used directly.
-    # Re-normalizing here divided them by sma*|grad| a second time (review P1).
+    # isoster and photutils both divide by sma*|grad| at fit time, so their
+    # stored values and errors are already Bender-normalized and are used
+    # directly. Re-normalizing here divided them by sma*|grad| a second time
+    # (review P1).
+    #
+    # UNRESOLVED -- AutoProf. This code path assumes AutoProf's a3/b3/a4/b4
+    # arrive on the same normalized scale, and the adapter copies its columns
+    # through without conversion. The technical chapter states the opposite:
+    # that AutoProf's coefficient scale has not been ported and its curves are
+    # not directly comparable (docs/technical/1.4.6, 1.5). Both cannot be
+    # right, and settling it requires running AutoProf and comparing a planted
+    # deviation against the isoster/photutils value -- it is a question about
+    # another project's output, not something this file can decide.
+    #
+    # Until then, treat Prior 2 scores for the *autoprof* tool as unverified.
+    # The isoster-vs-photutils comparison is unaffected.
     harm_fields = ("a3", "b3", "a4", "b4")
     harm_norm: dict[str, np.ndarray] = {}
     harm_norm_valid: dict[str, np.ndarray] = {}

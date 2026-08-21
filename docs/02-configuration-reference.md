@@ -109,8 +109,11 @@ Iteration limits and convergence criteria.
 - `'none'` uses a constant threshold (legacy behavior).
 - `'sqrt_sma'` multiplies by `sqrt(sma)`.
 - `use_lazy_gradient=True` (default) calculates the radial gradient only on the first
-  iteration and reuses it for subsequent iterations. This cuts sampling calls by ~45%.
-  The gradient is re-evaluated if convergence stalls for 3 iterations.
+  iteration and reuses it for subsequent iterations. This is measured: on the reference fit the lazy path performs **60 gradient evaluations against 414** for the classical path, with a median wall-clock saving of $24\%$ (IQR $23.0$–$24.1\%$) across eighteen sessions. See [`technical/1.3`](technical/1.3-why-fast.md); the figures are produced by `benchmarks/draft_timings/` and checked against its committed archive.
+  The gradient is re-evaluated if convergence stalls for 3 iterations. Note this is a
+  fast *approximation*, not an exact reformulation: converged geometries differ from
+  the `use_lazy_gradient=False` reference, negligibly at high S/N but by up to
+  $2.6\sigma$ on the worst isophote at $S/N = 10$.
 - `minit` iterations always run before the convergence criterion is checked.
 - Validated: `minit <= maxit`.
 

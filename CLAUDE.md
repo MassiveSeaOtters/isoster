@@ -25,11 +25,19 @@ ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical is
   - **Single-band**: `compute_deviations` divides by `sma * abs(gradient)` **before
     storing**, so `results['a4']` is already Bender-normalized. `plot_qa_summary*`
     plots it as-is and must **not** call `_normalize_harmonic_for_plot`.
-  - **Multi-band**: the joint/`shared` modes store one **raw** amplitude per order,
-    so `plotting_mb._plot_harmonic` normalizes at plot time — gated on
-    `harmonics_shared`, i.e. driven by which storage path produced the data, never
-    by user preference. The per-band post-hoc path stores normalized values and is
-    not touched.
+  - **Multi-band `independent`** (default): per-band fits stored already
+    normalized, exactly like single-band. Not touched at plot time.
+  - **Multi-band `shared`**: stored **raw** and *band-distinct* — one shared
+    dimensionless shape reconstructed into each band's raw units via `-sma*grad_b`.
+    The invariant is that every band normalizes back to the same value.
+  - **Multi-band `simultaneous_*`**: stored **raw** and *identical* across bands,
+    which is a shared raw residual, not a shared shape. Do not describe these two
+    as the same thing.
+  - The last two normalize at plot time via `plotting_mb._plot_harmonic`, gated on
+    `harmonics_shared` — driven by which storage path produced the data, never by
+    user preference. That helper uses the **signed** gradient
+    (`-A_n/(sma*grad)`), whereas single-band storage uses the **absolute** one
+    (`A_n/(sma*abs(grad))`); the two agree only where the gradient is negative.
   - Two bugs of this family have been fixed: a genuine double-Bender division in
     `plotting_mb.py` (review P1), and the single-band `normalize_harmonics=True`
     option, which divided the already-normalized amplitude by intensity and so

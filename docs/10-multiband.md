@@ -369,16 +369,19 @@ result = fit_image_multiband(
 
 The multi-band path ships a **separate** console script ``isoster-mb``
 (entry point ``isoster.multiband.cli_mb:main``). This is intentionally a
-parallel CLI to the stable single-band ``isoster`` script: while the
-multi-band path remains experimental the two CLIs do **not** share
-implementation, so multi-band-specific fixes cannot regress the
-single-band entry point. Argument layout mirrors single-band for user
+parallel CLI to the single-band ``isoster`` script: while the multi-band
+CLI arguments and Schema-1 layout are still unstable the two CLIs do
+**not** share implementation, so multi-band-specific fixes cannot regress
+the single-band entry point. Argument layout mirrors single-band for user
 familiarity (``--config``, ``--output``, ``--x0``, ``--y0``, ``--sma0``,
 ``--fix-center``, ``--fix-eps``, ``--fix-pa``, ``--template``) but
 takes one positional FITS path per band plus a ``--bands`` flag.
 
-The CLI prints an ``EXPERIMENTAL`` banner per invocation while in beta;
-suppress with ``--quiet``.
+The CLI prints an ``UNSTABLE INTERFACE`` banner per invocation. The banner
+states that the default configuration *is* supported and that what may still
+change is the argument layout and the Schema-1 output; it also names the
+``simultaneous_*`` harmonics as the experimental part. Suppress with
+``--quiet``.
 
 ```bash
 # Joint multi-band fit (FITS output uses Schema-1 multi-HDU writer).
@@ -411,7 +414,7 @@ The ``--config`` YAML accepts any field of
 ``.fits`` (Schema-1 multi-HDU), ``.asdf`` (Stage-I native tree), or
 anything else (astropy ``Table.write`` of the per-isophote table).
 
-## Input contract (placeholder)
+## Input contract
 
 - `images`: `list[ndarray]` of length B, all of shape `(H, W)`.
 - `masks`: `None`, single `(H, W)` boolean ndarray (broadcast to all
@@ -504,8 +507,11 @@ Each isophote row carries shared columns and per-band-suffixed columns:
     experimental warning.
 
   Per-band Bender normalisation at plotting time scales the raw value
-  by ``-1/(sma·|dI/da_b|)`` and is applied only when
-  ``harmonics_shared`` is true.
+  by ``-1/(sma·grad_b)`` — the **signed** per-band gradient, per
+  ``_normalize_harmonic_for_plot`` in ``isoster/_shared.py`` — and is
+  applied only when ``harmonics_shared`` is true. Note this differs from
+  the single-band storage convention, which divides by the *absolute*
+  gradient; the two agree wherever the gradient is negative.
 - Debug-only per band: `grad_<b>, grad_error_<b>, grad_r_error_<b>`
   when `debug=True`.
 
@@ -1409,7 +1415,7 @@ under changes to any other band.
 
 ## Testing
 
-Multi-band tests live under `tests/multiband/` (339 total, all green
+Multi-band tests live under `tests/multiband/` (443 as of 2026-08-21, all green
 as of the Phase-39 + review-pass merge). The per-module counts below
 are approximate (collected at merge time):
 
