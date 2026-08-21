@@ -220,8 +220,8 @@ commit.
   median geometry difference stays under 1% of sigma, with a tail reaching
   2.6 sigma at S/N = 10.
 - ~~The stored photutils comparison contains two synthetic cases with 14.1 and
-  26.0 times speedups.~~ Replaced by a synthetic Sersic sweep: **median 46x**
-  (IQR 35--57x, slowest 14x) over the **237 of 243** configurations photutils
+  26.0 times speedups.~~ Replaced by a synthetic Sersic sweep: **median 45x**
+  (IQR 34--56x, slowest 14x) over the **237 of 243** configurations photutils
   could fit, all of which passed the script's accuracy criteria. Archived in
   `benchmarks/performance/reference_speedup.json`.
 

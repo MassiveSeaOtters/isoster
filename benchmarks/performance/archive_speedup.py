@@ -78,7 +78,11 @@ PROTOCOL_CAVEAT = (
     "an archived single sweep, not a controlled timing study of the kind "
     "benchmarks/draft_timings implements. The measured ratio is large enough "
     "(tens of times) that ordering and warm-up effects are unlikely to change "
-    "its order of magnitude, but they have not been quantified."
+    "its order of magnitude, but they have not been quantified. Observed "
+    "run-to-run drift between two sweeps of this identical grid on one "
+    "machine: median 45.9x -> 45.0x, quartiles within about 1x, but the "
+    "extremes moved more (min 13.9 -> 13.6, max 107.7 -> 111.9). Quote the "
+    "median and quartiles; treat the extremes as indicative only."
 )
 
 CAVEAT = (
@@ -113,6 +117,10 @@ def summarize(results_path: Path) -> dict:
         "what": WHAT,
         "coverage_caveat": describe_failures(summary["failed_configurations"], attempted, completed),
         "protocol_caveat": PROTOCOL_CAVEAT,
+        # Environment and worktree state are the BENCHMARK RUN's, carried over
+        # from the results file -- not this script's. That is the provenance
+        # that matters: it says whether the code that produced the timings can
+        # be reconstructed from the recorded commit.
         "environment": run["environment"],
         "provenance_warning": (
             None

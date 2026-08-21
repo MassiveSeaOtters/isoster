@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Project Overview
 
-ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It runs tens of times faster than `photutils.isophote` (median 46x over the 237 of 243 synthetic Sersic configurations photutils could fit; single timing per case, archived in `benchmarks/performance/reference_speedup.json`) using vectorized path-based sampling via scipy's `map_coordinates`.
+ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It runs tens of times faster than `photutils.isophote` (median 45x over the 237 of 243 synthetic Sersic configurations photutils could fit; single timing per case, archived in `benchmarks/performance/reference_speedup.json`) using vectorized path-based sampling via scipy's `map_coordinates`.
 
 ## Non-negotiable Rules for developing
 
