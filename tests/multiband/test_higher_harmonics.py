@@ -215,9 +215,13 @@ def test_shared_mode_top_level_keys():
 
 
 def test_shared_mode_with_loose_validity_drops_band_at_isophote():
-    """Loose validity × shared composes: a band with masked region drops at
-    that isophote; surviving bands still receive the (identical) shared
-    higher-order coefficients."""
+    """Loose validity x shared composes: a band with a masked region drops at
+    that isophote; the surviving bands still carry the one shared *shape*.
+
+    Their raw columns are not identical -- under ``shared`` each band's raw
+    value is the common shape scaled by that band's own gradient -- so the
+    invariant checked here is the cross-band ratio, not equality.
+    """
     bands = _three_band_planted()
     n = bands[0].shape[0]
     mask_g = np.zeros((n, n), dtype=bool)
@@ -227,7 +231,7 @@ def test_shared_mode_with_loose_validity_drops_band_at_isophote():
     res = fit_image_multiband(list(bands), masks=masks, config=cfg)
     iso = res["isophotes"]
     assert all(r["stop_code"] == 0 for r in iso)
-    # Surviving (r, i) bands carry identical higher-order values.
+    # Surviving (r, i) bands carry the same shape, scaled per band.
     for r in iso:
         for n_order in (3, 4):
             assert r[f"a{n_order}_r"] != 0.0 or r[f"a{n_order}_i"] == 0.0
@@ -379,35 +383,45 @@ def test_harmonic_orders_extension_to_5_6():
 # ---------------------------------------------------------------------------
 
 
-def test_per_band_bender_normalization_separates_curves_under_shared_mode():
-    """Even with shared raw a_n, the per-band Bender-normalized
-    A_n_norm = -A_n / (sma * |dI/da_b|) differs per band when band
-    gradients differ. Verifies that the user-facing plotting convention
-    (D16) keeps producing band-distinct curves under sharing.
+def test_per_band_normalization_recovers_one_shape_under_shared_mode():
+    """Under ``shared``, normalizing each band's *own* raw column returns one value.
+
+    This is the defining property of ``shared`` mode and the thing that
+    distinguishes it from ``simultaneous_*``. The solve fits a single
+    dimensionless shape and writes it into each band scaled by that band's own
+    gradient, so dividing each band's raw column by its own ``sma * |grad_b|``
+    must recover the same number in every band.
+
+    An earlier version of this test took *one* band's raw value, divided it by
+    three different gradients, and asserted the results differed. That is the
+    ``simultaneous_*`` semantics -- one identical raw amplitude across bands --
+    and asserting it here documented behaviour ``shared`` deliberately does not
+    have.
     """
     bands = _three_band_planted()
-    cfg = _make_cfg("shared")
+    cfg = _make_cfg("shared").model_copy(update={"debug": True})
     res = fit_image_multiband(list(bands), config=cfg)
     iso = res["isophotes"]
-    # Compute A4_norm per band on a sample isophote at sma~6 with the user-
-    # provided gradient magnitude proxy: |dI/d(sma)| approximated via
-    # central difference over the surrounding two isophotes' intens.
-    intens_per_iso_g = [r["intens_g"] for r in iso]
-    intens_per_iso_r = [r["intens_r"] for r in iso]
-    intens_per_iso_i = [r["intens_i"] for r in iso]
-    smas = [r["sma"] for r in iso]
-    grad_g = np.gradient(np.asarray(intens_per_iso_g), np.asarray(smas))
-    grad_r = np.gradient(np.asarray(intens_per_iso_r), np.asarray(smas))
-    grad_i = np.gradient(np.asarray(intens_per_iso_i), np.asarray(smas))
+
+    # Use the solver's own per-band gradients, which ``debug=True`` exposes as
+    # ``grad_<b>``. The scaling the solve applied is exactly ``grad_b``; a
+    # finite-difference proxy over the isophote list leaves a few-percent
+    # residual and would force a tolerance too loose to mean anything.
     pick = len(iso) // 2
-    sma = smas[pick]
-    a4_shared = iso[pick]["a4_g"]
-    norm_g = -a4_shared / (sma * abs(grad_g[pick])) if grad_g[pick] else 0.0
-    norm_r = -a4_shared / (sma * abs(grad_r[pick])) if grad_r[pick] else 0.0
-    norm_i = -a4_shared / (sma * abs(grad_i[pick])) if grad_i[pick] else 0.0
-    # Bands have different intensity scales (1.0, 1.5, 2.0) so normalized
-    # values must differ (raw A4 is shared, but |dI/da_b| is not).
-    assert not (norm_g == norm_r == norm_i)
+    sma = float(iso[pick]["sma"])
+    normalized = {}
+    for band in ("g", "r", "i"):
+        grad = float(iso[pick][f"grad_{band}"])
+        assert np.isfinite(grad) and grad != 0.0, f"{band}: unusable gradient"
+        normalized[band] = -float(iso[pick][f"a4_{band}"]) / (sma * abs(grad))
+
+    values = list(normalized.values())
+    assert max(values) - min(values) < 1e-6, f"shared mode must normalize to one shape across bands, got {normalized}"
+
+    # And the raw columns really are band-distinct, so the agreement above is
+    # the normalization doing work rather than three identical inputs.
+    raw = [float(iso[pick][f"a4_{band}"]) for band in ("g", "r", "i")]
+    assert max(raw) - min(raw) > 1e-12, f"raw columns unexpectedly identical: {raw}"
 
 
 # ---------------------------------------------------------------------------

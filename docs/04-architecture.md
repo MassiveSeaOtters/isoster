@@ -23,8 +23,10 @@ band interfaces above are **not** modified.
   variance_maps=None, template_isophotes=None)` — joint free fit on
   aligned same-pixel-grid images (or forced photometry when a template is
   given). One shared geometry per SMA, per-band intensities and per-band
-  harmonic deviations. Replaces forced photometry as the multi-band
-  workflow.
+  harmonic deviations. A *complement* to forced photometry rather than a
+  replacement -- the two estimate different quantities: forced photometry
+  measures every band through the reference band's geometry, the joint fit
+  derives one geometry to which every band contributes.
 - `isoster.multiband.IsosterConfigMB` — multi-band-specific config
   (sibling of `IsosterConfig`, no inheritance, deliberately reduced field
   set). The driver validates that all inputs share one pixel grid

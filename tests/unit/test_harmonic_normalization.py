@@ -159,6 +159,10 @@ class TestPlotTimeDoesNotNormalizeAgain:
                 ),
             )
             assert np.all(plotted[label] >= 0.0), "amplitude must be non-negative"
+
+        # ``plt.close`` is still monkeypatched to a no-op at this point, so
+        # calling it here would leak the figure. Undo the patch first.
+        monkeypatch.undo()
         plt.close("all")
 
     def test_no_extra_normalization_knob_on_the_public_plotter(self):

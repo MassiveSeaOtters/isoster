@@ -63,7 +63,25 @@ model = isoster.build_isoster_model(
 
 ### Multiband Analysis
 
-Use template-based forced photometry for consistent color profiles across wavelengths:
+Two workflows, estimating different things. Pick by what you want the geometry
+to mean — see [`docs/10-multiband.md`](docs/10-multiband.md).
+
+**Joint fit** — one geometry per SMA, derived from every band at once. Use when
+the geometry itself is the measurement and no single band should define it:
+
+```python
+from isoster.multiband import IsosterConfigMB, fit_image_multiband
+
+cfg_mb = IsosterConfigMB(bands=['g', 'r', 'i'], reference_band='r', sma0=10.0)
+result = fit_image_multiband([image_g, image_r, image_i], config=cfg_mb)
+
+# Per-band intensities and harmonics on one shared geometry
+for iso in result['isophotes'][:3]:
+    print(iso['sma'], iso['intens_g'], iso['intens_r'], iso['intens_i'])
+```
+
+**Template-based forced photometry** — measure every band through a reference
+band's geometry. Use when that geometry *is* the aperture definition:
 
 ```python
 # Fit reference band (e.g., g-band) with full geometry fitting

@@ -320,7 +320,7 @@ def build_ellipse_model(image_shape, isophote_results, fill=0.0):
     Legacy name for build_isoster_model().
 
     .. deprecated::
-        Use build_isoster_model() instead. Will be removed in v0.3.
+        Use build_isoster_model() instead. Will be removed in 2.0.0.
     """
     import warnings
 

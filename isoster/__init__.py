@@ -11,7 +11,7 @@ except PackageNotFoundError:  # not installed (e.g. a source checkout on sys.pat
 from .config import IsosterConfig
 from .driver import fit_image
 from .fitting import fit_isophote
-from .model import build_ellipse_model, build_isoster_model  # deprecated, removal planned for v0.3
+from .model import build_ellipse_model, build_isoster_model  # deprecated, removal planned for 2.0.0
 from .plotting import (
     METHOD_STYLES,
     build_method_profile,

@@ -221,7 +221,7 @@ isoster.plot_qa_summary_extended(
 | `harmonic_mode` | Display |
 |-----------------|---------|
 | `"coefficients"` | Individual a_n (filled) and b_n (open) per order |
-| `"amplitude"` | Combined A_n = sqrt(a_n^2 + b_n^2) per order |
+| `"amplitude"` | Combined amplitude `sqrt(a_n^2 + b_n^2)` per order, non-negative |
 
 ### Surface brightness convention
 

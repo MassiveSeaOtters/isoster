@@ -100,7 +100,7 @@ Method-level accuracy validation against external reference behavior.
   `photutils.isophote` on the same synthetic Sérsic image. Quantitative tolerance assertions.
 - **`test_model_residuals.py`** — Compares 2D model reconstruction residuals between isoster and
   photutils. Also covers the deprecated `build_ellipse_model()` wrapper.
-  **Maintenance note**: `build_ellipse_model` coverage will be removed at v0.3.
+  **Maintenance note**: `build_ellipse_model` coverage will be removed at 2.0.0.
 
 ### real_data/
 
@@ -172,7 +172,7 @@ Naming convention:
 ## Maintenance Notes
 
 - `test_model_residuals.py` includes coverage of the deprecated `build_ellipse_model()` function.
-  This coverage will be removed when `build_ellipse_model` is deleted at v0.3.
+  This coverage will be removed when `build_ellipse_model` is deleted at 2.0.0.
 - `test_fitting.py` uses `unittest.TestCase` style for legacy reasons; new tests in that file
   should use pytest style.
 - `conftest.py` (at `tests/real_data/conftest.py`) registers the `real_data` marker so that

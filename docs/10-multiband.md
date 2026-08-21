@@ -130,9 +130,12 @@ pre-merge review pass.
 
 4. **Bender-normalized harmonics are required for interpretation.** Raw
    `a_n_<b>` / `b_n_<b>` values scale with local flux and are NOT
-   directly comparable across bands or rings. Always plot
-   `A_n_norm = -A_n / (a · dI/da_b)` per band. The repo plotting helpers
-   enforce this convention (see `CLAUDE.md`).
+   directly comparable across bands or rings. Under the raw-storage modes
+   (`shared`, `simultaneous_*`) always plot `-A_n_raw / (a · dI/da_b)` per
+   band — the signed per-band gradient. Under `independent` the stored values
+   are already normalized and must be plotted as they are. The repo plotting
+   helpers pick the right branch from `result['harmonics_shared']`
+   (see `CLAUDE.md`).
 
 5. **PSF-matched inputs assumed.** No PSF handling in the driver. If
    the per-band PSFs differ, isophotes whose SMA is comparable to the
