@@ -381,17 +381,20 @@ def compute_prior_metrics(
     # directly. Re-normalizing here divided them by sma*|grad| a second time
     # (review P1).
     #
-    # UNRESOLVED -- AutoProf. This code path assumes AutoProf's a3/b3/a4/b4
-    # arrive on the same normalized scale, and the adapter copies its columns
-    # through without conversion. The technical chapter states the opposite:
-    # that AutoProf's coefficient scale has not been ported and its curves are
-    # not directly comparable (docs/technical/1.4.6, 1.5). Both cannot be
-    # right, and settling it requires running AutoProf and comparing a planted
-    # deviation against the isoster/photutils value -- it is a question about
-    # another project's output, not something this file can decide.
+    # UNVERIFIED -- AutoProf. This code path treats AutoProf's a3/b3/a4/b4 as
+    # arriving on the same normalized scale, and the adapter copies its columns
+    # through without conversion. That is an *assumption*, not a measurement:
+    # nobody has compared AutoProf's reported coefficients against the isoster
+    # and photutils values on a fixture with a planted deviation. (Earlier
+    # documentation asserted the scale was different; that was equally
+    # untested, and has been corrected to say unverified. There is no
+    # contradictory measurement on either side -- there is no measurement.)
     #
-    # Until then, treat Prior 2 scores for the *autoprof* tool as unverified.
-    # The isoster-vs-photutils comparison is unaffected.
+    # Settling it means running AutoProf on a planted deviation and comparing,
+    # which is a question about another project's output rather than something
+    # this file can decide. Until then, treat Prior 2 scores for the *autoprof*
+    # tool as unverified and keep them out of publication. The
+    # isoster-vs-photutils comparison is unaffected.
     harm_fields = ("a3", "b3", "a4", "b4")
     harm_norm: dict[str, np.ndarray] = {}
     harm_norm_valid: dict[str, np.ndarray] = {}

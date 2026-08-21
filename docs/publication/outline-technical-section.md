@@ -437,8 +437,13 @@ plus a table.
 - **vs `AutoProf` (Stone+ 2021)**: similar scope (modern Python, LSB
   push). Different design choices: AutoProf uses ML-style fit
   stabilization; ISOSTER uses an explicit logistic-Tikhonov ramp +
-  one-way lock state machine. Different harmonic basis on the outer
-  isophotes [CITE: AutoProf paper §4]. AutoProf advertises ≳2 mag
+  one-way lock state machine. Harmonic basis and normalization:
+  **UNVERIFIED**, do not assert a difference. The benchmark adapter
+  passes AutoProf's coefficients through unconverted (assuming they
+  match) and nobody has tested that against a planted deviation; an
+  earlier draft asserted a different basis, which was equally untested.
+  Read AutoProf's paper §4 and, better, run the comparison before
+  writing anything here. AutoProf advertises ≳2 mag
   arcsec⁻² deeper than predecessors; we should benchmark whether
   ISOSTER reaches the same depth.
 - **vs IRAF `Isofit` / `Cmodel`**: same algorithm family (Ciambur

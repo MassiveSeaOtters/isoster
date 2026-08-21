@@ -124,8 +124,10 @@ Group the goals rather than listing every configuration option:
   eccentric-anomaly sampling, higher-order harmonics, variance-aware fitting,
   and low-surface-brightness robustness.
 - Support reproducible single-band and multi-band workflows, including forced
-  photometry, experimental joint multi-band fitting, two-dimensional model
-  reconstruction, serialized configuration, and diagnostic plots.
+  photometry, joint multi-band fitting (supported in its default
+  configuration; the `simultaneous_*` harmonic modes remain experimental),
+  two-dimensional model reconstruction, serialized configuration, and
+  diagnostic plots.
 - Validate both speed and scientific fidelity against established tools on
   controlled mocks and representative survey imaging.
 - Close with a short map of the paper only after the final section order is

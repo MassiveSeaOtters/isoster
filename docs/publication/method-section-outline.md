@@ -61,9 +61,15 @@ Main ideas:
    largest geometry-driving harmonic must fall below a threshold tied to the
    measured residual scale; geometry stability can provide a secondary
    criterion in stabilized outer fits.
-6. Define higher-order outputs using the Bender-style normalization
-   `a_n = -A_n/(a dI/da)` and `b_n = -B_n/(a dI/da)`, with the sign convention
-   checked against the stored implementation.
+6. Define higher-order outputs with the normalization the code actually
+   applies, and state where the two forms in the codebase differ.
+   `compute_deviations` stores `a_n = A_n_raw / (a * |dI/da|)` using the
+   **absolute** gradient; the plot-time helper used by the multi-band raw
+   paths applies the **signed** Bender form `-A_n_raw / (a * dI/da)`. The two
+   coincide wherever the gradient is negative — the normal outward-declining
+   case — and differ in sign on the rare positive-gradient row, which does
+   occur in the LSB regime. Use the wording already settled in
+   `docs/technical/1.4.6-diagnostics-qa.md` rather than restating it here.
 
 Equations to include:
 
@@ -238,11 +244,18 @@ Scientific framing:
 Figure 3 should show the free and stabilized fits on the same real BCG, plus a
 planted-halo bias/recovery panel once available.
 
-#### 2.7 Experimental multi-band joint fitting
+#### 2.7 Multi-band joint fitting
 
-Purpose: describe a promising extension in proportion to its current maturity.
+Purpose: describe the extension in proportion to its current maturity, which
+is higher than this outline originally assumed.
 
-Opening sentence must label the interface experimental.
+Do not label the interface experimental wholesale — that is now wrong. The
+default configuration (shared validity, joint per-band intercepts, the
+geometry-parameterised solve, `independent` higher harmonics, OLS or WLS) is
+**supported**. What remains qualified is narrower and should be stated as
+such: the `simultaneous_*` higher-harmonic modes are experimental and warn
+when selected; `loose_validity=True` is supported but non-default and does
+not warn; and the CLI arguments and Schema-1 output layout may still change.
 
 Main ideas:
 
@@ -261,9 +274,15 @@ Main ideas:
 6. Disclose the current raw-versus-normalized higher-harmonic storage difference
    across modes if it has not been unified before publication.
 
-Do not call forced photometry biased or joint fitting unbiased. Figure 4 should
-compare all three estimands on a planted color-gradient mock and then show one
-real five-band feasibility example.
+Do not call forced photometry biased or joint fitting unbiased. Figure 4
+should compare all three estimands on a planted color-gradient mock.
+
+A real five-band example is **deferred, not required**. The asteris cutouts
+are not available on the development machine, so the existing B=5 numbers are
+historical and not reproducible; treat their absence as a stated evidence
+limitation ("real-data validation at B=5 is outstanding") rather than a
+publication blocker. The planted mock carries the estimand argument on its
+own.
 
 If the paper must be shorter, move this subsection and Figure 4 to an appendix
 or defer it to a dedicated multi-band paper. The single-band method remains a
