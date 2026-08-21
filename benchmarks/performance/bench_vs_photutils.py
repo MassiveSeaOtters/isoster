@@ -537,6 +537,7 @@ def run_all_benchmarks(output_dir=None, quick=False):
         noise_levels = [None, 100, 50]  # noiseless, S/N=100, S/N=50
 
     results = []
+    failures = []
     total_cases = (len(sersic_indices) * len(effective_radii) *
                    len(ellipticities) * len(position_angles) * len(noise_levels))
 
@@ -568,6 +569,15 @@ def run_all_benchmarks(output_dir=None, quick=False):
                             status = "PASS" if result['passed'] else "FAIL"
                             print(f"{status} (speedup: {result['speedup']:.1f}x)")
                         else:
+                            # photutils could not fit this configuration. Record
+                            # it: a case dropped silently makes the summary read
+                            # as though the grid were smaller than it is, and the
+                            # failures are systematic rather than random.
+                            failures.append({
+                                'n': n, 'R_e': R_e, 'eps': eps, 'pa': pa,
+                                'noise_snr': noise_snr,
+                                'reason': 'photutils fit raised or returned no profile',
+                            })
                             print("SKIP (photutils failed)")
 
     # Compute summary statistics
@@ -575,8 +585,17 @@ def run_all_benchmarks(output_dir=None, quick=False):
     speedups = [r['speedup'] for r in results]
 
     summary = {
+        # 'attempted' is the declared grid; 'total_cases' counts only the
+        # configurations photutils could fit, which is what the speed and
+        # accuracy statistics are computed over. Keeping both visible stops the
+        # summary implying the grid was smaller than it was.
+        'attempted_cases': total_cases,
+        'completed_cases': len(results),
+        'photutils_failures': len(failures),
+        'failed_configurations': failures,
         'total_cases': len(results),
         'passed_cases': len(passed_results),
+        'all_completed_cases_passed': len(passed_results) == len(results),
         'all_tests_passed': len(passed_results) == len(results),
         'mean_speedup': float(np.mean(speedups)) if speedups else 0.0,
         'min_speedup': float(np.min(speedups)) if speedups else 0.0,
@@ -598,6 +617,12 @@ def run_all_benchmarks(output_dir=None, quick=False):
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
+    if failures:
+        print(f"photutils failed on {len(failures)} of {total_cases} attempted "
+              "configurations; they are excluded from the statistics below:")
+        for f in failures:
+            print(f"    n={f['n']}, R_e={f['R_e']}, eps={f['eps']:.1f}, "
+                  f"pa={f['pa']:.4f}, snr={f['noise_snr']}")
     print(f"Total cases:    {summary['total_cases']}")
     print(f"Passed:         {summary['passed_cases']}")
     print(f"All passed:     {summary['all_tests_passed']}")

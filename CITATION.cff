@@ -8,9 +8,9 @@ date-released: 2026-07-18
 repository-code: "https://github.com/MassiveSeaOtters/isoster"
 abstract: >-
   Accelerated Python library for elliptical isophote fitting in galaxy images.
-  Runs tens of times faster than photutils.isophote (median 45x across a
-  237-configuration synthetic Sersic sweep) using vectorized path-based
-  sampling via scipy's map_coordinates.
+  Runs tens of times faster than photutils.isophote (median 46x over the 237
+  of 243 synthetic Sersic configurations photutils could fit) using vectorized
+  path-based sampling via scipy's map_coordinates.
 authors:
   - family-names: "Huang"
     given-names: "Song" 

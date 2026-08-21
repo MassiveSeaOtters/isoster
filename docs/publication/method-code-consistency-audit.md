@@ -203,9 +203,11 @@ commit.
 
 **Quantitative evidence currently available**
 
-> **Superseded (2026-08-21).** Both pilot measurements below have since been
-> replaced by controlled reruns. They are kept for the record of what the
-> audit found, not as evidence to cite.
+> **Superseded (2026-08-21).** Both pilot measurements below have been
+> replaced, but to *different* standards — one by a controlled timing study,
+> the other by an archived single sweep. The distinction matters and is stated
+> per item. They are kept for the record of what the audit found, not as
+> evidence to cite.
 
 - ~~The stored lazy-gradient experiment reports a 43.9--44.9% reduction in
   sampling calls over three galaxies, with wall-time ratios of 1.37--4.46
@@ -218,14 +220,29 @@ commit.
   median geometry difference stays under 1% of sigma, with a tail reaching
   2.6 sigma at S/N = 10.
 - ~~The stored photutils comparison contains two synthetic cases with 14.1 and
-  26.0 times speedups.~~ Replaced by a 237-configuration synthetic Sersic
-  sweep: **median 45x** (IQR 35--57x, slowest 16x), every case passing the
-  script's accuracy criteria. Archived in
+  26.0 times speedups.~~ Replaced by a synthetic Sersic sweep: **median 46x**
+  (IQR 35--57x, slowest 14x) over the **237 of 243** configurations photutils
+  could fit, all of which passed the script's accuracy criteria. Archived in
   `benchmarks/performance/reference_speedup.json`.
 
-Both reruns record their environment. What they do *not* yet cover is a larger
-morphology/size grid than the synthetic Sersic family, and neither is a
-real-image benchmark.
+  **This is an archived single sweep, not a controlled timing rerun.** Each
+  configuration is timed once per tool, isoster first and photutils second,
+  with no warm-up, repetition or interleaving. The quartiles are spread across
+  grid *configurations*, not across repeated timings, so they do not
+  characterise timing noise and the protocol carries a known ordering bias.
+  The effect is unlikely to matter at a ratio of tens of times, but it has not
+  been quantified. Upgrading this to the `draft_timings` standard --
+  batching, interleaved shuffled order, sessions in separate interpreters --
+  is outstanding.
+
+  The 6 excluded configurations are systematic, not random: n=1, eps=0,
+  pa=pi/4 at both noisy levels, across all three sizes. A circular source has
+  no defined position angle, so that corner of the grid is degenerate and
+  photutils raises there. The archive lists them; the speedups describe only
+  what photutils could fit.
+
+Both records include their environment. Neither covers a morphology/size grid
+wider than the synthetic Sersic family, and neither is a real-image benchmark.
 
 **Corrections**
 
@@ -532,10 +549,23 @@ reserve the Validation section for controlled output and runtime comparisons.
    subsection, while labeling `simultaneous_*` as experimental, identifying
    `loose_validity` as supported but non-default, and stating that five-band
    real-data validation is deferred.
-5. **Done for the two timing demonstrations** (2026-08-21): the lazy-gradient
-   and photutils comparisons were rerun under recorded environments and
-   archived, and the technical chapter's numbers are now transcribed from
-   those archives and verified in CI rather than copied by hand. **Still
-   required:** the same treatment for any *other* quantitative demonstration
-   that reaches the manuscript, and a publication commit frozen at submission
-   so the archives can be tied to a specific tree.
+5. **Partly done** (2026-08-21). The lazy-gradient demonstration is fully
+   handled: measured by `benchmarks/draft_timings/` under a controlled
+   protocol, archived in `reference_timings.json`, and the technical
+   chapter's transcription of it is verified in CI by
+   `check_draft_numbers.py` before the docs site publishes.
+
+   The photutils comparison is archived and, as of 2026-08-21, **is** checked
+   in CI: `benchmarks/performance/check_speedup_claims.py` rebuilds the
+   README, `CLAUDE.md` and `CITATION.cff` clauses from
+   `reference_speedup.json` -- including the 243/237/6 coverage figures -- and
+   the docs workflow runs it before publishing. It also refuses an archive
+   whose own case counts do not add up. What it does **not** fix is the
+   protocol: that sweep is still a single timing per configuration in a fixed
+   tool order.
+
+   **Still required:** the controlled protocol for the photutils sweep
+   (batching, interleaved shuffled order, repeated sessions, as
+   `draft_timings` does); the same treatment for any *other* quantitative
+   demonstration reaching the manuscript; and a publication commit frozen at
+   submission so the archives can be tied to a specific tree.

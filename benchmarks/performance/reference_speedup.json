@@ -1,6 +1,8 @@
 {
   "source": "benchmarks/performance/bench_vs_photutils.py",
-  "what": "Wall-time ratio photutils.isophote / isoster on a synthetic Sersic grid. Every case also had to pass the script's accuracy criteria against the true profile; a case that failed those would not be a valid speed comparison. This is a synthetic sweep, not a real-image benchmark.",
+  "what": "Wall-time ratio photutils.isophote / isoster on a synthetic Sersic grid. Every completed case also had to pass the script's accuracy criteria against the true profile. This is a synthetic sweep, not a real-image benchmark.",
+  "coverage_caveat": "photutils could not fit 6 of the 243 attempted configurations (it raises 'cannot convert float NaN to integer'); those are listed in failed_configurations and are excluded from every statistic here. The failures are systematic, not random: all of them are n=1, eps=0, pa=pi/4 at the two noisy levels, across all three sizes. A circular (eps=0) source has no defined position angle, so that corner of the grid is degenerate. The reported speedups therefore describe the 237 configurations photutils could fit, and say nothing about the 6 it could not.",
+  "protocol_caveat": "Each configuration is timed ONCE per tool, isoster first and photutils second, with no warm-up, no repetition and no interleaving. The quartiles below are spread across grid CONFIGURATIONS, not across repeated timings of one configuration, so they do not characterise timing noise. This is an archived single sweep, not a controlled timing study of the kind benchmarks/draft_timings implements. The measured ratio is large enough (tens of times) that ordering and warm-up effects are unlikely to change its order of magnitude, but they have not been quantified.",
   "environment": {
     "cpu_count": 10,
     "environment_variables": {
@@ -9,8 +11,8 @@
       "OMP_NUM_THREADS": "",
       "OPENBLAS_NUM_THREADS": ""
     },
-    "generated_at_utc": "2026-08-20T14:40:00.518871+00:00",
-    "git_sha": "db4bc96c5c39ff74cccdeed87971a498ddd4c936",
+    "generated_at_utc": "2026-08-21T08:19:34.589537+00:00",
+    "git_sha": "fc558999e0ea79533fead0eeaef8c5d3b1df2074",
     "numba": "0.63.1",
     "numpy": "2.3.5",
     "platform": "macOS-15.7.4-arm64-arm-64bit",
@@ -18,34 +20,86 @@
     "python": "3.12.7",
     "scipy": "1.17.0"
   },
-  "n_cases": 237,
-  "all_accuracy_criteria_passed": true,
+  "attempted_cases": 243,
+  "completed_cases": 237,
+  "photutils_failures": 6,
+  "failed_configurations": [
+    {
+      "R_e": 20,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 100,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    },
+    {
+      "R_e": 20,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 50,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    },
+    {
+      "R_e": 50,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 100,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    },
+    {
+      "R_e": 50,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 50,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    },
+    {
+      "R_e": 100,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 100,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    },
+    {
+      "R_e": 100,
+      "eps": 0.0,
+      "n": 1.0,
+      "noise_snr": 50,
+      "pa": 0.7853981633974483,
+      "reason": "photutils fit raised or returned no profile"
+    }
+  ],
+  "all_completed_cases_passed": true,
   "speedup": {
-    "median": 45.1,
-    "q1": 34.9,
-    "q3": 57.4,
-    "min": 16.2,
-    "max": 108.3
+    "median": 45.9,
+    "q1": 35.1,
+    "q3": 57.0,
+    "min": 13.9,
+    "max": 107.7
   },
   "speedup_by_R_e": {
     "20": {
       "n": 79,
-      "median": 40.9,
-      "min": 16.2,
-      "max": 72.0
+      "median": 40.8,
+      "min": 13.9,
+      "max": 77.3
     },
     "50": {
       "n": 79,
-      "median": 52.1,
-      "min": 31.1,
-      "max": 108.3
+      "median": 52.5,
+      "min": 28.1,
+      "max": 107.7
     },
     "100": {
       "n": 79,
-      "median": 43.5,
-      "min": 29.5,
-      "max": 90.6
+      "median": 44.7,
+      "min": 23.8,
+      "max": 85.2
     }
   },
-  "caveat": "Absolute times are machine-specific; the ratio is the portable part. One run on one machine: treat the median and quartiles as the reproducible summary and the extremes as provisional."
+  "caveat": "Absolute times are machine-specific. The ratio is less machine-dependent than absolute time, but it is not portable: hardware, BLAS, and library versions all change ratios too. One run on one machine."
 }
