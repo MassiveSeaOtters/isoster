@@ -169,12 +169,11 @@ class TestEnvironmentComparisonIsNotAnAllowList:
         assert not result["controlled"]
         assert any("newly_recorded" in blocker for blocker in result["blockers"])
 
-    @pytest.mark.parametrize("key", ["generated_at_utc", "git_sha", "git_worktree"])
-    def test_volatile_fields_do_not_block_on_their_own(self, archive, key):
-        """Timestamps differ by construction; SHA and worktree get their own checks.
+    def test_timestamp_does_not_block(self, archive):
+        """The one genuinely volatile field: it differs between any two runs.
 
-        Without this, every comparison would be blocked by the timestamp and the
-        controlled verdict would be unreachable.
+        Without excluding it the controlled verdict would be unreachable, since
+        no two archives can share a generation timestamp.
         """
         previous, current = _matched_pair(archive)
         previous = copy.deepcopy(previous)
@@ -183,6 +182,36 @@ class TestEnvironmentComparisonIsNotAnAllowList:
         result = compare_archives(previous, current)
         assert result["controlled"], result["blockers"]
         assert not any("generated_at_utc" in blocker for blocker in result["blockers"])
+
+    @pytest.mark.parametrize(
+        "field, mutation, expected_phrase, generic_phrase",
+        [
+            ("git_sha", "0" * 40, "code revision", "different git_sha"),
+            (
+                "git_worktree",
+                {"dirty": True, "changed_paths": ["x"], "tracked_diff_sha256": "abc"},
+                "provenance",
+                "different git_worktree",
+            ),
+        ],
+    )
+    def test_provenance_fields_block_via_their_own_check(
+        self, archive, field, mutation, expected_phrase, generic_phrase
+    ):
+        """``git_sha`` and ``git_worktree`` are skipped by the generic loop but still block.
+
+        They sit in VOLATILE_ENVIRONMENT_KEYS for a different reason than the
+        timestamp: not because they may differ freely, but because a dedicated
+        check reports them more usefully. This pins both halves -- they do
+        block, and with the specific message rather than the generic
+        "different <field>" one.
+        """
+        previous = copy.deepcopy(archive)
+        previous["environment"] = dict(archive["environment"], **{field: mutation})
+        result = compare_archives(previous, archive)
+        assert not result["controlled"]
+        assert any(expected_phrase in blocker for blocker in result["blockers"]), result["blockers"]
+        assert not any(generic_phrase in blocker for blocker in result["blockers"]), result["blockers"]
 
 
 class TestProvenanceBlocksAttribution:
