@@ -136,6 +136,11 @@ def compute_outer_center_regularization_penalty(current_geom, reference_geom, sm
     return lambda_sma * penalty
 
 
+# Built once: forced photometry is called per isophote, and constructing a
+# Pydantic model in that loop would be wasteful.
+_DEFAULT_GRADIENT_CONFIG = IsosterConfig()
+
+
 def extract_forced_photometry(
     image,
     mask,
@@ -189,14 +194,20 @@ def extract_forced_photometry(
         include_harmonics = True
         harmonic_orders = [3, 4]
 
-    def _build_harmonic_fields(orders):
-        """Build zero-valued harmonic key-value pairs for given orders."""
+    def _unmeasured_harmonic_fields(orders):
+        """Harmonic keys for a ring that could not be measured.
+
+        NaN rather than 0.0 on purpose: zero is also the correct answer for a
+        perfect ellipse, so a zero placeholder is indistinguishable from a
+        genuine null result. NaN also propagates instead of silently biasing
+        any average taken over a profile.
+        """
         fields = {}
         for order in orders:
-            fields[f"a{order}"] = 0.0
-            fields[f"b{order}"] = 0.0
-            fields[f"a{order}_err"] = 0.0
-            fields[f"b{order}_err"] = 0.0
+            fields[f"a{order}"] = np.nan
+            fields[f"b{order}"] = np.nan
+            fields[f"a{order}_err"] = np.nan
+            fields[f"b{order}_err"] = np.nan
         return fields
 
     # Sample along the ellipse
@@ -239,7 +250,7 @@ def extract_forced_photometry(
             "valid": False,
         }
         if include_harmonics:
-            result.update(_build_harmonic_fields(harmonic_orders))
+            result.update(_unmeasured_harmonic_fields(harmonic_orders))
         return result
 
     # Sigma clipping (clip variances in lockstep when present)
@@ -291,8 +302,58 @@ def extract_forced_photometry(
         "niter": 0,
         "valid": True,
     }
+
+    # Higher-order harmonics. The geometry is fixed here, but the harmonic
+    # solve is the same one the free path runs after convergence, and it needs
+    # the same Bender denominator (sma * |dI/da|) -- so the radial gradient has
+    # to be measured even though nothing is being fitted.
+    debug = bool(getattr(config, "debug", False)) if config is not None else False
+    gradient = None
+    gradient_error = None
+    if include_harmonics or debug:
+        # Direct callers may omit config; the gradient needs astep,
+        # linear_growth, integrator and use_eccentric_anomaly, so fall back to
+        # the documented defaults rather than skipping the measurement.
+        gradient_config = config if config is not None else _DEFAULT_GRADIENT_CONFIG
+        gradient, gradient_error = compute_gradient(
+            image,
+            mask,
+            {"x0": x0, "y0": y0, "sma": sma, "eps": eps, "pa": pa},
+            gradient_config,
+            # Same shape the free path passes, and built from the same
+            # post-clipping arrays the harmonic solve uses, so the Bender
+            # numerator and denominator describe one ring statistic.
+            current_data=((phi, intens, variances) if variances is not None else (phi, intens)),
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
+        )
+
     if include_harmonics:
-        result.update(_build_harmonic_fields(harmonic_orders))
+        if gradient is None or not np.isfinite(gradient) or gradient == 0.0:
+            # No usable denominator: say so rather than divide by it.
+            result.update(_unmeasured_harmonic_fields(harmonic_orders))
+        else:
+            for order in harmonic_orders:
+                a_n, b_n, a_err, b_err = compute_deviations(phi, intens, sma, gradient, order, variances=variances)
+                result[f"a{order}"] = a_n
+                result[f"b{order}"] = b_n
+                result[f"a{order}_err"] = a_err
+                result[f"b{order}_err"] = b_err
+
+    if debug:
+        result.update(
+            {
+                "ndata": len(intens),
+                "nflag": 0,
+                "grad": gradient if gradient is not None else np.nan,
+                "grad_error": gradient_error if gradient_error is not None else np.nan,
+                "grad_r_error": (
+                    abs(gradient_error / gradient)
+                    if (gradient_error is not None and gradient is not None and gradient < 0)
+                    else np.nan
+                ),
+            }
+        )
     return result
 
 

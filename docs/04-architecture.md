@@ -167,6 +167,37 @@ outside the public docs tree.
 
 (`template_isophotes` is supported as a deprecated alias for `template`).
 
+### Forced Photometry Contract
+
+`fitting.extract_forced_photometry` samples the fixed ring, sigma-clips it, and
+reduces it to an intensity exactly as regular mode does; it skips only the
+geometry solve. Two consequences follow from that boundary and are easy to get
+wrong in opposite directions:
+
+- **Harmonics are measured, not skipped.** When `compute_deviations` (or
+  `simultaneous_harmonics`) is on, the function measures the radial gradient
+  via `compute_gradient` and runs `compute_deviations` per order, so `a_n` /
+  `b_n` carry the same Bender normalization as regular mode and are directly
+  comparable with it. On identical rings with `use_lazy_gradient=False` the two
+  paths agree bit-for-bit; under the default lazy gradient the regular path may
+  reuse a cached gradient, so they agree closely instead.
+- **Unmeasurable rings report `NaN`.** An empty ring, or one whose gradient is
+  zero or non-finite, yields `NaN` harmonics. `0.0` is never a placeholder,
+  because it is a legitimate measured value for a perfect ellipse.
+
+`grad` / `grad_error` / `grad_r_error` are exposed under `debug=True`, matching
+the regular path.
+
+Before this change the harmonic columns were emitted pre-filled with `0.0`
+and never written to, so a forced-mode `a4` was a fabricated zero rather than a
+measurement. Regression coverage:
+`tests/unit/test_forced_photometry_harmonics.py`.
+
+**Still zero-filled, deliberately:** `driver.fit_central_pixel` (the `sma = 0`
+row) writes `0.0` harmonics. There is no ring at zero radius, so the value is
+undefined rather than unmeasured; it is called out here so the remaining zeros
+are not mistaken for the defect above.
+
 ## Regular Fitting Contract
 
 For each SMA in regular mode:

@@ -70,6 +70,27 @@ template = [
 results = fit_image(image, mask=mask, config=config, template=template)
 ```
 
+#### Higher harmonics in forced mode
+
+With `compute_deviations=True`, forced photometry measures `a_n` / `b_n` on
+each fixed ring, exactly as regular fitting does after convergence. The
+geometry is not fitted, but the harmonic solve and its Bender normalization by
+`sma * |dI/da|` are the same, so forced and regular values are directly
+comparable — identical, in fact, on the same rings when
+`use_lazy_gradient=False`. With the default lazy gradient the regular path may
+reuse a cached gradient, so the two agree closely rather than exactly.
+
+A ring that cannot be measured — one falling outside the image, or one whose
+radial gradient is zero or non-finite — reports `NaN` for its harmonics, not
+`0.0`. Zero is a meaningful measured value for a perfect ellipse, so it is
+never used as a placeholder for a missing one.
+
+!!! warning "Behavior change"
+    Earlier versions reported `a_n = b_n = 0.0` for every forced isophote: the
+    columns were emitted but the harmonic solve was never run. Any harmonic
+    measured in forced mode before this change is a fabricated zero and should
+    be recomputed. See `docs/04-architecture.md` for the exact contract.
+
 ### Automatic LSB Geometry Lock
 
 `fit_image` can be run in a mode that starts with free geometry and automatically switches to fixed geometry once the outward fit enters the low-surface-brightness regime. It combines the strengths of free fitting (true isophotal shapes in the high-S/N region) with fixed-geometry fitting (no centroid drift in the LSB outskirts) in a single pass — no post-hoc stitching.
