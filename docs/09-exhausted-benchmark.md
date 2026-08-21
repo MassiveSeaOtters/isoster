@@ -40,9 +40,11 @@ AutoProf arms skip cleanly with a regeneration hint.
     coefficients on the same Bender-normalized scale. That is established for
     ISOSTER and `photutils`, both of which divide by `sma * |grad|` at fit
     time. It is **not** established for AutoProf: the adapter copies its
-    `a3`/`b3`/`a4`/`b4` columns through unconverted, while
-    `docs/technical/1.4.6` states that AutoProf's scale has not been matched.
-    One of the two is wrong.
+    `a3`/`b3`/`a4`/`b4` columns through unconverted, which *assumes* they
+    already match, and that assumption has never been tested. There is no
+    measurement pointing the other way either — earlier documentation asserted
+    the scale differed, which was equally untested and has since been
+    corrected. The status is ignorance, not a known mismatch.
 
     Settling it needs an AutoProf run against a planted deviation, compared to
     the ISOSTER and `photutils` values on the same fixture. Until that is done,

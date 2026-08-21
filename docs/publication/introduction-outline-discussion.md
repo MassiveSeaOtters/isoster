@@ -158,8 +158,10 @@ configurations.
 2. How much detail on low-surface-brightness systematics belongs here after
    efficiency and variance-aware fitting are established as the leading code
    limitations?
-3. Is experimental joint multi-band fitting a headline contribution of this
-   paper or a capability mentioned briefly and developed more fully elsewhere?
+3. Is joint multi-band fitting a headline contribution of this paper or a
+   capability mentioned briefly and developed more fully elsewhere? Note the
+   default configuration is supported, so maturity is no longer the argument
+   against featuring it; the open question is scope and length.
 4. Should the introduction name IRAF `Isofit` separately from `Ellipse`, or
    reserve that distinction for the method section?
 5. Should reproducible configuration, output, and QA be presented as a

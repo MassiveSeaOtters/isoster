@@ -203,16 +203,29 @@ commit.
 
 **Quantitative evidence currently available**
 
-- The stored lazy-gradient experiment reports a 43.9--44.9% reduction in
-  sampling calls over three galaxies, with wall-time ratios of 1.37--4.46
-  relative to eager recomputation. Median profile changes were small, but
-  maximum changes were not always small.
-- The stored photutils comparison contains two synthetic cases with 14.1 and
-  26.0 times speedups and passed its stated accuracy thresholds.
+> **Superseded (2026-08-21).** Both pilot measurements below have since been
+> replaced by controlled reruns. They are kept for the record of what the
+> audit found, not as evidence to cite.
 
-These are useful pilot results, but both should be rerun from the publication
-commit with fixed environments, warm-up rules, repetitions, uncertainty on the
-timings, and a larger morphology/size grid.
+- ~~The stored lazy-gradient experiment reports a 43.9--44.9% reduction in
+  sampling calls over three galaxies, with wall-time ratios of 1.37--4.46
+  relative to eager recomputation.~~ Replaced by
+  `benchmarks/draft_timings/`: **60 gradient evaluations against 414**, a
+  median wall-time saving of **24%** (IQR 23.0--24.1%) over eighteen sessions
+  in separate interpreters, with the iteration count unchanged. Archived in
+  `reference_timings.json` and checked against the prose by
+  `check_draft_numbers.py` in CI. The accuracy cost is quantified too: the
+  median geometry difference stays under 1% of sigma, with a tail reaching
+  2.6 sigma at S/N = 10.
+- ~~The stored photutils comparison contains two synthetic cases with 14.1 and
+  26.0 times speedups.~~ Replaced by a 237-configuration synthetic Sersic
+  sweep: **median 45x** (IQR 35--57x, slowest 16x), every case passing the
+  script's accuracy criteria. Archived in
+  `benchmarks/performance/reference_speedup.json`.
+
+Both reruns record their environment. What they do *not* yet cover is a larger
+morphology/size grid than the synthetic Sersic family, and neither is a
+real-image benchmark.
 
 **Corrections**
 
@@ -519,6 +532,10 @@ reserve the Validation section for controlled output and runtime comparisons.
    subsection, while labeling `simultaneous_*` as experimental, identifying
    `loose_validity` as supported but non-default, and stating that five-band
    real-data validation is deferred.
-5. **Still required:** freeze a publication commit and rerun every quantitative
-   demonstration from that commit under recorded hardware and software
-   conditions before copying numbers into the manuscript.
+5. **Done for the two timing demonstrations** (2026-08-21): the lazy-gradient
+   and photutils comparisons were rerun under recorded environments and
+   archived, and the technical chapter's numbers are now transcribed from
+   those archives and verified in CI rather than copied by hand. **Still
+   required:** the same treatment for any *other* quantitative demonstration
+   that reaches the manuscript, and a publication commit frozen at submission
+   so the archives can be tied to a specific tree.

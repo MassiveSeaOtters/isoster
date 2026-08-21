@@ -348,8 +348,11 @@ section can point to evidence rather than carry benchmark results itself.
 #### 3.4 Multi-band feasibility, if retained
 
 - Planted color-gradient mock separating the forced, independent, and joint
-  estimands.
-- At least one real HSC five-band example using the existing asteris pipeline.
+  estimands. This carries the subsection on its own.
+- A real HSC five-band example is **deferred, not required** (see §2.7): the
+  asteris cutouts are not on the development machine, so the existing B=5
+  numbers are historical and cannot be reproduced. Include one only if the
+  data becomes available; otherwise state the gap as an evidence limitation.
 - Report geometry recovery, per-band profile bias/scatter, valid radial extent,
   failure rate, and runtime.
 
@@ -401,8 +404,11 @@ Recommended panels:
 
 1. schematic of the block design matrix;
 2. planted color-gradient mock with true band-dependent structure;
-3. forced, independent, and joint profile/geometry recovery;
-4. real five-band HSC feasibility example and residual thumbnails.
+3. forced, independent, and joint profile/geometry recovery.
+
+Panel 4 was to be a real five-band HSC feasibility example with residual
+thumbnails. That is deferred with the rest of the B=5 real-data validation;
+the figure stands without it.
 
 Include only if multi-band fitting remains in the main paper.
 
