@@ -24,6 +24,7 @@ from typing import Tuple
 import numpy as np
 import pytest
 
+from isoster._shared import _normalize_harmonic_for_plot
 from isoster.multiband import IsosterConfigMB, fit_image_multiband
 from isoster.multiband.fitting_mb import (
     fit_simultaneous_joint,
@@ -403,17 +404,27 @@ def test_per_band_normalization_recovers_one_shape_under_shared_mode():
     res = fit_image_multiband(list(bands), config=cfg)
     iso = res["isophotes"]
 
-    # Use the solver's own per-band gradients, which ``debug=True`` exposes as
-    # ``grad_<b>``. The scaling the solve applied is exactly ``grad_b``; a
-    # finite-difference proxy over the isophote list leaves a few-percent
-    # residual and would force a tolerance too loose to mean anything.
+    # Normalize through the production helper rather than reimplementing the
+    # formula here. The plot-time convention is the *signed* Bender form
+    # ``-A_raw / (sma * grad_b)``; an open-coded ``abs(grad)`` version returns
+    # the exact negative of it on this fixture and would still pass the
+    # cross-band equality check below while testing the wrong convention.
+    # ``debug=True`` exposes the solver's own ``grad_<b>``; a finite-difference
+    # proxy leaves a few-percent residual and would need a meaninglessly loose
+    # tolerance.
+    smas = np.asarray([r["sma"] for r in iso], dtype=float)
     pick = len(iso) // 2
-    sma = float(iso[pick]["sma"])
     normalized = {}
     for band in ("g", "r", "i"):
-        grad = float(iso[pick][f"grad_{band}"])
-        assert np.isfinite(grad) and grad != 0.0, f"{band}: unusable gradient"
-        normalized[band] = -float(iso[pick][f"a4_{band}"]) / (sma * abs(grad))
+        grads = np.asarray([r[f"grad_{band}"] for r in iso], dtype=float)
+        assert np.isfinite(grads[pick]) and grads[pick] != 0.0, f"{band}: unusable gradient"
+        curve = _normalize_harmonic_for_plot(
+            np.asarray([r[f"a4_{band}"] for r in iso], dtype=float),
+            smas,
+            grads,
+            np.asarray([r[f"intens_{band}"] for r in iso], dtype=float),
+        )
+        normalized[band] = float(curve[pick])
 
     values = list(normalized.values())
     assert max(values) - min(values) < 1e-6, f"shared mode must normalize to one shape across bands, got {normalized}"
@@ -422,6 +433,20 @@ def test_per_band_normalization_recovers_one_shape_under_shared_mode():
     # the normalization doing work rather than three identical inputs.
     raw = [float(iso[pick][f"a4_{band}"]) for band in ("g", "r", "i")]
     assert max(raw) - min(raw) > 1e-12, f"raw columns unexpectedly identical: {raw}"
+
+    # Pin the *sign* convention, which the equality check above cannot see.
+    # This fixture is an ordinary outward-declining profile, so every gradient
+    # is negative and the signed form -A/(sma*grad) is the exact negative of
+    # the absolute form -A/(sma*|grad|). A helper that quietly switched to
+    # abs() would flip every published curve while still normalizing the bands
+    # to a common value.
+    for band in ("g", "r", "i"):
+        grad = float(iso[pick][f"grad_{band}"])
+        assert grad < 0.0, f"{band}: fixture expected an outward-declining profile"
+        abs_form = -float(iso[pick][f"a4_{band}"]) / (float(iso[pick]["sma"]) * abs(grad))
+        assert np.isclose(normalized[band], -abs_form, rtol=1e-9), (
+            f"{band}: plot-time normalization is not the signed Bender form"
+        )
 
 
 # ---------------------------------------------------------------------------

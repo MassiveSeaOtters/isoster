@@ -192,8 +192,9 @@ applies the signed Bender form $-A_n/(a\,dI/da)$, whereas single-band storage
 uses the absolute value. They agree except on positive-gradient rows, where
 they differ in sign. They are directly comparable across radius and across galaxies. They
 are comparable across *tools* only where the tools share the basis and the
-normalization convention — true of `photutils`, not currently of AutoProf,
-whose coefficients are on a different scale (see
+normalization convention. That is established for `photutils`. For AutoProf
+it is **unverified** — not known to differ, simply never checked — so its
+harmonics are excluded from published cross-tool comparisons (see
 [`technical/1.4.6`](technical/1.4.6-diagnostics-qa.md)).
 
 A `normalize_harmonics` option that divided the stored values by intensity was
