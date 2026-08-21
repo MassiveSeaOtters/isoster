@@ -369,7 +369,15 @@ def run_single_benchmark(n, R_e, eps, pa, noise_snr=None, image_size=512, seed=4
     )
 
     result = {
-        "params": {"n": n, "R_e": R_e, "eps": eps, "pa": pa, "noise_snr": noise_snr, "image_size": image_size},
+        "params": {
+            "n": n,
+            "R_e": R_e,
+            "eps": eps,
+            "pa": pa,
+            "noise_snr": noise_snr,
+            "image_size": image_size,
+            "seed": seed,
+        },
         "isoster": {
             "runtime_s": isoster_result["runtime_s"],
             "n_isophotes": isoster_result["n_isophotes"],
@@ -525,6 +533,11 @@ def run_all_benchmarks(output_dir=None, quick=False):
         position_angles = [0, np.pi / 4, np.pi / 2]
         noise_levels = [None, 100, 50]  # noiseless, S/N=100, S/N=50
 
+    # Fixed inputs, named once so they can be recorded on both completed and
+    # failed cases rather than repeated as literals at the call site.
+    image_size = 512
+    seed = 42
+
     results = []
     failures = []
     total_cases = (
@@ -548,7 +561,13 @@ def run_all_benchmarks(output_dir=None, quick=False):
                         )
 
                         result = run_single_benchmark(
-                            n=n, R_e=R_e, eps=eps, pa=pa, noise_snr=noise_snr, image_size=512, seed=42
+                            n=n,
+                            R_e=R_e,
+                            eps=eps,
+                            pa=pa,
+                            noise_snr=noise_snr,
+                            image_size=image_size,
+                            seed=seed,
                         )
 
                         if result is not None and "failure" not in result:
@@ -571,6 +590,11 @@ def run_all_benchmarks(output_dir=None, quick=False):
                                     "eps": eps,
                                     "pa": pa,
                                     "noise_snr": noise_snr,
+                                    # Same fields as a completed case's params:
+                                    # the excluded-case fingerprint hashes
+                                    # these, and a missing key hashes as None.
+                                    "image_size": image_size,
+                                    "seed": seed,
                                     "exception_type": detail.get("exception_type", "Unknown"),
                                     "message": detail.get("message", "photutils returned no profile"),
                                 }

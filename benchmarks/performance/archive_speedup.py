@@ -86,20 +86,22 @@ PROTOCOL_CAVEAT = (
 )
 
 
-CASE_KEYS = ("n", "R_e", "eps", "pa", "noise_snr", "image_size")
+# The complete input identity of a configuration, including the seed: two runs
+# differing only in seed are different inputs, not a repeat measurement.
+CASE_KEYS = ("n", "R_e", "eps", "pa", "noise_snr", "image_size", "seed")
 
-# Environment fields that can move a timing ratio without moving the platform
-# string. Comparing platform alone treats a NumPy upgrade or a change in thread
-# count as "same environment", which it is not.
-ENVIRONMENT_KEYS = (
-    "platform",
-    "processor",
-    "cpu_count",
-    "python",
-    "numpy",
-    "scipy",
-    "numba",
-    "environment_variables",
+# Environment comparison is a DENY-list, not an allow-list. An allow-list only
+# compares the fields someone thought to enumerate, so a newly recorded field --
+# photutils' version, say, or the hardware model -- is silently ignored and two
+# genuinely different environments compare equal. Everything recorded is
+# compared except fields that are expected to differ between any two runs, or
+# that are checked separately with a better message.
+VOLATILE_ENVIRONMENT_KEYS = frozenset(
+    {
+        "generated_at_utc",  # a timestamp; differs by construction
+        "git_sha",  # compared separately, as a code-revision blocker
+        "git_worktree",  # compared separately, as a provenance blocker
+    }
 )
 
 
@@ -186,11 +188,14 @@ def compare_archives(previous: dict, current: dict) -> dict:
     if previous.get("protocol_caveat") != current.get("protocol_caveat"):
         blockers.append("different measurement protocol")
 
-    # The full environment, not the platform string. A NumPy upgrade or a
-    # change in thread count moves timing ratios while platform stays put.
-    for key in ENVIRONMENT_KEYS:
-        if _env(previous, key) != _env(current, key):
-            blockers.append(f"different {key} ({_env(previous, key)!r} vs {_env(current, key)!r})")
+    # Every recorded environment field except the volatile ones. A NumPy or
+    # photutils upgrade, a different machine model, or a change in thread count
+    # all move timing ratios while the platform string stays put.
+    previous_env = previous.get("environment") or {}
+    current_env = current.get("environment") or {}
+    for key in sorted((set(previous_env) | set(current_env)) - VOLATILE_ENVIRONMENT_KEYS):
+        if previous_env.get(key) != current_env.get(key):
+            blockers.append(f"different {key} ({previous_env.get(key)!r} vs {current_env.get(key)!r})")
 
     summary = ", ".join(
         f"{key} {value['previous']}x -> {value['current']}x ({value['delta']:+})" for key, value in differences.items()
@@ -208,8 +213,9 @@ def compare_archives(previous: dict, current: dict) -> dict:
         interpretation = (
             "Controlled comparison: same commit, both from clean trees, identical grid "
             "and identical completed/excluded configurations by fingerprint, same "
-            "script and protocol, and matching Python, NumPy, SciPy, Numba, CPU and "
-            "threading environment. With the code and the inputs held fixed, the "
+            "script and protocol, and every recorded environment field matching "
+            "(Python, NumPy, SciPy, Numba, photutils, astropy, CPU, hardware model "
+            "and threading). With the code and the inputs held fixed, the "
             "differences above are run-to-run variation of the measurement itself. "
             "Movement larger in the extremes than in the median and quartiles is "
             "consistent with timing each configuration once, though two runs cannot "

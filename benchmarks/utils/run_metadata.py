@@ -91,6 +91,23 @@ def get_git_worktree_state(project_root: Optional[Path] = None) -> Dict[str, obj
     }
 
 
+def _hardware_model() -> Optional[str]:
+    """Best-effort hardware model, for telling similar machines apart."""
+    probes = (
+        ["sysctl", "-n", "hw.model"],  # macOS
+        ["cat", "/sys/devices/virtual/dmi/id/product_name"],  # Linux
+    )
+    for probe in probes:
+        try:
+            result = subprocess.run(probe, text=True, capture_output=True, check=True)
+        except Exception:
+            continue
+        model = result.stdout.strip()
+        if model:
+            return model
+    return None
+
+
 def _optional_module_version(module_name: str) -> Optional[str]:
     """Return module version if import succeeds, else None."""
     try:
@@ -120,9 +137,20 @@ def collect_environment_metadata(
         "numpy": np.__version__,
         "scipy": scipy.__version__,
         "numba": _optional_module_version("numba"),
+        # Benchmark-critical comparison libraries. photutils is the tool every
+        # speed claim is measured against and astropy is what it is built on;
+        # a version change there moves the ratio without touching anything
+        # recorded above.
+        "photutils": _optional_module_version("photutils"),
+        "astropy": _optional_module_version("astropy"),
         "platform": platform.platform(),
         "processor": platform.processor(),
         "cpu_count": os.cpu_count(),
+        # Hardware model, which distinguishes two machines reporting the same
+        # platform string. ``node_sha256`` is a digest rather than the hostname
+        # itself: it separates machines without publishing whose they are.
+        "machine_model": _hardware_model(),
+        "node_sha256": hashlib.sha256(platform.node().encode("utf-8")).hexdigest()[:16],
         "environment_variables": selected_environment,
     }
 
