@@ -78,12 +78,38 @@ PROTOCOL_CAVEAT = (
     "an archived single sweep, not a controlled timing study of the kind "
     "benchmarks/draft_timings implements. The measured ratio is large enough "
     "(tens of times) that ordering and warm-up effects are unlikely to change "
-    "its order of magnitude, but they have not been quantified. Observed "
-    "run-to-run drift between two sweeps of this identical grid on one "
-    "machine: median 45.9x -> 45.0x, quartiles within about 1x, but the "
-    "extremes moved more (min 13.9 -> 13.6, max 107.7 -> 111.9). Quote the "
-    "median and quartiles; treat the extremes as indicative only."
+    "its order of magnitude, but they have not been quantified. Quote the "
+    "median and quartiles; treat the extremes as indicative only. Pass "
+    "--compare-to <previous archive> to have the run-to-run drift measured "
+    "and recorded here instead of assumed."
 )
+
+
+def describe_drift(previous: dict, current: dict) -> str:
+    """Compare two archives and state the drift, from the archives themselves.
+
+    Hard-coding a specific pair of runs into this generator would mean every
+    future archive inherits an observation from a machine it never ran on --
+    the same failure as hard-coding the exception narrative, which this script
+    already avoids. The comparison is therefore derived, and only present when
+    a previous archive is explicitly supplied.
+    """
+    old_speed, new_speed = previous["speedup"], current["speedup"]
+    parts = [
+        f"{name} {old_speed[key]}x -> {new_speed[key]}x"
+        for name, key in (("median", "median"), ("q1", "q1"), ("q3", "q3"), ("min", "min"), ("max", "max"))
+    ]
+    same_machine = previous.get("environment", {}).get("platform") == current.get("environment", {}).get("platform")
+    return (
+        "Run-to-run drift against the supplied previous archive"
+        + (" (same platform string)" if same_machine else " (DIFFERENT platform -- hardware differs too)")
+        + ": "
+        + ", ".join(parts)
+        + ". Compare the median and quartile movement against the extremes: if the "
+        "extremes move further, that is the single-timing protocol showing, not a "
+        "change in the software."
+    )
+
 
 CAVEAT = (
     "Absolute times are machine-specific. The ratio is less machine-dependent "
@@ -92,7 +118,7 @@ CAVEAT = (
 )
 
 
-def summarize(results_path: Path) -> dict:
+def summarize(results_path: Path, previous_archive: Path | None = None) -> dict:
     """Reduce one benchmark run to the archived summary."""
     run = json.loads(results_path.read_text())
     summary = run["summary"]
@@ -112,7 +138,7 @@ def summarize(results_path: Path) -> dict:
     if completed + failed != attempted:
         raise SystemExit(f"run is internally inconsistent: {completed} + {failed} != {attempted}")
 
-    return {
+    archived = {
         "source": "benchmarks/performance/bench_vs_photutils.py",
         "what": WHAT,
         "coverage_caveat": describe_failures(summary["failed_configurations"], attempted, completed),
@@ -152,17 +178,32 @@ def summarize(results_path: Path) -> dict:
         },
         "caveat": CAVEAT,
     }
+    if previous_archive is not None:
+        if not previous_archive.is_file():
+            raise SystemExit(f"--compare-to archive not found: {previous_archive}")
+        archived["run_to_run_drift"] = describe_drift(json.loads(previous_archive.read_text()), archived)
+    return archived
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS, help="Run to archive.")
+    parser.add_argument(
+        "--compare-to",
+        type=Path,
+        help=(
+            "A previous reference_speedup.json. When given, the run-to-run drift "
+            "between it and this run is measured and recorded in the archive. "
+            "Without it no drift claim is made, because there is nothing to "
+            "measure it against."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.results.is_file():
         raise SystemExit(f"results not found: {args.results}\nRun bench_vs_photutils.py first.")
 
-    archived = summarize(args.results)
+    archived = summarize(args.results, previous_archive=args.compare_to)
     ARCHIVE.write_text(json.dumps(archived, indent=2) + "\n")
     print(f"archived {ARCHIVE}")
     print(json.dumps(archived["speedup"], indent=2))

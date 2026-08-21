@@ -193,6 +193,24 @@ def main() -> None:
     if archive.get("provenance_warning"):
         print(f"WARNING: {archive['provenance_warning']}\n")
 
+    # A file this checker guards but CI does not watch is a check that never
+    # runs when it matters. Verify the two lists agree rather than trusting
+    # that someone remembered to update the workflow.
+    workflow = REPO_ROOT / ".github" / "workflows" / "docs.yml"
+    if workflow.is_file():
+        watched = workflow.read_text()
+        unwatched = sorted(
+            {relative for _, relative, _ in build_checks(archive)}
+            - {relative for relative in {r for _, r, _ in build_checks(archive)} if f'"{relative}"' in watched}
+        )
+        # docs/** is watched as a glob, so anything under docs/ is covered.
+        unwatched = [relative for relative in unwatched if not relative.startswith("docs/")]
+        if unwatched:
+            raise SystemExit(
+                "these files are checked here but are not in the docs workflow's "
+                f"trigger paths, so CI would not run on a change to them: {unwatched}"
+            )
+
     if args.self_test:
         sys.exit(self_test(archive))
 

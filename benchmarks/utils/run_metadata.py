@@ -69,15 +69,24 @@ def get_git_worktree_state(project_root: Optional[Path] = None) -> Dict[str, obj
         return {"dirty": False}
 
     diff = _git("diff", "HEAD") or ""
+    untracked = [line[3:].strip() for line in status.splitlines() if line.startswith("??")]
     return {
         "dirty": True,
         "changed_paths": sorted(changed),
-        "diff_sha256": hashlib.sha256(diff.encode("utf-8")).hexdigest(),
+        "untracked_paths": sorted(untracked),
+        # Named for what it actually covers. ``git diff HEAD`` shows modifications
+        # to *tracked* files only, so a tree dirty solely through untracked files
+        # hashes an empty diff. The untracked paths are listed above, but their
+        # contents are not hashed -- do not read this digest as identifying the
+        # full working state.
+        "tracked_diff_sha256": hashlib.sha256(diff.encode("utf-8")).hexdigest(),
         "note": (
             "This run did NOT come from the recorded commit: the working tree "
             "carried uncommitted changes. The SHA identifies the parent commit "
-            "only. Re-run from a clean tree before treating these numbers as "
-            "reproducible provenance."
+            "only. tracked_diff_sha256 covers modifications to tracked files; "
+            "untracked file contents are not hashed, so an identical digest "
+            "does not prove an identical tree. Re-run from a clean tree before "
+            "treating these numbers as reproducible provenance."
         ),
     }
 
