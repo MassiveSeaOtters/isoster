@@ -10,14 +10,14 @@ Five categories under `tests/`:
 
 | Directory | Tests | Scope |
 |---|---:|---|
-| `unit/` | 324 | Module behaviour and API contracts; fast, no I/O |
+| `unit/` | 343 | Module behaviour and API contracts; fast, no I/O |
 | `integration/` | 148 | Multi-module paths through `fit_image` and the drivers |
 | `validation/` | 8 | Accuracy against analytic truth and against `photutils` |
 | `multiband/` | 443 | Joint solver, `band_scale` invariant, per-band errors, validity policy, Schema-1 writer, CLI |
 | `real_data/` | 4 | Real images; **deselected by default** (needs bundled data, and LaTeX fonts for the figure tests) |
 
-As of 2026-08-21 pytest discovers 927 tests and deselects 5, leaving 922
-selected; a full run reports 921 passed and 1 skipped. These figures drift —
+As of 2026-08-21 pytest discovers 946 tests and deselects 5, leaving 941
+selected; a full run reports 940 passed and 1 skipped. These figures drift —
 regenerate rather than trusting them:
 
 ```bash

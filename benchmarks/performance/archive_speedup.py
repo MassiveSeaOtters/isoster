@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import json
 import statistics
 from pathlib import Path
@@ -85,6 +86,39 @@ PROTOCOL_CAVEAT = (
 )
 
 
+CASE_KEYS = ("n", "R_e", "eps", "pa", "noise_snr", "image_size")
+
+# Environment fields that can move a timing ratio without moving the platform
+# string. Comparing platform alone treats a NumPy upgrade or a change in thread
+# count as "same environment", which it is not.
+ENVIRONMENT_KEYS = (
+    "platform",
+    "processor",
+    "cpu_count",
+    "python",
+    "numpy",
+    "scipy",
+    "numba",
+    "environment_variables",
+)
+
+
+def case_identity(params: dict) -> tuple:
+    """A configuration's identity, independent of dict ordering."""
+    return tuple(params.get(key) for key in CASE_KEYS)
+
+
+def fingerprint_cases(cases: list[tuple]) -> str:
+    """Stable digest over a set of configurations.
+
+    Counting cases is not the same as knowing which cases. Two runs can both
+    complete 237 of 243 while disagreeing about *which* six photutils dropped,
+    and comparing counts alone would call that a controlled pair.
+    """
+    payload = json.dumps(sorted(repr(case) for case in cases), separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def compare_archives(previous: dict, current: dict) -> dict:
     """Report drift between two archives, and whether it can be attributed.
 
@@ -123,19 +157,40 @@ def compare_archives(previous: dict, current: dict) -> dict:
     if not _clean(previous) or not _clean(current):
         which = [label for label, archive in (("previous", previous), ("current", current)) if not _clean(archive)]
         blockers.append(f"unreproducible provenance: {', '.join(which)} archive not from a clean tree")
+
+    # Counts first, because they give the clearer message when they differ;
+    # then identities, which catch the case where the counts agree but the
+    # configurations behind them do not.
     for field, label in (
         ("attempted_cases", "grid size"),
-        ("completed_cases", "completed cases"),
-        ("photutils_failures", "excluded cases"),
+        ("completed_cases", "completed-case count"),
+        ("photutils_failures", "excluded-case count"),
     ):
         if previous.get(field) != current.get(field):
             blockers.append(f"different {label} ({previous.get(field)} vs {current.get(field)})")
+    for field, label in (
+        ("completed_fingerprint", "completed cases"),
+        ("excluded_fingerprint", "excluded cases"),
+    ):
+        old_print, new_print = previous.get(field), current.get(field)
+        if old_print is None or new_print is None:
+            blockers.append(
+                f"cannot verify {label}: one archive predates the {field} field, so the "
+                "configurations behind the counts are unknown"
+            )
+        elif old_print != new_print:
+            blockers.append(f"different {label} (same count, different configurations)")
+
     if previous.get("source") != current.get("source"):
         blockers.append("different benchmark script")
     if previous.get("protocol_caveat") != current.get("protocol_caveat"):
         blockers.append("different measurement protocol")
-    if _env(previous, "platform") != _env(current, "platform"):
-        blockers.append(f"different platform ({_env(previous, 'platform')} vs {_env(current, 'platform')})")
+
+    # The full environment, not the platform string. A NumPy upgrade or a
+    # change in thread count moves timing ratios while platform stays put.
+    for key in ENVIRONMENT_KEYS:
+        if _env(previous, key) != _env(current, key):
+            blockers.append(f"different {key} ({_env(previous, key)!r} vs {_env(current, key)!r})")
 
     summary = ", ".join(
         f"{key} {value['previous']}x -> {value['current']}x ({value['delta']:+})" for key, value in differences.items()
@@ -151,12 +206,14 @@ def compare_archives(previous: dict, current: dict) -> dict:
         )
     else:
         interpretation = (
-            "Controlled comparison: same commit, both from clean trees, same grid and "
-            "completed-case counts, same script and protocol, same platform. With the "
-            "code and the inputs held fixed, the differences above are run-to-run "
-            "variation of the measurement itself. Movement larger in the extremes than "
-            "in the median and quartiles is the expected signature of timing each "
-            "configuration once."
+            "Controlled comparison: same commit, both from clean trees, identical grid "
+            "and identical completed/excluded configurations by fingerprint, same "
+            "script and protocol, and matching Python, NumPy, SciPy, Numba, CPU and "
+            "threading environment. With the code and the inputs held fixed, the "
+            "differences above are run-to-run variation of the measurement itself. "
+            "Movement larger in the extremes than in the median and quartiles is "
+            "consistent with timing each configuration once, though two runs cannot "
+            "separate that from any other unrecorded variation."
         )
 
     return {
@@ -216,6 +273,11 @@ def summarize(results_path: Path, previous_archive: Path | None = None) -> dict:
         "completed_cases": completed,
         "photutils_failures": failed,
         "failed_configurations": summary["failed_configurations"],
+        # Identities, not just counts: see fingerprint_cases.
+        "completed_fingerprint": fingerprint_cases(
+            [case_identity(case["params"]) for case in run["test_cases"] if case.get("speedup")]
+        ),
+        "excluded_fingerprint": fingerprint_cases([case_identity(entry) for entry in summary["failed_configurations"]]),
         "all_completed_cases_passed": bool(summary["all_completed_cases_passed"]),
         "speedup": {
             "median": round(statistics.median(speedups), 1),

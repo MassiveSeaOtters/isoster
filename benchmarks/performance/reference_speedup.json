@@ -83,6 +83,8 @@
       "pa": 0.7853981633974483
     }
   ],
+  "completed_fingerprint": "219ee94788ce9688316daed5c141939efd564462b0c425896b78475dd16f2b62",
+  "excluded_fingerprint": "c9a1a828b5e83cd9161b3fd0c21aa15aa2321a68af168bf79a51ea82405ab4c5",
   "all_completed_cases_passed": true,
   "speedup": {
     "median": 45.0,

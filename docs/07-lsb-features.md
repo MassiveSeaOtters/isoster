@@ -693,7 +693,7 @@ compatibility with existing modes. Sibling test
 shape, reference building, fallback on `minsma >= sma0`, `fix_center`
 warning, forced-photo guard.
 
-The full suite is 921 passing, 1 skipped (5 deselected) as of 2026-08-21; regenerate with `uv run pytest tests/ --collect-only -q | tail -2` rather than trusting this figure.
+The full suite is 940 passing, 1 skipped (5 deselected) as of 2026-08-21; regenerate with `uv run pytest tests/ --collect-only -q | tail -2` rather than trusting this figure.
 
 ## 7. Future work
 
