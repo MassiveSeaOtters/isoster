@@ -85,30 +85,87 @@ PROTOCOL_CAVEAT = (
 )
 
 
-def describe_drift(previous: dict, current: dict) -> str:
-    """Compare two archives and state the drift, from the archives themselves.
+def compare_archives(previous: dict, current: dict) -> dict:
+    """Report drift between two archives, and whether it can be attributed.
 
-    Hard-coding a specific pair of runs into this generator would mean every
-    future archive inherits an observation from a machine it never ran on --
-    the same failure as hard-coding the exception narrative, which this script
-    already avoids. The comparison is therefore derived, and only present when
-    a previous archive is explicitly supplied.
+    Two numbers differing is a *measurement*; saying why they differ is an
+    *inference*, and the inference only holds if everything except the thing
+    being blamed was held fixed. An earlier version of this function reported
+    the numbers and then concluded that movement in the extremes "is the
+    single-timing protocol showing, not a change in the software" -- without
+    checking that the two archives came from the same code, the same grid, the
+    same protocol, or clean trees. Run against a dirty archive from a different
+    commit, it made that causal claim anyway.
+
+    So: the differences are always reported, plainly. The interpretation is
+    attached only when the comparison is controlled, and when it is not, the
+    blockers are named instead.
     """
-    old_speed, new_speed = previous["speedup"], current["speedup"]
-    parts = [
-        f"{name} {old_speed[key]}x -> {new_speed[key]}x"
-        for name, key in (("median", "median"), ("q1", "q1"), ("q3", "q3"), ("min", "min"), ("max", "max"))
-    ]
-    same_machine = previous.get("environment", {}).get("platform") == current.get("environment", {}).get("platform")
-    return (
-        "Run-to-run drift against the supplied previous archive"
-        + (" (same platform string)" if same_machine else " (DIFFERENT platform -- hardware differs too)")
-        + ": "
-        + ", ".join(parts)
-        + ". Compare the median and quartile movement against the extremes: if the "
-        "extremes move further, that is the single-timing protocol showing, not a "
-        "change in the software."
+    old_speed, current_speed = previous["speedup"], current["speedup"]
+    differences = {
+        key: {
+            "previous": old_speed[key],
+            "current": current_speed[key],
+            "delta": round(current_speed[key] - old_speed[key], 2),
+        }
+        for key in ("median", "q1", "q3", "min", "max")
+    }
+
+    def _env(archive: dict, key: str):
+        return (archive.get("environment") or {}).get(key)
+
+    def _clean(archive: dict) -> bool:
+        return ((archive.get("environment") or {}).get("git_worktree") or {}).get("dirty") is False
+
+    blockers = []
+    if _env(previous, "git_sha") != _env(current, "git_sha"):
+        blockers.append(f"different code revision ({_env(previous, 'git_sha')} vs {_env(current, 'git_sha')})")
+    if not _clean(previous) or not _clean(current):
+        which = [label for label, archive in (("previous", previous), ("current", current)) if not _clean(archive)]
+        blockers.append(f"unreproducible provenance: {', '.join(which)} archive not from a clean tree")
+    for field, label in (
+        ("attempted_cases", "grid size"),
+        ("completed_cases", "completed cases"),
+        ("photutils_failures", "excluded cases"),
+    ):
+        if previous.get(field) != current.get(field):
+            blockers.append(f"different {label} ({previous.get(field)} vs {current.get(field)})")
+    if previous.get("source") != current.get("source"):
+        blockers.append("different benchmark script")
+    if previous.get("protocol_caveat") != current.get("protocol_caveat"):
+        blockers.append("different measurement protocol")
+    if _env(previous, "platform") != _env(current, "platform"):
+        blockers.append(f"different platform ({_env(previous, 'platform')} vs {_env(current, 'platform')})")
+
+    summary = ", ".join(
+        f"{key} {value['previous']}x -> {value['current']}x ({value['delta']:+})" for key, value in differences.items()
     )
+
+    if blockers:
+        interpretation = (
+            "NOT ATTRIBUTABLE. These archives are not a controlled comparison: "
+            + "; ".join(blockers)
+            + ". The differences above are reported as measurements only -- they cannot be "
+            "assigned to timing noise, to the protocol, or to a change in the software, "
+            "because more than one thing changed between the runs."
+        )
+    else:
+        interpretation = (
+            "Controlled comparison: same commit, both from clean trees, same grid and "
+            "completed-case counts, same script and protocol, same platform. With the "
+            "code and the inputs held fixed, the differences above are run-to-run "
+            "variation of the measurement itself. Movement larger in the extremes than "
+            "in the median and quartiles is the expected signature of timing each "
+            "configuration once."
+        )
+
+    return {
+        "differences": differences,
+        "summary": summary,
+        "controlled": not blockers,
+        "blockers": blockers,
+        "interpretation": interpretation,
+    }
 
 
 CAVEAT = (
@@ -181,7 +238,7 @@ def summarize(results_path: Path, previous_archive: Path | None = None) -> dict:
     if previous_archive is not None:
         if not previous_archive.is_file():
             raise SystemExit(f"--compare-to archive not found: {previous_archive}")
-        archived["run_to_run_drift"] = describe_drift(json.loads(previous_archive.read_text()), archived)
+        archived["run_to_run_drift"] = compare_archives(json.loads(previous_archive.read_text()), archived)
     return archived
 
 
