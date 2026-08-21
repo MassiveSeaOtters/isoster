@@ -39,17 +39,36 @@ WHAT = (
     "benchmark."
 )
 
-COVERAGE_CAVEAT = (
-    "photutils could not fit {failed} of the {attempted} attempted "
-    "configurations (it raises 'cannot convert float NaN to integer'); those "
-    "are listed in failed_configurations and are excluded from every statistic "
-    "here. The failures are systematic, not random: all of them are n=1, "
-    "eps=0, pa=pi/4 at the two noisy levels, across all three sizes. A "
-    "circular (eps=0) source has no defined position angle, so that corner of "
-    "the grid is degenerate. The reported speedups therefore describe the "
-    "{completed} configurations photutils could fit, and say nothing about the "
-    "{failed} it could not."
-)
+
+def describe_failures(failures: list[dict], attempted: int, completed: int) -> str:
+    """Describe the excluded configurations *from the records*, not from memory.
+
+    An earlier version hard-coded the failure pattern and the exception text.
+    That is fine until a run fails differently, at which point the archive
+    carries a confident description of something that did not happen.
+    """
+    if not failures:
+        return f"photutils fitted all {attempted} attempted configurations; nothing is excluded."
+
+    def _spread(key: str) -> str:
+        values = sorted({f"{f[key]}" for f in failures})
+        return values[0] if len(values) == 1 else "varies (" + ", ".join(values) + ")"
+
+    exceptions = sorted({f"{f.get('exception_type', 'Unknown')}: {f.get('message', '')}" for f in failures})
+    exception_text = exceptions[0] if len(exceptions) == 1 else "; ".join(exceptions)
+
+    return (
+        f"photutils could not fit {len(failures)} of the {attempted} attempted "
+        f"configurations; they are listed in failed_configurations and excluded "
+        f"from every statistic here. Across those cases: n={_spread('n')}, "
+        f"R_e={_spread('R_e')}, eps={_spread('eps')}, pa={_spread('pa')}, "
+        f"noise_snr={_spread('noise_snr')}. Reported failure -- {exception_text}. "
+        f"The speedups below therefore describe the {completed} configurations "
+        f"photutils could fit and say nothing about the {len(failures)} it could not. "
+        f"Read the parameter spread above before assuming the exclusions are random: "
+        f"a value that does not vary is a systematic gap in coverage."
+    )
+
 
 PROTOCOL_CAVEAT = (
     "Each configuration is timed ONCE per tool, isoster first and photutils "
@@ -92,9 +111,16 @@ def summarize(results_path: Path) -> dict:
     return {
         "source": "benchmarks/performance/bench_vs_photutils.py",
         "what": WHAT,
-        "coverage_caveat": COVERAGE_CAVEAT.format(attempted=attempted, completed=completed, failed=failed),
+        "coverage_caveat": describe_failures(summary["failed_configurations"], attempted, completed),
         "protocol_caveat": PROTOCOL_CAVEAT,
         "environment": run["environment"],
+        "provenance_warning": (
+            None
+            if (run["environment"].get("git_worktree") or {}).get("dirty") is False
+            else "Produced from a working tree that did not match its recorded commit, "
+            "or from a tree whose state could not be determined. See "
+            "environment.git_worktree. Not reproducible provenance."
+        ),
         "attempted_cases": attempted,
         "completed_cases": completed,
         "photutils_failures": failed,
