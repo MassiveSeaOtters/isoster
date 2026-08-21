@@ -4,6 +4,7 @@
   "coverage_caveat": "photutils could not fit 6 of the 243 attempted configurations; they are listed in failed_configurations and excluded from every statistic here. Across those cases: n=1.0, R_e=varies (100, 20, 50), eps=0.0, pa=0.7853981633974483, noise_snr=varies (100, 50). Reported failure -- ValueError: cannot convert float NaN to integer. The speedups below therefore describe the 237 configurations photutils could fit and say nothing about the 6 it could not. Read the parameter spread above before assuming the exclusions are random: a value that does not vary is a systematic gap in coverage.",
   "protocol_caveat": "Each configuration is timed ONCE per tool, isoster first and photutils second, with no warm-up, no repetition and no interleaving. The quartiles below are spread across grid CONFIGURATIONS, not across repeated timings of one configuration, so they do not characterise timing noise. This is an archived single sweep, not a controlled timing study of the kind benchmarks/draft_timings implements. The measured ratio is large enough (tens of times) that ordering and warm-up effects are unlikely to change its order of magnitude, but they have not been quantified. Quote the median and quartiles; treat the extremes as indicative only. Pass --compare-to <previous archive> to have the run-to-run drift measured and recorded here instead of assumed.",
   "environment": {
+    "astropy": "7.2.0",
     "cpu_count": 10,
     "environment_variables": {
       "MKL_NUM_THREADS": "",
@@ -11,13 +12,16 @@
       "OMP_NUM_THREADS": "",
       "OPENBLAS_NUM_THREADS": ""
     },
-    "generated_at_utc": "2026-08-21T13:18:58.651177+00:00",
-    "git_sha": "9bca0ed343b66aaf563bbc41b746834a460d5180",
+    "generated_at_utc": "2026-08-21T14:51:07.683951+00:00",
+    "git_sha": "01adc6e439ab771892beca982f21f1e012898f17",
     "git_worktree": {
       "dirty": false
     },
+    "machine_model": "MacBookPro18,2",
+    "node_sha256": "f9cbd92a66f319b2",
     "numba": "0.63.1",
     "numpy": "2.3.5",
+    "photutils": "2.3.0",
     "platform": "macOS-15.7.4-arm64-arm-64bit",
     "processor": "arm",
     "python": "3.12.7",
@@ -32,85 +36,97 @@
       "R_e": 20,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 100,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     },
     {
       "R_e": 20,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 50,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     },
     {
       "R_e": 50,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 100,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     },
     {
       "R_e": 50,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 50,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     },
     {
       "R_e": 100,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 100,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     },
     {
       "R_e": 100,
       "eps": 0.0,
       "exception_type": "ValueError",
+      "image_size": 512,
       "message": "cannot convert float NaN to integer",
       "n": 1.0,
       "noise_snr": 50,
-      "pa": 0.7853981633974483
+      "pa": 0.7853981633974483,
+      "seed": 42
     }
   ],
-  "completed_fingerprint": "219ee94788ce9688316daed5c141939efd564462b0c425896b78475dd16f2b62",
-  "excluded_fingerprint": "c9a1a828b5e83cd9161b3fd0c21aa15aa2321a68af168bf79a51ea82405ab4c5",
+  "completed_fingerprint": "4420b29dab71b5458c222f88e090010b8ed737114369395adeab85f8804e26c4",
+  "excluded_fingerprint": "67a484099206b904e567856e157ce07e14cae49a1c35cc699a9c25d24c5dc5c3",
   "all_completed_cases_passed": true,
   "speedup": {
-    "median": 45.0,
-    "q1": 34.4,
-    "q3": 55.9,
-    "min": 13.6,
-    "max": 111.9
+    "median": 44.8,
+    "q1": 34.8,
+    "q3": 54.9,
+    "min": 12.7,
+    "max": 110.0
   },
   "speedup_by_R_e": {
     "20": {
       "n": 79,
-      "median": 42.1,
-      "min": 13.6,
-      "max": 71.8
+      "median": 41.2,
+      "min": 12.7,
+      "max": 71.0
     },
     "50": {
       "n": 79,
-      "median": 51.2,
-      "min": 30.2,
-      "max": 111.9
+      "median": 51.4,
+      "min": 30.4,
+      "max": 110.0
     },
     "100": {
       "n": 79,
-      "median": 42.7,
-      "min": 29.8,
-      "max": 90.4
+      "median": 43.4,
+      "min": 30.1,
+      "max": 87.7
     }
   },
   "caveat": "Absolute times are machine-specific. The ratio is less machine-dependent than absolute time, but it is not portable: hardware, BLAS, and library versions all change ratios too. One run on one machine."
