@@ -11,28 +11,33 @@ contributions (new tools, new datasets, new arms).
 
 ## 0. AutoProf setup (one-time, optional)
 
-AutoProf 1.3.4 pins `numpy<2` and `photutils==1.5`, so it cannot share the
+AutoProf 1.3.4 pins `numpy<2` and `photutils<=1.5`, so it cannot share the
 main `uv` environment. Install it in its own venv at a **stable** location —
 not `/tmp`, which macOS prunes periodically and will silently strip individual
 `.py` files mid-campaign:
 
 ```bash
-mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
-~/.venvs/autoprof_venv/bin/pip install --upgrade pip
-~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+uv venv --python 3.10 ~/.venvs/autoprof_venv
+uv pip install --python ~/.venvs/autoprof_venv/bin/python 'autoprof==1.3.4'
 ~/.venvs/autoprof_venv/bin/python -c "from autoprof.Pipeline import Isophote_Pipeline; print('ok')"
 ```
 
-Point the code at it by whichever entry point applies:
+Run these from outside the repository so `uv` does not associate the venv with
+this project. Python 3.10 is the newest interpreter for which photutils 1.5.0
+publishes macOS arm64 wheels; newer versions work but build it from source.
 
-| Consumer | How to point it at the venv |
+That path is the built-in default, so with the venv in this location nothing
+needs to be configured. `benchmarks/autoprof_env.py` holds the default and the
+resolution rules for both benchmark trees. To point somewhere else:
+
+| Consumer | How to point it at a different venv |
 |---|---|
 | Exhausted campaigns (`benchmarks/exhausted/`) | `tools.autoprof.venv_python` in the campaign YAML |
 | `bench_vs_autoprof.py` (`benchmarks/utils/autoprof_adapter.py`) | `AUTOPROF_PYTHON` environment variable |
 
-Both carry machine-specific defaults that will not exist on your system; set
-one of the two above rather than relying on them. When the venv is absent,
-AutoProf arms skip cleanly with a regeneration hint.
+An explicit YAML path wins over `AUTOPROF_PYTHON`, which wins over the default;
+`~` is expanded in all three. When the venv is absent, AutoProf arms skip
+cleanly with a regeneration hint that prints the install commands.
 
 !!! warning "Open question: AutoProf harmonic scale"
 
@@ -55,9 +60,9 @@ AutoProf arms skip cleanly with a regeneration hint.
 
 ```bash
 # (one-time) set up the AutoProf venv if you want that tool active.
-# See "AutoProf setup" below -- use a stable path, never /tmp.
-mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
-~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+# See section 0 above -- use a stable path, never /tmp.
+uv venv --python 3.10 ~/.venvs/autoprof_venv
+uv pip install --python ~/.venvs/autoprof_venv/bin/python 'autoprof==1.3.4'
 
 # Dry-run the planned fit matrix.
 uv run python -m benchmarks.exhausted.orchestrator.cli dry-run \
@@ -539,7 +544,7 @@ YAML for later reuse via the plain `orchestrator.cli` entry point.
 
 ## 7. AutoProf Setup
 
-AutoProf 1.3.4 requires `numpy < 2` and `photutils == 1.5`, which
+AutoProf 1.3.4 requires `numpy < 2` and `photutils <= 1.5`, which
 cannot coexist in `isoster`'s `uv` environment (numpy 2.x). The
 campaign runs it via subprocess against a dedicated venv.
 
@@ -547,12 +552,12 @@ See §0 for the install recipe. In short: put the venv at a stable path such
 as `~/.venvs/autoprof_venv`, never under `/tmp`, which macOS prunes and which
 will strip individual `.py` files out from under a running campaign.
 
-Point `tools.autoprof.venv_python` at that venv's Python. The compiled-in
-default is `/tmp/autoprof_venv/bin/python`, which is exactly the location this
-document advises against — set the YAML key rather than relying on it. If the
-path is missing or the import
-fails, every autoprof arm is reported as `status="skipped"` with a
-clear regeneration hint — the rest of the campaign continues.
+That canonical path is also the built-in default, defined once in
+`benchmarks/autoprof_env.py`, so a venv installed as §0 describes needs no
+configuration. Set `tools.autoprof.venv_python` only to point at a different
+environment. If the path is missing or the import fails, every autoprof arm is
+reported as `status="skipped"` with a regeneration hint that prints the install
+commands — the rest of the campaign continues.
 
 ## 8. Parallel Execution
 

@@ -4,16 +4,17 @@ Provides functions to run AutoProf isophote fitting with controlled initial
 parameters (bypassing automatic background/center/PSF steps) and parse
 the resulting profile into a standardized format comparable with isoster output.
 
-AutoProf requires numpy <2 and photutils 1.5, which conflicts with isoster's
+AutoProf requires numpy <2 and photutils <=1.5, which conflicts with isoster's
 numpy 2.x environment.  This adapter runs AutoProf via subprocess using the
-system Python (miniforge3) where AutoProf is installed, then parses the
-resulting .prof file back in the isoster environment.
+interpreter of an isolated virtual environment, then parses the resulting
+.prof file back in the isoster environment.  See benchmarks/autoprof_env.py
+for where that interpreter is looked up and benchmarks/exhausted/README.md
+for the install recipe.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import textwrap
 from math import degrees, radians
@@ -22,11 +23,12 @@ from typing import Optional
 
 import numpy as np
 
-# System Python where AutoProf is installed (numpy 1.x environment).
-# Configurable via AUTOPROF_PYTHON environment variable.
-AUTOPROF_PYTHON = os.environ.get(
-    "AUTOPROF_PYTHON", "/Users/shuang/miniconda3/bin/python3"
-)
+from benchmarks.autoprof_env import resolve_autoprof_python
+
+# Interpreter of the isolated venv where AutoProf is installed (numpy 1.x).
+# Override for a shell session with the AUTOPROF_PYTHON environment variable;
+# the default and the resolution rules live in benchmarks/autoprof_env.py.
+AUTOPROF_PYTHON = resolve_autoprof_python()
 
 
 def check_autoprof_available() -> bool:
@@ -338,13 +340,9 @@ def parse_autoprof_profile(
         # Try csv format first (handles the two-header-line case),
         # fall back to commented_header.
         try:
-            table = Table.read(
-                str(prof_path), format="ascii.csv", comment="#"
-            )
+            table = Table.read(str(prof_path), format="ascii.csv", comment="#")
         except Exception:
-            table = Table.read(
-                str(prof_path), format="ascii.commented_header"
-            )
+            table = Table.read(str(prof_path), format="ascii.commented_header")
     except Exception as exc:
         print(f"Failed to parse .prof file {prof_path}: {exc}")
         return None
@@ -407,14 +405,8 @@ def parse_autoprof_profile(
             intens_err = intens * ie_raw * np.log(10.0) / 2.5
     else:
         intens_err = np.full_like(sma, np.nan)
-    eps_err = (
-        np.array(table[ellip_e_col], dtype=float)
-        if ellip_e_col else np.full_like(sma, np.nan)
-    )
-    pa_err = (
-        np.radians(np.array(table[pa_e_col], dtype=float))
-        if pa_e_col else np.full_like(sma, np.nan)
-    )
+    eps_err = np.array(table[ellip_e_col], dtype=float) if ellip_e_col else np.full_like(sma, np.nan)
+    pa_err = np.radians(np.array(table[pa_e_col], dtype=float)) if pa_e_col else np.full_like(sma, np.nan)
 
     # Higher-order Fourier harmonics (optional, present when
     # ap_iso_measurecoefs is set).  AutoProf names them a3, b3, a4, b4, etc.
@@ -480,6 +472,7 @@ def parse_autoprof_center(aux_path: str | Path) -> tuple[float, float] | None:
             if line.startswith("option ap_set_center:"):
                 # Format: option ap_set_center: {'x': 128.79, 'y': 129.54}
                 import ast
+
                 dict_str = line.split(":", 1)[1].strip()
                 center = ast.literal_eval(dict_str)
                 return float(center["x"]), float(center["y"])

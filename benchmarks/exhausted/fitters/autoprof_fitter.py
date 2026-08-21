@@ -26,6 +26,11 @@ import numpy as np
 import yaml
 from astropy.io import fits
 
+from benchmarks.autoprof_env import (
+    DEFAULT_AUTOPROF_VENV_PYTHON,
+    autoprof_install_hint,
+    resolve_autoprof_python,
+)
 from isoster import build_isoster_model
 from isoster.plotting import plot_qa_summary
 from isoster.utils import isophote_results_to_fits
@@ -137,7 +142,7 @@ def run_one_arm(
     write_model_fits: bool = True,
     sb_profile_scale: str = "log10",
     sb_asinh_softening: float | None = None,
-    venv_python: str = "/tmp/autoprof_venv/bin/python",
+    venv_python: str = DEFAULT_AUTOPROF_VENV_PYTHON,
     timeout: int = 300,
 ) -> dict[str, Any]:
     """Run one ``(galaxy, autoprof-arm)`` pair. Returns an inventory row."""
@@ -205,7 +210,7 @@ def run_one_arm(
     autoprof_log_path = raw_dir / f"{galaxy_tag}_autoprof.log"
     status_path = raw_dir / f"{galaxy_tag}_status.json"
 
-    venv_python_resolved = str(Path(venv_python).expanduser())
+    venv_python_resolved = resolve_autoprof_python(venv_python)
 
     def _invoke_once() -> tuple[int, str, float]:
         fit_start = time.perf_counter()
@@ -447,10 +452,12 @@ def _probe_venv(venv_python: str) -> str | None:
     """Return ``None`` if the venv can import autoprof; otherwise a skip reason.
 
     Result cached per ``venv_python`` path so only the first arm on the
-    first galaxy pays the probe cost. ``~`` is expanded via
-    :meth:`Path.expanduser` so YAMLs and CLI args can use ``~/.venvs/...``.
+    first galaxy pays the probe cost. The path goes through
+    :func:`resolve_autoprof_python`, so YAMLs and CLI args may use
+    ``~/.venvs/...`` and an unset value falls back to ``AUTOPROF_PYTHON``
+    and then to the canonical default.
     """
-    venv_path = Path(venv_python).expanduser()
+    venv_path = Path(resolve_autoprof_python(venv_python))
     cache_key = str(venv_path)
     cached = _VENV_PROBE_CACHE.get(cache_key)
     if cached == "OK":
@@ -458,11 +465,7 @@ def _probe_venv(venv_python: str) -> str | None:
     if cached is not None:
         return cached
     if not venv_path.is_file():
-        reason = (
-            f"autoprof venv python not found: {venv_path}. "
-            f"Create it with `python -m venv {venv_path.parents[1]}` "
-            f"and `pip install autoprof`, then re-run."
-        )
+        reason = autoprof_install_hint(venv_path)
         _VENV_PROBE_CACHE[cache_key] = reason
         return reason
     try:
