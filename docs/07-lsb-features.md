@@ -383,7 +383,7 @@ Neither feature touches the sampling path (`sampling.py`) or the harmonic
 solvers (`fitting.py`'s coefficient math). Both are mode-agnostic by
 construction:
 
-- `use_eccentric_anomaly=True` (uniform arc-length sampling, recommended
+- `use_eccentric_anomaly=True` (more even sampling around elongated isophotes, recommended
   for high ε) — the gradient diagnostics that drive the detector are
   computed the same way; the selector penalty is unchanged.
 - `simultaneous_harmonics=True` (ISOFIT mode, Ciambur 2015 joint fit) —
@@ -693,7 +693,7 @@ compatibility with existing modes. Sibling test
 shape, reference building, fallback on `minsma >= sma0`, `fix_center`
 warning, forced-photo guard.
 
-The full suite is 700 passing (5 deselected) as of 2026-07-19.
+The full suite is 951 passing, 1 skipped (5 deselected) as of 2026-08-21; regenerate with `uv run pytest tests/ --collect-only -q | tail -2` rather than trusting this figure.
 
 ## 7. Future work
 

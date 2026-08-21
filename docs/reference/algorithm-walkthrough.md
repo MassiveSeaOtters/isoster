@@ -174,8 +174,11 @@ flowchart LR
 ```
 
 *Figure 3 — The two angular conventions for harmonic sampling.
-Uniform-in-ψ sampling gives uniform arc-length coverage on highly
-elliptical isophotes, which is the motivation for Ciambur 2015.*
+Stepping ψ uniformly distributes samples more evenly around a highly
+elliptical isophote than stepping φ — though not exactly uniformly in
+arc length — which is one of the two motivations for Ciambur 2015. The
+other, and the stronger one, is that the geometry corrections are
+themselves derived in ψ.*
 
 !!! info "When to switch on EA mode"
     Recommended for ellipticity above ~0.3 and required for edge-on

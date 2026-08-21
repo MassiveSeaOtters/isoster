@@ -35,12 +35,15 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DRAFT_DIR = REPO_ROOT / "docs" / "publication" / "draft"
+# The published technical chapter, which is the tracked home of this text. It
+# used to live in a gitignored draft directory while a stale copy was the thing
+# actually served to readers; the checks then guarded the copy nobody read.
+DRAFT_DIR = REPO_ROOT / "docs" / "technical"
 DEFAULT_RESULTS = Path(__file__).resolve().parent / "reference_timings.json"
 
-SPEED = "section-1.3-why-fast.md"
-EA = "section-1.4.1-eccentric-anomaly-isofit.md"
-ROADMAP = "section-1.6-limitations-roadmap.md"
+SPEED = "1.3-why-fast.md"
+EA = "1.4.1-eccentric-anomaly-isofit.md"
+ROADMAP = "1.6-limitations-roadmap.md"
 
 Check = Tuple[str, str, str]  # (name, filename, expected verbatim text)
 
@@ -57,7 +60,7 @@ def _squash(text: str) -> str:
 
 def _load_draft() -> Dict[str, str]:
     if not DRAFT_DIR.is_dir():
-        raise SystemExit(f"draft directory not found: {DRAFT_DIR} (it is gitignored; nothing to check)")
+        raise SystemExit(f"technical chapter not found: {DRAFT_DIR}")
     return {path.name: path.read_text() for path in DRAFT_DIR.glob("*.md")}
 
 

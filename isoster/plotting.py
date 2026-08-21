@@ -1269,7 +1269,7 @@ def plot_qa_summary(
             facecolors="#1f77b4",
             edgecolors="#1f77b4",
             alpha=0.7,
-            label=r"$A_3^{\mathrm{n}}$",
+            label=r"$a_3$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1279,7 +1279,7 @@ def plot_qa_summary(
             facecolors="none",
             edgecolors="#1f77b4",
             alpha=0.7,
-            label=r"$B_3^{\mathrm{n}}$",
+            label=r"$b_3$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1289,7 +1289,7 @@ def plot_qa_summary(
             facecolors="#d62728",
             edgecolors="#d62728",
             alpha=0.7,
-            label=r"$A_4^{\mathrm{n}}$",
+            label=r"$a_4$",
         )
         ax_harm.scatter(
             x_axis[valid_mask],
@@ -1299,7 +1299,7 @@ def plot_qa_summary(
             facecolors="none",
             edgecolors="#d62728",
             alpha=0.7,
-            label=r"$B_4^{\mathrm{n}}$",
+            label=r"$b_4$",
         )
         harm_values = np.concatenate(
             [
@@ -1316,7 +1316,7 @@ def plot_qa_summary(
             min_margin=0.005,
         )
         ax_harm.axhline(0.0, color="gray", linestyle=":", linewidth=0.8, alpha=0.6)
-        ax_harm.set_ylabel(r"$A_n$ or $B_n$ (norm)")
+        ax_harm.set_ylabel(r"$a_n, b_n$")
         ax_harm.legend(loc="upper right", fontsize=12, ncol=4)
         ax_harm.grid(alpha=0.25)
 
@@ -1377,7 +1377,6 @@ def plot_qa_summary_extended(
     *,
     harmonic_orders: list[int] | None = None,
     harmonic_mode: str = "coefficients",
-    normalize_harmonics: bool = False,
     relative_residual: bool = False,
     mask=None,
     filename="qa_summary_extended.png",
@@ -1410,9 +1409,6 @@ def plot_qa_summary_extended(
         ``'coefficients'`` (default) shows individual ``a_n`` (filled) and
         ``b_n`` (open) per order.  ``'amplitude'`` shows
         ``A_n = sqrt(a_n^2 + b_n^2)`` per order.
-    normalize_harmonics : bool
-        Only used when ``harmonic_mode='amplitude'``.  When True, shows
-        ``A_n / I`` instead of raw ``A_n``.
     relative_residual : bool
         When False (default), the residual map shows ``data - model``
         (absolute).  When True, shows ``100 * (model - data) / data``
@@ -1479,8 +1475,6 @@ def plot_qa_summary_extended(
     median_y0 = np.nanmedian(i_y0[valid_mask]) if np.any(valid_mask) else 0.0
     i_dx = i_x0 - median_x0
     i_dy = i_y0 - median_y0
-
-    safe_intens = np.where(np.isfinite(i_intens) & (i_intens > 0.0), i_intens, np.nan)
 
     # 6 panels: SB, centroid, b/a, PA, odd harmonics, even harmonics
     n_panels = 6
@@ -1707,11 +1701,13 @@ def plot_qa_summary_extended(
             mrk = order_markers[idx_o % len(order_markers)]
 
             if harmonic_mode == "amplitude":
-                # A_n = sqrt(a_n^2 + b_n^2), optionally normalized by I
+                # A_n = sqrt(a_n^2 + b_n^2). The stored a_n / b_n are already
+                # Bender-normalized by compute_deviations (divided by
+                # sma * abs(gradient)), so A_n is dimensionless as it stands and
+                # must not be normalized again -- see the note in the module
+                # docstring of isoster/_shared.py.
                 amplitude = np.sqrt(np.where(np.isfinite(an), an, 0.0) ** 2 + np.where(np.isfinite(bn), bn, 0.0) ** 2)
                 amplitude[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    amplitude = amplitude / safe_intens
                 show = valid_mask & np.isfinite(amplitude)
                 if np.any(show):
                     ax.scatter(
@@ -1722,7 +1718,7 @@ def plot_qa_summary_extended(
                         facecolors=col,
                         edgecolors=col,
                         alpha=0.75,
-                        label=f"$A_{{{order}}}$",
+                        label=f"$n={order}$",
                     )
                     all_values.append(amplitude[show])
             else:
@@ -1767,10 +1763,7 @@ def plot_qa_summary_extended(
 
         # Y-axis label
         if harmonic_mode == "amplitude":
-            if normalize_harmonics:
-                ax.set_ylabel(f"$A_n / I$ ({panel_label})")
-            else:
-                ax.set_ylabel(f"$A_n$ ({panel_label})")
+            ax.set_ylabel(f"$\\sqrt{{a_n^2 + b_n^2}}$ ({panel_label})")
         else:
             ax.set_ylabel(f"$a_n, b_n$ ({panel_label})")
 

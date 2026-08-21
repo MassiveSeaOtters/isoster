@@ -77,9 +77,13 @@ flowchart LR
     valid and stays in the ring, inflating the reported gradient
     error by orders of magnitude instead of removing the pixel.
 
-    WLS error bars are typically 1.2–2.1× larger than OLS for outer
-    isophotes — that reflects realistic per-pixel noise rather than
-    fit-residual scatter. The OLS path is byte-identical when
+    WLS error bars are not systematically larger or smaller than OLS:
+    under independent samples with a common, correctly specified
+    variance the two have the same expected covariance, and they
+    diverge only where those assumptions fail. What WLS buys is error
+    bars traceable to a stated noise model rather than to residual
+    scatter that mixes photon noise with unfitted structure. The OLS
+    path is byte-identical when
     `variance_map=None`, so there is no downside to passing one
     when it exists. See
     [variance-aware fitting](../technical/1.4.2-variance-aware-fitting.md)
@@ -96,7 +100,7 @@ upgrade.
 flowchart TD
     G([What does the galaxy look like?]) --> Round{"Mostly round,<br/>eps &lt; 0.3?"}
     Round -- yes --> Default["Defaults are fine.<br/>compute_deviations = True<br/>for a3, b3, a4, b4 post-hoc."]
-    Round -- no --> HighEps["use_eccentric_anomaly = True<br/>(uniform arc-length sampling)"]
+    Round -- no --> HighEps["use_eccentric_anomaly = True<br/>(more even sampling in ψ)"]
     HighEps --> Shape{"Strong non-elliptical<br/>structure?"}
     Shape -- "edge-on disk" --> Edge["+ harmonic_orders = [3, 4]<br/>(default is enough)<br/>+ relax maxgerr ≈ 1.0–1.2"]
     Shape -- "X-shaped / peanut bulge" --> XB["+ simultaneous_harmonics = True<br/>+ isofit_mode = 'in_loop'<br/>+ harmonic_orders = [3, 4, 6]"]
@@ -119,16 +123,19 @@ flowchart TD
     ```python
     config = IsosterConfig(
         sma0=10.0, maxsma=200.0,
-        use_eccentric_anomaly=True, # uniform arc-length sampling in ψ
+        use_eccentric_anomaly=True, # step ψ uniformly, not the position angle
         compute_deviations=True,
         maxgerr=1.0,                # relax for high-eps gradient noise
     )
     ```
 
     Uniform-in-φ sampling under-samples the major axis on highly
-    elliptical isophotes. Switching to ψ-space sampling gives
-    uniform arc-length coverage; geometry updates remain in
-    φ-space, so the output schema is unchanged. See
+    elliptical isophotes. Stepping ψ instead distributes samples more
+    evenly, though not exactly uniformly in arc length. The harmonics
+    are then fitted in ψ and the geometry update consumes those
+    coefficients directly — there is no conversion back to φ — which
+    is correct rather than approximate. The output schema is
+    unchanged. See
     [eccentric anomaly + ISOFIT](../technical/1.4.1-eccentric-anomaly-isofit.md)
     in the technical chapter.
 

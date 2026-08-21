@@ -75,20 +75,37 @@ the same colour.
 
 ### Alternative: Amplitude mode (`harmonic_mode='amplitude'`)
 
-Shows `A_n = sqrt(a_n^2 + b_n^2)` per order.  Optionally normalize by
-intensity with `normalize_harmonics=True` to get `A_n / I`.
+Shows `A_n = sqrt(a_n^2 + b_n^2)` per order, where `a_n` and `b_n` are the
+values stored in the results dict — already Bender-normalized (see below), so
+`A_n` is dimensionless as plotted. The panels are labelled
+`sqrt(a_n^2 + b_n^2)` accordingly — the quantity actually computed, with no
+further division.
+
+There is deliberately no option to normalize again. A `normalize_harmonics`
+flag that divided by intensity existed until 1.0.0 and was removed: since the
+stored values are already normalized, it produced `A_n_raw / (a · |dI/da| · I)`
+— a quantity with units of one over intensity, whose value changes with the
+image's flux calibration even though the galaxy's shape does not.
 
 ### a4 panel
 
-A dedicated `a4` panel always shows the **raw** `a4` coefficient (not
-normalized) as the canonical boxy/disky morphology indicator:
-positive = disky, negative = boxy.
+A dedicated `a4` panel shows the stored `a4` coefficient as the canonical
+boxy/disky morphology indicator: positive = disky, negative = boxy.
+
+**These coefficients are not raw.** `compute_deviations` divides by
+`a · |dI/da|` before storing, so `a4` as reported is the Bender-normalized,
+scale-invariant quantity. This matters for interpretation: raw amplitudes
+scale with local flux and are not comparable across a profile or between
+galaxies, whereas these are. An earlier version of this README described them
+as raw.
 
 ## Residual Map
 
 The per-condition QA figure shows a residual map panel.  By default it displays
 the **absolute** residual `data - model`.  Set `relative_residual=True` to show
-the fractional residual `(data - model) / data` instead.
+the fractional residual as a percentage, `100 * (model - data) / data`. Note the
+sign convention differs between the two: the relative form is model-minus-data,
+matching `isoster/plotting.py`.
 
 ## Masking
 

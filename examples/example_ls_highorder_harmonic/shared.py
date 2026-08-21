@@ -14,11 +14,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.lines import Line2D
+import matplotlib.pyplot as plt
+import numpy as np
 from astropy.io import fits
+from matplotlib.lines import Line2D
 
 from isoster.config import IsosterConfig
 from isoster.model import build_isoster_model
@@ -65,14 +65,14 @@ INITIAL_SMA = {
 MASK_PARAMS: dict[str, dict[str, Any]] = {
     "eso243-49": dict(
         on_galaxy=True,
-        on_galaxy_box=8,    # small box tracks local galaxy gradients
+        on_galaxy_box=8,  # small box tracks local galaxy gradients
         on_galaxy_filter=3,
         on_galaxy_npixels=10,
         on_galaxy_dilate_fwhm=8.0,
     ),
     "ngc3610": dict(
         on_galaxy=True,
-        on_galaxy_box=8,    # small box tracks local galaxy gradients
+        on_galaxy_box=8,  # small box tracks local galaxy gradients
         on_galaxy_npixels=10,
         on_galaxy_dilate_fwhm=8.0,
     ),
@@ -175,6 +175,7 @@ def make_isoster_configs(galaxy: str, sma0: float | None = None) -> dict[str, Is
 # Data loading
 # ---------------------------------------------------------------------------
 
+
 def load_legacysurvey_fits(
     fits_path: str | Path,
     band_index: int,
@@ -223,6 +224,7 @@ def load_legacysurvey_fits(
 # Cross-condition comparison figure
 # ---------------------------------------------------------------------------
 
+
 def plot_harmonic_comparison_qa(
     galaxy: str,
     image: np.ndarray,
@@ -231,7 +233,6 @@ def plot_harmonic_comparison_qa(
     *,
     condition_models: dict[str, np.ndarray] | None = None,
     harmonic_mode: str = "coefficients",
-    normalize_harmonics: bool = False,
     filename: str = "comparison_qa.png",
 ) -> None:
     """All-condition comparison figure for a single galaxy/band.
@@ -265,9 +266,6 @@ def plot_harmonic_comparison_qa(
     harmonic_mode : str
         ``'coefficients'`` (default) shows ``a_n`` (filled) per condition.
         ``'amplitude'`` shows ``A_n = sqrt(a_n^2 + b_n^2)`` per condition.
-    normalize_harmonics : bool
-        Only used when ``harmonic_mode='amplitude'``.  When True, shows
-        ``A_n / I`` instead of raw ``A_n``.
     filename : str
         Output path.
     """
@@ -298,7 +296,8 @@ def plot_harmonic_comparison_qa(
             # Build model on the fly (auto-detects harmonic orders and EA mode)
             res = condition_results[cond]
             models[cond] = build_isoster_model(
-                image.shape, res,
+                image.shape,
+                res,
                 use_harmonics=True,
             )
 
@@ -310,26 +309,35 @@ def plot_harmonic_comparison_qa(
     fig = plt.figure(figsize=(14.0, fig_height))
 
     outer = gridspec.GridSpec(
-        2, 1, figure=fig,
+        2,
+        1,
+        figure=fig,
         height_ratios=[1.6, float(n_profile_rows)],
         hspace=0.12,
     )
 
     # Top: 6 residual panels in one row
     top = gridspec.GridSpecFromSubplotSpec(
-        1, n_conditions, subplot_spec=outer[0], wspace=0.05,
+        1,
+        n_conditions,
+        subplot_spec=outer[0],
+        wspace=0.05,
     )
 
     # Bottom: profile panels
     profile_height_ratios = [2.5, 1.2, 1.2, 1.2, 1.2]
     bottom = gridspec.GridSpecFromSubplotSpec(
-        n_profile_rows, 1, subplot_spec=outer[1],
-        height_ratios=profile_height_ratios, hspace=0.0,
+        n_profile_rows,
+        1,
+        subplot_spec=outer[1],
+        height_ratios=profile_height_ratios,
+        hspace=0.0,
     )
 
     fig.suptitle(
         f"{galaxy.upper()}  —  harmonic conditions comparison",
-        fontsize=16, y=0.995,
+        fontsize=16,
+        y=0.995,
     )
 
     # Compute shared residual colour scale across all conditions
@@ -338,9 +346,13 @@ def plot_harmonic_comparison_qa(
         res_map = np.where(np.isfinite(image), image - models[cond], np.nan)
         all_residuals.append(res_map)
     all_abs = np.abs(np.concatenate([r[np.isfinite(r)] for r in all_residuals]))
-    res_limit = float(np.clip(
-        np.nanpercentile(all_abs, 99.0) if all_abs.size else 1.0, 0.05, None,
-    ))
+    res_limit = float(
+        np.clip(
+            np.nanpercentile(all_abs, 99.0) if all_abs.size else 1.0,
+            0.05,
+            None,
+        )
+    )
 
     # ------------------------------------------------------------------
     # Top row: residual panels (data - model)
@@ -349,8 +361,12 @@ def plot_harmonic_comparison_qa(
         ax_im = fig.add_subplot(top[0, col])
         residual_map = all_residuals[col]
         ax_im.imshow(
-            residual_map, origin="lower", cmap="coolwarm",
-            vmin=-res_limit, vmax=res_limit, interpolation="nearest",
+            residual_map,
+            origin="lower",
+            cmap="coolwarm",
+            vmin=-res_limit,
+            vmax=res_limit,
+            interpolation="nearest",
         )
         ax_im.set_title(CONDITION_DISPLAY[cond], fontsize=9, pad=2)
         ax_im.set_xticks([])
@@ -379,9 +395,8 @@ def plot_harmonic_comparison_qa(
         pa_rad = _arr(res, "pa")
         stop = _arr(res, "stop_code", 0).astype(int)
 
-        xax = sma ** 0.25
+        xax = sma**0.25
         vm = np.isfinite(xax) & (sma > 1.0)
-        safe_i = np.where(np.isfinite(intens) & (intens > 0.0), intens, np.nan)
 
         col = CONDITION_COLORS[cond]
         mrk = CONDITION_MARKERS[cond]
@@ -395,69 +410,51 @@ def plot_harmonic_comparison_qa(
         sb_ok = vm & np.isfinite(intens) & (intens > 0)
         y_sb = np.full_like(intens, np.nan)
         y_sb[sb_ok] = np.log10(intens[sb_ok])
-        ax_sb.scatter(xax[sb_ok], y_sb[sb_ok],
-                      facecolors=col, edgecolors=col, **scatter_kw, label=label)
+        ax_sb.scatter(xax[sb_ok], y_sb[sb_ok], facecolors=col, edgecolors=col, **scatter_kw, label=label)
 
         # 2. Odd harmonics — show a_n (filled) per condition
         for order in odd_orders:
             an = _arr(res, f"a{order}")
             bn = _arr(res, f"b{order}")
             if harmonic_mode == "amplitude":
-                vals = np.sqrt(
-                    np.where(np.isfinite(an), an, 0.0) ** 2
-                    + np.where(np.isfinite(bn), bn, 0.0) ** 2
-                )
+                vals = np.sqrt(np.where(np.isfinite(an), an, 0.0) ** 2 + np.where(np.isfinite(bn), bn, 0.0) ** 2)
                 vals[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    vals = vals / safe_i
             else:
                 vals = an  # show a_n only in comparison (b_n too crowded)
             ok = vm & np.isfinite(vals)
             if np.any(ok):
-                ax_odd.scatter(xax[ok], vals[ok],
-                               facecolors=col, edgecolors=col, **scatter_kw)
+                ax_odd.scatter(xax[ok], vals[ok], facecolors=col, edgecolors=col, **scatter_kw)
 
         # 3. Even harmonics
         for order in even_orders:
             an = _arr(res, f"a{order}")
             bn = _arr(res, f"b{order}")
             if harmonic_mode == "amplitude":
-                vals = np.sqrt(
-                    np.where(np.isfinite(an), an, 0.0) ** 2
-                    + np.where(np.isfinite(bn), bn, 0.0) ** 2
-                )
+                vals = np.sqrt(np.where(np.isfinite(an), an, 0.0) ** 2 + np.where(np.isfinite(bn), bn, 0.0) ** 2)
                 vals[~(np.isfinite(an) & np.isfinite(bn))] = np.nan
-                if normalize_harmonics:
-                    vals = vals / safe_i
             else:
                 vals = an
             ok = vm & np.isfinite(vals)
             if np.any(ok):
-                ax_even.scatter(xax[ok], vals[ok],
-                                facecolors=col, edgecolors=col, **scatter_kw)
+                ax_even.scatter(xax[ok], vals[ok], facecolors=col, edgecolors=col, **scatter_kw)
 
         # 4. Axis ratio
         ba = 1.0 - eps
-        ax_ba.scatter(xax[vm & good], ba[vm & good],
-                      facecolors=col, edgecolors=col, **scatter_kw)
+        ax_ba.scatter(xax[vm & good], ba[vm & good], facecolors=col, edgecolors=col, **scatter_kw)
 
         # 5. PA
         pa_deg = normalize_pa_degrees(np.degrees(pa_rad))
-        ax_pa_panel.scatter(xax[vm & good], pa_deg[vm & good],
-                            facecolors=col, edgecolors=col, **scatter_kw)
+        ax_pa_panel.scatter(xax[vm & good], pa_deg[vm & good], facecolors=col, edgecolors=col, **scatter_kw)
 
-        legend_handles.append(
-            Line2D([], [], marker=mrk, linestyle="None",
-                   color=col, markersize=6, label=label)
-        )
+        legend_handles.append(Line2D([], [], marker=mrk, linestyle="None", color=col, markersize=6, label=label))
 
     # Axis labels / formatting
     ax_sb.set_ylabel(r"$\log_{10}(I)$")
     ax_sb.set_title("Surface brightness")
 
     if harmonic_mode == "amplitude":
-        odd_label = r"$A_n / I$" if normalize_harmonics else r"$A_n$"
-        even_label = r"$A_n / I$" if normalize_harmonics else r"$A_n$"
+        odd_label = r"$\sqrt{a_n^2 + b_n^2}$"
+        even_label = r"$\sqrt{a_n^2 + b_n^2}$"
     else:
         odd_label = r"$a_n$"
         even_label = r"$a_n$"
@@ -490,8 +487,7 @@ def plot_harmonic_comparison_qa(
 
     # Robust y-limits
     for ax, collect_fn, clip_lo, clip_hi in [
-        (ax_sb, lambda c, r: np.log10(np.maximum(_arr(r, "intens"), 1e-30)),
-         None, None),
+        (ax_sb, lambda c, r: np.log10(np.maximum(_arr(r, "intens"), 1e-30)), None, None),
         (ax_ba, lambda c, r: 1.0 - _arr(r, "eps"), 0.0, 1.0),
     ]:
         vals = []
@@ -507,8 +503,12 @@ def plot_harmonic_comparison_qa(
         if vals:
             cat = np.concatenate(vals)
             set_axis_limits_from_finite_values(
-                ax, cat, margin_fraction=0.06, min_margin=0.05,
-                lower_clip=clip_lo, upper_clip=clip_hi,
+                ax,
+                cat,
+                margin_fraction=0.06,
+                min_margin=0.05,
+                lower_clip=clip_lo,
+                upper_clip=clip_hi,
             )
 
     # PA limits from stop=0 points only
@@ -530,8 +530,11 @@ def plot_harmonic_comparison_qa(
 
     # Legend on SB panel
     ax_sb.legend(
-        handles=legend_handles, loc="upper right", fontsize=9,
-        ncol=2, frameon=True,
+        handles=legend_handles,
+        loc="upper right",
+        fontsize=9,
+        ncol=2,
+        frameon=True,
     )
 
     fig.subplots_adjust(left=0.07, right=0.97, bottom=0.05, top=0.970, hspace=0.04)

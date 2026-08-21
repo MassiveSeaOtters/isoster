@@ -8,6 +8,12 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
+      - "benchmarks/draft_timings/**"
+      - "benchmarks/performance/reference_speedup.json"
+      - "benchmarks/performance/check_speedup_claims.py"
+      - "README.md"
+      - "CITATION.cff"
+      - "CLAUDE.md"
       - "pyproject.toml"
       - "uv.lock"
   workflow_dispatch:
@@ -38,6 +44,19 @@ jobs:
 
       - name: Sync docs environment
         run: uv sync --extra docs
+
+      - name: Check the technical chapter against the archived measurements
+        # The chapter quotes timings transcribed from
+        # benchmarks/draft_timings/reference_timings.json. A transcription that
+        # drifts still looks measured, so fail the build rather than publish it.
+        run: uv run python benchmarks/draft_timings/check_draft_numbers.py
+
+      - name: Check the quoted photutils speedups against the archived sweep
+        # The README/CLAUDE.md/CITATION.cff speedup figures are transcribed by
+        # hand from benchmarks/performance/reference_speedup.json. Same
+        # contract as the check above, for the one headline number that lives
+        # outside the technical chapter.
+        run: uv run python benchmarks/performance/check_speedup_claims.py
 
       - name: Build site (strict)
         run: uv run mkdocs build --strict

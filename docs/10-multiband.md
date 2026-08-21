@@ -12,10 +12,10 @@
 > campaign (joint-WLS gradient pooling, geometry-parameterised solve,
 > shared-*shape* higher harmonics, `loose_validity` repair) merged to
 > `main` on 2026-08-15. See
-> `docs/agent/plan-2026-04-29-multiband-feasibility.md` for the locked
+> `docs/agent/plan-2026-04-29-multiband-feasibility.md` (agent-internal, not published) for the locked
 > design record (24 decisions captured from a structured interview
 > before any code was written) and
-> `docs/agent/plans/2026-08-14-multiband-maturity.md` for the maturity
+> `docs/agent/plans/2026-08-14-multiband-maturity.md` (agent-internal, not published) for the maturity
 > campaign.
 
 ## Status
@@ -25,14 +25,24 @@ geometry-parameterised solve and `independent` higher harmonics, in OLS or WLS �
 is **supported**, not experimental, as of 2026-08-15. Two features keep their own
 warnings and are called out where they appear below:
 
-- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`,
-  because the single-band equivalent has benchmark regressions;
-- `loose_validity=True`, which is repaired and tested end to end but not yet
-  the default.
+- `multiband_higher_harmonics ∈ {simultaneous_in_loop, simultaneous_original}`
+  are **experimental** and emit a `UserWarning` when selected, because the
+  single-band equivalent has benchmark regressions;
+- `loose_validity=True` is **supported but non-default**. It is repaired and
+  tested end to end, and it does *not* warn. It is a masking-policy choice
+  (§"Validity policy" below), not an unfinished feature.
 
-Real-data validation is concentrated on a small number of targets, and the B=5
-path has synthetic coverage only — the asteris five-band cutouts are not
-available on the development machine.
+Real-data validation is concentrated on a small number of targets. The B=5
+results quoted below (the Performance section and the Stage-1 performance bar)
+**were** measured on real five-band asteris cutouts, in May 2026, but that data
+is not present on the current development machine: those numbers are historical
+and cannot be re-run here. They are labelled where they appear. Ongoing,
+reproducible B=5 coverage is synthetic only.
+
+Unlike the timings in the technical chapter, none of the multi-band numbers on
+this page are produced by a committed harness or checked against an archive.
+Treat them as recorded measurements with a date attached, not as reproducible
+results.
 
 ## Shared higher harmonics mean a shared *shape*
 
@@ -120,9 +130,12 @@ pre-merge review pass.
 
 4. **Bender-normalized harmonics are required for interpretation.** Raw
    `a_n_<b>` / `b_n_<b>` values scale with local flux and are NOT
-   directly comparable across bands or rings. Always plot
-   `A_n_norm = -A_n / (a · dI/da_b)` per band. The repo plotting helpers
-   enforce this convention (see `CLAUDE.md`).
+   directly comparable across bands or rings. Under the raw-storage modes
+   (`shared`, `simultaneous_*`) always plot `-A_n_raw / (a · dI/da_b)` per
+   band — the signed per-band gradient. Under `independent` the stored values
+   are already normalized and must be plotted as they are. The repo plotting
+   helpers pick the right branch from `result['harmonics_shared']`
+   (see `CLAUDE.md`).
 
 5. **PSF-matched inputs assumed.** No PSF handling in the driver. If
    the per-band PSFs differ, isophotes whose SMA is comparable to the
@@ -223,9 +236,19 @@ pre-merge review pass.
 simultaneously on multiple aligned, same-pixel-grid images of the same
 target (e.g. HSC g/r/i/z/y coadds). It produces a **single shared
 geometry per SMA** with **per-band intensities and per-band harmonic
-deviations**. This replaces the traditional forced-photometry workflow
-("fit one band, apply the geometry to others") with a joint fit where
-every band contributes to the geometry.
+deviations**.
+
+This *complements* the traditional forced-photometry workflow ("fit one
+band, apply that geometry to the others") rather than replacing it,
+because the two estimate different quantities. Forced photometry
+measures each band through the reference band's geometry, which is what
+you want when the reference geometry is the definition of the aperture.
+The joint fit measures one geometry to which every band contributes,
+which is what you want when the geometry itself is the target and no
+single band should define it. Where the galaxy's morphology genuinely
+differs between bands, neither is "unbiased" in the abstract — they
+answer different questions. The demonstrated benefit of the joint fit
+is *precision* at low signal-to-noise, not unbiasedness.
 
 The joint design matrix per ellipse, B bands, N kept samples:
 
@@ -239,8 +262,10 @@ The joint design matrix per ellipse, B bands, N kept samples:
                                               [B2   ]
 ```
 
-Free parameters: `(5 + B)` per ellipse (per-band background `I0_b` plus
-shared geometric harmonic coefficients). Solved once per iteration in
+Free parameters: `(4 + B)` per ellipse — `B` per-band backgrounds `I0_b`
+plus the four shared harmonic coefficients `A1, B1, A2, B2` drawn in the
+diagram above. This matches the `(B*N, B + 4)` design-matrix shape used
+below and in the solver. Solved once per iteration in
 WLS or OLS mode. Per-band weights `w_b` enter the joint normal
 equations as a diagonal weight matrix: each band's row block
 contributes `Aᵀ W A` with `W = diag(w_b)` in OLS, or
@@ -305,6 +330,12 @@ break with no auto-translation.
 
 ## Performance
 
+> **Historical measurement (2026-05-03).** The asteris five-band cutouts are
+> not on the current development machine, so the figures in this section cannot
+> be reproduced here and are not covered by any committed archive. They are
+> retained because they are the only real-data B=5 timings taken, and are dated
+> so a reader can weigh them accordingly.
+
 On the asteris denoised dataset (768×768 cutouts, 74 isophotes, all five
 HSC bands), the joint multi-band fit runs in **~2× single-band wall
 time end-to-end** (0.49 s for B=5 vs 0.25 s for single-band on i-band,
@@ -341,16 +372,19 @@ result = fit_image_multiband(
 
 The multi-band path ships a **separate** console script ``isoster-mb``
 (entry point ``isoster.multiband.cli_mb:main``). This is intentionally a
-parallel CLI to the stable single-band ``isoster`` script: while the
-multi-band path remains experimental the two CLIs do **not** share
-implementation, so multi-band-specific fixes cannot regress the
-single-band entry point. Argument layout mirrors single-band for user
+parallel CLI to the single-band ``isoster`` script: while the multi-band
+CLI arguments and Schema-1 layout are still unstable the two CLIs do
+**not** share implementation, so multi-band-specific fixes cannot regress
+the single-band entry point. Argument layout mirrors single-band for user
 familiarity (``--config``, ``--output``, ``--x0``, ``--y0``, ``--sma0``,
 ``--fix-center``, ``--fix-eps``, ``--fix-pa``, ``--template``) but
 takes one positional FITS path per band plus a ``--bands`` flag.
 
-The CLI prints an ``EXPERIMENTAL`` banner per invocation while in beta;
-suppress with ``--quiet``.
+The CLI prints an ``UNSTABLE INTERFACE`` banner per invocation. The banner
+states that the default configuration *is* supported and that what may still
+change is the argument layout and the Schema-1 output; it also names the
+``simultaneous_*`` harmonics as the experimental part. Suppress with
+``--quiet``.
 
 ```bash
 # Joint multi-band fit (FITS output uses Schema-1 multi-HDU writer).
@@ -383,7 +417,7 @@ The ``--config`` YAML accepts any field of
 ``.fits`` (Schema-1 multi-HDU), ``.asdf`` (Stage-I native tree), or
 anything else (astropy ``Table.write`` of the per-isophote table).
 
-## Input contract (placeholder)
+## Input contract
 
 - `images`: `list[ndarray]` of length B, all of shape `(H, W)`.
 - `masks`: `None`, single `(H, W)` boolean ndarray (broadcast to all
@@ -476,8 +510,11 @@ Each isophote row carries shared columns and per-band-suffixed columns:
     experimental warning.
 
   Per-band Bender normalisation at plotting time scales the raw value
-  by ``-1/(sma·|dI/da_b|)`` and is applied only when
-  ``harmonics_shared`` is true.
+  by ``-1/(sma·grad_b)`` — the **signed** per-band gradient, per
+  ``_normalize_harmonic_for_plot`` in ``isoster/_shared.py`` — and is
+  applied only when ``harmonics_shared`` is true. Note this differs from
+  the single-band storage convention, which divides by the *absolute*
+  gradient; the two agree wherever the gradient is negative.
 - Debug-only per band: `grad_<b>, grad_error_<b>, grad_r_error_<b>`
   when `debug=True`.
 
@@ -822,7 +859,9 @@ independent reasons**:
 #### Performance bar (Stage-1 D17 / Section 6.1 Q11)
 
 All four modes must stay within ≤ 2.5× single-band wall time on the
-asteris perf benchmark. Measured on the B=5 768² cutout (2026-05-03):
+asteris perf benchmark. Measured on the B=5 768² cutout on 2026-05-03.
+**Historical:** as noted under Status, this dataset is no longer available
+locally, so the table below cannot currently be regenerated:
 
 | Configuration | Median (s) | Ratio vs SB |
 |---|---:|---:|
@@ -1379,7 +1418,7 @@ under changes to any other band.
 
 ## Testing
 
-Multi-band tests live under `tests/multiband/` (339 total, all green
+Multi-band tests live under `tests/multiband/` (443 as of 2026-08-21, all green
 as of the Phase-39 + review-pass merge). The per-module counts below
 are approximate (collected at merge time):
 

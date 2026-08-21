@@ -8,8 +8,26 @@
 # Agent-internal development docs (kept on disk, not tracked)
 docs/agent/
 
-# Publication drafting workspace (papers, references, figures — kept on disk, not tracked)
-docs/publication/
+# Publication workspace. The *source* documents are tracked: they feed the
+# method paper and the technical chapter, and keeping them untracked once cost
+# us a corrected draft that lived only on one machine. What stays out is
+# generated output and third-party material.
+#
+# Ignored inside docs/publication/:
+#   reference/*.pdf, *.txt  — third-party published papers. Large, and not ours
+#                             to redistribute. Keep on disk only.
+#   html/, latex/outputs/,
+#   latex/manuscript.pdf    — build products of build-html.py and pdflatex.
+#   draft-superseded-*/     — dead copies retained pending manual deletion.
+#
+# Note these files are tracked but still NOT published on the docs site;
+# mkdocs.yml excludes publication/ from the build.
+docs/publication/reference/*.pdf
+docs/publication/reference/*.txt
+docs/publication/html/
+docs/publication/latex/outputs/
+docs/publication/latex/manuscript.pdf
+docs/publication/draft-superseded-*/
 
 # Generated site (mkdocs build output)
 site/
@@ -42,6 +60,8 @@ outputs/
 
 # Generated image files
 *.png
+# The AASTeX ORCID badge is a build input the manuscript needs.
+!docs/publication/latex/orcid-ID.png
 
 # Python
 __pycache__/

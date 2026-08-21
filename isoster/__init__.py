@@ -1,7 +1,17 @@
+"""ISOSTER: accelerated elliptical isophote fitting for galaxy images."""
+
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+try:
+    __version__ = _pkg_version("isoster")
+except PackageNotFoundError:  # not installed (e.g. a source checkout on sys.path)
+    __version__ = "0.0.0+unknown"
+
 from .config import IsosterConfig
 from .driver import fit_image
 from .fitting import fit_isophote
-from .model import build_ellipse_model, build_isoster_model  # deprecated, removal planned for v0.3
+from .model import build_ellipse_model, build_isoster_model  # deprecated, removal planned for 2.0.0
 from .plotting import (
     METHOD_STYLES,
     build_method_profile,

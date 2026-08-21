@@ -1,7 +1,7 @@
 # QA Plotting Reference
 
 This document covers the QA plotting functions exported by `isoster.plotting`.
-For style conventions and layout rules, see `docs/agent/qa-figures.md` (internal reference).
+For style conventions and layout rules, see `docs/agent/qa-figures.md` (agent-internal, not published) — available in a source checkout, not on the published site.
 
 ## Quick Start
 
@@ -172,6 +172,35 @@ Extended QA figure with dedicated harmonic visualization panels.
 Adds odd-order (3, 5, 7) and even-order (4, 6) harmonic panels below
 the standard profile plots.
 
+**Harmonic notation used throughout ISOSTER.** Three quantities, kept
+distinct because conflating them is how coefficients get normalized twice:
+
+| Symbol | Meaning | Where it lives |
+|---|---|---|
+| $A_n^\mathrm{raw}$, $B_n^\mathrm{raw}$ | Raw fit amplitudes, in intensity units | Internal to the harmonic solve; never stored or plotted in single-band |
+| $a_n$, $b_n$ | Stored coefficients: raw amplitudes divided by $a\,\lvert dI/da\rvert$ (`sma * abs(gradient)`, `isoster/fitting.py`). Signed, dimensionless, a fractional *radial* displacement of the isophote. Coincides with the Bender form $-A_n^\mathrm{raw}/(a\,dI/da)$ whenever the gradient is negative — the normal outward-declining case — and differs from it in sign on the rare positive-gradient row | The results-dict keys `a3`, `b3`, `a4`, … |
+| $\sqrt{a_n^2 + b_n^2}$ | Combined amplitude. Non-negative and dimensionless | Computed at plot time in `harmonic_mode="amplitude"` |
+
+Lowercase means normalized: the label on a figure matches the column name in
+the results dict.
+
+`compute_deviations` performs the normalization at fit time, so the stored
+values are dimensionless as they stand and **must not be normalized a second
+time**. Note the one place the two conventions part company: the plot-time
+helper `_normalize_harmonic_for_plot`, used only by the multi-band raw paths,
+applies the signed Bender form $-A_n/(a\,dI/da)$, whereas single-band storage
+uses the absolute value. They agree except on positive-gradient rows, where
+they differ in sign. They are directly comparable across radius and across galaxies. They
+are comparable across *tools* only where the tools share the basis and the
+normalization convention. That is established for `photutils`. For AutoProf
+it is **unverified** — not known to differ, simply never checked — so its
+harmonics are excluded from published cross-tool comparisons (see
+[`technical/1.4.6`](technical/1.4.6-diagnostics-qa.md)).
+
+A `normalize_harmonics` option that divided the stored values by intensity was
+removed in 1.0.0: it produced a quantity with units of one over intensity,
+which changed if the image's flux calibration changed.
+
 ```python
 isoster.plot_qa_summary_extended(
     title,
@@ -180,7 +209,6 @@ isoster.plot_qa_summary_extended(
     isoster_res,
     harmonic_orders=None,       # auto-detect from isophote keys
     harmonic_mode="coefficients",  # "coefficients" or "amplitude"
-    normalize_harmonics=False,  # show A_n/I when mode="amplitude"
     relative_residual=False,
     mask=None,
     filename="qa_summary_extended.png",
@@ -194,7 +222,7 @@ isoster.plot_qa_summary_extended(
 | `harmonic_mode` | Display |
 |-----------------|---------|
 | `"coefficients"` | Individual a_n (filled) and b_n (open) per order |
-| `"amplitude"` | Combined A_n = sqrt(a_n^2 + b_n^2) per order |
+| `"amplitude"` | Combined amplitude `sqrt(a_n^2 + b_n^2)` per order, non-negative |
 
 ### Surface brightness convention
 

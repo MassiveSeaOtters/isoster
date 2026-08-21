@@ -23,8 +23,10 @@ band interfaces above are **not** modified.
   variance_maps=None, template_isophotes=None)` — joint free fit on
   aligned same-pixel-grid images (or forced photometry when a template is
   given). One shared geometry per SMA, per-band intensities and per-band
-  harmonic deviations. Replaces forced photometry as the multi-band
-  workflow.
+  harmonic deviations. A *complement* to forced photometry rather than a
+  replacement -- the two estimate different quantities: forced photometry
+  measures every band through the reference band's geometry, the joint fit
+  derives one geometry to which every band contributes.
 - `isoster.multiband.IsosterConfigMB` — multi-band-specific config
   (sibling of `IsosterConfig`, no inheritance, deliberately reduced field
   set). The driver validates that all inputs share one pixel grid
@@ -38,7 +40,7 @@ returns the legacy single-band schema unmodified.
 Status: **supported** for the default configuration (shared validity, joint
 intercepts, geometry-parameterised solve, `independent` higher harmonics), in
 both OLS and WLS. Promoted from experimental (beta) on 2026-08-15 after the
-maturity pass recorded in `docs/agent/plans/2026-08-14-multiband-maturity.md`:
+maturity pass recorded in `docs/agent/plans/2026-08-14-multiband-maturity.md` (agent-internal, not published):
 consistent WLS gradient weighting, a geometry-parameterised solve, full-fit
 unit invariance, planted-truth WLS coverage, repaired loose validity, a
 known-truth colour-gradient demonstration, and a B=1 parity harness over a
@@ -176,7 +178,7 @@ For each SMA in regular mode:
    - **ISOFIT path** (`simultaneous_harmonics=True`): Fit all harmonics simultaneously via `fit_all_harmonics()` using an extended design matrix `[1, sin(θ), cos(θ), sin(2θ), cos(2θ), sin(n₁θ), cos(n₁θ), ...]`. Falls back to 5-param when `n_points < 1 + 2*(2 + len(orders))`. Geometry updates use `A1, B1, A2, B2 = coeffs[1:5]` identically in both paths.
    - **WLS mode** (`variance_map` provided to `fit_image`): All harmonic fits use Weighted Least Squares with `w_i = 1/σ²_i`. The covariance matrix `(A^T W A)^-1` is exact — no residual-variance scaling is needed. This cleanly separates photon noise from galaxy structure scatter and automatically down-weights high-variance pixels (cosmic rays, hot pixels). When `variance_map=None`, the OLS path is byte-identical to the non-WLS code.
    - **Invalid-variance policy**: a variance-map entry that is not finite or not strictly positive is invalid; the corresponding sample is dropped during sampling rather than substituted with a placeholder value, so a ring's reported statistic and its reported uncertainty always describe the identical set of samples. Full policy, the retired sentinel/clamp it replaces, and its measured impact are below, in "Invalid-variance policy".
-   - **OLS covariance scaling**: under OLS the solvers return `(A^T A)^-1`, which is only a shape — it becomes a covariance after multiplication by the residual variance of the fit. That variance is computed **once**, in `fit_isophote`, from the exact fitted model evaluated at `angles` (the coordinate the coefficients were fitted in: ψ under EA sampling, φ otherwise) with `ddof = len(coeffs)`. The single value — **including the `sigma_bg**2` floor, applied at that same point** — scales both the geometry 5×5 block and the higher-order harmonic errors, so one fit yields one error scale. It reaches `compute_parameter_errors` through its `residual_variance=` keyword; that call deliberately does **not** pass `var_residual_floor`, since the floor is already applied. Evaluating the model at `phi` under EA sampling, or using the truncated 5-term model to rescale an ISOFIT `in_loop` fit, both produce internally inconsistent uncertainties — see `docs/agent/journal/2026-08-12_ea-ols-review.md`.
+   - **OLS covariance scaling**: under OLS the solvers return `(A^T A)^-1`, which is only a shape — it becomes a covariance after multiplication by the residual variance of the fit. That variance is computed **once**, in `fit_isophote`, from the exact fitted model evaluated at `angles` (the coordinate the coefficients were fitted in: ψ under EA sampling, φ otherwise) with `ddof = len(coeffs)`. The single value — **including the `sigma_bg**2` floor, applied at that same point** — scales both the geometry 5×5 block and the higher-order harmonic errors, so one fit yields one error scale. It reaches `compute_parameter_errors` through its `residual_variance=` keyword; that call deliberately does **not** pass `var_residual_floor`, since the floor is already applied. Evaluating the model at `phi` under EA sampling, or using the truncated 5-term model to rescale an ISOFIT `in_loop` fit, both produce internally inconsistent uncertainties — see `docs/agent/journal/2026-08-12_ea-ols-review.md` (agent-internal, not published).
    - **Exactly determined fits**: `isofit_min_points` equals the ISOFIT parameter count exactly (`1 + 2*(2 + L)` is `5 + 2*L`), so ISOFIT switches on at precisely `N == P`, where the model passes through every sample and no residual degrees of freedom remain. The residual variance is then reported as `0.0` (subject to the `sigma_bg` floor), which propagates to zero errors meaning "not measurable". In `compute_parameter_errors`, `residual_variance=0.0` means exactly that, and is distinct from `residual_variance=None`, which means "not supplied — rebuild the five-parameter model" and is retained only for external callers of this public function.
 4. Estimate radial gradient (`fitting.compute_gradient`). When `variance_map` is provided, gradient error uses exact per-sample variance (`Var(mean) = Σσ²_i / N²`) instead of scatter-based estimates. See "Gradient error and ring statistics" below for the full formulas, the deliberate mean/median asymmetry with the reported intensity, and a measured consequence for the reported gradient value itself.
 5. Update geometry based on dominant harmonic coefficient.
@@ -360,13 +362,14 @@ Canonical user-facing stop-code documentation lives in `docs/01-user-guide.md`.
 
 ### FITS Output Layout
 
-`isophote_results_to_fits` writes a 3-HDU FITS file:
+`isophote_results_to_fits` writes a 4-HDU FITS file:
 
 | HDU | Type | Name | Contents |
 |-----|------|------|----------|
 | 0 | `PrimaryHDU` | — | Empty (no data, minimal header) |
 | 1 | `BinTableHDU` | `ISOPHOTES` | One row per isophote; columns match the isophote dict keys |
 | 2 | `BinTableHDU` | `CONFIG` | Two columns: `PARAM` (string) and `VALUE` (JSON-serialized string), one row per config field |
+| 3 | `BinTableHDU` | `META` | Same `PARAM`/`VALUE` JSON layout, carrying the remaining top-level result keys (`lsb_auto_lock*`, `first_isophote_*`, outer-regularization references, …) |
 
 This replaces the previous approach of writing config fields as FITS header keywords, which triggered `HIERARCH` warnings for long keyword names.
 
@@ -458,5 +461,5 @@ Manifest compatibility is preserved with additive-only schema evolution:
 ## Documentation Policy
 
 - Stable docs live in `docs/` root.
-- Historical records live under `docs/journal/`; internal planning and review archives are kept under `docs/agent/` (not tracked in the public repository).
+- Internal planning and review notes are kept under `docs/agent/`, which is untracked and excluded from the published site; retired dated reports are tracked under `docs/archive/` but also excluded from the site. References to either in these pages are pointers for developers working in a checkout, not links a site reader can follow.
 - Use lowercase kebab-case markdown filenames.

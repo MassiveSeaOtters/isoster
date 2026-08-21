@@ -15,7 +15,7 @@
 
 ---
 
-ISOSTER is a Python library for elliptical isophote fitting that provides **10-15x faster performance** compared to `photutils.isophote` (measured on the HSC/asteris benchmark set; see [docs/09-exhausted-benchmark.md](docs/09-exhausted-benchmark.md)). It uses vectorized path-based sampling via scipy's `map_coordinates` while maintaining scientific accuracy and full compatibility with the photutils isophote analysis workflow.
+ISOSTER is a Python library for elliptical isophote fitting that runs **tens of times faster** than `photutils.isophote` — a median of $45\times$ on a synthetic Sérsic sweep (interquartile range $35$–$55\times$; slowest case $13\times$), with every completed case also meeting the benchmark's accuracy criteria against the true profile. Of 243 attempted configurations, `photutils` could not fit 6 — the degenerate corner where a circular source ($\varepsilon = 0$) is given a position angle — and those are excluded from the statistics; the remaining 237 all passed. Each configuration is timed once per tool, so the quartiles describe spread across configurations, not timing noise. Reproduce with [`benchmarks/performance/bench_vs_photutils.py`](benchmarks/performance/bench_vs_photutils.py); the archived summary, including the excluded configurations, is [`benchmarks/performance/reference_speedup.json`](benchmarks/performance/reference_speedup.json). Absolute times are machine-specific; the ratio is less machine-dependent than absolute time but not portable, and the speedup varies with image size and isophote count. ISOSTER uses vectorized path-based sampling via scipy's `map_coordinates`. It shares the Jedrzejewski (1987) algorithmic ancestry of `photutils.isophote` and its geometry and intensity profiles have been validated against it on the sweep above, but it is **not** a drop-in replacement: sampling, convergence handling, defaults, output schema and serialization all differ deliberately. See [`docs/technical/1.5-comparison.md`](docs/technical/1.5-comparison.md) for what matches and what does not.
 
 ## Installation
 
@@ -23,7 +23,7 @@ ISOSTER requires Python 3.9+ and uses [uv](https://docs.astral.sh/uv/) for envir
 
 ```bash
 # Clone and install
-git clone https://github.com/shuang-stat/isoster.git
+git clone https://github.com/MassiveSeaOtters/isoster.git
 cd isoster
 uv sync                          # core dependencies only
 
@@ -63,7 +63,25 @@ model = isoster.build_isoster_model(
 
 ### Multiband Analysis
 
-Use template-based forced photometry for consistent color profiles across wavelengths:
+Two workflows, estimating different things. Pick by what you want the geometry
+to mean — see [`docs/10-multiband.md`](docs/10-multiband.md).
+
+**Joint fit** — one geometry per SMA, derived from every band at once. Use when
+the geometry itself is the measurement and no single band should define it:
+
+```python
+from isoster.multiband import IsosterConfigMB, fit_image_multiband
+
+cfg_mb = IsosterConfigMB(bands=['g', 'r', 'i'], reference_band='r', sma0=10.0)
+result = fit_image_multiband([image_g, image_r, image_i], config=cfg_mb)
+
+# Per-band intensities and harmonics on one shared geometry
+for iso in result['isophotes'][:3]:
+    print(iso['sma'], iso['intens_g'], iso['intens_r'], iso['intens_i'])
+```
+
+**Template-based forced photometry** — measure every band through a reference
+band's geometry. Use when that geometry *is* the aperture definition:
 
 ```python
 # Fit reference band (e.g., g-band) with full geometry fitting
@@ -76,14 +94,14 @@ results_i = isoster.fit_image(image_i, None, config, template='galaxy_g.fits')
 
 ## Key Features
 
-- **High performance**: 10-15x faster than `photutils.isophote` via vectorized sampling.
-- **Template-based forced photometry**: Consistent multiband photometry using geometry from a reference band.
-- **Eccentric anomaly sampling**: Uniform arc-length coverage for high-ellipticity galaxies (Ciambur 2015).
+- **High performance**: tens of times faster than `photutils.isophote` via vectorized sampling (median $45\times$ on the synthetic Sérsic sweep; see above).
+- **Multi-band fitting**: a joint free fit that derives one geometry from every band (`isoster.multiband.fit_image_multiband`), plus template-based forced photometry that applies a reference band's geometry to the others. The two estimate different quantities and are complementary; see [`docs/10-multiband.md`](docs/10-multiband.md).
+- **Eccentric anomaly sampling**: More even sampling around high-ellipticity isophotes than stepping the position angle (Ciambur 2015).
 - **Simultaneous harmonics**: ISOFIT-style joint fitting of higher-order harmonics within the iteration loop.
 - **2D model building**: Reconstruct galaxy images from isophote profiles with optional harmonic deviations.
 - **Convergence controls**: Sector-area scaling, geometry damping, and geometry-stability convergence.
 - **Photometry metrics**: Integrated flux, curve-of-growth, and adaptive integration modes.
-- **Photutils compatibility**: Consistent algorithms and output format with industry standards.
+- **Shared algorithmic ancestry with photutils**: the same Jedrzejewski (1987) formulation, with geometry and intensity profiles validated against `photutils.isophote`. The output schema, defaults, sampling and serialization differ deliberately — see the note above.
 - **Function-based API**: Simple, stateless interface for easy integration and testing.
 
 ## Documentation

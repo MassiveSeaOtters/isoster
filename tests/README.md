@@ -1,7 +1,20 @@
 # Tests
 
-Automated correctness tests for isoster. Organized into four categories:
-`unit`, `integration`, `validation`, and `real_data`.
+Automated correctness tests for isoster. Organized into five categories:
+`unit`, `integration`, `validation`, `real_data`, and `multiband`.
+
+**Current collection (2026-08-21):** pytest discovers 957 tests and deselects
+5, leaving 952 selected; a full run reports 951 passed and 1 skipped. By
+category: `unit` 354, `integration` 148, `validation` 8, `multiband` 443,
+`real_data` 4 (deselected by default; they need bundled real images and, for
+the figure tests, LaTeX fonts).
+
+Regenerate these numbers rather than trusting them:
+
+```bash
+uv run pytest tests/ --collect-only -q | tail -2
+uv run pytest tests/multiband --collect-only -q | tail -2
+```
 
 ## Overview Table
 
@@ -30,7 +43,14 @@ Automated correctness tests for isoster. Organized into four categories:
 | `test_m51.py` | 116 | 2 | Fitting on real M51 galaxy (`data/m51/M51.fits`); convergence rate check |
 | `test_ea_harmonics_comparison.py` | 840 | 2 | Multi-method comparison on ESO 243-49 and NGC 3610: PA mode, EA mode, extended harmonics, vs photutils reference |
 
-**Total**: ≈225 tests (unit + integration + validation). Real-data tests excluded from default run.
+**Total**: see the collection figures at the top of this file. The per-file
+counts in the table above are indicative and drift as tests are added; the
+`--collect-only` commands are authoritative.
+
+The table does not enumerate `tests/multiband/`, which is the largest single
+category at 443 tests. It covers the joint solver, the geometry
+parameterisation and `band_scale` invariant, per-band error propagation,
+validity policy, the Schema-1 writer, and the multi-band CLI.
 
 ---
 
@@ -80,7 +100,7 @@ Method-level accuracy validation against external reference behavior.
   `photutils.isophote` on the same synthetic Sérsic image. Quantitative tolerance assertions.
 - **`test_model_residuals.py`** — Compares 2D model reconstruction residuals between isoster and
   photutils. Also covers the deprecated `build_ellipse_model()` wrapper.
-  **Maintenance note**: `build_ellipse_model` coverage will be removed at v0.3.
+  **Maintenance note**: `build_ellipse_model` coverage will be removed at 2.0.0.
 
 ### real_data/
 
@@ -152,7 +172,7 @@ Naming convention:
 ## Maintenance Notes
 
 - `test_model_residuals.py` includes coverage of the deprecated `build_ellipse_model()` function.
-  This coverage will be removed when `build_ellipse_model` is deleted at v0.3.
+  This coverage will be removed when `build_ellipse_model` is deleted at 2.0.0.
 - `test_fitting.py` uses `unittest.TestCase` style for legacy reasons; new tests in that file
   should use pytest style.
 - `conftest.py` (at `tests/real_data/conftest.py`) registers the `real_data` marker so that

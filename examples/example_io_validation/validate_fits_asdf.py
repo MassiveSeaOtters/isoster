@@ -1,5 +1,5 @@
 """
-I/O Format Validation: FITS (3-HDU) and ASDF
+I/O Format Validation: FITS (4-HDU) and ASDF
 =============================================
 
 Fits a real galaxy (NGC3610 r-band), saves to both FITS and ASDF,
@@ -16,7 +16,7 @@ Output
 ------
 ``outputs/example_io_validation/``
 
-- ``ngc3610_results.fits``      — new 3-HDU FITS output
+- ``ngc3610_results.fits``      — 4-HDU FITS output
 - ``ngc3610_results.asdf``      — ASDF output
 - ``qa_from_original.png``      — QA from in-memory results
 - ``qa_from_fits.png``          — QA from reloaded FITS
@@ -232,7 +232,7 @@ def main():
     report_lines.append(f"Result: {n_iso} isophotes, {n_conv} converged")
 
     # ------------------------------------------------------------------
-    # 2. Save to FITS (new 3-HDU format)
+    # 2. Save to FITS (PRIMARY / ISOPHOTES / CONFIG / META)
     # ------------------------------------------------------------------
     fits_path = str(output_dir / "ngc3610_results.fits")
     print(f"\nSaving FITS: {fits_path}")

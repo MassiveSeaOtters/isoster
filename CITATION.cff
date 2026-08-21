@@ -5,11 +5,12 @@ type: software
 license: BSD-3-Clause
 version: 1.0.0
 date-released: 2026-07-18
-repository-code: "https://github.com/shuang-stat/isoster"
+repository-code: "https://github.com/MassiveSeaOtters/isoster"
 abstract: >-
   Accelerated Python library for elliptical isophote fitting in galaxy images.
-  Provides 10-15x faster performance compared to photutils.isophote using
-  vectorized path-based sampling via scipy's map_coordinates.
+  Runs tens of times faster than photutils.isophote (median 45x over the 237
+  of 243 synthetic Sersic configurations photutils could fit) using vectorized
+  path-based sampling via scipy's map_coordinates.
 authors:
   - family-names: "Huang"
     given-names: "Song" 

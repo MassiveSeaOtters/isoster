@@ -60,9 +60,10 @@ Future planned: `benchmarks/utils/report.py` — shared markdown report builder.
   - `data/eso243-49.fits` — edge-on S0
   - `data/ngc3610.fits` — boxy-bulge elliptical
   - `data/m51/M51.fits` — M51 spiral
-- **External Huang2013 data**: `/Users/mac/work/hsc/huang2013/<GALAXY>/` (not tracked in repo).
+- **External Huang2013 data**: not tracked in the repo; the path is machine-specific and
+  supplied per run via `--huang-root` (see `examples/example_huang2013/`).
 - **Synthetic data**: generate at runtime using `benchmarks/utils/sersic_model.py` or
-  `benchmarks/baselines/mockgal_adapter.py`.
+  `benchmarks/utils/mockgal_adapter.py`.
 
 ---
 
@@ -86,12 +87,15 @@ pointed to by the `AUTOPROF_PYTHON` environment variable.
 ### Setting AUTOPROF_PYTHON
 
 `AUTOPROF_PYTHON` must point to a Python binary in an environment where AutoProf is installed
-with `numpy < 2`. The default is `/Users/mac/miniforge3/bin/python3`, which is
-**machine-specific** and must be overridden on any other system.
+with `numpy < 2`. The compiled-in default is machine-specific and will not exist on your
+system, so set the variable rather than relying on it. For the canonical install recipe —
+including why the venv must not live in `/tmp` — see
+[`benchmarks/exhausted/README.md`](exhausted/README.md); `docs/09-exhausted-benchmark.md` §0
+reproduces it.
 
 ```bash
 # Check what python is currently set (or defaulted to)
-echo ${AUTOPROF_PYTHON:-/Users/mac/miniforge3/bin/python3}
+echo ${AUTOPROF_PYTHON:-<machine-specific default; see autoprof_adapter.py>}
 
 # Override for your environment
 export AUTOPROF_PYTHON=/path/to/autoprof-env/bin/python3

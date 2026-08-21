@@ -188,10 +188,26 @@ results = fit_image(image, config=config, variance_map=variance_map)
 ```
 
 WLS benefits:
-- **Exact covariance**: error bars come from the variance map directly, not from fit residuals.
-- **Automatic outlier down-weighting**: cosmic rays and hot pixels (high variance) get negligible weight.
+- **Error bars traceable to a stated noise model**: they come from the supplied variance
+  map rather than from fit residuals, so they can be checked against the survey's own
+  noise estimate. This is *not* the same as being exact — the covariance is calibrated
+  only to the extent the variance map is, and ring samples drawn by interpolation from
+  a shared pixel grid are not strictly independent, which biases the reported
+  uncertainties low at high sampling density.
+- **Outlier down-weighting, when the map identifies the outlier**: a sample whose
+  variance is large relative to its neighbours carries proportionally little weight, so
+  cosmic rays and hot pixels are suppressed without the caller masking them by hand.
+  A defect the variance map does not flag is *not* down-weighted.
 - **Pure photon-noise gradient error**: cleanly separated from galaxy structure scatter (arms, dust, bars).
 - **Byte-identical fallback**: when `variance_map=None` (default), the code path is identical to OLS.
+
+Note on error-bar size: WLS errors are **not** systematically larger or smaller than
+OLS. Under the textbook model — independent samples with a common, correctly specified
+variance — the two have the same expected covariance. They diverge when those
+assumptions fail, and the direction depends on how: unmodelled azimuthal structure
+(arms, dust, orders n >= 3) inflates the OLS residual-scatter estimate, making OLS
+errors the *larger* ones in that regime. See
+[`technical/1.4.2`](technical/1.4.2-variance-aware-fitting.md).
 
 Input requirements and safeguards:
 - `variance_map` must have the same shape as `image` (raises `ValueError` otherwise).
@@ -202,13 +218,13 @@ Input requirements and safeguards:
 
 Compatibility:
 - WLS works with all constraint modes: `fix_center`, `fix_pa`, `fix_eps`, and `simultaneous_harmonics` (isofit).
-- WLS error bars are typically 1.2–2.1x larger than OLS for outer isophotes, reflecting realistic per-pixel noise rather than fit-residual scatter.
+- WLS error bars are **not** systematically larger or smaller than OLS. Under independent samples with a common, correctly specified variance the two have the same expected covariance; they diverge only where those assumptions fail, and the direction depends on how. Unmodelled azimuthal structure (arms, dust, orders n >= 3) inflates the OLS residual-scatter estimate, making OLS the larger one in that regime.
 
 ## Key Configuration Options
 
 ### Sampling and Stability
 
-- `use_eccentric_anomaly=True`: harmonic fitting in `psi` with geometry updates in `phi`.
+- `use_eccentric_anomaly=True`: harmonics are fitted in `psi`, and the geometry update consumes those `psi`-basis coefficients **directly** — there is no conversion back to `phi`. That is correct rather than approximate, because the Jedrzejewski corrections are themselves derived from an eccentric-anomaly parametrisation (see [`03-algorithm.md`](03-algorithm.md)).
 - `permissive_geometry=True`: allows geometry propagation through weaker gradient diagnostics.
 - `maxgerr`: controls tolerance for gradient relative error checks.
 
@@ -270,11 +286,12 @@ model = build_isoster_model(
 
 ### FITS
 
-`isophote_results_to_fits` writes a 3-HDU FITS file:
+`isophote_results_to_fits` writes a 4-HDU FITS file:
 
 - **HDU 0** — `PrimaryHDU`: empty, no data.
 - **HDU 1** — `BinTableHDU` named `ISOPHOTES`: one row per fitted isophote, columns matching the isophote dict keys.
 - **HDU 2** — `BinTableHDU` named `CONFIG`: two columns (`PARAM`, `VALUE`) with the full `IsosterConfig` serialized as JSON strings, one row per field.
+- **HDU 3** — `BinTableHDU` named `META`: the same `PARAM`/`VALUE` JSON layout, carrying the remaining top-level keys of the results dict (`lsb_auto_lock*`, `first_isophote_*`, outer-regularization references, and so on).
 
 This layout avoids `HIERARCH` warnings that occurred when config was written as FITS header keywords. Files written by older versions (config in header keywords, no `CONFIG` extension) are still readable, but the reader returns `config=None` for them — no header-keyword reconstruction is performed.
 
@@ -402,7 +419,7 @@ Present on every isophote when `lsb_auto_lock=True`. Inward isophotes and the ce
 | Field | Type | Description |
 |-------|------|-------------|
 | `lsb_locked` | bool | `True` if this isophote was fit under locked geometry (post-transition), `False` otherwise |
-| `lsb_auto_lock_anchor` | bool | `True` only on the first locked isophote, `False` on all others. Useful as a marker in QA overlays |
+| `lsb_auto_lock_anchor` | bool | `True` on the **committing trigger** row — the first locked isophote, where the lock was committed — and `False` elsewhere. Despite the name this is *not* the isophote whose geometry was frozen: that one is identified by the top-level `lsb_auto_lock_anchor_sma`, and is the last clean isophote *before* the debounce streak. Useful as a marker in QA overlays |
 
 ### Per-Isophote Fields: Debug Diagnostics
 

@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Project Overview
 
-ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It provides 10-15x faster performance compared to `photutils.isophote` using vectorized path-based sampling via scipy's `map_coordinates`.
+ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical isophote fitting in galaxy images. It runs tens of times faster than `photutils.isophote` (median 45x over the 237 of 243 synthetic Sersic configurations photutils could fit; single timing per case, archived in `benchmarks/performance/reference_speedup.json`) using vectorized path-based sampling via scipy's `map_coordinates`.
 
 ## Non-negotiable Rules for developing
 
@@ -19,8 +19,31 @@ ISOSTER (ISOphote on STERoid) is an accelerated Python library for elliptical is
 - Generated artifacts must be written under `outputs/` and not mixed into source folders.
 - **Folder-name shorthand**: `benchmark_xxx` always means `benchmarks/xxx/`, `example_xxx` always means `examples/xxx/`, `test_xxx` always means `tests/xxx/`. Never create a sibling `benchmark_xxx/` at repo root — drop straight under the corresponding parent. Generated artifacts go under `outputs/benchmark_xxx/` etc., which stays gitignored.
 - Use `uv` as the default tool for dependency management and environment execution.
+- **Normalize harmonics exactly once, and know which path you are on.** The two
+  code paths normalize at *different* points, so a second normalization is easy to
+  add by accident and hard to see in a figure.
+  - **Single-band**: `compute_deviations` divides by `sma * abs(gradient)` **before
+    storing**, so `results['a4']` is already Bender-normalized. `plot_qa_summary*`
+    plots it as-is and must **not** call `_normalize_harmonic_for_plot`.
+  - **Multi-band `independent`** (default): per-band fits stored already
+    normalized, exactly like single-band. Not touched at plot time.
+  - **Multi-band `shared`**: stored **raw** and *band-distinct* — one shared
+    dimensionless shape reconstructed into each band's raw units via `-sma*grad_b`.
+    The invariant is that every band normalizes back to the same value.
+  - **Multi-band `simultaneous_*`**: stored **raw** and *identical* across bands,
+    which is a shared raw residual, not a shared shape. Do not describe these two
+    as the same thing.
+  - The last two normalize at plot time via `plotting_mb._plot_harmonic`, gated on
+    `harmonics_shared` — driven by which storage path produced the data, never by
+    user preference. That helper uses the **signed** gradient
+    (`-A_n/(sma*grad)`), whereas single-band storage uses the **absolute** one
+    (`A_n/(sma*abs(grad))`); the two agree only where the gradient is negative.
+  - Two bugs of this family have been fixed: a genuine double-Bender division in
+    `plotting_mb.py` (review P1), and the single-band `normalize_harmonics=True`
+    option, which divided the already-normalized amplitude by intensity and so
+    produced a flux-calibration-dependent number. That option was **removed** in
+    1.0.0; do not reintroduce an "extra normalization" switch on either path.
 - **Surface brightness convention**: whenever intensity (per pixel) is converted to surface brightness in mag/arcsec², the formula is always `μ = -2.5·log10(I_per_pix / pixarea) + zp` where `pixarea = pixel_scale_arcsec**2`. The photometric zeropoint `zp` and the pixel scale `pixel_scale_arcsec` must be passed to the plotting/conversion code as **two separate inputs** and never pre-combined into a single effective zeropoint. Reference values: HSC coadd `zp=27.0`, `pixel_scale_arcsec=0.168`. LegacySurvey (DECaLS/BASS/MzLS) `zp=22.5`, pixel scale from the image header (typically 0.262″ for DECaLS). Callers that pass one of the two must pass both; passing only one is a hard error.
-- **Harmonic-coefficient convention**: all plotting *and* analysis of third- and fourth-order deviation amplitudes `A_n`, `B_n` must use the Bender-normalized form `A_n_norm = -A_n / (a · dI/da)` (and analogously for `B_n`), where `a` is the isophote's semi-major axis and `dI/da` is the local intensity gradient. Raw `A_n`/`B_n` values are **not** interpretable — their magnitudes scale with the local flux and change across a galaxy's profile even when the underlying geometric deviation is identical. Normalized values are scale-invariant and directly comparable across arms, tools, and galaxies. This rule applies uniformly to (a) `isoster.plotting` (used by every exhausted-benchmark tool: isoster, photutils, autoprof — `plot_qa_summary` calls `_normalize_harmonic_for_plot`), and (b) `benchmarks/exhausted/analysis/scenario_summary.py` (audit pipeline — uses `normalize_harmonic` + `effective_grad`). When a tool ships no usable `grad` column (autoprof), fall back to `np.gradient(intens, sma)` via the helpers; never plot or score raw `A_n`. When an arm intentionally does not fit harmonics (`harm_disabled`, or `harmonic_orders` sweeps that replace `[3, 4]`), the audit marks Prior 2 `prior2_applicable=False` and the QA plot's harmonic panel is auto-skipped — do not re-introduce a code path that silently evaluates raw `A_n`.
 
 ## Context and Memory Preservation
 
@@ -87,6 +110,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 | Document | Description |
 |----------|-------------|
 | `docs/index.md` | Documentation home page and map |
+| `docs/archive/` | Retired dated reports (pre-publication review, QA refresh). Tracked so the history survives, excluded from the published site. |
 | `docs/01-user-guide.md` | Usage guidance, stop-code reference, public API |
 | `docs/02-configuration-reference.md` | All configuration parameters and guidelines |
 | `docs/03-algorithm.md` | Fitting and sampling implementation notes |
@@ -96,7 +120,8 @@ Follow these rules for all Python environment and dependency work in this reposi
 | `docs/07-lsb-features.md` | Design + implementation notes for LSB auto-lock and outer-region center regularization |
 | `docs/08-outer-regularization.md` | Publication-grade reference for the outer-region Tikhonov regularization: math, algorithm, config, benchmarks |
 | `docs/09-exhausted-benchmark.md` | Exhausted benchmark campaign framework: YAML schema, arm sentinels, output layout, composite score, adapter recipe |
-| `docs/10-multiband.md` | Multi-band isoster (experimental): joint free fit replacing forced photometry; API, Schema 1 column reference, joint-solver math, demo |
+| `docs/10-multiband.md` | Multi-band isoster: joint free fit as a complement to forced photometry; API, Schema 1 column reference, joint-solver math, demo. Default config is supported; `simultaneous_*` harmonics are experimental and warn; the CLI/Schema-1 layout is still unstable. |
+| `docs/technical/1.0`–`1.6` | Long-form technical chapter. **Tracked and published.** Every timing in it is produced by `benchmarks/draft_timings/run_draft_timings.py` and checked against `reference_timings.json` by `check_draft_numbers.py`, which gates the docs CI job. Do not hand-edit a quoted number: re-archive and let the checker print the replacements. |
 
 ### Agent-internal docs (untracked, in `docs/agent/`)
 
@@ -107,6 +132,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 | `docs/agent/future.md` | Long-term upgrades and research roadmap |
 | `docs/agent/qa-figures.md` | QA figure layout and style conventions |
 | `docs/agent/journal/` | Chronological project journal notes |
+
 
 ## Testing and Benchmark Directives
 

@@ -376,10 +376,25 @@ def compute_prior_metrics(
     drift_outer = zone_iw_centroid_drift(x0, y0, intens, zones.outer, true_x, true_y)
 
     # ---- Prior 2: normalized harmonics in outer zone ----------------
-    # All three tools store Bender-normalized coefficients (isoster and
-    # photutils divide by sma*|grad| at fit time; AutoProf reports photutils
-    # coefficients), so the stored values and their errors are used directly.
-    # Re-normalizing here divided them by sma*|grad| a second time (review P1).
+    # isoster and photutils both divide by sma*|grad| at fit time, so their
+    # stored values and errors are already Bender-normalized and are used
+    # directly. Re-normalizing here divided them by sma*|grad| a second time
+    # (review P1).
+    #
+    # UNVERIFIED -- AutoProf. This code path treats AutoProf's a3/b3/a4/b4 as
+    # arriving on the same normalized scale, and the adapter copies its columns
+    # through without conversion. That is an *assumption*, not a measurement:
+    # nobody has compared AutoProf's reported coefficients against the isoster
+    # and photutils values on a fixture with a planted deviation. (Earlier
+    # documentation asserted the scale was different; that was equally
+    # untested, and has been corrected to say unverified. There is no
+    # contradictory measurement on either side -- there is no measurement.)
+    #
+    # Settling it means running AutoProf on a planted deviation and comparing,
+    # which is a question about another project's output rather than something
+    # this file can decide. Until then, treat Prior 2 scores for the *autoprof*
+    # tool as unverified and keep them out of publication. The
+    # isoster-vs-photutils comparison is unaffected.
     harm_fields = ("a3", "b3", "a4", "b4")
     harm_norm: dict[str, np.ndarray] = {}
     harm_norm_valid: dict[str, np.ndarray] = {}

@@ -15,8 +15,7 @@ Use this page as the entry point and map for project documentation.
 - `docs/07-lsb-features.md`: design and implementation of the LSB auto-lock and outer-region center regularization features
 - `docs/08-outer-regularization.md`: publication-grade reference for the outer-region Tikhonov regularization (math, algorithm, config, benchmarks)
 - `docs/09-exhausted-benchmark.md`: exhausted benchmark campaign framework reference (YAML schema, arms, output layout, model-evaluation standard, scoring, adapter recipe)
-- `docs/10-multiband.md`: experimental multi-band interface, CLI, I/O, and benchmark notes
-- `docs/11-qa-evaluation-refresh-2026-05-10.md`: completed exhausted-campaign QA/evaluation refresh report, including commands, counts, output locations, and known remaining issue
+- `docs/10-multiband.md`: multi-band joint fitting — API, CLI, I/O, and benchmark notes. The default configuration is supported; the `simultaneous_*` higher-harmonic modes remain experimental, and the CLI/Schema-1 layout may still change.
 
 ## Technical Chapter
 
@@ -24,6 +23,13 @@ A long-form, math-heavy walkthrough of ISOSTER's design,
 performance argument, and feature surface. Twelve linked pages,
 intended as a publication-style reference resource that the user
 guides above point into for deeper context.
+
+Every timing quoted in the chapter is produced by
+`benchmarks/draft_timings/run_draft_timings.py` and checked against the
+committed archive `reference_timings.json` by `check_draft_numbers.py`,
+which runs in CI before the site is published. A number that drifts out
+of step with the archive fails the build rather than appearing as a
+measurement.
 
 - [`technical/1.0-overview.md`](technical/1.0-overview.md): chapter
   framing — speed, flexibility, scientific power.
@@ -63,6 +69,9 @@ quick visual lookup alongside the prose chapters above.
 ## Agent-Internal Documents
 
 Agent-internal docs live in `docs/agent/` and are not tracked in git:
+
+The following live in a source checkout only. They are untracked or excluded
+from this site, so the paths below are not links you can follow here.
 
 - `docs/agent/todo.md`: active execution checklist and review notes.
 - `docs/agent/lessons.md`: development lessons to avoid repeated mistakes.

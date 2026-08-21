@@ -148,8 +148,12 @@ class IsosterConfig(BaseModel):
     # Eccentric Anomaly Sampling
     use_eccentric_anomaly: bool = Field(
         False,
-        description="Use eccentric anomaly for uniform ellipse sampling (recommended for ε > 0.3). "
-        "Provides better sampling for high-ellipticity cases. ε = 1 - b/a.",
+        description="Step the eccentric anomaly psi uniformly instead of the position angle "
+        "(recommended for eps > 0.3). This distributes samples more evenly around an "
+        "elongated ellipse -- the arc length per unit psi varies by a factor of a/b, "
+        "against a larger and less tractable variation per unit phi -- though it is not "
+        "exactly uniform in arc length. Harmonics are then fitted in the psi basis and "
+        "the geometry update consumes those coefficients directly. eps = 1 - b/a.",
     )
 
     # Higher-Order Harmonics Fitting

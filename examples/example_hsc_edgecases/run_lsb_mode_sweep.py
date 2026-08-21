@@ -16,7 +16,9 @@ Feature arms
 Sampling / harmonic modes
 -------------------------
 - ``std``: default sampling (true anomaly) and post-hoc harmonics.
-- ``ea``: ``use_eccentric_anomaly=True`` (uniform arc-length sampling).
+- ``ea``: ``use_eccentric_anomaly=True`` (steps psi uniformly, distributing
+  samples more evenly around an elongated ellipse than stepping the position
+  angle -- though not exactly uniformly in arc length).
 - ``isofit``: ``simultaneous_harmonics=True`` (Ciambur 2015 joint fit),
   ``isofit_mode="in_loop"`` (the isoster default).
 
@@ -306,17 +308,13 @@ def run_one(obj_id: str, desc: str, arm_name: str, arm_dir: Path, save_qa: bool)
     pl_mdx, pl_mdy, pl_combined = combined_drift(pre_lock, x0_ref_metric, y0_ref_metric)
     pl_rms = spline_rms(pre_lock)
     lock_dx, lock_dy = locked_tail_drift(isophotes)
-    out_dx, out_dy, anchor_x0, anchor_y0 = outward_drift_from_anchor(
-        isophotes, BASE_CONFIG["sma0"]
-    )
+    out_dx, out_dy, anchor_x0, anchor_y0 = outward_drift_from_anchor(isophotes, BASE_CONFIG["sma0"])
 
     if save_qa:
         galaxy_out = arm_dir / obj_id
         galaxy_out.mkdir(parents=True, exist_ok=True)
         tag = f"sweep_{arm_name}"
-        isophote_results_to_fits(
-            results, str(galaxy_out / f"{obj_id}_{tag}_results.fits")
-        )
+        isophote_results_to_fits(results, str(galaxy_out / f"{obj_id}_{tag}_results.fits"))
         model = build_isoster_model(image.shape, isophotes, use_harmonics=True)
         plot_qa_summary(
             title=f"{obj_id} — {desc} ({arm_name})",
@@ -394,20 +392,10 @@ def print_drift_table(rows, arms, galaxy_order):
     for r in rows:
         by_galaxy.setdefault(r["obj_id"], []).append(r)
     for obj_id in galaxy_order:
-        gal_rows = sorted(
-            by_galaxy.get(obj_id, []), key=lambda r: arms.index(r["arm"])
-        )
+        gal_rows = sorted(by_galaxy.get(obj_id, []), key=lambda r: arms.index(r["arm"]))
         for r in gal_rows:
-            ts = (
-                f"{r['transition_sma']:8.2f}"
-                if r["transition_sma"] is not None
-                else "      --"
-            )
-            rms_str = (
-                f"{r['pre_lock_rms']:6.2f}"
-                if np.isfinite(r["pre_lock_rms"])
-                else "   nan"
-            )
+            ts = f"{r['transition_sma']:8.2f}" if r["transition_sma"] is not None else "      --"
+            rms_str = f"{r['pre_lock_rms']:6.2f}" if np.isfinite(r["pre_lock_rms"]) else "   nan"
             print(
                 f"  {r['obj_id']:>10s}  {r['arm']:<{arm_w}s}  "
                 f"{r['n_iso']:>5d}  {r['elapsed']:5.1f}  {ts}  {r['locked_count']:>6d}  "
@@ -476,9 +464,7 @@ def write_summary_files(rows, arms, galaxy_order, out_dir: Path):
     totals = []
     for arm in arms:
         arm_rows = [r for r in rows if r["arm"] == arm]
-        totals.append(
-            f"{sum(r['elapsed'] for r in arm_rows):.1f}" if arm_rows else "--"
-        )
+        totals.append(f"{sum(r['elapsed'] for r in arm_rows):.1f}" if arm_rows else "--")
     lines.append(f"| **TOTAL** | " + " | ".join(totals) + " |")
     lines.append("")
     lines.append("## Drift + lock summary\n")
@@ -490,16 +476,10 @@ def write_summary_files(rows, arms, galaxy_order, out_dir: Path):
     for r in rows:
         by_galaxy.setdefault(r["obj_id"], []).append(r)
     for obj_id in galaxy_order:
-        gal_rows = sorted(
-            by_galaxy.get(obj_id, []), key=lambda r: arms.index(r["arm"])
-        )
+        gal_rows = sorted(by_galaxy.get(obj_id, []), key=lambda r: arms.index(r["arm"]))
         for r in gal_rows:
             ts = f"{r['transition_sma']:.2f}" if r["transition_sma"] is not None else "--"
-            rms = (
-                f"{r['pre_lock_rms']:.2f}"
-                if np.isfinite(r["pre_lock_rms"])
-                else "nan"
-            )
+            rms = f"{r['pre_lock_rms']:.2f}" if np.isfinite(r["pre_lock_rms"]) else "nan"
             lines.append(
                 f"| {r['obj_id']} | {r['arm']} | {r['n_iso']} | "
                 f"{r['elapsed']:.1f} | {ts} | {r['locked_count']} | "
@@ -571,11 +551,7 @@ def main():
         for obj_id, desc in galaxies:
             print(f"  fitting {obj_id} ({desc}) ...", flush=True)
             row = run_one(obj_id, desc, arm, arm_dir, save_qa=not args.no_qa)
-            ts = (
-                f"{row['transition_sma']:.2f}"
-                if row["transition_sma"] is not None
-                else "--"
-            )
+            ts = f"{row['transition_sma']:.2f}" if row["transition_sma"] is not None else "--"
             print(
                 f"    {row['n_iso']} iso, {row['elapsed']:.1f}s, "
                 f"lock_sma={ts}, locked={row['locked_count']}, "

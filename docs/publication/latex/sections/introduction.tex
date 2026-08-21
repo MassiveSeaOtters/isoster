@@ -1,0 +1,86 @@
+\section{Introduction}\label{sec:introduction}
+
+Images of resolved galaxies encode the projected distribution of their
+stellar populations, dust, and substructure. Following contours of constant
+surface brightness reduces this information to radial profiles of intensity,
+ellipticity, position angle, centroid, and departures from pure ellipses while
+retaining important signatures of disks, bars, twists, lopsidedness, and tidal
+structure. This approach grew from the scanning of photographic plates with
+microdensitometers \citep{Fraser1967}. \citet{Carter1978} introduced a Fourier
+description of deviations from fitted ellipses, and the iterative
+intensity-harmonic algorithm of \citet{Jedrzejewski1987} subsequently became
+the standard basis for the IRAF \texttt{Ellipse} task. Higher-order terms were
+soon used as physical diagnostics of boxy and disky structure
+\citep{Bender1988,Bender1989}. More recently, \citet{Ciambur2015} introduced
+eccentric-anomaly sampling and the \texttt{Isofit} and \texttt{Cmodel} tasks
+for strongly flattened or non-elliptical systems. The classical algorithm is
+now available in Python through \texttt{photutils.isophote}
+\citep{Bradley2025}, while AutoProf provides a modern automated pipeline aimed
+at deep survey imaging \citep{Stone2021}.
+
+The continued value of one-dimensional isophotal analysis lies partly in its
+balance between fidelity and efficiency. A single S\'ersic model is compact
+and interpretable but cannot describe the full diversity of galaxy structure;
+a many-component decomposition or highly flexible basis can approach the
+image more closely, but at greater computational cost and with more parameter
+degeneracy \citep{Peng2010,Erwin2015,Robotham2017}. A sequence of flexible
+isophotes occupies a useful middle ground: it makes fewer assumptions about
+the radial light distribution, preserves structural changes with radius, and
+remains straightforward to inspect across large samples. Deeper imaging
+strengthens this use case. Faint stellar haloes and intracluster light often
+require additional model components, while their inferred structure becomes
+increasingly sensitive to sky subtraction, scattered light, masks, and the
+extended point-spread function \citep{Abraham2014,Duc2015,Trujillo2016}.
+Isophotal profiles remain actively used in this regime: HSC imaging has traced
+the stellar haloes and ellipticity profiles of thousands of individual massive
+galaxies to 100 kpc \citep{Huang2018}; SGA-2020 provides surface-brightness
+profiles for 383,620 nearby galaxies from the DESI Legacy Imaging Surveys
+\citep{Moustakas2023}; and semimajor-axis profiles have been used to measure
+brightest cluster galaxies and intracluster light near
+$30\,\mathrm{mag\,arcsec^{-2}}$ \citep{Kluge2020}. Thus, one-dimensional
+analysis is complementary to two-dimensional modeling rather than displaced
+by it, and its favorable fidelity--efficiency balance is especially valuable
+for deep, multi-band surveys.
+
+Current implementations nevertheless leave several practical limitations.
+Efficiency is a central issue because the iterative algorithm repeatedly
+samples both the trial isophote and the local radial gradient at many radii;
+the benchmarks presented in this work show that this cost can be reduced
+substantially without sacrificing the recovered profiles. A second limitation
+of the classical IRAF/\texttt{photutils} formulation is that its harmonic fits
+use ordinary least squares and do not accept the per-pixel variance or RMS maps
+now routinely produced by imaging pipelines. Equal weighting discards useful
+information about spatially varying noise and limits rigorous uncertainty
+propagation. The low-surface-brightness regime adds further difficulty because
+uncertain radial gradients can amplify small residuals into large geometry
+corrections, particularly in the presence of imperfect masks, nearby sources,
+or background structure. Existing software addresses different parts of
+these problems: IRAF remains an important reference but its legacy environment
+is difficult to integrate into contemporary survey pipelines \citep{Tody1986};
+\texttt{photutils.isophote} provides an accessible implementation of the
+classical method; and AutoProf emphasizes automated, stabilized surface
+photometry \citep{Stone2021}. Capabilities such as eccentric-anomaly sampling,
+variance-aware fitting, faint-outskirt controls, multi-band analysis, and
+reproducible diagnostics therefore remain scattered across different tools
+and workflows.
+
+We present \isoster\ (ISOphote on STERoid), an open-source Python package
+designed to integrate these requirements while retaining the transparent
+Jedrzejewski--Ciambur harmonic framework. \isoster\ accelerates the calculation
+through vectorized path sampling, compiled numerical kernels, and selective
+reuse of radial-gradient measurements, making repeated isophotal analysis
+practical within large imaging-survey pipelines. It supports weighted
+least-squares fitting from per-pixel variance maps, classical and
+eccentric-anomaly sampling, higher-order harmonic analysis, and explicit
+controls for unstable low-surface-brightness geometry. Reproducible
+single-band and multi-band workflows, including an experimental joint-fit
+mode, two-dimensional model reconstruction, validated configuration, status
+information, serialization, and common quality-assurance diagnostics are
+provided through one interface. In this paper, we describe the implementation
+and evaluate its computational performance, scientific fidelity, depth, and
+robustness against established isophotal tools using controlled mock galaxies
+and representative survey images. Our aim is not to replace every existing
+package, but to provide a fast and flexible implementation that allows
+one-dimensional isophotal analysis to serve as a routine measurement layer for
+modern imaging surveys.
+

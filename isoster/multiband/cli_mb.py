@@ -57,7 +57,7 @@ INTERFACE_STABILITY_BANNER = (
     " isoster-mb: multi-band CLI — UNSTABLE INTERFACE\n"
     " The default configuration is supported; the CLI arguments and\n"
     " the Schema-1 output layout may still change between releases.\n"
-    " simultaneous_* harmonics and loose_validity are experimental.\n"
+    " simultaneous_* harmonics are experimental and warn when used.\n"
     " See docs/10-multiband.md.\n"
     "============================================================"
 )

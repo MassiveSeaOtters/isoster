@@ -26,6 +26,8 @@ mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
 ```
 
 Override the path in the campaign YAML with `tools.autoprof.venv_python`.
+This recipe is the canonical one; `docs/09-exhausted-benchmark.md` §0 and
+`benchmarks/FRAMEWORK.md` §6 both defer to it.
 
 ### 2. Dry-run the fit matrix
 
