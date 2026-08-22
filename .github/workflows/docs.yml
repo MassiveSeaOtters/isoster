@@ -11,6 +11,7 @@ on:
       - "benchmarks/draft_timings/**"
       - "benchmarks/performance/reference_speedup.json"
       - "benchmarks/performance/check_speedup_claims.py"
+      - "benchmarks/harmonic_scale/**"
       - "README.md"
       - "CITATION.cff"
       - "CLAUDE.md"
@@ -57,6 +58,14 @@ jobs:
         # contract as the check above, for the one headline number that lives
         # outside the technical chapter.
         run: uv run python benchmarks/performance/check_speedup_claims.py
+
+      - name: Check the harmonic-scale archive against its frozen tolerances
+        # reference_harmonic_scale.json backs Part A's cross-tool harmonic
+        # claims. The tolerances it is judged by were frozen from a pilot on a
+        # disjoint seed block and committed before the validation run, so this
+        # gate tests a pre-registration rather than a post-hoc fit. Needs no
+        # AutoProf: it reads the committed JSON and the committed prose.
+        run: uv run python benchmarks/harmonic_scale/check_harmonic_scale.py
 
       - name: Build site (strict)
         run: uv run mkdocs build --strict

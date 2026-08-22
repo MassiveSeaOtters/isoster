@@ -137,9 +137,7 @@ def check_provenance(archive: Dict[str, object]) -> List[str]:
     return problems
 
 
-def check_claims(
-    archive: Dict[str, object], tolerances: Dict[str, object]
-) -> Tuple[List[str], List[str]]:
+def check_claims(archive: Dict[str, object], tolerances: Dict[str, object]) -> Tuple[List[str], List[str]]:
     """Every claim within its frozen tolerance of the pilot's value."""
     measured = extract_claims(archive)
     frozen = tolerances["claims"]
@@ -172,6 +170,24 @@ def check_claims(
         lines.append(f"note: {len(unclaimed)} measured quantities carry no frozen tolerance:")
         for name in unclaimed:
             lines.append(f"      {name} = {measured[name]:.6g}")
+
+    # Do not let a pass count overstate what was tested. Most of this grid is
+    # noiseless, and a noiseless case does not depend on the seed block at
+    # all -- those claims reproduce exactly, which confirms determinism but
+    # is not evidence that a tolerance was well chosen. Only the claims that
+    # actually move between seed blocks test the pre-registration.
+    seed_sensitive = [
+        name
+        for name in frozen
+        if frozen[name].get("basis") == "scatter"
+        and name in measured
+        and abs(float(measured[name]) - float(frozen[name]["pilot_value"])) > 0
+    ]
+    lines.append(
+        f"note: {len(seed_sensitive)} of {len(frozen)} claims differ at all between the "
+        "pilot and validation seed blocks; the rest come from noiseless cases and "
+        "reproduce exactly, so they test determinism rather than tolerance choice"
+    )
     return failures, lines
 
 
@@ -185,9 +201,7 @@ def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str]]:
     claims = extract_claims(archive)
     checks: List[Tuple[str, str]] = []
 
-    worst_clean = max(
-        claims[f"clean_agreement_pct_{tool}"] for tool in ("isoster", "photutils", "autoprof")
-    )
+    worst_clean = max(claims[f"clean_agreement_pct_{tool}"] for tool in ("isoster", "photutils", "autoprof"))
     checks.append(
         (
             "clean_agreement",

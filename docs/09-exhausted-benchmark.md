@@ -230,6 +230,62 @@ isoster_harmonic_sweeps:
 Auxiliary AutoProf artifacts (`.prof`, `.aux`, `*_genmodel.fits`) land
 in `arms/<arm>/raw/` inside the per-arm directory.
 
+### `profile.fits` harmonic columns — schema version 2
+
+**Schema version 2 changes what an existing column means, so files written
+before it and after it are not interchangeable.** Every arm's
+`run_record.json` now carries `profile_schema_version`; a profile without
+that key is version 1 and must not be pooled with version 2 files.
+
+**What was wrong in version 1.** The AutoProf fitter wrote AutoProf's
+*native* coefficients straight into `a3`, `b3`, `a4`, `b4` — the same column
+names the isoster and photutils fitters fill with Bender-normalized,
+major-axis values. Those are different quantities on different scales:
+AutoProf's are `a_n = -S_n / (2|b0|)` and `b_n = +C_n / (2|b0|)`, in
+whatever angle basis the run used, while the others are
+`S_n / (sma·|dI/da|)`. Once written, the two were indistinguishable, and any
+cross-tool comparison of an `a4` column was comparing two different things.
+
+**What version 2 writes.** The bare names keep their established meaning
+across every tool, and the native values get names of their own:
+
+| Column | Meaning |
+|---|---|
+| `autoprof_a3_native`, `autoprof_b3_native`, `autoprof_a4_native`, `autoprof_b4_native` | exactly what AutoProf wrote, untouched |
+| `autoprof_b0` | the DC term of the same vector, which makes the raw reconstruction exact rather than estimated |
+| `s3_raw_sky`, `c3_raw_sky`, `s4_raw_sky`, `c4_raw_sky` | raw sine/cosine amplitudes in image intensity units, **sky frame** |
+| `a3`, `b3`, `a4`, `b4` | Bender-normalized, major-axis — **NaN in an AutoProf arm**, see below |
+| `harmonic_basis` | `polar_from_image_x_axis` or `eccentric_anomaly`, decided at runtime by `ap_isoclip` |
+| `harmonic_conversion_valid` | boolean |
+| `harmonic_conversion_reason` | why, when not valid |
+| `harmonic_measurement_status` | the producing tool's own failure reason for a NaN row |
+
+**Why the Bender columns are NaN for AutoProf.** Bender normalization divides
+by `sma·|dI/da|`, and AutoProf reports no radial gradient. Part A's Track 2
+would reconstruct one by finite-differencing AutoProf's own `b0` profile —
+`b0`, not the median `SB` profile, because `b0` is the mean of the exact
+vector that entered the FFT and so is the estimator consistent with the
+harmonic numerator. That reconstruction is a measurement Part A has not yet
+licensed, so nothing invents it here.
+
+NaN rather than an omitted column because the output is a fixed-schema FITS
+table, where every row has every column and absence has to be represented by
+a value. NaN rather than `0.0` because it fails loudly in arithmetic.
+
+Where the basis is `eccentric_anomaly` a second reason applies and is
+recorded: that basis is not a rotation of the polar one but a different one,
+and changing between them mixes harmonic *orders*, so no same-order
+two-component transform can express it. Part A measured what pretending
+otherwise costs — 12% at `eps = 0.3` and 63% at `eps = 0.6`. Convert that
+path by resampling the ring signal, or leave it native and labelled; never
+by rotating `a_n` and `b_n` alone.
+
+**Migration.** There is no in-place migration and none is possible: a
+version-1 AutoProf `a3` cannot be converted to a version-2 `a3` without the
+gradient that was never recorded. Re-run the affected arms. To read an old
+file, treat its `a3`/`b3`/`a4`/`b4` as `autoprof_*_native` and note that its
+`b0` was not preserved, so even the raw reconstruction is unavailable.
+
 ## 5. Composite Score
 
 ### Evaluation workflow standard
