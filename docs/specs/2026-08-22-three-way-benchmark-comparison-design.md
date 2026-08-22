@@ -399,9 +399,10 @@ or leave the mask axis out of the first campaign — the latter for now. The
 `ap_isoclip=True` arm still exercises the polar-resampling conversion, which is
 what the mask axis was mainly there to reach.
 
-**Do not run the full Cartesian product.** Seven axes multiplied together
-is both large and uninformative: when a case fails, a saturated design
-cannot say which factor caused it. The structure is instead
+**Do not run the full Cartesian product.** Six active axes multiplied
+together (the seventh, mask, is deferred above) is both large and
+uninformative: when a case fails, a saturated design cannot say which
+factor caused it. The structure is instead
 
 1. one **clean reference configuration** — the case everything else is a
    perturbation of;
@@ -503,6 +504,15 @@ an AutoProf arm carries all of:
 | `harmonic_sampling_mode` | line versus isophotal-band, per ring |
 | `harmonic_conversion_valid` | boolean |
 | `harmonic_conversion_reason` | why, when not valid |
+| `harmonic_measurement_status` | the producing tool's own failure reason for a NaN row |
+
+`harmonic_measurement_status` carries isoster's internal `GRADIENT_*` /
+`DEVIATIONS_*` status verbatim (`empty_comparison_ring`, `singular`,
+`underdetermined`, …) so a NaN in the archive says *why* it is NaN. This is
+diagnostic provenance rather than a prerequisite: a NaN is already correct
+without it, but "the outer rings are NaN" and "the outer rings are NaN because
+the comparison ring fell off the frame" are different amounts of information
+when someone reads the archive a year later.
 
 **Native and converted values must never share the column name `a3`.**
 That is the whole failure this section exists to prevent. The bare names
