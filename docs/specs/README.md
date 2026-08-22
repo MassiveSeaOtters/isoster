@@ -21,4 +21,4 @@ Do not cite a spec as documentation of current behaviour. See
 
 | File | Branch | Status |
 |---|---|---|
-| `2026-08-22-three-way-benchmark-comparison-design.md` | `benchmarks/three-way-comparison` | Part A ready to implement; Part B deliberately unfrozen |
+| `2026-08-22-three-way-benchmark-comparison-design.md` | `benchmarks/three-way-comparison` | Part A complete, archived, gated and revised after review; Part B specified, accuracy contract being redesigned |

@@ -3,9 +3,9 @@
 Automated correctness tests for isoster. Organized into five categories:
 `unit`, `integration`, `validation`, `real_data`, and `multiband`.
 
-**Current collection (2026-08-21):** pytest discovers 957 tests and deselects
-5, leaving 952 selected; a full run reports 951 passed and 1 skipped. By
-category: `unit` 354, `integration` 148, `validation` 8, `multiband` 443,
+**Current collection (2026-08-23):** pytest discovers 1141 tests and deselects
+5, leaving 1136 selected; a full run reports 1135 passed and 1 skipped. By
+category: `unit` 528, `integration` 158, `validation` 8, `multiband` 443,
 `real_data` 4 (deselected by default; they need bundled real images and, for
 the figure tests, LaTeX fonts).
 

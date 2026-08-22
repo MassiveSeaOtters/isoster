@@ -5,10 +5,11 @@ Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
-Status: **Part A ready for implementation**; **Part B deliberately
-unfrozen** — its choices are written down (B2, B3, B4) but are not
-finalized, and are best frozen after the Part A calibration work is
-complete and has informed them.
+Status (2026-08-23): **Part A complete, measured, archived and gated**, and
+revised once after review — criterion 2 was withdrawn, and two prose figures
+were corrected against the archives. **Part B specified but not implemented**;
+its accuracy contract is being redesigned after review (see B2–B4) and must be
+frozen before the pilot produces any measurement.
 
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:
@@ -1268,7 +1269,29 @@ which is why it is not removed — but a reader must be able to separate
 "AutoProf is slower" from "AutoProf's stack is older", and a single number
 cannot express both.
 
-**2. The accuracy gate is Part A's fixtures and Part A's truth.** B4 required
+**2. The accuracy gate is Part A's fixtures and Part A's truth — with a
+common bar, revised after review.** As first written this said the bar would be
+derived "per tool and per fixture" from a pilot. That is wrong, and a review
+caught it: a per-tool bar preserves whatever accuracy each tool already has, so
+a faster but less accurate implementation passes its own lower bar and wins the
+comparison. The bar must be **one common threshold per metric and per fixture,
+applied to all three tools**, chosen from scientific requirements or from
+independently established numerical accuracy — never from any tool's own pilot
+result. Pilots then set repetition counts and quantify timing scatter, and
+nothing else.
+
+Four consequences follow, all of which must be frozen before the pilot runs:
+completion, radial coverage and scientific accuracy are accounted **separately**
+rather than rolled into one verdict; failed and ineligible timings are
+**archived**, and excluded only from headline ratios, never from failure
+accounting; the harmonic accuracy gate applies **only to harmonics-on arms**;
+and for the end-to-end free fits, truth is evaluated on each tool's own returned
+apertures over a defined **common radial overlap**, because Part A's fixed-ring
+truth does not transfer to a free fit.
+
+The original wording follows, superseded:
+
+> **2. The accuracy gate is Part A's fixtures and Part A's truth.** B4 required
 "an accuracy requirement a fit must meet to be timed at all" without saying
 what it was, and that one line does more work than the rest of B4 together: a
 tool that converges loosely is faster, so an ungated timing rewards giving up
@@ -1300,6 +1323,12 @@ in its own right, and Part A has just established that the three tools'
 harmonics are comparable quantities, so the comparison is meaningful. The
 small grid absorbs the doubling cheaply.
 
+**Naming, corrected after review:** the fixed-aperture core measurement is an
+**extraction and harmonic-evaluation comparison**, not a comparison of
+geometry-fitting algorithms. Geometry is imposed there, so nothing about
+geometry fitting is being timed, and calling it that would overclaim what the
+headline number covers.
+
 **Consequent, and following from B3 rather than newly decided:** the core-fit
 scope is fixed-geometry with matched radii and output writing excluded; the
 end-to-end scope is a free fit on each tool's own radial grid and stopping
@@ -1313,10 +1342,14 @@ as Part A's tolerances — frozen from a pilot, committed, then validated:
 - the accuracy bar itself, per tool and per fixture;
 - session and repetition counts, chosen so the reported interval is narrower
   than the effect being claimed;
-- the **dispersion abort rule**: a documented bound on between-session spread
-  above which a session is contaminated and refused rather than averaged in.
-  A laptop under thermal load produces numbers that look like measurements;
-  without this rule the archive cannot tell the difference.
+- the **contamination abort rule**. An earlier draft of this section proposed
+  rejecting individual sessions whose timings were dispersed. A review caught
+  that as outcome-based selection: discarding measurements because of their
+  values is how a benchmark quietly flatters itself. The rule must instead key
+  on **external contamination indicators** — machine load, thermal state,
+  competing processes — or abort an **entire campaign**, never individual
+  sessions chosen after seeing their numbers. Dispersion is then *reported*,
+  not used as a filter.
 - success and failure accounting, and the treatment of partial profiles.
 
 ### B5. A new archive, not a replacement

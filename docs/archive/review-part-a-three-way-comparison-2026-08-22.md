@@ -47,10 +47,21 @@ campaigns; two different option pairs reaching the same sampling threshold give
 only `ap_set_psf` moves one ring from 16.3% to 0.56%. The aliasing lands in
 `m = 4` specifically, which a square pixel grid's four-fold symmetry predicts.
 
-**C3 — `photutils` does not converge at large radius**, running 1.7–2.4% flat
-to rising where the other two fall below 0.2%. Attributed to order leakage: its
-ring samples are not evenly spaced in polar angle (1.4× variation), so the
-harmonic basis is not orthogonal there.
+**C3 — `photutils` retains a 1.7–2.4% discrepancy at the largest tested
+radii**, where the other two fall below 0.2%. *(Corrected 2026-08-23 after
+review. This originally said photutils "does not converge at large radius" and
+attributed the residual to order leakage. Neither is supported: this is a
+finite fixed-aperture experiment, not an asymptotic convergence test, and the
+archived `leakage_pct` metric compares differences between worst errors,
+possibly at different radii, rather than measuring a cross-order response
+coefficient. The mechanism — its ring samples are not evenly spaced in polar
+angle, 1.4× variation, so the harmonic basis is not orthogonal there — remains
+**consistent with** the observation but is not established by it. Establishing
+it needs one cheap counterfactual on photutils' own sampled angles: fit all
+four n=3,4 components jointly on the same ring, or build the 4×4 response
+matrix from the sampled angles, and check whether the ~2% is quantitatively
+predicted. The archive does not store per-ring angles, so this needs a fresh
+photutils run — in-process, no AutoProf required.)*
 
 **C4 — AutoProf's eccentric-anomaly basis is unconvertible by a same-order
 rotation.** 12% at `eps = 0.3`, 63–68% at `eps = 0.6`.
