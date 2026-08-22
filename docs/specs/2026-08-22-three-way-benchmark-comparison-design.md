@@ -799,7 +799,7 @@ PSF-convolved, both are Sérsic profiles on a square grid, and both use the same
 four planted amplitudes. This narrows the generalization gap; it does not close
 it.
 
-### A4 decision: Track 1 is delivered, Track 2 stays unlicensed
+### A4 decision, first pass: Track 1 is delivered, Track 2 was unlicensed
 
 **Track 1 is done.** Raw amplitudes are reconstructed exactly for all three
 tools and measured against integrated analytic truth across the whole grid.
@@ -824,6 +824,90 @@ from one ring estimator and the numerator from another. Second, that
 measurement is a *separate* pre-registration — it must not be bolted onto the
 frozen A3 grid, because changing the grid changes the fixture fingerprint and
 invalidates the archive the current tolerances judge.
+
+### A4 Track 2 pre-registration: match the convention, not the truth
+
+Written before the campaign it describes was run, and committed before its
+tolerances were frozen. Prompted by a scouting measurement whose result
+changed the design — the same order A2 → A3 followed.
+
+**The finding that forced the design.** The Bender coefficient is
+`a_n = S_n / (sma·|dI/da|)`. Track 1 already recovers `S_n` exactly, so every
+bit of Track 2's error lives in the denominator. The obvious move is to
+finite-difference AutoProf's `b0` profile into the most *accurate* gradient
+available. That would be wrong.
+
+isoster and photutils do not divide by the radial derivative. They divide by a
+**forward secant** over `sma → sma·(1 + astep)`, with `astep = 0.1` by default
+(`isoster/fitting.py`: `gradient_sma = sma * (1.0 + step)`, then
+`gradient = (mean_g - mean_c) / delta_r`). On the Part A fixture that secant
+sits **11–14% below the point derivative**, systematically, at every radius.
+Measured, on rings 12–50 px:
+
+| gradient | vs analytic point derivative |
+|---|---|
+| central difference of AutoProf `b0` | 0.5% median, 2.0% worst |
+| isoster's own measured gradient | 12.0% median, 14.5% worst |
+| photutils' own measured gradient | 11.9% median, 14.5% worst |
+
+The two tools are not 12% wrong. They are computing a different quantity, and
+they agree with *each other*. Had Track 2 used the accurate point derivative,
+AutoProf's `a_n` would have differed from isoster's by ~12% **by
+construction**, and the campaign would have reported a definition mismatch as a
+disagreement between tools.
+
+**So Track 2's denominator is a matched secant.** Take AutoProf's `b0` at
+`sma` and at `sma·(1 + astep)` and difference them over the same interval
+isoster uses. Measured against isoster's own gradient on the same rings, that
+reproduces it to **0.05% median, 0.13% worst** — against 11–14% for the point
+derivative.
+
+This is not circular. What is *shared* is the interval, which both tools must
+use or the comparison is meaningless. What is *measured* is the value, computed
+from AutoProf's own `b0` and nothing else — no isoster quantity enters the
+reconstruction. That the two land within 0.13% is a result, not an
+identity.
+
+**It is also a finding in its own right, and belongs in the publication.**
+Bender-normalized harmonic amplitudes are convention-dependent at the ~12%
+level through the gradient definition alone. Anyone comparing `a4` between two
+tools, or against a published value, needs the gradient step to match; a
+half-decade of `astep` differences would move `a4` by more than most of the
+effects people use it to argue about.
+
+**What the campaign measures, per ring, and reports side by side:**
+
+| gradient | why it is there |
+|---|---|
+| `b0` matched secant | the reconstruction Track 2 proposes |
+| median-flux matched secant | the *wrong* estimator, quantified rather than dismissed. AutoProf's `I` column (`SB` in magnitude mode) is a **median**; `b0` is the mean of the exact vector that entered the FFT, so only `b0` is consistent with the harmonic numerator |
+| isoster's measured gradient | the comparison target |
+| analytic point derivative | the fixture's truth, which is what shows the secant offset is a convention and not an error |
+
+**Cost, stated rather than hidden.** Every measurement radius needs its
+comparison radius measured too, so the AutoProf ring count doubles and the
+paired rings must be requested explicitly. The realized pairing is archived.
+
+**Acceptance, fixed in advance.** Track 2 is licensed — meaning the schema may
+write `a_n`/`b_n` for an AutoProf arm instead of NaN — only if **both** hold on
+the clean configuration:
+
+1. the `b0` matched secant reproduces isoster's gradient within the frozen
+   tolerance, and
+2. the resulting Bender `a_n`/`b_n` agree with isoster's no worse than Track 1's
+   raw-amplitude agreement plus that gradient error — that is, normalizing
+   introduces no *new* systematic.
+
+If either fails, Track 2 stays unlicensed and A5's columns keep their NaN and
+their stated reason. A criterion that can only be met is not a criterion.
+
+**Scope.** Only where the conversion is already valid: the polar-resampled
+path, `ap_isoclip = True`. Never on the eccentric-anomaly path, whose order
+mixing Part A measured at 12% and 63%.
+
+**Separate campaign.** Its own grid, fingerprint, archive, frozen tolerances
+and seed block. The two A3 archives are frozen and gated; nothing here may
+move them.
 
 ### A5. Schema: preserve native values, never overwrite
 

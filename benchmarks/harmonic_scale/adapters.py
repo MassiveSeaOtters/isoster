@@ -366,6 +366,7 @@ def measure_autoprof_fixed(
             "rad_interp_pix": entry.get("rad_interp_pix"),
             "autoprof_b0": entry["b0"],
             "autoprof_a0": entry["a0"],
+            "autoprof_median_flux": entry.get("median_flux", float("nan")),
         }
         for order in orders:
             native_a, native_b = entry[f"a{order}"], entry[f"b{order}"]

@@ -358,6 +358,26 @@ def main(job_path):
             "pa_deg_astro": float(data["pa"][index]),
             "b0": float(data["b0"][index]) if "b0" in columns else float("nan"),
             "a0": float(data["a0"][index]) if "a0" in columns else float("nan"),
+            # The *other* radial profile AutoProf publishes, and the wrong
+            # one to build Track 2's denominator from. ``b0`` is the mean of
+            # the exact vector that entered the FFT, so it is the estimator
+            # consistent with the harmonic numerator; this column is a
+            # *median*. Carried so the gap between them is measured rather
+            # than asserted to be small.
+            #
+            # The column name depends on ``ap_fluxunits``: with "intensity"
+            # AutoProf writes ``I``, and only in magnitude mode does it write
+            # ``SB``. The design note calls it "the median SB profile"
+            # because that is its name in AutoProf's default configuration;
+            # it is the same estimator either way.
+            "median_flux": (
+                float(data["I"][index])
+                if "I" in columns
+                else float(data["SB"][index])
+                if "SB" in columns
+                else float("nan")
+            ),
+            "median_flux_column": "I" if "I" in columns else ("SB" if "SB" in columns else None),
             "pixels": int(data["pixels"][index]) if "pixels" in columns else -1,
         }
         for order in orders:
