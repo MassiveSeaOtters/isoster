@@ -53,10 +53,13 @@ cleanly with a regeneration hint that prints the install commands.
     native values are preserved under `autoprof_*_native` and the Bender
     columns are NaN with a recorded reason (see §4).
 
-    What Part A *did* establish is that the underlying scales agree. Measured
-    against integrated analytic truth at matched apertures, all three tools
-    recover the raw amplitudes to 0.1–0.3% once sampled comparably; the
-    apparent 13–25% AutoProf excess is nearest-pixel sampling, not scale.
+    What Part A *did* establish is that the underlying scales agree, and that
+    the apparent 13–25% AutoProf excess is nearest-pixel sampling rather than
+    scale. The agreement is radius-dependent, not uniform, and the figures are
+    in the design spec where they are bound to the archive. They are not
+    repeated here: an earlier version of this passage stated a 0.1–0.3%
+    three-tool agreement that the archive contradicts, precisely because it was
+    unguarded prose.
 
     **Consequence for Prior 2, unchanged in practice:** the cross-tool
     harmonic score still cannot be computed for an AutoProf arm, because the

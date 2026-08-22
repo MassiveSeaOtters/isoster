@@ -31,9 +31,13 @@ quantities under one column name.
 
 Five claims are made. Each is archived, and each is gated.
 
-**C1 — The three tools agree on raw harmonic amplitudes.** Measured against
-integrated analytic truth at matched apertures, agreement is 0.1–0.3% once the
-tools sample comparably.
+**C1 — The three tools agree on raw harmonic amplitudes, to within 2.4%, with
+the agreement strongly radius-dependent.** *(Corrected 2026-08-23 after review:
+this section originally claimed 0.1–0.3%, which the archive contradicts. That
+figure describes isoster and interpolated AutoProf at the largest radii only —
+photutils never reaches it, running 0.88–1.90% on the compact fixture and
+1.67–2.41% on the extended one. The corrected statement is now guarded by
+`check_harmonic_scale.py`; see the design spec.)*
 
 **C2 — AutoProf's apparent 13–25% harmonic excess is nearest-pixel sampling,
 not a scale difference.** Controlled by `ap_iso_interpolate_start`. Claimed as
@@ -57,10 +61,14 @@ own interval reproduces isoster's gradient far better than a point derivative
 does. Licensed **only on the reference configuration of both fixtures**.
 
 A sixth finding is claimed as publishable in its own right: **Bender amplitudes
-are convention-dependent at ~13% through the gradient definition alone**
-(forward secant versus point derivative), reproducing on two galaxies of
-different concentration — which makes it a property of the definition, not the
-profile.
+are convention-dependent through the gradient definition alone** (forward
+secant versus point derivative). *(Corrected 2026-08-23: this originally called
+the ~13% figure a property of the definition rather than the profile. It is
+not. Both figures are maxima over rings, and the underlying quantity runs
+8.01–13.19% and 10.34–13.10%, rising with radius. The defensible claim is that
+with `astep = 0.1` the largest tested differences were 13.2% and 13.1% on these
+two fixtures. The consequence — `a_4` is comparable across codes only at
+matching radial step — is unaffected.)*
 
 ---
 

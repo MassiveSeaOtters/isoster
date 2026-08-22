@@ -441,9 +441,25 @@ the switch, not *large and decreasing*.
 
 **Consequences for the rest of Part A.**
 
-- The publication claim is now "the three tools measure the same harmonic
-  signal to ~0.1–0.3% once each is sampled comparably", with the sampling
-  caveat stated — not "AutoProf reads 13–25% high".
+- The publication claim is **not** "AutoProf reads 13–25% high". Nor, as an
+  earlier draft of this document said, "the three tools agree to ~0.1–0.3%":
+  a review caught that as contradicted by the archive. That figure describes
+  isoster and interpolated AutoProf at the largest radii only; photutils never
+  reaches it.
+
+  Across the tested matched apertures all three tools recover the raw amplitudes
+  to within 2.4%, and the agreement is strongly radius-dependent rather than
+  uniform. On the compact n=2 fixture the three tools agree with the analytic
+  truth to better than 2.3%; on the extended n=4 fixture the three tools agree
+  with the analytic truth to better than 2.4%. The tools separate at large
+  radius: on the compact n=2 fixture at the largest tested radius, sma = 45 px,
+  isoster reaches 0.13% and AutoProf 0.13%, while photutils retains 1.85%; on the
+  extended n=4 fixture at the largest tested radius, sma = 70 px, isoster reaches
+  0.08% and AutoProf 0.19%, while photutils retains 1.85%.
+
+  The isoster-versus-AutoProf agreement at large radius is the strong result;
+  the photutils residual is a separate finding (see A3 result). Both clauses
+  above are bound to the archive by `check_harmonic_scale.py`.
 - `ap_iso_interpolate_start` becomes a **grid axis**, not a default to
   inherit and not a fixed recorded setting. A3 below states why: it is the
   largest effect on the grid by an order of magnitude, so pinning it to
@@ -968,10 +984,27 @@ decisive, with ten times fixed in advance as the bar; it is not close.
 On the compact n=2 fixture the forward secant and the point derivative
 disagree by 13.2% at the worst ring, and on the extended n=4 fixture the
 forward secant and the point derivative disagree by 13.1% at the worst ring.
-Two galaxies of quite different concentration give the same figure, which
-means it is a property of the *definition*, not of the profile. The direct
-consequence for anyone comparing Bender amplitudes across tools: `a_4` from
-two codes is comparable only when their radial step matches. Had Track 2 used
+Both figures are **maxima over rings**, and a review correctly caught an
+earlier version of this paragraph generalizing them into "a property of the
+definition, not of the profile". That is false. The *existence* of a
+secant-versus-derivative gap is definitional, but its size depends on profile
+curvature, radius, Sersic index and step, and the archive shows it varying
+strongly with radius:
+
+| fixture | | | | | |
+|---|---|---|---|---|---|
+| compact n=2 (sma 12/18/25/35/45) | 8.01% | 9.34% | 10.55% | 11.97% | 13.19% |
+| extended n=4 (sma 18/28/40/55/70) | 10.34% | 11.18% | 11.92% | 12.56% | 13.10% |
+
+It rises monotonically with radius and nearly doubles across the n=2 fixture.
+The two galaxies agree at ~13% only because both *maxima* land there; comparing
+two maxima and calling the result a constant was the error.
+
+The defensible statement is narrow: **with `astep = 0.1`, the largest tested
+differences were 13.2% and 13.1% on these two fixtures.** The consequence for
+anyone comparing Bender amplitudes across tools survives unchanged and does not
+depend on the magnitude: `a_4` from two codes is comparable only when their
+radial step matches. Had Track 2 used
 the accurate point derivative, this campaign would have reported a definition
 mismatch as a 13% disagreement between tools.
 

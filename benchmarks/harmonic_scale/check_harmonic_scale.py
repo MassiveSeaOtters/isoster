@@ -249,6 +249,26 @@ def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str, str]]:
             cells = " | ".join(f"{claims[f'clean_agreement_pct_{tool}_sma{r:g}']:.2f}%" for r in radii)
             checks.append((f"clean_agreement_row_{tool}", header_stem, f"| {display} | {cells} |"))
 
+    # The headline that was wrong. A review found the prose claiming all three
+    # tools agree to 0.1-0.3%, when the archive shows photutils never reaches
+    # that: the figure described isoster and AutoProf at the largest radii
+    # only. The guarded "better than 2.3%" clause above was correct all along
+    # -- the error lived in unguarded prose, which is precisely the drift this
+    # gate exists to stop, so the corrected statement is guarded too.
+    if radii:
+        outer = radii[-1]
+        checks.append(
+            (
+                "large_radius_split",
+                # Stem: campaign and the outer radius. Neither is a guarded value.
+                f"on the {label} fixture at the largest tested radius, sma = {outer:g} px",
+                f"on the {label} fixture at the largest tested radius, sma = {outer:g} px, isoster reaches "
+                f"{claims[f'clean_agreement_pct_isoster_sma{outer:g}']:.2f}% and AutoProf "
+                f"{claims[f'clean_agreement_pct_autoprof_sma{outer:g}']:.2f}%, while photutils retains "
+                f"{claims[f'clean_agreement_pct_photutils_sma{outer:g}']:.2f}%",
+            )
+        )
+
     for key, value in sorted(claims.items()):
         if key.startswith("nearest_pixel_excess_pct_sma"):
             radius = key.rsplit("sma", 1)[1]
