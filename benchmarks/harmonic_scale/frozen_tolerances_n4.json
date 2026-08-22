@@ -1,0 +1,202 @@
+{
+  "frozen_from": {
+    "mode": "pilot",
+    "fixture": "sersic_n4_extended",
+    "seed_block": 700000,
+    "commit": "f45820aa402ab0ef74788a56aa654b312b966975",
+    "fixture_fingerprint": "408143c3fe679160cda9f8c960259a7d8e716f357f44f8b3f9aac116b4ffed08"
+  },
+  "policy": {
+    "safety_factor": 3.0,
+    "deterministic_floor_pct": 0.05,
+    "invariance_floor": 1e-05,
+    "note": "Tolerances are derived from the pilot's measured scatter by one uniform rule, not chosen per claim. The validation run draws from a disjoint seed block and is judged against these values."
+  },
+  "claims": {
+    "clean_agreement_pct_isoster_sma18": {
+      "pilot_value": 1.0414,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_isoster_sma28": {
+      "pilot_value": 0.2603,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_isoster_sma40": {
+      "pilot_value": 0.2656,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_isoster_sma55": {
+      "pilot_value": 0.0697,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_isoster_sma70": {
+      "pilot_value": 0.0795,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_isoster": {
+      "pilot_value": 1.0414,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils_sma18": {
+      "pilot_value": 1.6661,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils_sma28": {
+      "pilot_value": 2.0119,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils_sma40": {
+      "pilot_value": 2.1231,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils_sma55": {
+      "pilot_value": 2.415,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils_sma70": {
+      "pilot_value": 1.8506,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_photutils": {
+      "pilot_value": 2.415,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof_sma18": {
+      "pilot_value": 0.8138,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof_sma28": {
+      "pilot_value": 0.8586,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof_sma40": {
+      "pilot_value": 0.2743,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof_sma55": {
+      "pilot_value": 0.2,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof_sma70": {
+      "pilot_value": 0.1865,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "clean_agreement_pct_autoprof": {
+      "pilot_value": 0.8586,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "nearest_pixel_excess_pct_sma28": {
+      "pilot_value": 16.254,
+      "tolerance": 0.32508,
+      "basis": "deterministic_floor"
+    },
+    "nearest_pixel_excess_pct_sma40": {
+      "pilot_value": 1.2144,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "nearest_pixel_excess_pct_sma55": {
+      "pilot_value": 7.2291,
+      "tolerance": 0.144582,
+      "basis": "deterministic_floor"
+    },
+    "nearest_pixel_excess_pct_sma70": {
+      "pilot_value": 6.1138,
+      "tolerance": 0.122276,
+      "basis": "deterministic_floor"
+    },
+    "mode_matched_spread": {
+      "pilot_value": 0.0,
+      "tolerance": 1e-05,
+      "basis": "invariance_floor"
+    },
+    "background_invariance_isoster": {
+      "pilot_value": 0.0,
+      "tolerance": 1e-05,
+      "basis": "invariance_floor"
+    },
+    "background_invariance_photutils": {
+      "pilot_value": 1e-06,
+      "tolerance": 1e-05,
+      "basis": "invariance_floor"
+    },
+    "background_invariance_autoprof": {
+      "pilot_value": 0.0,
+      "tolerance": 1e-05,
+      "basis": "invariance_floor"
+    },
+    "eccentric_anomaly_error_pct_eps0.3": {
+      "pilot_value": 12.2622,
+      "tolerance": 0.245244,
+      "basis": "deterministic_floor"
+    },
+    "eccentric_anomaly_error_pct_eps0.6": {
+      "pilot_value": 63.3516,
+      "tolerance": 1.267032,
+      "basis": "deterministic_floor"
+    },
+    "leakage_pct_isoster": {
+      "pilot_value": 0.093,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "leakage_pct_photutils": {
+      "pilot_value": 2.028,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "leakage_pct_autoprof": {
+      "pilot_value": 0.136,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "noise_scatter_snr100_isoster": {
+      "pilot_value": 0.076031,
+      "tolerance": 0.032257,
+      "basis": "scatter"
+    },
+    "noise_scatter_snr100_photutils": {
+      "pilot_value": 0.074373,
+      "tolerance": 0.031554,
+      "basis": "scatter"
+    },
+    "noise_scatter_snr100_autoprof": {
+      "pilot_value": 0.08909,
+      "tolerance": 0.037798,
+      "basis": "scatter"
+    },
+    "noise_scatter_snr30_isoster": {
+      "pilot_value": 0.25874,
+      "tolerance": 0.139372,
+      "basis": "scatter"
+    },
+    "noise_scatter_snr30_photutils": {
+      "pilot_value": 0.247912,
+      "tolerance": 0.129612,
+      "basis": "scatter"
+    },
+    "noise_scatter_snr30_autoprof": {
+      "pilot_value": 0.296966,
+      "tolerance": 0.128174,
+      "basis": "scatter"
+    }
+  }
+}

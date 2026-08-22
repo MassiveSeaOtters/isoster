@@ -25,8 +25,11 @@ The claims
 
 ``nearest_pixel_excess_pct_sma<r>``
     AutoProf's ``|ratio - 1|`` at radius ``r`` on rings it sampled by rounding
-    to the nearest pixel. Radius-resolved because the excess falls with radius
-    as the half-pixel displacement matters less relative to the ring.
+    to the nearest pixel. Radius-resolved because the excess varies strongly
+    and *non-monotonically* with radius: how badly a ring aliases depends on
+    where its sample positions happen to fall on the integer grid, so a nearly
+    clean ring can sit between two badly aliased ones. Pooling over radius
+    would average a structured effect into a meaningless single number.
 
 ``mode_matched_spread``
     The largest spread, across grid cases, of AutoProf's ratio at a fixed

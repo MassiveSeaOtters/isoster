@@ -425,9 +425,19 @@ both orders:
 | nearest | m=3 | 0.981 | 1.063 | 0.927 | 0.996 |
 | nearest | m=4 | 1.357 | 1.245 | 1.136 | 1.084 |
 
-`m=3` shows scatter with no systematic bias; `m=4` is systematically inflated,
-decreasingly so with radius as the half-pixel displacement matters less
-relative to the ring.
+`m=3` shows scatter with no systematic bias; `m=4` is systematically inflated.
+
+**The radius dependence is not monotonic, and an earlier draft said it was.**
+On this fixture the excess happens to fall — 24.5% / 13.4% / 8.4% at
+`sma = 25 / 35 / 45` — which invited the explanation that a half-pixel
+displacement matters less relative to a larger ring. The second fixture
+falsifies that: at `sma = 28 / 40 / 55 / 70` it reads 16.3% / **1.2%** / 7.2%
+/ 6.1%, with the 40 px ring almost clean between two badly aliased
+neighbours. The size of the aliasing depends on how a particular ring's
+sample positions happen to land on the integer grid, which is a
+commensurability between radius, ellipticity and sample count rather than a
+smooth function of radius. Expect the effect to be *large and erratic* above
+the switch, not *large and decreasing*.
 
 **Consequences for the rest of Part A.**
 
