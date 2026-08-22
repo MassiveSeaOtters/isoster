@@ -27,6 +27,8 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import sys
 from pathlib import Path
@@ -288,13 +290,41 @@ def _self_test() -> int:
             worst = 1
             continue
 
-        mutated = json.loads(json.dumps(archive))
-        for case in mutated["cases"]:
-            for ring in case["summary"].values():
-                for entry in ring.values():
-                    if isinstance(entry, dict) and "median" in entry:
-                        entry["median"] = float(entry["median"]) + 5.0
-        caught_claims = bool(check_one(fixture, mutated, tolerances))
+        # One claim at a time, and the failure must name *that* claim.
+        #
+        # This previously applied a single global mutation and scored a pass
+        # whenever any failure appeared, so a claim that survived corruption
+        # was invisible. The claim definitions here are declarative, so the
+        # mutation can be targeted exactly: perturb only the columns one claim
+        # reduces over, and require that claim to be the one that trips.
+        runner.ACTIVE_FIXTURE = fixture
+        cases = {case["spec"]["name"]: case for case in archive["cases"]}
+        survivors = []
+        for definition in runner.CLAIM_DEFINITIONS:
+            if str(definition["case"]) not in cases:
+                continue
+            for reduction in runner.CLAIM_REDUCTIONS:
+                claim = f"{reduction}_{definition['stem']}"
+                if claim not in tolerances["claims"]:
+                    continue
+                mutated = json.loads(json.dumps(archive))
+                target = {c["spec"]["name"]: c for c in mutated["cases"]}[str(definition["case"])]
+                keys = runner._selected_keys(target, definition)
+                for ring in target["summary"].values():
+                    for key in keys:
+                        entry = ring.get(key)
+                        if isinstance(entry, dict) and "median" in entry:
+                            # Scale as well as shift: several Track 2 claims are
+                            # ratios, and a pure offset need not move them.
+                            entry["median"] = float(entry["median"]) * 1.9 + 7.0
+                with contextlib.redirect_stdout(io.StringIO()):
+                    found = check_one(fixture, mutated, tolerances)
+                if not any(failure.startswith(f"{claim}:") for failure in found):
+                    survivors.append(claim)
+        caught_claims = not survivors
+        for claim in survivors:
+            print(f"  MISSED {claim}: corrupting its own columns does not trip it")
+        print(f"self-test {fixture}: per-claim mutation, {len(survivors)} survivor(s)")
 
         # And a verdict that no longer follows from its numbers.
         flipped = json.loads(json.dumps(archive))

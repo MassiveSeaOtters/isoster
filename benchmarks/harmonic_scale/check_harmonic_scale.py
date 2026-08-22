@@ -302,6 +302,45 @@ def run_doc_checks(checks: List[Tuple[str, str, str]], docs: Dict[str, str]) -> 
     return failures
 
 
+def _corrupt(archive: Dict[str, object]) -> Dict[str, object]:
+    """Perturb every archived statistic *heterogeneously*.
+
+    A uniform additive shift is the obvious corruption and it is useless here,
+    because a third of these claims are differences or spreads and a constant
+    cancels out of both by construction --- `background_invariance_*` measures
+    exactly that cancellation. Under a uniform shift those twelve claims per
+    fixture reported no failure, and the self-test counted them as caught
+    anyway. Twelve of thirty-six guarded numbers could have been edited in
+    silence.
+
+    So the perturbation scales as well as shifts, varies from entry to entry,
+    and touches every statistic a claim might read --- `stdev` included, since
+    the noise-scatter claims are built from it and never look at `median`.
+    """
+    mutated = json.loads(json.dumps(archive))
+    step = 0
+    for case_index, case in enumerate(mutated["cases"]):
+        for tool_summary in case["summary"].values():
+            for ring in tool_summary.values():
+                for entry in ring.values():
+                    if not isinstance(entry, dict):
+                        continue
+                    step += 1
+                    # The scale and offset must differ *per case*, not only per
+                    # entry. Several claims compare one case against another --
+                    # `background_invariance_*` is the difference between a run
+                    # with a background pedestal and one without, and is ~0 by
+                    # design. Any transform applied identically to both cases
+                    # maps 0 to 0, so those claims survived even a scaling
+                    # corruption and the self-test scored them as caught.
+                    scale = 1.7 + 0.23 * case_index
+                    offset = 11.0 + 3.0 * (step % 5) + 7.0 * case_index
+                    for field in ("median", "min", "max", "stdev"):
+                        if field in entry and entry[field] is not None:
+                            entry[field] = float(entry[field]) * scale + offset
+    return mutated
+
+
 def _self_test(archive: Dict[str, object], tolerances: Dict[str, object]) -> int:
     """Confirm the claim gate actually fails when the archive is corrupted.
 
@@ -317,18 +356,27 @@ def _self_test(archive: Dict[str, object], tolerances: Dict[str, object]) -> int
             print(f"  {failure}")
         return 1
 
+    # Corrupt once, then ask of *each* claim whether that claim reports a
+    # failure naming itself.
+    #
+    # This loop previously iterated claim names, applied the same global
+    # mutation each time, and counted a pass whenever the failure list was
+    # non-empty -- so `name` was never used and "36/36" meant "one mutation
+    # tripped at least one claim, counted 36 times". A claim that survived
+    # corruption was invisible, which is the dormant-gate failure this whole
+    # self-test exists to rule out, sitting inside the self-test itself.
+    #
+    # What this proves and what it does not: every frozen claim is live under
+    # corruption. It does not prove claims are *independent* -- the mutation is
+    # still global, so it cannot show that corrupting claim A leaves claim B
+    # alone. The Track 2 self-test does mutate per claim, because its claim
+    # definitions are declarative; these are not.
+    mutated = _corrupt(archive)
+    failures, _ = check_claims(mutated, tolerances)
+
     caught = 0
     for name in sorted(frozen):
-        mutated = json.loads(json.dumps(archive))
-        # Shift every stored median by an amount that clears any tolerance.
-        for case in mutated["cases"]:
-            for tool_summary in case["summary"].values():
-                for ring in tool_summary.values():
-                    for key, entry in ring.items():
-                        if isinstance(entry, dict) and "median" in entry:
-                            entry["median"] = float(entry["median"]) + 10.0
-        failures, _ = check_claims(mutated, tolerances)
-        if failures:
+        if any(failure.startswith(f"{name}:") for failure in failures):
             caught += 1
         else:
             print(f"self-test: corrupting the archive did NOT trip {name}")
