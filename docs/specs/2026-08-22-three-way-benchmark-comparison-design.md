@@ -892,14 +892,48 @@ paired rings must be requested explicitly. The realized pairing is archived.
 write `a_n`/`b_n` for an AutoProf arm instead of NaN — only if **both** hold on
 the clean configuration:
 
-1. the `b0` matched secant reproduces isoster's gradient within the frozen
-   tolerance, and
+1. the `b0` matched secant reproduces isoster's gradient **decisively better
+   than the point derivative does**, and
 2. the resulting Bender `a_n`/`b_n` agree with isoster's no worse than Track 1's
    raw-amplitude agreement plus that gradient error — that is, normalizing
-   introduces no *new* systematic.
+   introduces no *new* systematic. Both sides measured
+   AutoProf-against-isoster.
+
+**Both criteria are threshold-free, and the third correction is why.** As
+first written, criterion 1 asked whether the reconstruction agreed "within the
+frozen tolerance" — but those tolerances are *derived from the pilot's own
+values*, so the test would have passed by construction. A criterion that
+cannot fail is precisely what this procedure exists to prevent, and it had
+crept into the procedure itself.
+
+Both are now comparisons rather than thresholds. Criterion 1 weighs two
+candidate reconstructions against the same target; criterion 2 weighs a
+normalized quantity against the unnormalized one it is built from. Neither
+needs a number chosen in advance. The frozen tolerances keep their proper and
+separate job: testing that a validation run on a disjoint seed block
+reproduces the pilot, not deciding whether the result is good.
 
 If either fails, Track 2 stays unlicensed and A5's columns keep their NaN and
 their stated reason. A criterion that can only be met is not a criterion.
+
+**Criterion 2 sharpened after the pilot, before any tolerance was frozen.**
+As first written it compared a raw-versus-*truth* number against a
+Bender-versus-*isoster* number. Those are not comparable. Under noise both
+tools see the same realization, so their errors are correlated and the
+tool-to-tool gap is much smaller than either tool's gap to truth — the pilot
+read raw 34.5% against Bender 9.9% at S/N = 30, which would have suggested
+that *normalizing improves accuracy*. The baseline is now
+AutoProf-versus-isoster for the raw amplitudes too: same pair of tools, same
+realization, only the normalization differing. That is the only form in which
+"does normalizing add a systematic" is a well-posed question.
+
+**Licensing is expected to be regime-dependent, and the schema must say so.**
+The pilot already shows the reconstruction is not uniformly good: excellent
+where the rings are cleanly sampled and moderately elliptical, and degrading
+where they are not. A single global yes/no would therefore be the wrong
+output. Where the conditions do not hold, the Bender columns keep their NaN
+and a reason naming the condition, exactly as they do today for the missing
+gradient.
 
 **Scope.** Only where the conversion is already valid: the polar-resampled
 path, `ap_isoclip = True`. Never on the eccentric-anomaly path, whose order

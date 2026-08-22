@@ -1,0 +1,97 @@
+{
+  "frozen_from": {
+    "mode": "pilot",
+    "fixture": "sersic_n2_compact",
+    "seed_block": 500000,
+    "commit": "15d99376a4179c343793aa009cdc0add16362939",
+    "fixture_fingerprint": "8d919191da378060338220367a724195583ca054091f9225e2f1a9fd6830f47c"
+  },
+  "policy": {
+    "safety_factor": 3.0,
+    "deterministic_floor_pct": 0.05,
+    "gradient_step": 0.1,
+    "note": "Derived from the pilot's measured scatter by one uniform rule. The validation run draws from a disjoint seed block and is judged against these values."
+  },
+  "claims": {
+    "gradient_agreement_pct_clean": {
+      "pilot_value": 0.130897,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_eps_circular": {
+      "pilot_value": 0.18272,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_eps_high": {
+      "pilot_value": 5.54124,
+      "tolerance": 0.110825,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_pa_30": {
+      "pilot_value": 0.224703,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_background_offset": {
+      "pilot_value": 0.130897,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_interpolate_default": {
+      "pilot_value": 2.275045,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "gradient_agreement_pct_noise_snr100": {
+      "pilot_value": 0.260108,
+      "tolerance": 0.481701,
+      "basis": "scatter"
+    },
+    "gradient_agreement_pct_noise_snr30": {
+      "pilot_value": 0.974621,
+      "tolerance": 0.481701,
+      "basis": "scatter"
+    },
+    "median_estimator_penalty_pct": {
+      "pilot_value": 0.978942,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "secant_vs_point_derivative_pct": {
+      "pilot_value": 13.186083,
+      "tolerance": 0.263722,
+      "basis": "deterministic_floor"
+    },
+    "bender_agreement_pct_reference": {
+      "pilot_value": 1.962288,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "raw_agreement_pct_reference": {
+      "pilot_value": 1.945446,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor"
+    },
+    "bender_agreement_pct_eps_high": {
+      "pilot_value": 14.315905,
+      "tolerance": 0.286318,
+      "basis": "deterministic_floor"
+    },
+    "raw_agreement_pct_eps_high": {
+      "pilot_value": 7.981386,
+      "tolerance": 0.159628,
+      "basis": "deterministic_floor"
+    },
+    "bender_agreement_pct_noise_snr30": {
+      "pilot_value": 9.910608,
+      "tolerance": 0.481701,
+      "basis": "scatter"
+    },
+    "raw_agreement_pct_noise_snr30": {
+      "pilot_value": 10.505219,
+      "tolerance": 0.481701,
+      "basis": "scatter"
+    }
+  }
+}

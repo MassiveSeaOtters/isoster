@@ -163,6 +163,61 @@ def bender_coefficients_photutils(
     return float(coefficients[1] / factor), float(coefficients[2] / factor)
 
 
+#: The gradient interval isoster and photutils both use, as a fraction of the
+#: semi-major axis. Matches ``IsosterConfig.astep``'s default.
+DEFAULT_GRADIENT_STEP = 0.1
+
+
+def matched_secant_gradient(
+    profile_at_sma: float,
+    profile_at_comparison: float,
+    sma: float,
+    step: float = DEFAULT_GRADIENT_STEP,
+) -> float:
+    """The gradient isoster means, computed from any tool's radial profile.
+
+    isoster and photutils do not divide by ``dI/da``. They divide by a forward
+    secant over ``sma -> sma*(1 + astep)``::
+
+        gradient = (mean(sma * (1 + astep)) - mean(sma)) / (sma * astep)
+
+    On the Part A fixture that sits 11-14% below the point derivative at every
+    radius, systematically. Reconstructing AutoProf's denominator as a point
+    derivative would therefore have made its Bender coefficients differ from
+    isoster's by that 12% *by construction*, and a definition mismatch would
+    have been reported as a disagreement between tools.
+
+    What is shared here is the **interval**, which both tools must use or the
+    comparison is meaningless. What is measured is the **value**, taken from
+    the supplying tool's own profile with nothing from isoster entering it.
+
+    Args:
+        profile_at_sma: The tool's ring statistic at ``sma``. For AutoProf this
+            must be ``b0`` -- the mean of the exact vector that entered the
+            FFT, and so the estimator consistent with the harmonic numerator.
+            Its ``I``/``SB`` column is a *median* and is the wrong choice.
+        profile_at_comparison: The same statistic at ``sma * (1 + step)``.
+        sma: Semi-major axis of the measured ring.
+        step: The interval, which must match the config being compared against.
+
+    Returns:
+        The secant gradient, or NaN if the interval is degenerate.
+    """
+    delta_r = sma * step
+    if delta_r == 0 or not np.isfinite(delta_r):
+        return float("nan")
+    return float((profile_at_comparison - profile_at_sma) / delta_r)
+
+
+def comparison_radius(sma: float, step: float = DEFAULT_GRADIENT_STEP) -> float:
+    """The ring isoster pairs with ``sma`` to form its gradient.
+
+    Exposed so a campaign can request both rings explicitly: the reconstruction
+    needs the tool measured at both radii, which doubles the ring count.
+    """
+    return float(sma) * (1.0 + float(step))
+
+
 def rotate_raw_to_major_axis(
     s_sky: float,
     c_sky: float,
