@@ -554,6 +554,90 @@ Reported per case, for both tracks of A4, with provenance following
 `benchmarks/draft_timings/`: environment block, fixture fingerprint,
 clean-tree check, refusal to archive from a dirty tree.
 
+### A3 result: sampling mode is the cause, and it is the only large effect
+
+Measured on the designed grid, pilot on seed block 900000 and validation on
+20260822, with tolerances frozen from the pilot and committed before the
+validation run. Archived in `benchmarks/harmonic_scale/reference_harmonic_scale.json`.
+
+**The headline.** In the clean configuration — noiseless, clipping on, and on
+only those rings AutoProf actually interpolated — the three tools agree with
+the analytic truth to better than 2.3%, and the agreement is strongly
+radius-dependent:
+
+| worst \|ratio − 1\| | sma=12 | sma=18 | sma=25 | sma=35 | sma=45 |
+|---|---|---|---|---|---|
+| isoster | 2.18% | 1.02% | 0.57% | 0.25% | 0.13% |
+| photutils | 1.90% | 1.70% | 1.25% | 0.88% | 1.85% |
+| AutoProf | 2.33% | 0.81% | 0.99% | 0.45% | 0.13% |
+
+The pooled worst case is set by the smallest ring, where the fixture itself is
+marginally resolved: at `sma = 12` and `eps = 0.3` a quarter of an `m=4` cycle
+spans only a few pixels. Quoting the pooled number alone would present
+pixelation of the fixture as the tools' agreement floor. isoster and AutoProf
+converge to 0.13% at `sma = 45`; photutils does not, for a reason given below.
+
+**Sampling mode is the cause of the AutoProf excess, and this now says so
+rather than inferring it.** AutoProf reads 24.5% high at sma = 25 px when that
+ring is sampled by rounding to the nearest pixel, 13.4% high at sma = 35 px
+when that ring is sampled by rounding to the nearest pixel, and 8.4% high at
+sma = 45 px when that ring is sampled by rounding to the nearest pixel. The
+radius × interpolation-start interaction is what makes this a causal statement
+instead of a correlation:
+
+| ring | `start=100` | `start=8` | `start=5` |
+|---|---|---|---|
+| sma=25 | **0.35%** (interpolated) | **0.35%** (interpolated) | **24.5%** (rounded) |
+| sma=35 | **0.40%** (interpolated) | **13.4%** (rounded) | **13.4%** (rounded) |
+| sma=45 | **0.13%** (interpolated) | **8.4%** (rounded) | **8.4%** (rounded) |
+
+Same ring, same mode, different setting gives the *same* answer; same ring,
+different mode gives an answer that differs by a factor of seventy. Across the
+whole grid, `mode_matched_spread` — the largest disagreement between two cases
+whose sampling mode at a ring agreed — is **0** to the six decimals the archive
+stores. The setting does not matter except through the mode it selects, and
+the radius does not matter except through which side of the switch it falls.
+
+**Two other results, both corrections to what this spec previously said.**
+
+- **The background axis does not test what the revision note claimed, for
+  AutoProf.** Revision item 1 measured the FFT expression directly and found a
+  ring-mean-ratio sensitivity. Through the *pipeline* there is none: the forced
+  sequence begins with a `background` step, so an additive sky offset is
+  subtracted before extraction and never reaches the normalization. Measured: a
+  `+50` offset moved `b0` from 99.35842 to 99.35843 and left native `b4`
+  identical to six decimals. Raw amplitudes are invariant for all three tools
+  to floating-point round-off — 4e-15 for isoster, 1e-14 for AutoProf, and
+  2e-7 for photutils, the last being the `leastsq` floor A1 already
+  characterized rather than a background sensitivity. Both statements are true
+  at their own level; A1 covers the formula, this axis covers the pipeline.
+
+- **photutils leaks between harmonic orders, and the other two do not.** Its
+  1.85% floor at `sma = 45` is not a scale error. Its ring samples are not
+  evenly spaced in polar angle — measured spacing varies by a factor of 1.4
+  around one ring — so the harmonic basis is not orthogonal on them
+  (`⟨sin 3φ, cos 4φ⟩ = 6e-4`, against `1e-18` on an even grid), and a fit that
+  models one order at a time absorbs part of the others. The single-mode
+  control case settles it: with only `m=3 cos` planted, photutils recovers it
+  to 0.24%. The excess is a property of the estimator on multi-mode rings, and
+  the control case is what keeps it separable from the scale question in the
+  archive.
+
+**Difference 4 confirmed and quantified.** With clipping off, AutoProf is in
+the eccentric-anomaly basis and the same-order rotation is not a valid
+conversion. The cost of applying it anyway is 12.3% at `eps = 0.3` and 68.2%
+at `eps = 0.6` — and, unlike the sampling excess, it is nearly independent of
+radius, which is what a basis error rather than a sampling error looks like.
+
+**What the noisy arms do and do not establish.** At S/N = 30 the ratio scatters
+with a standard deviation near 0.4, so five realizations could not pin a
+median; the count is 25 and those arms characterize a distribution rather than
+calibrating a scale, which the noiseless arms do. Note also that 30 of the 36
+frozen claims come from noiseless cases and so reproduce *exactly* between the
+two seed blocks: they test determinism, and only the six scatter claims test
+whether the frozen tolerances were well chosen. The checker reports that split
+rather than printing a bare pass count.
+
 ### A4. The two tracks
 
 **Track 1 — raw amplitudes (primary).** Reconstruct the raw sine and
@@ -611,6 +695,32 @@ no same-order two-component rotation can express it. Therefore:
 - eccentric-anomaly output stays native and explicitly labelled, or is
   converted by resampling the original ring signal — never by
   transforming `a_n` and `b_n` alone.
+
+### A4 decision: Track 1 is delivered, Track 2 stays unlicensed
+
+**Track 1 is done.** Raw amplitudes are reconstructed exactly for all three
+tools and measured against integrated analytic truth across the whole grid.
+That is the primary diagnostic, and it needed no gradient.
+
+**Track 2 is deliberately not filled, and the schema says so per row.** The
+grid as run did not measure AutoProf's gradient at all — the adapter records
+`NaN` for it, because AutoProf reports none. Licensing the Bender conversion
+needs its own measurement, pre-registered on its own terms: finite-difference
+the `b0` profile, compare that gradient against isoster's measured gradient
+and against the fixture's analytic value on the same rings, and quantify the
+normalization uncertainty rather than assert it is small. Until then, an
+AutoProf arm's `a3`/`b3`/`a4`/`b4` are `NaN` with
+`harmonic_conversion_valid = False` and `harmonic_conversion_reason =
+"no_radial_gradient_reported"`.
+
+Two things must not be quietly conflated when that measurement happens.
+First, use the **`b0` profile**, not the median `SB` profile: `b0` is the mean
+of the exact vector that entered the FFT, so it is the estimator consistent
+with the harmonic numerator, and differencing `SB` would build the denominator
+from one ring estimator and the numerator from another. Second, that
+measurement is a *separate* pre-registration — it must not be bolted onto the
+frozen A3 grid, because changing the grid changes the fixture fingerprint and
+invalidates the archive the current tolerances judge.
 
 ### A5. Schema: preserve native values, never overwrite
 

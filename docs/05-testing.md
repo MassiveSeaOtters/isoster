@@ -44,6 +44,24 @@ Documentation numbers quoted in the technical chapter are guarded by
 `benchmarks/draft_timings/check_draft_numbers.py`, which runs in the docs CI
 job. It is not part of the pytest suite.
 
+The cross-tool harmonic-scale calibration is guarded the same way, by
+`benchmarks/harmonic_scale/check_harmonic_scale.py`, the third gate in that
+job. It reads only the committed archive and the committed prose, so it needs
+no AutoProf — which matters, because CI has none. What it enforces is a
+pre-registration: the tolerances in `frozen_tolerances.json` were derived from
+a pilot run on one noise-seed block and committed *before* the validation run
+on a disjoint block that they judge. Choosing a tolerance after seeing the
+result it will judge is the failure that procedure exists to prevent.
+
+Two rules follow for anyone touching that archive. Do not hand-edit a number
+in it or in the prose it guards — re-run
+`run_harmonic_scale.py --mode validation --archive` and let the checker print
+the replacements. And do not change the grid, the fixture or the planted modes
+without re-freezing: those inputs are covered by a fixture fingerprint, and a
+changed fingerprint means the archived numbers describe a different
+experiment, which the checker reports as a redefinition rather than as drift.
+Archiving refuses to run from a dirty working tree.
+
 ## 2. Directives
 
 ### General

@@ -524,6 +524,40 @@ Manifest compatibility is preserved with additive-only schema evolution:
 - Reproducible examples: `examples/`
 - Generated artifacts: `outputs/`
 
+### Cross-tool harmonic scale (`benchmarks/harmonic_scale/`)
+
+Settles whether isoster, photutils and AutoProf put `a_n` and `b_n` on the
+same scale, which is what lets a cross-tool harmonic comparison be published.
+Five modules, each with one job:
+
+| Module | Responsibility |
+|---|---|
+| `conventions.py` | The one place that knows what each tool means by `a_n` and `b_n`, and the four ways AutoProf differs |
+| `adapters.py` | One fixed-aperture measurement per tool, on identical imposed rings, with the returned geometry verified rather than trusted |
+| `autoprof_worker.py` | Runs inside the AutoProf venv (it pins `numpy<2`), drives the forced pipeline, and instruments both sampling modes |
+| `run_harmonic_scale.py` | The designed grid, the pilot/validation split, tolerance freezing, and the archive gate |
+| `claims.py` | Reduces a run to the numbers Part A stands behind — shared by the freeze and the check so the two definitions cannot drift |
+
+Two design points that are easy to undo by accident:
+
+- **`ap_iso_interpolate_start` is a grid axis, not a setting.** It selects
+  Lanczos sampling below a radius threshold and nearest-pixel rounding above
+  it, and it is the largest effect in the study by an order of magnitude. The
+  threshold is a multiple of a PSF AutoProf measures from the image, so it
+  cannot be predicted from the option value; the worker observes AutoProf's
+  own branch by watching whether the interpolator ran, and reports the mode
+  per ring.
+- **Raw amplitudes are the primary track; Bender is secondary and currently
+  unlicensed for AutoProf.** The raw reconstruction is exact from the native
+  pair and `b0`, and needs no gradient. Bender normalization needs one that
+  AutoProf does not report, so those columns are NaN with a stated reason
+  rather than filled. See `docs/09-exhausted-benchmark.md` for the profile
+  schema and its version-2 migration note.
+
+The archive `reference_harmonic_scale.json` and its `frozen_tolerances.json`
+are gated in docs CI by `check_harmonic_scale.py`; see `docs/05-testing.md`
+for the rules on changing either.
+
 ## Documentation Policy
 
 - Stable docs live in `docs/` root.
