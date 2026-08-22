@@ -555,9 +555,21 @@ Two design points that are easy to undo by accident:
   rather than filled. See `docs/09-exhausted-benchmark.md` for the profile
   schema and its version-2 migration note.
 
-The archive `reference_harmonic_scale.json` and its `frozen_tolerances.json`
-are gated in docs CI by `check_harmonic_scale.py`; see `docs/05-testing.md`
-for the rules on changing either.
+Two campaigns, one per galaxy, each additive and independently frozen:
+`sersic_n2_compact` (n=2, R_e=25, 241 px) and `sersic_n4_extended` (n=4,
+R_e=40, 321 px). Each has its own archive, its own `frozen_tolerances*.json`
+and its own noise-seed blocks; `FIXTURES` in `run_harmonic_scale.py` is the
+registry, and `--fixture` selects one. The first campaign's `extra_cases` is
+empty on purpose — that is what keeps its grid, and therefore the fingerprint
+its committed archive was gated under, from moving.
+
+The second campaign adds an `ap_set_psf` axis. Since AutoProf's `psf` step
+assumes 4.0 px, that option is the only way to move the interpolation switch
+independently of `ap_iso_interpolate_start`, which makes two separate knobs
+onto one mechanism: at a matched threshold the two routes agree exactly.
+
+Both archives are gated in docs CI by `check_harmonic_scale.py`; see
+`docs/05-testing.md` for the rules on changing either.
 
 ## Documentation Policy
 

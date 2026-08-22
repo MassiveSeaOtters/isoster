@@ -46,7 +46,9 @@ job. It is not part of the pytest suite.
 
 The cross-tool harmonic-scale calibration is guarded the same way, by
 `benchmarks/harmonic_scale/check_harmonic_scale.py`, the third gate in that
-job. It reads only the committed archive and the committed prose, so it needs
+job. It covers **every** archived campaign — there are two, one per galaxy —
+and checks each archive's fingerprint against the fixture that archive says it
+used. It reads only the committed archive and the committed prose, so it needs
 no AutoProf — which matters, because CI has none. What it enforces is a
 pre-registration: the tolerances in `frozen_tolerances.json` were derived from
 a pilot run on one noise-seed block and committed *before* the validation run
@@ -60,7 +62,17 @@ the replacements. And do not change the grid, the fixture or the planted modes
 without re-freezing: those inputs are covered by a fixture fingerprint, and a
 changed fingerprint means the archived numbers describe a different
 experiment, which the checker reports as a redefinition rather than as drift.
-Archiving refuses to run from a dirty working tree.
+Archiving refuses to run from a dirty working tree, checked both when the run
+was made and when the archive is written.
+
+Run `check_harmonic_scale.py --self-test` after changing the checker. It
+corrupts the archived values and requires every claim, and every prose
+sentence quoting one, to fail. That is not ceremony: the prose gate once
+matched documents on a stem that contained the guarded number, so corrupting
+the number made the check *dormant* rather than failing, and seven of nine
+guarded figures could be edited without complaint. A stem must identify a
+claim by something stable — the campaign label, or the radius — never by the
+value it guards.
 
 ## 2. Directives
 
