@@ -10,6 +10,8 @@ disagreement between tools.
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
@@ -161,7 +163,10 @@ class TestClaimExtraction:
 
         names = [case["name"] for case in build_grid()]
         summary = {name: ring(scale) for scale, name in enumerate(rings, start=1)}
-        return {"cases": [{"spec": {"name": n, "snr": None, "n_realizations": 1}, "summary": summary} for n in names]}
+        # isoclip / interpolate_start are what structural validity reads:
+        # polar basis, and interpolated rather than nearest-pixel sampling.
+        spec = {"snr": None, "n_realizations": 1, "isoclip": True, "interpolate_start": 100.0}
+        return {"cases": [{"spec": {"name": n, **spec}, "summary": summary} for n in names]}
 
     def test_it_reports_the_gradient_agreement(self):
         claims = extract_claims(self._results(gradient_pct=0.05))
@@ -246,6 +251,56 @@ class TestLicensingRestsOnTheWorstRing:
         assert verdict["regimes"]["reference"]["gradient_agreement_pct"] == pytest.approx(
             claims["worst_ring_gradient_agreement_pct_clean"]
         )
+
+
+class TestValidityIsStructuralNotAccuracy:
+    """Criterion 2 was withdrawn on 2026-08-23 after review.
+
+    Bender is raw divided by gradient, so comparing it against those two is an
+    arithmetic identity check, not evidence. Validity is now a property of the
+    configuration; accuracy is reported and gated on nothing.
+    """
+
+    def _results(self, **kwargs):
+        return TestClaimExtraction()._results(**kwargs)
+
+    def test_no_criterion_2_verdict_survives_anywhere(self):
+        verdict = evaluate_licensing(self._results())
+        assert "criterion_2" not in json.dumps(verdict["regimes"])
+        assert verdict["withdrawn_criterion_2"]
+
+    def test_a_wildly_inaccurate_conversion_is_still_structurally_valid(self):
+        """The point of the change: accuracy must not masquerade as validity."""
+        verdict = evaluate_licensing(self._results(bender_pct=90.0, raw_pct=0.4))
+        assert verdict["regimes"]["reference"]["structural_validity"]["valid"]
+        assert verdict["regimes"]["reference"]["bender_agreement_pct"] == pytest.approx(90.0)
+
+    def test_nearest_pixel_sampling_makes_it_structurally_invalid(self):
+        results = self._results()
+        for case in results["cases"]:
+            case["spec"]["interpolate_start"] = 5.0
+        verdict = evaluate_licensing(results)
+        assert not verdict["regimes"]["reference"]["structural_validity"]["valid"]
+        assert not verdict["licensed_on_reference_configuration"]
+
+    def test_the_eccentric_anomaly_basis_makes_it_structurally_invalid(self):
+        results = self._results()
+        for case in results["cases"]:
+            case["spec"]["isoclip"] = False
+        verdict = evaluate_licensing(results)
+        assert not verdict["regimes"]["reference"]["structural_validity"]["valid"]
+
+    def test_the_consistency_diagnostic_uses_the_exact_bound(self):
+        """The linear form B <= R + G is only first order, and its error is
+        what produced the tiny paired failures once read as evidence that the
+        paired form was unusable."""
+        from benchmarks.harmonic_scale.run_gradient_reconstruction import algebraic_consistency
+
+        results = self._results(gradient_pct=5.0, raw_pct=1.0, bender_pct=6.2)
+        # Linear bound 6.0 would flag this; the exact bound 6.0/(1-0.05)=6.316
+        # does not.
+        assert 6.2 > 1.0 + 5.0
+        assert algebraic_consistency(results["cases"][0])["consistent"]
 
 
 class TestFrozenTolerances:

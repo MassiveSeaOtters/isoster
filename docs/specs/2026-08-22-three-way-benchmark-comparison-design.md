@@ -1008,26 +1008,60 @@ radial step matches. Had Track 2 used
 the accurate point derivative, this campaign would have reported a definition
 mismatch as a 13% disagreement between tools.
 
-**Criterion 2 is where the licence narrows.** All quantities are
-AutoProf-against-isoster, so the two sides differ only in the normalization.
-`budget` is `raw + gradient` — what the Bender agreement is allowed to be if
-normalizing has added nothing new.
+**Criterion 2 was withdrawn on 2026-08-23, after review.** As pre-registered it
+asked that the Bender agreement be no worse than the raw agreement plus the
+gradient error. But the Bender amplitude *is* the raw amplitude divided by the
+gradient, so the criterion compared a quantity against the two quantities it is
+constructed from: an arithmetic identity check, not independent evidence. It
+could not have licensed anything whatever numbers it returned.
 
-| fixture | regime | gradient | raw | Bender | budget | criterion 2 |
+Two further defects came with it. It compared maxima drawn from different rings
+and different components, and it added percentage errors linearly where the
+exact relation carries a denominator:
+
+    |B - 1| <= (|R - 1| + |G - 1|) / (1 - |G - 1|)
+
+That approximation is the whole explanation for the small paired "failures"
+this design previously cited as a reason to keep the unpaired form — excesses
+of 3.4e-4 and 6.6e-5. Under the exact bound, every noiseless case satisfies it
+to rounding (worst excess 0.000000 and 0.000001). The earlier reading, that the
+paired form "fails everywhere and so is no escape", was wrong.
+
+**Validity is therefore structural, and accuracy is reported as performance.**
+A conversion is applicable where the angular basis is polar, the ring was
+sampled by interpolation rather than nearest-pixel rounding, and the comparison
+ring at `sma·(1 + astep)` was measured so a secant exists. Those are properties
+of the configuration, checkable without reference to how close the answer came.
+How close it came is reported per regime and gated on nothing:
+
+| fixture | regime | gradient (worst) | gradient (typical) | raw | Bender | structurally valid |
 |---|---|---|---|---|---|---|
-| compact n=2 | `reference` | 0.13% | 1.95% | 1.96% | 2.08% | yes |
-| compact n=2 | `eps_high` | 5.54% | 7.98% | 14.32% | 13.52% | no |
-| compact n=2 | `noise_snr30` | 1.33% | 9.19% | 11.06% | 10.52% | no |
-| extended n=4 | `reference` | 0.08% | 0.51% | 0.50% | 0.59% | yes |
-| extended n=4 | `eps_high` | 1.24% | 7.89% | 6.57% | 9.13% | yes |
-| extended n=4 | `noise_snr30` | 1.10% | 8.74% | 9.02% | 9.85% | yes |
+| compact n=2 | `reference` | 0.13% | 0.04% | 1.95% | 1.96% | yes |
+| compact n=2 | `eps_high` | 5.54% | 0.35% | 7.98% | 14.32% | yes |
+| compact n=2 | `noise_snr30` | 1.33% | 0.59% | 9.19% | 11.06% | yes |
+| extended n=4 | `reference` | 0.08% | 0.05% | 0.51% | 0.50% | yes |
+| extended n=4 | `eps_high` | 1.24% | 0.16% | 7.89% | 6.57% | yes |
+| extended n=4 | `noise_snr30` | 1.10% | 0.33% | 8.74% | 9.02% | yes |
 
-**Verdict: licensed on the reference configuration, on both fixtures, and
-nowhere else.** The two hard regimes pass on one galaxy and fail on the other.
-A verdict that flips with the choice of galaxy is not a licence, so `eps_high`
-and `noise_snr30` are excluded rather than reported as marginal. This is the
-regime-dependence the pre-registration anticipated, arriving exactly where it
-was expected: strong ellipticity and low signal-to-noise.
+Every row is bound to the archives by `check_gradient_reconstruction.py`.
+
+**This revises a pre-registered criterion after seeing data, which needs saying
+plainly.** It is defensible only because the objection is structural rather
+than outcome-driven: criterion 2 could not have been evidence whatever it
+returned, and the revision neither loosens nor tightens a bar in order to reach
+a conclusion. The withdrawn criterion and this reason are both preserved in the
+archives, under `withdrawn_criterion_2`. Criterion 1 — which does weigh two
+independent candidate reconstructions against one target — is unchanged and
+still carries the verdict.
+
+**Consequence for the earlier regime verdict.** The previous version of this
+section reported that Track 2 was licensed on the reference configuration and
+"nowhere else", because `eps_high` and `noise_snr30` failed criterion 2 on one
+fixture and passed on the other. That verdict rested entirely on the withdrawn
+criterion. The regimes are structurally valid; what varies between them is
+*accuracy*, which the table above states directly. A user should read the
+Bender column and decide whether 14% is tolerable for their purpose, rather
+than be handed a yes/no derived from an identity.
 
 **What "licensed" permits, and what it does not.** A5 may write Bender
 `a_n`/`b_n` for an AutoProf arm instead of NaN when, and only when, all of the

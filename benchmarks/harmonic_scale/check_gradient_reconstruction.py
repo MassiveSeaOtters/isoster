@@ -160,16 +160,32 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
     # The verdict must follow from the numbers, not merely accompany them.
     recomputed = runner.evaluate_licensing(archive)
     stored = archive.get("licensing") or {}
-    for key in ("criterion_1_beats_point_derivative", "licensed_on_reference_configuration"):
+    for key in (
+        "criterion_1_beats_point_derivative",
+        "structurally_valid_on_reference_configuration",
+        "licensed_on_reference_configuration",
+    ):
         if bool(stored.get(key)) != bool(recomputed[key]):
             failures.append(
                 f"stored licensing {key}={stored.get(key)} does not follow from the archived "
                 f"numbers (recomputed {recomputed[key]})"
             )
+    # Look for a criterion_2 *verdict*, not the word: the replacement block
+    # carries a `withdrawn_criterion_2` note explaining the removal, and a
+    # substring check on the whole blob flags that note as the thing it warns
+    # against.
+    stale_criterion_2 = any("criterion_2" in regime for regime in (stored.get("regimes") or {}).values())
+    if stale_criterion_2:
+        failures.append(
+            "the archive still stores a criterion_2 verdict; it was withdrawn on 2026-08-23 "
+            "as an arithmetic identity check rather than evidence. Regenerate the licensing "
+            "block with --regenerate-licensing."
+        )
     for name, regime in recomputed["regimes"].items():
         stored_regime = (stored.get("regimes") or {}).get(name, {})
-        if stored_regime.get("criterion_2") != regime["criterion_2"]:
-            failures.append(f"stored criterion_2 for {name} does not follow from the archived numbers")
+        stored_valid = (stored_regime.get("structural_validity") or {}).get("valid")
+        if bool(stored_valid) != bool(regime["structural_validity"]["valid"]):
+            failures.append(f"stored structural validity for {name} does not follow from the archived numbers")
     if not any("licensing" in f or "criterion_2" in f for f in failures):
         verdict = "licensed" if recomputed["licensed_on_reference_configuration"] else "NOT licensed"
         print(
@@ -219,16 +235,16 @@ def build_doc_checks(fixture: str, archive: Dict[str, object]) -> List[tuple[str
     # guarded. The stem is the campaign label and the regime name --- both
     # stable, neither a guarded value.
     for name, regime in sorted(licensing["regimes"].items()):
-        if regime.get("criterion_2") is None:
+        if regime.get("raw_agreement_pct") is None:
             continue
-        verdict = "yes" if regime["criterion_2"] else "no"
+        valid = "yes" if regime["structural_validity"]["valid"] else "no"
         checks.append(
             (
                 f"regime_{fixture}_{name}",
                 f"| {label} | `{name}` |",
                 f"| {label} | `{name}` | {regime['gradient_agreement_pct']:.2f}% | "
-                f"{regime['raw_agreement_pct']:.2f}% | {regime['bender_agreement_pct']:.2f}% | "
-                f"{regime['budget_pct']:.2f}% | {verdict} |",
+                f"{regime['typical_ring_gradient_agreement_pct']:.2f}% | "
+                f"{regime['raw_agreement_pct']:.2f}% | {regime['bender_agreement_pct']:.2f}% | {valid} |",
             )
         )
     return checks

@@ -573,24 +573,106 @@ def extract_claims(results: Dict[str, object]) -> Dict[str, float]:
 DECISIVE_MARGIN = 10.0
 
 
+def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
+    """Is the conversion *applicable* here? Not: is it accurate here?
+
+    Track 2's validity is structural. The reconstruction is defined when the
+    angular basis is the polar one, the ring was sampled by interpolation
+    rather than nearest-pixel rounding, and the comparison ring at
+    ``sma*(1+astep)`` was actually measured so a secant exists. Those are
+    properties of the configuration, checkable without reference to how close
+    the answer came.
+
+    Accuracy is reported separately, as performance. Conflating the two was
+    the defect a review caught: see :func:`evaluate_licensing`.
+    """
+    spec = case["spec"]
+    gradients = [
+        entry["b0_secant_vs_isoster_pct"]["median"]
+        for entry in case["summary"].values()
+        if isinstance(entry.get("b0_secant_vs_isoster_pct"), dict)
+    ]
+    conditions = {
+        "polar_angular_basis": bool(spec["isoclip"]),
+        "interpolated_sampling": float(spec["interpolate_start"]) >= 100.0,
+        "comparison_ring_measured": bool(gradients) and all(np.isfinite(v) for v in gradients),
+    }
+    return {"conditions": conditions, "valid": all(conditions.values())}
+
+
+def algebraic_consistency(case: Dict[str, object]) -> Dict[str, object]:
+    """Does Bender error obey the exact bound implied by ``B = R / G``?
+
+    This is **not** evidence that the conversion is right, and it is recorded
+    here as a diagnostic so that it cannot be mistaken for evidence again. The
+    Bender amplitude is *constructed from* the same raw amplitude and the same
+    gradient, so a comparison between them is an arithmetic identity check.
+
+    It replaces a criterion that added the two percentage errors linearly.
+    That is only a first-order approximation; the exact bound carries the
+    denominator,
+
+        |B - 1| <= (|R - 1| + |G - 1|) / (1 - |G - 1|),
+
+    and the difference is what produced a scatter of tiny paired "failures" on
+    configurations that are in fact consistent --- excesses of 3e-4 and 7e-5,
+    which were briefly read as evidence that the paired form was unusable.
+    Under the exact bound the noiseless cases satisfy it to rounding.
+    """
+    worst, checked, violations = -float("inf"), 0, 0
+    for entry in case["summary"].values():
+        gradient = entry.get("b0_secant_vs_isoster_pct")
+        if not isinstance(gradient, dict):
+            continue
+        g = float(gradient["median"])
+        for order in ORDERS:
+            for bender_prefix, raw_prefix in (("a", "s"), ("b", "c")):
+                bender = entry.get(f"{bender_prefix}{order}_bender_vs_isoster_pct")
+                raw = entry.get(f"{raw_prefix}{order}_raw_autoprof_vs_isoster_pct")
+                if not (isinstance(bender, dict) and isinstance(raw, dict)):
+                    continue
+                denominator = 1.0 - g / 100.0
+                if denominator <= 0:
+                    continue
+                bound = (float(raw["median"]) + g) / denominator
+                excess = float(bender["median"]) - bound
+                worst = max(worst, excess)
+                checked += 1
+                violations += excess > 1e-6
+    if not checked:
+        return {"checked": 0, "consistent": None}
+    return {
+        "checked": checked,
+        "violations": violations,
+        "worst_excess_pct": round(worst, 9),
+        "consistent": bool(violations == 0),
+        "note": "diagnostic only; an identity check, never an input to the verdict",
+    }
+
+
 def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
-    """Apply the two pre-registered criteria and state the verdict.
+    """Decide whether the conversion may be used, and report how well it does.
 
-    Both are comparisons, not thresholds: criterion 1 weighs two candidate
-    reconstructions against the same target, criterion 2 weighs a normalized
-    quantity against the unnormalized one it is built from. Neither needs a
-    number chosen in advance, which is what keeps them able to fail.
+    **Revised 2026-08-23 after review.** The original design licensed Track 2
+    on two criteria. Criterion 2 asked that the Bender agreement be no worse
+    than the raw agreement plus the gradient error --- but Bender *is* raw
+    divided by gradient, so that compares a quantity with the two quantities it
+    is built from. It is an arithmetic consistency check, not independent
+    evidence, and it cannot license anything. It also compared maxima drawn
+    from different rings and different components, and added percentage errors
+    linearly where the exact relation carries a denominator.
 
-    The verdict is per regime rather than global. The reconstruction is not
-    uniformly good, and a single yes/no would either overstate it where it
-    degrades or discard it where it works.
+    So validity is now **structural** --- correct angular basis, interpolated
+    sampling, a measured comparison ring --- and accuracy is reported as
+    *performance*, per regime, without gating on it. The consistency check
+    survives as an explicitly labelled diagnostic.
 
-    Both criteria are evaluated on the ``worst_ring`` reduction, which is what
-    the pre-registration fixed and the conservative choice for a licence: it
-    asks whether the worst ring a reader might quote is safe, not the typical
-    one. The ``typical_ring`` claims are archived and gated alongside, but no
-    verdict rests on them --- choosing a reduction after seeing which verdict
-    it produces is precisely what pre-registration forbids.
+    This revises a pre-registered criterion after seeing data, which needs
+    saying plainly. It is defensible only because the objection is structural:
+    criterion 2 could not have been evidence whatever numbers it returned, and
+    the revision neither loosens nor tightens a bar to reach a conclusion.
+    Criterion 1, which does compare two independent candidate reconstructions
+    against one target, is unchanged and still carries the verdict.
     """
     claims = extract_claims(results)
     cases = {case["spec"]["name"]: case for case in results["cases"]}
@@ -602,32 +684,32 @@ def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
     regimes = {}
     for name in sorted(cases):
         stem = "gradient_agreement_pct_clean" if name == "reference" else f"gradient_agreement_pct_{name}"
-        gradient = claims.get(f"worst_ring_{stem}", float("nan"))
-        bender = claims.get(f"worst_ring_bender_agreement_pct_{name}")
-        raw = claims.get(f"worst_ring_raw_agreement_pct_{name}")
-        if bender is None or raw is None:
-            regimes[name] = {
-                "gradient_agreement_pct": gradient,
-                "criterion_2": None,
-                "note": "criterion 2 not evaluated for this case",
-            }
-            continue
-        budget = raw + gradient
         regimes[name] = {
-            "gradient_agreement_pct": gradient,
-            "raw_agreement_pct": raw,
-            "bender_agreement_pct": bender,
-            "budget_pct": budget,
-            "criterion_2": bool(bender <= budget),
+            # Performance, reported and never gated on.
+            "gradient_agreement_pct": claims.get(f"worst_ring_{stem}", float("nan")),
+            "raw_agreement_pct": claims.get(f"worst_ring_raw_agreement_pct_{name}"),
+            "bender_agreement_pct": claims.get(f"worst_ring_bender_agreement_pct_{name}"),
+            "typical_ring_gradient_agreement_pct": claims.get(f"typical_ring_{stem}"),
+            "structural_validity": structural_validity(cases[name]),
+            "algebraic_consistency": algebraic_consistency(cases[name]),
         }
 
-    licensed = criterion_1 and bool(regimes.get("reference", {}).get("criterion_2"))
+    reference_valid = bool(regimes.get("reference", {}).get("structural_validity", {}).get("valid"))
+    licensed = criterion_1 and reference_valid
     return {
         "criterion_1_beats_point_derivative": criterion_1,
         "criterion_1_margin": float(point / secant) if secant else float("nan"),
         "criterion_1_decisive_margin_required": DECISIVE_MARGIN,
+        "structurally_valid_on_reference_configuration": reference_valid,
         "licensed_on_reference_configuration": licensed,
         "regimes": regimes,
+        "withdrawn_criterion_2": (
+            "The original criterion 2 (bender <= raw + gradient) was withdrawn on 2026-08-23. "
+            "Bender is constructed from raw and gradient, so the comparison is an arithmetic "
+            "identity check rather than independent evidence; it also compared maxima from "
+            "different rings and added percentage errors linearly where the exact bound carries "
+            "a denominator. It survives as the 'algebraic_consistency' diagnostic."
+        ),
         "conditions": [
             "polar-resampled path only (ap_isoclip=True); never the eccentric-anomaly basis",
             "rings sampled with interpolation, not nearest-pixel rounding",
@@ -843,6 +925,15 @@ def main() -> None:
     parser.add_argument("--only", help="Run a single named case (never archivable).")
     parser.add_argument("--freeze-tolerances", type=Path, metavar="PILOT_JSON")
     parser.add_argument("--archive", action="store_true")
+    parser.add_argument(
+        "--regenerate-licensing",
+        action="store_true",
+        help=(
+            "Recompute only the archive's derived licensing block from its own stored "
+            "measurements. Touches no measured value; used when a verdict's definition "
+            "changes and re-measuring would be pointless."
+        ),
+    )
     args = parser.parse_args()
     ACTIVE_FIXTURE = args.fixture
 
@@ -859,6 +950,22 @@ def main() -> None:
         print(f"[gradient] froze {len(frozen['claims'])} tolerances to {tolerances_path()}")
         for name, entry in sorted(frozen["claims"].items()):
             print(f"   {name:44s} {entry['pilot_value']:>10.5g} +- {entry['tolerance']:<8.4g}")
+        return
+
+    if args.regenerate_licensing:
+        archive = json.loads(archive_path().read_text())
+        before = json.dumps(archive["cases"], sort_keys=True)
+        archive["licensing"] = evaluate_licensing(archive)
+        if json.dumps(archive["cases"], sort_keys=True) != before:
+            raise SystemExit("refusing to write: regeneration altered a measured value")
+        archive["licensing_regenerated"] = (
+            "The licensing block was recomputed from this archive's own stored measurements "
+            "after criterion 2 was withdrawn on 2026-08-23. No measured value was touched; "
+            "the summaries and their fingerprint are unchanged."
+        )
+        archive_path().write_text(json.dumps(archive, indent=2, default=str))
+        print(f"[gradient] regenerated licensing in {archive_path().name}")
+        print(f"   licensed={archive['licensing']['licensed_on_reference_configuration']}")
         return
 
     results = run_grid(args.mode, only=args.only)

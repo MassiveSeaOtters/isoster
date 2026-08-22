@@ -6373,60 +6373,185 @@
     "criterion_1_beats_point_derivative": true,
     "criterion_1_margin": 100.73632703576094,
     "criterion_1_decisive_margin_required": 10.0,
+    "structurally_valid_on_reference_configuration": true,
     "licensed_on_reference_configuration": true,
     "regimes": {
       "background_offset": {
         "gradient_agreement_pct": 0.130897,
-        "criterion_2": null,
-        "note": "criterion 2 not evaluated for this case"
+        "raw_agreement_pct": null,
+        "bender_agreement_pct": null,
+        "typical_ring_gradient_agreement_pct": 0.041026,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": 2.39e-07,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "eps_circular": {
         "gradient_agreement_pct": 0.18272,
-        "criterion_2": null,
-        "note": "criterion 2 not evaluated for this case"
+        "raw_agreement_pct": null,
+        "bender_agreement_pct": null,
+        "typical_ring_gradient_agreement_pct": 0.025764,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": 5.94e-07,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "eps_high": {
         "gradient_agreement_pct": 5.54124,
         "raw_agreement_pct": 7.981386,
         "bender_agreement_pct": 14.315905,
-        "budget_pct": 13.522625999999999,
-        "criterion_2": false
+        "typical_ring_gradient_agreement_pct": 0.35278,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": 3.66e-07,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "interpolate_default": {
         "gradient_agreement_pct": 2.275045,
-        "criterion_2": null,
-        "note": "criterion 2 not evaluated for this case"
+        "raw_agreement_pct": null,
+        "bender_agreement_pct": null,
+        "typical_ring_gradient_agreement_pct": 1.20683,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": false,
+            "comparison_ring_measured": true
+          },
+          "valid": false
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": -1.6542e-05,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "noise_snr100": {
         "gradient_agreement_pct": 0.308398,
-        "criterion_2": null,
-        "note": "criterion 2 not evaluated for this case"
+        "raw_agreement_pct": null,
+        "bender_agreement_pct": null,
+        "typical_ring_gradient_agreement_pct": 0.172014,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 3,
+          "worst_excess_pct": 0.175660638,
+          "consistent": false,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "noise_snr30": {
         "gradient_agreement_pct": 1.330281,
         "raw_agreement_pct": 9.185712,
         "bender_agreement_pct": 11.062455,
-        "budget_pct": 10.515993,
-        "criterion_2": false
+        "typical_ring_gradient_agreement_pct": 0.590236,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 4,
+          "worst_excess_pct": 0.404683693,
+          "consistent": false,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "pa_30": {
         "gradient_agreement_pct": 0.224703,
-        "criterion_2": null,
-        "note": "criterion 2 not evaluated for this case"
+        "raw_agreement_pct": null,
+        "bender_agreement_pct": null,
+        "typical_ring_gradient_agreement_pct": 0.069505,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": 7.15e-07,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       },
       "reference": {
         "gradient_agreement_pct": 0.130897,
         "raw_agreement_pct": 1.945446,
         "bender_agreement_pct": 1.962288,
-        "budget_pct": 2.076343,
-        "criterion_2": true
+        "typical_ring_gradient_agreement_pct": 0.041026,
+        "structural_validity": {
+          "conditions": {
+            "polar_angular_basis": true,
+            "interpolated_sampling": true,
+            "comparison_ring_measured": true
+          },
+          "valid": true
+        },
+        "algebraic_consistency": {
+          "checked": 20,
+          "violations": 0,
+          "worst_excess_pct": 2.39e-07,
+          "consistent": true,
+          "note": "diagnostic only; an identity check, never an input to the verdict"
+        }
       }
     },
+    "withdrawn_criterion_2": "The original criterion 2 (bender <= raw + gradient) was withdrawn on 2026-08-23. Bender is constructed from raw and gradient, so the comparison is an arithmetic identity check rather than independent evidence; it also compared maxima from different rings and added percentage errors linearly where the exact bound carries a denominator. It survives as the 'algebraic_consistency' diagnostic.",
     "conditions": [
       "polar-resampled path only (ap_isoclip=True); never the eccentric-anomaly basis",
       "rings sampled with interpolation, not nearest-pixel rounding",
       "the comparison ring at sma*(1+astep) must be measured, not interpolated"
     ]
   },
-  "archive_note": "48 per-realization records summarized rather than stored; every claim comes from the complete 'summary' block, and the dropped records are regenerable exactly from the recorded seed block."
+  "archive_note": "48 per-realization records summarized rather than stored; every claim comes from the complete 'summary' block, and the dropped records are regenerable exactly from the recorded seed block.",
+  "licensing_regenerated": "The licensing block was recomputed from this archive's own stored measurements after criterion 2 was withdrawn on 2026-08-23. No measured value was touched; the summaries and their fingerprint are unchanged."
 }
