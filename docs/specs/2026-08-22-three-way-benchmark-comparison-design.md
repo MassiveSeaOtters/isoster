@@ -373,6 +373,62 @@ subprocess worker must instrument the mode per ring and archive it
 alongside the profile; only then can `harmonic_sampling_mode` be
 populated and the all-line-sampling check actually run.
 
+### A2 result: the scales agree; the apparent gap is pixel-grid aliasing
+
+Measured once A1 and A2 were in place, on the planted fixture at fixed
+geometry, against the integrated analytic truth. Ratios of measured to true
+`C_4`, varying only `ap_iso_interpolate_start` — the option deciding which
+rings AutoProf samples with Lanczos interpolation and which it samples by
+rounding to the nearest pixel (`SharedFunctions.py:673`):
+
+| `ap_iso_interpolate_start` | sma=15 | sma=25 | sma=35 | sma=45 |
+|---|---|---|---|---|
+| 100 (Lanczos everywhere) | 0.993 | 0.999 | 1.000 | 1.001 |
+| 5 (the default) | 0.993 | 1.247 | 1.132 | 1.084 |
+| 0 (nearest-neighbour everywhere) | 1.357 | 1.247 | 1.132 | 1.084 |
+
+**With interpolation used everywhere, AutoProf agrees with analytic truth to
+0.1%.** So the four-part conversion derived in the Background section is
+*correct*, and the 13–25% excess first seen with default settings is not a
+scale difference at all — it is nearest-neighbour sampling of the ring.
+
+The mechanism is specific and was confirmed by prediction. A square pixel grid
+is four-fold symmetric, so rounding sample positions to the nearest pixel
+should alias into `m=4` far more than into `m=3`. Planting equal amplitudes at
+both orders:
+
+| Sampling | order | sma=15 | sma=25 | sma=35 | sma=45 |
+|---|---|---|---|---|---|
+| Lanczos | m=3 | 0.995 | 1.000 | 0.997 | 0.999 |
+| Lanczos | m=4 | 0.993 | 0.999 | 1.000 | 1.001 |
+| nearest | m=3 | 0.981 | 1.063 | 0.927 | 0.996 |
+| nearest | m=4 | 1.357 | 1.245 | 1.136 | 1.084 |
+
+`m=3` shows scatter with no systematic bias; `m=4` is systematically inflated,
+decreasingly so with radius as the half-pixel displacement matters less
+relative to the ring.
+
+**Consequences for the rest of Part A.**
+
+- The publication claim is now "the three tools measure the same harmonic
+  signal to ~0.1–0.3% once each is sampled comparably", with the sampling
+  caveat stated — not "AutoProf reads 13–25% high".
+- `ap_iso_interpolate_start` becomes a **required, recorded** setting of the
+  calibration, not a default to inherit. The grid must archive it.
+- It is also a finding about `m=4` measurements generally: any tool sampling
+  isophotes by nearest-pixel lookup will bias the four-fold mode, which is
+  precisely the boxy/discy diagnostic. Worth stating in its own right.
+- The earlier reading that the excess "shrinks with radius" was a partial view
+  of this: at eps=0.6 the measured PSF differs, moving the switch radius, so
+  the excess is not monotonic in ellipticity. Radius dependence is real but
+  secondary to which side of the switch a ring falls.
+
+Separately confirmed, and it settles difference 4: with `ap_isoclip=False` the
+eccentric-anomaly path degrades badly with ellipticity — ratios 0.99 at eps=0,
+0.88–1.10 at eps=0.3, and **0.26–0.35 at eps=0.6**. That is the order mixing
+the spec predicted, now measured, and it confirms that path must not be
+converted by a same-order rotation.
+
 ### A3. Measurement grid
 
 `benchmarks/harmonic_scale/run_harmonic_scale.py`. The grid tests every

@@ -15,6 +15,7 @@ isophotal-band sampling.
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +27,10 @@ from benchmarks.harmonic_scale.adapters import (
     measure_autoprof_fixed,
     measure_isoster_fixed,
 )
-from benchmarks.utils.sersic_model import create_sersic_image_with_harmonics
+from benchmarks.utils.sersic_model import (
+    create_sersic_image_with_harmonics,
+    integrated_harmonic_truth,
+)
 
 
 def _autoprof_available() -> bool:
@@ -133,43 +137,58 @@ class TestTheInstalledAutoProfStillMeansWhatWeThink:
 
 
 class TestAgreementWithIsoster:
-    """What the conversion fixes, and what it leaves for the campaign to measure.
+    """The conversion is correct, and the residual is an interpolation artifact.
 
-    Measured on this fixture against the integrated analytic truth:
+    Measured on the planted fixture against the integrated analytic truth,
+    varying only ``ap_iso_interpolate_start`` -- the option that decides which
+    rings AutoProf samples with Lanczos interpolation and which it samples by
+    rounding to the nearest pixel (``SharedFunctions.py:673``):
 
-        sma    truth    isoster   photutils   autoprof   autoprof/truth
-         25   5.5074     5.4937      5.4859     6.8680        1.247
-         35   3.3252     3.3208      3.3180     3.7630        1.132
+        ap_iso_interpolate_start   sma=15   sma=25   sma=35   sma=45
+        100 (Lanczos everywhere)    0.993    0.999    1.000    1.001
+          5 (the default)           0.993    1.247    1.132    1.084
+          0 (nearest everywhere)    1.357    1.247    1.132    1.084
 
-    isoster and photutils land within 0.3% of truth. AutoProf sits high by a
-    *radius-dependent* margin, and ``b0`` matches the ring's mean intensity to
-    better than 1%, so the excess is not in the normalization this module
-    converts -- it is a difference in what AutoProf samples along the ring.
+    With interpolation enabled everywhere, AutoProf agrees with the analytic
+    truth to 0.1%. The apparent 13-25% excess is therefore **not** a scale or
+    convention difference -- the conversion in ``conventions.py`` is right --
+    but nearest-neighbour sampling of the ring.
 
-    These tests therefore pin the conversion (sign, factor of 2, use of
-    ``|b0|``) and deliberately do **not** assert close agreement. Asserting a
-    tolerance here would bury the residual that the A3 grid exists to measure.
+    And it is specifically an m=4 effect, because a square pixel grid is
+    four-fold symmetric. With equal amplitudes planted at m=3 and m=4:
+
+        Lanczos:           m=3  0.995 1.000 0.997 0.999
+                           m=4  0.993 0.999 1.000 1.001
+        nearest-neighbour: m=3  0.981 1.063 0.927 0.996   (scatter, no bias)
+                           m=4  1.357 1.245 1.136 1.084   (systematic, falls with R)
+
+    m=3 shows only scatter; m=4 is systematically inflated, decreasingly so as
+    the ring grows and the half-pixel displacement matters less.
     """
 
-    def test_the_conversion_lands_within_an_order_of_magnitude(self, fixture_image, autoprof_result):
-        """Catches a dropped factor of 2, a missing |b0|, or an inverted scale.
-
-        Deliberately loose. A tight bound would be asserting a result we have
-        not yet measured; a factor-of-two error cannot hide inside this.
-        """
+    def test_conversion_recovers_isoster_when_interpolation_is_used_everywhere(self, fixture_image):
+        """The decisive test: remove the sampling artifact and the tools agree."""
         image, _ = fixture_image
-        ap_rows, _ = autoprof_result
+        with tempfile.TemporaryDirectory() as workspace:
+            ap_rows, _ = measure_autoprof_fixed(
+                image,
+                _request(),
+                orders=ORDERS,
+                workspace=workspace,
+                pixel_scale=1.0,
+                isoclip=True,
+                extra_options={"ap_iso_interpolate_start": 100},
+            )
         iso_rows = measure_isoster_fixed(image, _request(), orders=ORDERS)
-
         for ap_row, iso_row in zip(ap_rows, iso_rows):
             ratio = ap_row["c4_raw"] / iso_row["c4_raw"]
-            assert 0.6 < ratio < 1.6, (
-                f"converted C_4 is off by a factor of {ratio:.2f} at sma={iso_row['sma']}; "
-                "that is too large to be a sampling difference and points at the conversion"
+            assert 0.98 < ratio < 1.02, (
+                f"with Lanczos sampling everywhere the tools should agree to ~1%, "
+                f"got {ratio:.4f} at sma={iso_row['sma']}"
             )
 
     def test_b0_matches_the_ring_mean_so_the_denominator_is_sound(self, fixture_image, autoprof_result):
-        """Isolates the normalization from whatever else differs."""
+        """Isolates the normalization from the sampling difference."""
         image, _ = fixture_image
         ap_rows, _ = autoprof_result
         iso_rows = measure_isoster_fixed(image, _request(), orders=ORDERS)
@@ -180,29 +199,37 @@ class TestAgreementWithIsoster:
                 "reconstruction divides by it, so this must be sound"
             )
 
-    def test_the_residual_excess_shrinks_with_radius(self, fixture_image, autoprof_result):
-        """Characterizes the leftover rather than tolerating it silently.
-
-        A constant offset would point at a convention we have not accounted
-        for. A radius-dependent one points at sampling or interpolation, which
-        is a property of the tools and is what the campaign should quantify.
-        """
-        image, _ = fixture_image
-        ap_rows, _ = autoprof_result
-        iso_rows = measure_isoster_fixed(image, _request(), orders=ORDERS)
-        ratios = [ap["c4_raw"] / iso["c4_raw"] for ap, iso in zip(ap_rows, iso_rows)]
-        assert ratios[0] > ratios[-1], (
-            f"expected the excess to fall with radius, got {ratios}; a flat ratio "
-            "would suggest an unaccounted convention factor instead"
+    def test_nearest_neighbour_sampling_biases_m4_and_not_m3(self, fixture_image):
+        """Pins the mechanism: pixel-grid aliasing into the four-fold mode."""
+        image, meta = create_sersic_image_with_harmonics(
+            n=2.0,
+            R_e=25.0,
+            I_e=100.0,
+            eps=EPS,
+            pa=PA,
+            shape=SHAPE,
+            center=CENTRE,
+            harmonics={(3, "cos"): 0.03, (4, "cos"): 0.03},
         )
-
-    def test_the_sign_convention_agrees_after_conversion(self, fixture_image, autoprof_result):
-        """Native a_n is negated; the conversion must undo that, not double it."""
-        image, _ = fixture_image
-        ap_rows, _ = autoprof_result
-        iso_rows = measure_isoster_fixed(image, _request(), orders=ORDERS)
-        for ap_row, iso_row in zip(ap_rows, iso_rows):
-            if abs(iso_row["c4_raw"]) > 1e-6:
-                assert np.sign(ap_row["c4_raw"]) == np.sign(iso_row["c4_raw"]), (
-                    "converted C_4 has the wrong sign relative to isoster"
+        request = [{"sma": 25.0, "x0": CENTRE[0], "y0": CENTRE[1], "eps": EPS, "pa": PA}]
+        results = {}
+        for start in (100, 0):
+            with tempfile.TemporaryDirectory() as workspace:
+                rows, _ = measure_autoprof_fixed(
+                    image,
+                    request,
+                    orders=(3, 4),
+                    workspace=workspace,
+                    pixel_scale=1.0,
+                    isoclip=True,
+                    extra_options={"ap_iso_interpolate_start": start},
                 )
+            truth = integrated_harmonic_truth(meta, sma=25.0, orders=(3, 4))
+            results[start] = {n: rows[0][f"c{n}_raw"] / truth[n]["c_raw"] for n in (3, 4)}
+
+        assert abs(results[100][4] - 1.0) < 0.02, "Lanczos should recover m=4"
+        assert results[0][4] > 1.10, "nearest-neighbour should inflate m=4"
+        assert abs(results[0][3] - 1.0) < abs(results[0][4] - 1.0), (
+            "the bias should hit m=4 harder than m=3; a square grid is four-fold "
+            f"symmetric. Got m=3 {results[0][3]:.3f}, m=4 {results[0][4]:.3f}"
+        )

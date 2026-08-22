@@ -245,6 +245,7 @@ def measure_autoprof_fixed(
     isoclip: bool = True,
     venv_python: str | None = None,
     timeout: int = 600,
+    extra_options: dict | None = None,
 ) -> tuple[list[dict], dict]:
     """Measure the requested rings with AutoProf's forced pipeline.
 
@@ -296,6 +297,7 @@ def measure_autoprof_fixed(
         "x0": float(request[0]["x0"]),
         "y0": float(request[0]["y0"]),
         "image": np.asarray(image, dtype=np.float64).tolist(),
+        "extra_options": dict(extra_options or {}),
     }
     job_path = workspace / "job.json"
     job_path.write_text(json.dumps(job))
