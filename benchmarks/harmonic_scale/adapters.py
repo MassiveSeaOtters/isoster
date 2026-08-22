@@ -243,6 +243,7 @@ def measure_autoprof_fixed(
     pixel_scale: float = 1.0,
     zeropoint: float = 22.5,
     isoclip: bool = True,
+    interpolate_start: float = 5.0,
     venv_python: str | None = None,
     timeout: int = 600,
     extra_options: dict | None = None,
@@ -263,6 +264,14 @@ def measure_autoprof_fixed(
     gradient, and inventing one from its own profile is a separate decision
     that A4's measurement has to license first. Raw amplitudes are exact and
     are the primary track.
+
+    ``interpolate_start`` is the campaign's largest single effect and is a
+    grid axis rather than a setting to inherit -- 5.0 is AutoProf's own
+    default, reproduced here so that omitting the argument reproduces stock
+    behaviour rather than a quietly better one. It multiplies a PSF AutoProf
+    measures from the image, so each returned row carries the mode its ring
+    actually got (``harmonic_sampling_mode``) rather than the mode the
+    setting implies.
     """
     import json
     import subprocess
@@ -294,6 +303,7 @@ def measure_autoprof_fixed(
         "pixel_scale": pixel_scale,
         "zeropoint": zeropoint,
         "isoclip": bool(isoclip),
+        "interpolate_start": float(interpolate_start),
         "x0": float(request[0]["x0"]),
         "y0": float(request[0]["y0"]),
         "image": np.asarray(image, dtype=np.float64).tolist(),
@@ -335,6 +345,19 @@ def measure_autoprof_fixed(
             "mean_intensity": entry["b0"],
             "status": "measured",
             "harmonic_basis": basis,
+            # Per ring, observed rather than derived from the setting: the
+            # threshold is a multiple of a PSF AutoProf measures itself, so
+            # the same setting switches at a different radius on a different
+            # image. ``None`` means the probe could not attribute the call to
+            # this ring, which is not the same as "nearest pixel".
+            "harmonic_sampling_mode": (
+                "line_nearest_pixel"
+                if entry.get("interpolated") is False
+                else "line_interpolated"
+                if entry.get("interpolated") is True
+                else "unknown"
+            ),
+            "rad_interp_pix": entry.get("rad_interp_pix"),
             "autoprof_b0": entry["b0"],
             "autoprof_a0": entry["a0"],
         }

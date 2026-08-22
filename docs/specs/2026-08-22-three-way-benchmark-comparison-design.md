@@ -143,6 +143,24 @@ Also: `simultaneous_harmonics=True` now warns in forced mode instead of
 being silently downgraded to the per-order solve. **Part A uses and records
 `simultaneous_harmonics=False`.**
 
+**Sixth round — from the A2 measurement rather than from review.** Running
+A2 changed A3, which is the order these should happen in:
+
+19. **`ap_iso_interpolate_start` is promoted from a recorded setting to a
+    grid axis.** It turned out to be the largest effect on the grid by an
+    order of magnitude — 13–25% against sub-percent for everything else —
+    and it decides whether the headline reads "the tools agree to 0.1%" or
+    "AutoProf reads 13–25% high". Both readings are true at their own
+    setting, so the setting cannot be fixed; it has to be crossed. A3
+    carries the reasoning and the added **radius × interpolation start**
+    interaction.
+20. **The interpolation threshold is measured, not set.**
+    `ap_iso_interpolate_start` multiplies a PSF FWHM that AutoProf
+    estimates from the image, so the switch radius moves between fixtures
+    at a fixed setting. The realized PSF and threshold are archived per
+    case and the per-ring mode is instrumented, for the same reason
+    correction 11 instrumented line-versus-band sampling.
+
 ## Background: what the scales actually are
 
 Read from source, then checked numerically.
@@ -413,8 +431,10 @@ relative to the ring.
 - The publication claim is now "the three tools measure the same harmonic
   signal to ~0.1–0.3% once each is sampled comparably", with the sampling
   caveat stated — not "AutoProf reads 13–25% high".
-- `ap_iso_interpolate_start` becomes a **required, recorded** setting of the
-  calibration, not a default to inherit. The grid must archive it.
+- `ap_iso_interpolate_start` becomes a **grid axis**, not a default to
+  inherit and not a fixed recorded setting. A3 below states why: it is the
+  largest effect on the grid by an order of magnitude, so pinning it to
+  either value answers a different question than the one being asked.
 - It is also a finding about `m=4` measurements generally: any tool sampling
   isophotes by nearest-pixel lookup will bias the four-fold mode, which is
   precisely the boxy/discy diagnostic. Worth stating in its own right.
@@ -436,13 +456,52 @@ claim above rather than only the PA one:
 
 | Axis | Values | Why |
 |---|---|---|
+| `ap_iso_interpolate_start` | 100 (Lanczos everywhere), 5 (AutoProf's default) | **The largest single effect measured, by an order of magnitude.** See below |
 | Ellipticity | ~0 (control), 0.3, 0.6 | At eps≈0 polar angle and eccentric anomaly coincide, so the basis question vanishes and everything else is isolated; the non-circular cases make it bite |
 | PA | 0°, 30° | At PA=0 AutoProf's polar basis coincides with major-axis polar, so differences 1–3 show alone; 30° adds difference 4 |
 | `ap_isoclip` | off, on | Selects AutoProf's angle basis |
-| Radius | ≥2 values | Raw amplitudes are radius-dependent; one radius cannot show that |
+| Radius | ≥2 values | Raw amplitudes are radius-dependent; one radius cannot show that; and the interpolation switch is itself a radius threshold |
 | Background offset | 0, +δ | Tests the corrected claim 1 directly |
 | Noise | several realizations at each S/N | One realization measures a realization, not a distribution |
 | Mask | **deferred from the initial campaign** | See below |
+
+**Why sampling is an axis and not a setting.** The A2 result above measured a
+13–25% AutoProf excess at the default and 0.1% with Lanczos interpolation
+everywhere. Nothing else on this grid moves the answer by remotely that much:
+the background offset, the noise level and the position angle are all
+sub-percent to few-percent effects on the reconstructed amplitude. Fixing
+`ap_iso_interpolate_start` at either value would therefore have produced a
+calibration that is *correct but unrepresentative* — pinned at 100 it would
+certify a scale agreement no default-settings user ever sees, and pinned at 5
+it would report a scale disagreement that is not a scale disagreement at all.
+Crossing it with the rest of the grid is what separates the two readings, and
+it is why the axis is listed first.
+
+**It is a radius threshold in units of a PSF the tool measures itself.**
+`ap_iso_interpolate_start` is not a boolean and not a radius in pixels:
+`Isophote_Extract.py:110-115` multiplies it by `results["psf fwhm"]` to get
+`rad_interp`, and `SharedFunctions.py:653` then samples with Lanczos where
+`Rlim < rad_interp` and by rounding to the nearest pixel otherwise. Two
+consequences the runner must respect:
+
+- **The switch radius is data-dependent.** AutoProf measures the PSF from the
+  image, so the same setting puts the switch at a different radius on a
+  different fixture — which is exactly why the excess in A2 was not monotonic
+  in ellipticity. The realized `psf fwhm` and the realized `rad_interp` are
+  therefore archived per case, not assumed from the setting.
+- **The per-ring mode is instrumented, never inferred.** The runner records,
+  for every ring, whether it was interpolated or rounded, by observing the
+  same comparison AutoProf makes rather than by recomputing the threshold
+  alongside it. The value 100 is chosen to put every ring on this fixture
+  below the switch; whether it actually did is a measurement, not a
+  presumption. This is the same treatment `ap_isoband_fixed` already gets —
+  the band-versus-line probe exists for the identical reason.
+
+The `m=4` finding generalizes past AutoProf and is reported in its own right:
+a square pixel grid is four-fold symmetric, so *any* tool that samples an
+isophote by nearest-pixel lookup will inflate the four-fold mode specifically —
+which is the boxy/discy diagnostic. `m=3` on the same rings showed scatter
+without bias.
 
 **The mask axis is deferred, because the forced pipeline cannot honour it.**
 AutoProf's standard forced sequence contains no mask-loading step: `Bad_Pixel_Mask`,
@@ -464,9 +523,17 @@ factor caused it. The structure is instead
    perturbation of;
 2. **one factor at a time** off that reference;
 3. only the interactions with a scientific reason to exist:
-   **ellipticity × basis**, **PA × polar resampling**,
-   **noise × clipping**. (Mask × resampling is dropped with the mask
-   axis — see above.)
+   **radius × interpolation start**, **ellipticity × basis**,
+   **PA × polar resampling**, **noise × clipping**. (Mask × resampling is
+   dropped with the mask axis — see above.)
+
+   Radius × interpolation start is first because it is the only pair on the
+   list whose two factors are not independent: `ap_iso_interpolate_start`
+   *is* a radius threshold, so a ring's sampling mode is decided by both
+   factors jointly and neither one alone predicts it. Crossing them is what
+   puts rings on each side of the switch within a single case, which is the
+   configuration the A2 table stumbled into by accident and this grid should
+   reach on purpose.
 4. one final **combined stress case**, as a check rather than a
    measurement.
 
