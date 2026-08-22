@@ -231,6 +231,20 @@ def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str, str]]:
             f"on the {label} fixture the three tools agree with the analytic truth to better than {worst_clean:.1f}%",
         )
     )
+    # The per-radius table is the headline the publication leads with, and it
+    # was the one thing here not guarded. Each row is checked whole, against a
+    # stem made of the campaign's radius header --- radii identify which
+    # campaign a table belongs to, and carry none of the guarded values, so a
+    # corrupted cell fails rather than going dormant.
+    radii = sorted(
+        float(key.rsplit("sma", 1)[1]) for key in claims if key.startswith("clean_agreement_pct_isoster_sma")
+    )
+    if radii:
+        header_stem = " | ".join(f"sma={r:g}" for r in radii)
+        for tool, display in (("isoster", "isoster"), ("photutils", "photutils"), ("autoprof", "AutoProf")):
+            cells = " | ".join(f"{claims[f'clean_agreement_pct_{tool}_sma{r:g}']:.2f}%" for r in radii)
+            checks.append((f"clean_agreement_row_{tool}", header_stem, f"| {display} | {cells} |"))
+
     for key, value in sorted(claims.items()):
         if key.startswith("nearest_pixel_excess_pct_sma"):
             radius = key.rsplit("sma", 1)[1]
