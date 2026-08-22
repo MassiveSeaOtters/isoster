@@ -1173,6 +1173,85 @@ looking at results:
 - **worker-state reset between AutoProf cases**, so one case cannot
   inherit another's cached state.
 
+### B2-B4 settled with the reviewer, 2026-08-22
+
+B2-B4 stated principles but left the decisions that actually determine the
+answer open. Five were taken with the reviewer **before any implementation**,
+and are recorded here rather than settled while looking at results.
+
+**Measured asymmetries the protocol must live with.** These were checked, not
+assumed:
+
+| | isoster | photutils | AutoProf |
+|---|---|---|---|
+| interpreter | Python 3.12.7 | 3.12.7 | **3.10.21** |
+| invocation | in-process | in-process | **subprocess, FITS round-trip** |
+| photutils | — | 2.3.0 | pins `<=1.5.0` |
+
+AutoProf pins `numpy<2` and `photutils<=1.5`, so it cannot share the project
+environment. The interpreter gap is therefore not a defect in the harness to
+be fixed; it is a property of the tool as anyone can obtain it today.
+
+**1. The interpreter gap is measured and reported on its own line.** A
+calibration arm runs one identical CPU-bound workload in both interpreters and
+publishes the ratio beside every AutoProf timing. CPython gained a large
+general speedup after 3.10, so a raw three-way ratio would charge AutoProf an
+interpreter penalty on top of its algorithm. The penalty is real for a user,
+which is why it is not removed — but a reader must be able to separate
+"AutoProf is slower" from "AutoProf's stack is older", and a single number
+cannot express both.
+
+**2. The accuracy gate is Part A's fixtures and Part A's truth.** B4 required
+"an accuracy requirement a fit must meet to be timed at all" without saying
+what it was, and that one line does more work than the rest of B4 together: a
+tool that converges loosely is faster, so an ungated timing rewards giving up
+early. Before its timing counts, each arm must recover the planted harmonics
+and the intensity profile on the Part A planted fixtures to a bar **frozen in
+advance**, derived from a pilot exactly as Part A's tolerances were. This
+reuses instrumentation that already exists and is already gated, and ties
+"the same task" to a measured quantity rather than to matching config files.
+
+**3. Harness cost is a separate line and is never silently subtracted.** B3's
+persistent worker removes process spawn, but serialization, the FITS
+write/read and IPC remain, and those are our harness rather than AutoProf's
+algorithm. The worker is instrumented so they are timed apart from the fit.
+Both figures are published: fit-only, and fit-plus-harness. A single number
+with the overhead quietly removed would describe a program nobody can run.
+
+**4. Few fixtures, many repetitions.** A small frozen grid — roughly six to
+ten configurations spanning image size, Sersic index and signal-to-noise —
+each timed across several sessions in separate interpreters with interleaved
+arm order. This buys a genuine uncertainty interval and a dispersion check on
+every number, which the existing two-way archive (243 configurations, a single
+timing each, no error bar) does not have. **It is not a survey**, and the
+archive must say so in those words: it trades coverage for the ability to
+state how well each number is determined.
+
+**5. Harmonics are a grid axis, not a fixed setting.** Each tool is timed with
+`a3/b3/a4/b4` on and off. What measuring higher harmonics costs is a finding
+in its own right, and Part A has just established that the three tools'
+harmonics are comparable quantities, so the comparison is meaningful. The
+small grid absorbs the doubling cheaply.
+
+**Consequent, and following from B3 rather than newly decided:** the core-fit
+scope is fixed-geometry with matched radii and output writing excluded; the
+end-to-end scope is a free fit on each tool's own radial grid and stopping
+rule, with output writing included. Sigma-clipping and interpolation cannot be
+made identical across the three; each tool's actual setting is recorded beside
+its own timing and the difference stands in the open.
+
+**Still to be fixed by measurement before the full run**, in the same manner
+as Part A's tolerances — frozen from a pilot, committed, then validated:
+
+- the accuracy bar itself, per tool and per fixture;
+- session and repetition counts, chosen so the reported interval is narrower
+  than the effect being claimed;
+- the **dispersion abort rule**: a documented bound on between-session spread
+  above which a session is contaminated and refused rather than averaged in.
+  A laptop under thermal load produces numbers that look like measurements;
+  without this rule the archive cannot tell the difference.
+- success and failure accounting, and the treatment of partial profiles.
+
 ### B5. A new archive, not a replacement
 
 Create a **new three-way archive** rather than overwriting
