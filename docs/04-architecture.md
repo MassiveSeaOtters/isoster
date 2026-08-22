@@ -181,22 +181,57 @@ wrong in opposite directions:
   comparable with it. On identical rings with `use_lazy_gradient=False` the two
   paths agree bit-for-bit; under the default lazy gradient the regular path may
   reuse a cached gradient, so they agree closely instead.
-- **Unmeasurable rings report `NaN`.** An empty ring, or one whose gradient is
-  zero or non-finite, yields `NaN` harmonics. `0.0` is never a placeholder,
-  because it is a legitimate measured value for a perfect ellipse.
+- **The gradient config is built from the effective arguments.** `integrator`
+  and `use_eccentric_anomaly` come from the call, not from `config`, because
+  the current ring was sampled and reduced by those arguments. Taking them from
+  `config` (or from defaults when `config=None`) would let the comparison ring
+  follow different settings, making the Bender numerator and denominator
+  describe two different ring statistics. Only `astep` / `linear_growth`, which
+  have no arguments, come from `config`.
+- **Unmeasurable rings report `NaN`, decided by status and never by value.**
+
+### Measurement status, and why value tests are not enough
+
+Two helpers return plausible numbers on their failure paths, and both numbers
+are indistinguishable from legitimate results by inspection:
+
+| Helper | Failure output | Why a value test fails |
+|---|---|---|
+| `compute_gradient` | `-1.0`, or `previous_gradient * 0.8` | `-1.0` is a perfectly legal gradient |
+| `compute_deviations` | `0.0, 0.0, 0.0, 0.0` | `0.0` is the correct amplitude for a perfect ellipse |
+
+`compute_gradient` also returns `gradient_error = None` on *some* measured
+paths, so error-is-None does not discriminate either.
+
+Both therefore accept an opt-in `return_status=True` that appends an explicit
+status. Default `False` keeps every existing caller unchanged.
+
+- `GRADIENT_MEASURED` / `GRADIENT_NO_CURRENT_RING` /
+  `GRADIENT_NO_COMPARISON_RING` / `GRADIENT_SLOPE_GUARD`
+- `DEVIATIONS_MEASURED` / `DEVIATIONS_UNDERDETERMINED` / `DEVIATIONS_SINGULAR` /
+  `DEVIATIONS_NO_FACTOR`
+
+Forced photometry writes a harmonic only when the gradient status is
+`GRADIENT_MEASURED` **and** that order's deviation status is
+`DEVIATIONS_MEASURED`; anything else yields `NaN` for that order. The status is
+per order, so one degenerate order does not invalidate the others.
 
 `grad` / `grad_error` / `grad_r_error` are exposed under `debug=True`, matching
 the regular path.
 
-Before this change the harmonic columns were emitted pre-filled with `0.0`
-and never written to, so a forced-mode `a4` was a fabricated zero rather than a
-measurement. Regression coverage:
-`tests/unit/test_forced_photometry_harmonics.py`.
+Regression coverage: `tests/unit/test_forced_photometry_harmonics.py`.
 
-**Still zero-filled, deliberately:** `driver.fit_central_pixel` (the `sma = 0`
-row) writes `0.0` harmonics. There is no ring at zero radius, so the value is
-undefined rather than unmeasured; it is called out here so the remaining zeros
-are not mistaken for the defect above.
+**`simultaneous_harmonics` in forced mode.** The simultaneous solve fits the
+geometry harmonics and the higher orders as one system during the iteration.
+Forced mode imposes the geometry, so those semantics have nothing to attach to.
+`fit_image` emits a `UserWarning` and measures the higher orders independently
+per order rather than silently substituting a different strategy.
+
+**Legacy sentinel, not a measurement:** `driver.fit_central_pixel` (the
+`sma = 0` row) writes `0.0` harmonics. There is no ring at zero radius, so the
+value is undefined rather than unmeasured. It is retained for backward
+compatibility and is explicitly excluded from any harmonic calibration; treat
+it as a sentinel, never as a measured coefficient.
 
 ## Regular Fitting Contract
 

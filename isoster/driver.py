@@ -528,6 +528,18 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 UserWarning,
                 stacklevel=2,
             )
+        if cfg.simultaneous_harmonics:
+            warnings.warn(
+                "simultaneous_harmonics=True does not apply in forced photometry "
+                "mode (template provided): the simultaneous solve fits the "
+                "geometry harmonics and the higher orders as one system during "
+                "the iteration, and forced mode imposes the geometry instead of "
+                "fitting it. The higher orders are measured independently per "
+                "order, exactly as compute_deviations=True would. Set "
+                "compute_deviations=True to request that explicitly.",
+                UserWarning,
+                stacklevel=2,
+            )
         resolved = _resolve_template(template)
         return _fit_image_template_forced(image, mask, cfg, resolved, variance_map=variance_map)
 

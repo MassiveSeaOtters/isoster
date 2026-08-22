@@ -19,6 +19,7 @@ that an unmeasurable ring say so with NaN rather than with a number.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from isoster import fit_image
 from isoster.config import IsosterConfig
@@ -168,3 +169,108 @@ class TestForcedPhotometryMeasuresHarmonics:
 
         assert "a4" not in forced[-1]
         assert "b4" not in forced[-1]
+
+
+def _masked_beyond(image, centre, radius, eps=0.3):
+    """Mask everything outside an elliptical radius, in pixels."""
+    yy, xx = np.mgrid[: image.shape[0], : image.shape[1]]
+    r = np.sqrt((xx - centre) ** 2 + ((yy - centre) / (1.0 - eps)) ** 2)
+    return r > radius
+
+
+class TestForcedPhotometryRefusesToNormalizeByAFallback:
+    """A harmonic is only reported when everything it depends on was measured.
+
+    ``compute_gradient`` returns a ``-1.0`` sentinel when it cannot form a
+    comparison ring, and ``compute_deviations`` returns zeros when its solve is
+    singular or underdetermined. Both look like ordinary numbers. Dividing a
+    real harmonic amplitude by a sentinel gradient produces a plausible,
+    well-scaled, entirely meaningless coefficient -- the most dangerous kind of
+    wrong answer, because nothing downstream can detect it.
+    """
+
+    def test_reports_nan_when_the_comparison_ring_is_unavailable(self):
+        """A measured ring plus an unmeasurable gradient is still unmeasured."""
+        image, centre = _planted_harmonic_image()
+        # The ring at sma=44 is clean; its comparison ring at 44*(1+astep)
+        # lies entirely inside the masked region, so no gradient exists.
+        mask = _masked_beyond(image, centre, 45.0)
+        config = _config(centre)
+
+        result = extract_forced_photometry(image, mask, centre, centre, sma=44.0, eps=0.3, pa=0.0, config=config)
+
+        assert np.isnan(result["a4"]), "harmonic normalized by a fallback gradient"
+        assert np.isnan(result["b4"]), "harmonic normalized by a fallback gradient"
+
+    def test_reports_nan_when_the_harmonic_solve_is_singular(self):
+        """A singular solve must not be reported as a measured zero."""
+        image, centre = _planted_harmonic_image()
+        yy, xx = np.mgrid[: image.shape[0], : image.shape[1]]
+        theta = np.arctan2(yy - centre, xx - centre)
+        mask = np.abs(((theta + np.pi) % (2.0 * np.pi)) - np.pi) > 0.02
+        config = _config(centre)
+
+        with pytest.warns(RuntimeWarning, match="compute_deviations"):
+            result = extract_forced_photometry(image, mask, centre, centre, sma=30.0, eps=0.3, pa=0.0, config=config)
+
+        assert np.isnan(result["a4"]), "singular solve reported as a4 = 0.0"
+        assert np.isnan(result["b4"]), "singular solve reported as b4 = 0.0"
+
+    def test_reports_nan_when_there_are_too_few_samples_to_solve(self):
+        """Underdetermined is not the same as round, and must not look like it."""
+        image, centre = _planted_harmonic_image()
+        yy, xx = np.mgrid[: image.shape[0], : image.shape[1]]
+        theta = np.arctan2(yy - centre, xx - centre)
+        mask = np.abs(((theta + np.pi) % (2.0 * np.pi)) - np.pi) > 0.05
+        config = _config(centre)
+
+        result = extract_forced_photometry(image, mask, centre, centre, sma=30.0, eps=0.3, pa=0.0, config=config)
+
+        assert np.isnan(result["a4"]), "underdetermined solve reported as a4 = 0.0"
+        assert np.isnan(result["b4"]), "underdetermined solve reported as b4 = 0.0"
+
+
+class TestForcedPhotometryHonoursWhatTheCallerAsked:
+    def test_gradient_follows_the_effective_arguments_when_config_is_omitted(self):
+        """The Bender denominator must use the caller's ring statistic.
+
+        The reported intensity follows the ``integrator`` argument, so the
+        gradient that normalizes the harmonics has to follow it too. Otherwise
+        numerator and denominator describe two different ring statistics.
+        """
+        image, centre = _planted_harmonic_image()
+
+        without_config = extract_forced_photometry(
+            image,
+            None,
+            centre,
+            centre,
+            sma=30.0,
+            eps=0.3,
+            pa=0.0,
+            integrator="median",
+        )
+        with_config = extract_forced_photometry(
+            image,
+            None,
+            centre,
+            centre,
+            sma=30.0,
+            eps=0.3,
+            pa=0.0,
+            integrator="median",
+            config=_config(centre, integrator="median"),
+        )
+
+        assert without_config["b4"] == pytest.approx(with_config["b4"], rel=1e-12), (
+            "omitting config silently changed the gradient's ring statistic"
+        )
+
+    def test_warns_that_simultaneous_harmonics_do_not_apply_at_fixed_geometry(self):
+        """Requesting a strategy that cannot run must not be silently downgraded."""
+        image, centre = _planted_harmonic_image()
+        config = _config(centre, compute_deviations=False, simultaneous_harmonics=True)
+        template = [{"sma": s, "x0": centre, "y0": centre, "eps": 0.3, "pa": 0.0} for s in (15.0, 25.0, 35.0)]
+
+        with pytest.warns(UserWarning, match="simultaneous_harmonics"):
+            fit_image(image, config=config, template=template)

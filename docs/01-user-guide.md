@@ -80,16 +80,31 @@ comparable — identical, in fact, on the same rings when
 `use_lazy_gradient=False`. With the default lazy gradient the regular path may
 reuse a cached gradient, so the two agree closely rather than exactly.
 
-A ring that cannot be measured — one falling outside the image, or one whose
-radial gradient is zero or non-finite — reports `NaN` for its harmonics, not
-`0.0`. Zero is a meaningful measured value for a perfect ellipse, so it is
-never used as a placeholder for a missing one.
+A harmonic is reported only when everything it depends on was measured.
+`NaN` is returned — never `0.0` — whenever:
 
-!!! warning "Behavior change"
-    Earlier versions reported `a_n = b_n = 0.0` for every forced isophote: the
-    columns were emitted but the harmonic solve was never run. Any harmonic
-    measured in forced mode before this change is a fabricated zero and should
-    be recomputed. See `docs/04-architecture.md` for the exact contract.
+- the ring falls outside the image, or is fully masked;
+- no comparison ring is available, so the radial gradient could not be
+  measured and a fallback value was substituted;
+- the harmonic solve is singular or has too few samples for its three
+  parameters.
+
+Zero is the correct measured answer for a perfect ellipse, so it is never used
+as a placeholder for a missing one. `NaN` also propagates, instead of quietly
+biasing any average taken along a profile.
+
+`simultaneous_harmonics=True` does not apply in forced mode: the simultaneous
+solve fits the geometry harmonics and the higher orders as one system during
+the iteration, and forced mode imposes the geometry rather than fitting it.
+`fit_image` emits a `UserWarning` and measures the higher orders independently
+per order. Use `compute_deviations=True` to request that explicitly.
+
+!!! note "Fixed before the 1.0.0 release"
+    During development, forced photometry emitted `a_n = b_n = 0.0` for every
+    isophote — the columns were written but the harmonic solve never ran. If
+    you produced forced-mode harmonics from a pre-release checkout, they are
+    fabricated zeros and should be recomputed. See `docs/04-architecture.md`
+    for the exact contract.
 
 ### Automatic LSB Geometry Lock
 
