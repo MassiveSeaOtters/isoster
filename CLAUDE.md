@@ -111,6 +111,7 @@ Follow these rules for all Python environment and dependency work in this reposi
 |----------|-------------|
 | `docs/index.md` | Documentation home page and map |
 | `docs/archive/` | Retired dated reports (pre-publication review, QA refresh). Tracked so the history survives, excluded from the published site. |
+| `docs/specs/` | Designs for agreed-but-unimplemented work, one dated file per branch. Tracked so a design survives a change of machine; excluded from the published site, because it describes work that does not exist yet. Durable content migrates to the canonical document once the work lands. |
 | `docs/01-user-guide.md` | Usage guidance, stop-code reference, public API |
 | `docs/02-configuration-reference.md` | All configuration parameters and guidelines |
 | `docs/03-algorithm.md` | Fitting and sampling implementation notes |
