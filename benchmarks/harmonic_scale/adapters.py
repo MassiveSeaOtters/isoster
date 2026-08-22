@@ -244,6 +244,7 @@ def measure_autoprof_fixed(
     zeropoint: float = 22.5,
     isoclip: bool = True,
     interpolate_start: float = 5.0,
+    set_psf: float | None = None,
     venv_python: str | None = None,
     timeout: int = 600,
     extra_options: dict | None = None,
@@ -305,6 +306,9 @@ def measure_autoprof_fixed(
         "zeropoint": zeropoint,
         "isoclip": bool(isoclip),
         "interpolate_start": float(interpolate_start),
+        # None leaves AutoProf's assumed 4.0 px in place, which is stock
+        # behaviour; a value sets ap_set_psf and moves the switch radius.
+        "set_psf": None if set_psf is None else float(set_psf),
         "x0": float(request[0]["x0"]),
         "y0": float(request[0]["y0"]),
         "image": np.asarray(image, dtype=np.float64).tolist(),

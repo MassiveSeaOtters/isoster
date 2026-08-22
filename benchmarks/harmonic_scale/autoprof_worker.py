@@ -333,6 +333,12 @@ def main(job_path):
         # the realized threshold is reported back rather than assumed.
         "ap_iso_interpolate_start": float(job.get("interpolate_start", 5.0)),
     }
+    # The other half of the interpolation threshold. AutoProf's ``psf`` step
+    # assumes 4.0 px and measures nothing, so this is the only way to move the
+    # switch radius without touching ap_iso_interpolate_start -- which is what
+    # makes the two independent knobs onto the same mechanism.
+    if job.get("set_psf") is not None:
+        options["ap_set_psf"] = float(job["set_psf"])
     options.update(job.get("extra_options", {}))
 
     outcome = pipeline.Process_Image(options=options)
@@ -383,6 +389,7 @@ def main(job_path):
             "ap_isoband_fixed": True,
             "ap_isoband_width": 0.1,
             "ap_iso_interpolate_start": interpolate_start,
+            "ap_set_psf": job.get("set_psf"),
             "psf_fwhm_pix": _measured_psf_fwhm(output_dir, name),
             "rad_interp_pix": interpolation["rad_interp_pix"],
         },

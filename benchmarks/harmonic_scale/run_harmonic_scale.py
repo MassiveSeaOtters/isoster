@@ -87,22 +87,78 @@ from benchmarks.utils.sersic_model import (  # noqa: E402
 )
 from isoster.output_paths import resolve_output_directory  # noqa: E402
 
-ARCHIVE_PATH = Path(__file__).resolve().parent / "reference_harmonic_scale.json"
-TOLERANCES_PATH = Path(__file__).resolve().parent / "frozen_tolerances.json"
+HERE = Path(__file__).resolve().parent
+ARCHIVE_PATH = HERE / "reference_harmonic_scale.json"
+TOLERANCES_PATH = HERE / "frozen_tolerances.json"
 
 # ---------------------------------------------------------------------------
 # The fixture
 # ---------------------------------------------------------------------------
 
-#: One galaxy, perturbed per case. Held fixed across the whole grid so that a
-#: difference between two cases is the factor that changed and not the galaxy.
-FIXTURE = {
-    "n": 2.0,
-    "R_e": 25.0,
-    "I_e": 100.0,
-    "shape": (241, 241),
-    "center": (120.0, 120.0),
+#: Two galaxies, each its own campaign with its own archive, its own frozen
+#: tolerances and its own seed blocks. They are *additive*: the first is
+#: frozen and must stay byte-identical, because its archive is already gated,
+#: so the second is a separate measurement rather than an extension of it.
+#:
+#: Why a second at all: the first campaign has six axes and one galaxy, so
+#: every number it reports is conditional on that galaxy. The second differs
+#: in Sersic index, size and image dimensions --- a steeper core and a wider
+#: profile, which changes the radial gradient the Bender normalization
+#: divides by and the number of pixels a ring spans.
+#:
+#: ``extra_cases`` is what keeps the first frozen: it is empty there, so the
+#: grid, and therefore the fixture fingerprint, is exactly what was archived.
+FIXTURES = {
+    "sersic_n2_compact": {
+        "galaxy": {
+            "n": 2.0,
+            "R_e": 25.0,
+            "I_e": 100.0,
+            "shape": (241, 241),
+            "center": (120.0, 120.0),
+        },
+        "radii": (12.0, 18.0, 25.0, 35.0, 45.0),
+        "reference_eps": 0.3,
+        "extra_cases": (),
+        "pilot_seed_block": 900_000,
+        "validation_seed_block": 20_260_822,
+        "archive": "reference_harmonic_scale.json",
+        "tolerances": "frozen_tolerances.json",
+    },
+    "sersic_n4_extended": {
+        "galaxy": {
+            "n": 4.0,
+            "R_e": 40.0,
+            "I_e": 100.0,
+            "shape": (321, 321),
+            "center": (160.0, 160.0),
+        },
+        # Wider galaxy, so wider rings; still straddling the switch at both
+        # the default threshold (20 px) and the ap_set_psf=8 one (40 px).
+        "radii": (18.0, 28.0, 40.0, 55.0, 70.0),
+        "reference_eps": 0.3,
+        "extra_cases": ("psf_set_8", "psf_x_interpolate", "threshold_matched_control"),
+        # Blocks disjoint from both of the first campaign's, and separated by
+        # far more than any realization count. An earlier draft used
+        # 20_260_823 -- one away from the first campaign's validation block,
+        # so with 25 realizations the two campaigns would have shared 24 of
+        # their 25 noise draws and their "independent" results would not have
+        # been independent at all.
+        "pilot_seed_block": 700_000,
+        "validation_seed_block": 30_260_822,
+        "archive": "reference_harmonic_scale_n4.json",
+        "tolerances": "frozen_tolerances_n4.json",
+    },
 }
+
+#: The campaign being run. Module-level because the fixture is a property of
+#: the whole run rather than of any one call, and because threading it through
+#: every function would be a large diff across code whose output is already
+#: frozen and gated. Same pattern, and same reasoning, as ``ACTIVE_SEED`` in
+#: ``benchmarks/draft_timings/run_draft_timings.py``.
+ACTIVE_FIXTURE = "sersic_n2_compact"
+
+FIXTURE = FIXTURES[ACTIVE_FIXTURE]["galaxy"]
 
 #: Four planted modes, all four amplitudes distinct. Both components are
 #: populated at each order because the AutoProf conversion ends in a rotation
@@ -149,11 +205,11 @@ ORDERS = (3, 4)
 #: Both splits are therefore visible within one radius set, which is what
 #: makes radius x interpolation start an interaction rather than two separate
 #: one-factor cases. Where the switch actually fell is recorded per run.
-RADII = (12.0, 18.0, 25.0, 35.0, 45.0)
+RADII = FIXTURES[ACTIVE_FIXTURE]["radii"]
 
 #: Reference ellipticity: non-circular enough that the angle-basis question
 #: bites, modest enough to be the case everything else perturbs.
-REFERENCE_EPS = 0.3
+REFERENCE_EPS = FIXTURES[ACTIVE_FIXTURE]["reference_eps"]
 
 #: A constant added to the whole image. Raw amplitudes should be *invariant*
 #: to this --- a constant contributes only to ``m = 0`` --- and so should
@@ -199,6 +255,27 @@ AUTOPROF_DEFAULT_INTERPOLATE_START = 5.0
 INTERPOLATE_EVERYWHERE = 100.0
 
 
+def use_fixture(name: str) -> None:
+    """Point every module-level campaign constant at one fixture.
+
+    Called once, before anything measures. Rebinding rather than threading
+    keeps the diff off the code paths that produced the already-archived
+    campaign, which is the point: the first fixture's grid, and therefore its
+    fingerprint, must not move.
+    """
+    global ACTIVE_FIXTURE, FIXTURE, RADII, REFERENCE_EPS, ARCHIVE_PATH, TOLERANCES_PATH
+
+    if name not in FIXTURES:
+        raise SystemExit(f"unknown fixture {name!r}; choose from {sorted(FIXTURES)}")
+    ACTIVE_FIXTURE = name
+    spec = FIXTURES[name]
+    FIXTURE = spec["galaxy"]
+    RADII = spec["radii"]
+    REFERENCE_EPS = spec["reference_eps"]
+    ARCHIVE_PATH = HERE / spec["archive"]
+    TOLERANCES_PATH = HERE / spec["tolerances"]
+
+
 # ---------------------------------------------------------------------------
 # The grid
 # ---------------------------------------------------------------------------
@@ -222,6 +299,10 @@ def _case(name, kind, why, **overrides) -> Dict[str, object]:
         "snr": None,
         "n_realizations": 1,
         "planted": "four_modes",
+        # None leaves AutoProf's assumed 4.0 px in place. Only the second
+        # campaign varies it; the first never sets it, so its grid -- and its
+        # fingerprint -- are unchanged by this axis existing.
+        "set_psf": None,
     }
     unknown = set(overrides) - set(spec)
     if unknown:
@@ -232,9 +313,57 @@ def _case(name, kind, why, **overrides) -> Dict[str, object]:
     return spec
 
 
+def _extra_cases() -> Dict[str, Dict[str, object]]:
+    """Cases that exist only on the second fixture.
+
+    All three are about the *other* half of the interpolation threshold.
+    ``rad_interp = ap_iso_interpolate_start * results["psf fwhm"]``, and since
+    AutoProf's ``psf`` step assumes 4.0 px rather than measuring it,
+    ``ap_set_psf`` is the only way to move the switch radius without touching
+    the interpolation setting. Two independent knobs onto one mechanism is a
+    considerably stronger test of "sampling mode is the cause" than one knob
+    could ever be: if the ratio depends only on the mode, then a ring must not
+    care *which* option put it there.
+    """
+    return {
+        "psf_set_8": _case(
+            "psf_set_8",
+            "one_factor",
+            "Double the assumed PSF with the interpolation setting still at 100. The "
+            "threshold doubles to 800 px, every ring stays interpolated, and every ratio "
+            "must be unchanged. A null result by construction -- which is the point, since "
+            "it shows ap_set_psf acts through the threshold and nowhere else.",
+            set_psf=8.0,
+        ),
+        "psf_x_interpolate": _case(
+            "psf_x_interpolate",
+            "interaction",
+            "Default interpolation setting with a doubled PSF, putting the switch at 40 px "
+            "instead of 20. Rings change sampling mode without the interpolation setting "
+            "changing at all.",
+            interpolate_start=AUTOPROF_DEFAULT_INTERPOLATE_START,
+            set_psf=8.0,
+        ),
+        "threshold_matched_control": _case(
+            "threshold_matched_control",
+            "interaction",
+            "Interpolation setting 10 with a halved PSF: different option values from the "
+            "default arm in both factors, and the identical 20 px threshold. Every ring must "
+            "return the identical ratio. This is the sharpest form of the claim -- only the "
+            "product matters, not either factor.",
+            interpolate_start=10.0,
+            set_psf=2.0,
+        ),
+    }
+
+
 def build_grid() -> List[Dict[str, object]]:
-    """The designed grid: reference, one-factor-at-a-time, interactions, stress."""
-    return [
+    """The designed grid: reference, one-factor-at-a-time, interactions, stress.
+
+    The active fixture's ``extra_cases`` are appended. That list is empty for
+    the first fixture, so its grid is exactly the archived one.
+    """
+    grid = [
         _case(
             "reference",
             "reference",
@@ -354,6 +483,12 @@ def build_grid() -> List[Dict[str, object]]:
             snr=30.0,
         ),
     ]
+    extra = _extra_cases()
+    for name in FIXTURES[ACTIVE_FIXTURE]["extra_cases"]:
+        if name not in extra:
+            raise SystemExit(f"fixture {ACTIVE_FIXTURE!r} asks for unknown case {name!r}")
+        grid.append(extra[name])
+    return grid
 
 
 # ---------------------------------------------------------------------------
@@ -530,6 +665,7 @@ def measure_case(
                 workspace=work,
                 isoclip=bool(spec["isoclip"]),
                 interpolate_start=float(spec["interpolate_start"]),
+                set_psf=None if spec["set_psf"] is None else float(spec["set_psf"]),
                 venv_python=autoprof_python,
             )
         assert_rings_match_request(autoprof_rows, request, tolerances={"sma": 1e-6, "eps": 1e-6})
@@ -670,7 +806,17 @@ def _fixture_fingerprint() -> str:
             "radii": list(RADII),
             "background_offset": BACKGROUND_OFFSET,
             "noise_realizations": NOISE_REALIZATIONS,
-            "grid": [{k: v for k, v in case.items() if k not in ("why",)} for case in build_grid()],
+            # ``why`` is prose and does not define the measurement. ``set_psf``
+            # is dropped *when None* because None means the option is never
+            # passed to AutoProf at all: a campaign that does not set the PSF
+            # is the same experiment as one with no such axis, and the first
+            # campaign -- already archived and gated -- must keep the exact
+            # fingerprint it was archived under. Any non-None value is kept,
+            # because then it genuinely is part of the experiment.
+            "grid": [
+                {k: v for k, v in case.items() if k != "why" and not (k == "set_psf" and v is None)}
+                for case in build_grid()
+            ],
         },
         sort_keys=True,
         default=str,
@@ -705,7 +851,12 @@ def run_grid(
     only: str | None = None,
     autoprof_python: str | None = None,
 ) -> Dict[str, object]:
-    seed_block = PILOT_SEED_BLOCK if mode == "pilot" else VALIDATION_SEED_BLOCK
+    fixture_spec = FIXTURES[ACTIVE_FIXTURE]
+    seed_block = (
+        fixture_spec["pilot_seed_block"]
+        if mode == "pilot"
+        else fixture_spec["validation_seed_block"]
+    )
     grid = build_grid()
     if only:
         grid = [case for case in grid if case["name"] == only]
@@ -721,8 +872,12 @@ def run_grid(
 
     return {
         "mode": mode,
+        "fixture": ACTIVE_FIXTURE,
         "seed_block": seed_block,
-        "seed_blocks": {"pilot": PILOT_SEED_BLOCK, "validation": VALIDATION_SEED_BLOCK},
+        "seed_blocks": {
+            "pilot": fixture_spec["pilot_seed_block"],
+            "validation": fixture_spec["validation_seed_block"],
+        },
         "environment": _environment(),
         "cases": cases,
         "output_directory": str(output_root),
@@ -816,6 +971,7 @@ def freeze_tolerances(pilot: Dict[str, object]) -> Dict[str, object]:
     return {
         "frozen_from": {
             "mode": pilot["mode"],
+            "fixture": pilot.get("fixture", "sersic_n2_compact"),
             "seed_block": pilot["seed_block"],
             "commit": pilot["environment"]["git"]["commit"],
             "fixture_fingerprint": pilot["environment"]["fixture_fingerprint"],
@@ -881,7 +1037,7 @@ def _archive_payload(results: Dict[str, object]) -> Dict[str, object]:
 
 def _write(results: Dict[str, object], archive: bool) -> Path:
     output_root = Path(resolve_output_directory("benchmark_harmonic_scale"))
-    out_path = output_root / f"{results['mode']}.json"
+    out_path = output_root / f"{results.get('fixture', ACTIVE_FIXTURE)}_{results['mode']}.json"
     out_path.write_text(json.dumps(results, indent=2, default=str))
     print(f"\n[harmonic-scale] wrote {out_path}")
     if archive:
@@ -943,6 +1099,16 @@ def main() -> None:
             "validation draws from a disjoint block and is judged by them."
         ),
     )
+    parser.add_argument(
+        "--fixture",
+        choices=sorted(FIXTURES),
+        default="sersic_n2_compact",
+        help=(
+            "Which galaxy campaign to run. Each has its own archive, its own frozen "
+            "tolerances and its own seed blocks; they are separate measurements, not "
+            "one grid with an extra axis."
+        ),
+    )
     parser.add_argument("--only", help="Run a single named case (never archivable).")
     parser.add_argument(
         "--autoprof-python",
@@ -977,6 +1143,7 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+    use_fixture(args.fixture)
 
     if args.rearchive is not None:
         results = json.loads(args.rearchive.read_text())
@@ -1000,6 +1167,14 @@ def main() -> None:
             raise SystemExit(
                 f"{args.freeze_tolerances} is a {pilot.get('mode')!r} run; tolerances must be "
                 "frozen from a pilot, or they are fitted to the data they will judge"
+            )
+        # Each campaign is its own measurement, so its tolerances must come
+        # from its own pilot. Freezing one fixture's tolerances from another's
+        # scatter would judge a galaxy by a different galaxy's noise.
+        if pilot.get("fixture", "sersic_n2_compact") != ACTIVE_FIXTURE:
+            raise SystemExit(
+                f"{args.freeze_tolerances} is a {pilot.get('fixture')!r} pilot but --fixture "
+                f"is {ACTIVE_FIXTURE!r}; tolerances must be frozen from the same campaign"
             )
         frozen = freeze_tolerances(pilot)
         TOLERANCES_PATH.write_text(json.dumps(frozen, indent=2))

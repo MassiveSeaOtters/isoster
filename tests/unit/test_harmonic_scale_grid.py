@@ -14,6 +14,7 @@ when the venv is absent.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -21,6 +22,7 @@ import pytest
 from benchmarks.harmonic_scale import claims as claims_module
 from benchmarks.harmonic_scale.run_harmonic_scale import (
     AUTOPROF_DEFAULT_INTERPOLATE_START,
+    FIXTURES,
     INTERPOLATE_EVERYWHERE,
     PILOT_SEED_BLOCK,
     PLANTED_HARMONICS,
@@ -32,6 +34,7 @@ from benchmarks.harmonic_scale.run_harmonic_scale import (
     _refuse_archive,
     build_grid,
     freeze_tolerances,
+    use_fixture,
 )
 
 
@@ -47,7 +50,7 @@ class TestGridStructure:
     def test_every_case_is_a_delta_from_the_reference(self):
         grid = {case["name"]: case for case in build_grid()}
         reference = grid["reference"]
-        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted")
+        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted", "set_psf")
         for name, case in grid.items():
             if name == "reference":
                 continue
@@ -57,7 +60,7 @@ class TestGridStructure:
     def test_one_factor_cases_change_exactly_one_factor(self):
         grid = {case["name"]: case for case in build_grid()}
         reference = grid["reference"]
-        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted")
+        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted", "set_psf")
         for name, case in grid.items():
             if case["kind"] != "one_factor":
                 continue
@@ -67,7 +70,7 @@ class TestGridStructure:
     def test_interactions_change_exactly_two_factors(self):
         grid = {case["name"]: case for case in build_grid()}
         reference = grid["reference"]
-        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted")
+        axes = ("eps", "pa_deg", "isoclip", "interpolate_start", "background_offset", "snr", "planted", "set_psf")
         interactions = [c for c in grid.values() if c["kind"] == "interaction"]
         assert len(interactions) == 4, "A3 names four interactions"
         for case in interactions:
@@ -388,3 +391,101 @@ class TestFrozenTolerancesFile:
             pytest.skip("tolerances not frozen yet")
         frozen = json.loads(TOLERANCES_PATH.read_text())
         assert frozen["frozen_from"]["seed_block"] != VALIDATION_SEED_BLOCK
+
+
+class TestFixtureRegistry:
+    """Each campaign is a separate measurement, and the first one is frozen."""
+
+    def test_the_archived_fixture_fingerprint_still_matches(self):
+        """The frozen campaign's grid must not move. Ever.
+
+        Its archive is committed and gated, and the fingerprint is what ties
+        the two together. Adding the ``set_psf`` axis broke this once --- every
+        case gained a ``set_psf: None`` key, which changed the hash and would
+        have invalidated an archive whose numbers had not changed at all. This
+        test is the standing guard against repeating that.
+        """
+        archive_path = (
+            Path(__file__).resolve().parents[2] / "benchmarks" / "harmonic_scale" / "reference_harmonic_scale.json"
+        )
+        if not archive_path.exists():
+            pytest.skip("frozen archive not present")
+        archived = json.loads(archive_path.read_text())["environment"]["fixture_fingerprint"]
+        use_fixture("sersic_n2_compact")
+        assert _fixture_fingerprint() == archived
+
+    def test_the_frozen_campaign_adds_no_extra_cases(self):
+        # Extra cases would change its grid, hence its fingerprint.
+        assert FIXTURES["sersic_n2_compact"]["extra_cases"] == ()
+
+    def test_seed_blocks_are_disjoint_across_every_campaign(self):
+        blocks = [spec[key] for spec in FIXTURES.values() for key in ("pilot_seed_block", "validation_seed_block")]
+        assert len(set(blocks)) == len(blocks)
+        for a in blocks:
+            for b in blocks:
+                if a != b:
+                    assert abs(a - b) > 1000, "seed blocks must not overlap for any run length"
+
+    def test_each_campaign_has_its_own_archive_and_tolerances(self):
+        archives = [spec["archive"] for spec in FIXTURES.values()]
+        tolerances = [spec["tolerances"] for spec in FIXTURES.values()]
+        assert len(set(archives)) == len(archives)
+        assert len(set(tolerances)) == len(tolerances)
+
+    def test_the_fixtures_are_actually_different_galaxies(self):
+        galaxies = [tuple(sorted(spec["galaxy"].items())) for spec in FIXTURES.values()]
+        assert len(set(galaxies)) == len(galaxies)
+        # A second fixture that only changed size would not test the gradient
+        # the Bender normalization divides by.
+        indices = {spec["galaxy"]["n"] for spec in FIXTURES.values()}
+        assert len(indices) > 1, "the campaigns must differ in Sersic index, not only in size"
+
+    def test_an_unknown_fixture_is_rejected(self):
+        with pytest.raises(SystemExit, match="unknown fixture"):
+            use_fixture("no_such_galaxy")
+
+    def test_switching_fixture_switches_the_radii_and_the_archive(self):
+        use_fixture("sersic_n4_extended")
+        import benchmarks.harmonic_scale.run_harmonic_scale as runner
+
+        assert runner.RADII == FIXTURES["sersic_n4_extended"]["radii"]
+        assert runner.ARCHIVE_PATH.name == FIXTURES["sersic_n4_extended"]["archive"]
+        use_fixture("sersic_n2_compact")
+        assert runner.RADII == FIXTURES["sersic_n2_compact"]["radii"]
+
+
+class TestSecondFixtureGrid:
+    """The PSF axis, which exists because the PSF is assumed rather than measured."""
+
+    @pytest.fixture(autouse=True)
+    def _second(self):
+        use_fixture("sersic_n4_extended")
+        yield
+        use_fixture("sersic_n2_compact")
+
+    def test_it_adds_the_psf_cases(self):
+        names = {case["name"] for case in build_grid()}
+        assert {"psf_set_8", "psf_x_interpolate", "threshold_matched_control"} <= names
+
+    def test_the_matched_threshold_case_differs_in_both_factors(self):
+        """Different option values, identical product --- that is the whole point."""
+        grid = {case["name"]: case for case in build_grid()}
+        default = grid["interpolate_default"]
+        matched = grid["threshold_matched_control"]
+        assert matched["interpolate_start"] != default["interpolate_start"]
+        assert matched["set_psf"] != default["set_psf"]
+        # AutoProf assumes 4.0 px when set_psf is None.
+        default_threshold = default["interpolate_start"] * 4.0
+        matched_threshold = matched["interpolate_start"] * matched["set_psf"]
+        assert matched_threshold == pytest.approx(default_threshold)
+
+    def test_the_radii_straddle_both_thresholds(self):
+        radii = FIXTURES["sersic_n4_extended"]["radii"]
+        for threshold in (5.0 * 4.0, 5.0 * 8.0):
+            assert any(r < threshold for r in radii), threshold
+            assert any(r > threshold for r in radii), threshold
+
+    def test_its_fingerprint_differs_from_the_frozen_campaign(self):
+        second = _fixture_fingerprint()
+        use_fixture("sersic_n2_compact")
+        assert second != _fixture_fingerprint()

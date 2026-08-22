@@ -84,9 +84,15 @@ def _load(path: Path, what: str) -> Dict[str, object]:
 
 
 def check_fingerprint(archive: Dict[str, object]) -> List[str]:
-    """Does the archive describe the grid this repository currently defines?"""
-    from benchmarks.harmonic_scale.run_harmonic_scale import _fixture_fingerprint
+    """Does the archive describe the grid this repository currently defines?
 
+    Evaluated against the fixture the archive says it used, not against
+    whichever campaign happens to be active --- otherwise every archive but
+    one would fail for the wrong reason.
+    """
+    from benchmarks.harmonic_scale.run_harmonic_scale import _fixture_fingerprint, use_fixture
+
+    use_fixture(archive.get("fixture", "sersic_n2_compact"))
     archived = archive["environment"]["fixture_fingerprint"]
     current = _fixture_fingerprint()
     if archived == current:
@@ -277,8 +283,12 @@ def _self_test(archive: Dict[str, object], tolerances: Dict[str, object]) -> int
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--archive", type=Path, default=DEFAULT_ARCHIVE)
-    parser.add_argument("--tolerances", type=Path, default=DEFAULT_TOLERANCES)
+    parser.add_argument(
+        "--archive",
+        type=Path,
+        help="Check one archive. Omit to check every campaign the repository defines.",
+    )
+    parser.add_argument("--tolerances", type=Path)
     parser.add_argument(
         "--self-test",
         action="store_true",
@@ -286,12 +296,70 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    archive = _load(args.archive, "harmonic-scale archive")
-    tolerances = _load(args.tolerances, "frozen tolerances")
+    if args.archive is not None:
+        pairs = [(args.archive, args.tolerances or DEFAULT_TOLERANCES)]
+    else:
+        pairs = _campaign_paths()
 
     if args.self_test:
-        raise SystemExit(_self_test(archive, tolerances))
+        worst = 0
+        for archive_path, tolerances_path in pairs:
+            print(f"--- {archive_path.name}")
+            worst = max(
+                worst,
+                _self_test(
+                    _load(archive_path, "harmonic-scale archive"),
+                    _load(tolerances_path, "frozen tolerances"),
+                ),
+            )
+        raise SystemExit(worst)
 
+    all_failures: List[str] = []
+    for archive_path, tolerances_path in pairs:
+        print(f"=== {archive_path.name}")
+        all_failures.extend(
+            _check_one(
+                _load(archive_path, "harmonic-scale archive"),
+                _load(tolerances_path, "frozen tolerances"),
+            )
+        )
+        print()
+
+    if all_failures:
+        print(f"{len(all_failures)} check(s) failed")
+        raise SystemExit(1)
+    print("all harmonic-scale checks passed")
+
+
+def _campaign_paths() -> List[Tuple[Path, Path]]:
+    """Every campaign this repository defines that has actually been archived.
+
+    A fixture whose archive does not exist yet is skipped rather than failed:
+    the registry can name a campaign before it has been run. A fixture whose
+    archive exists but whose tolerances do not is a real error, because that
+    is an archive nothing can judge.
+    """
+    from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES
+
+    pairs = []
+    for name, spec in sorted(FIXTURES.items()):
+        archive_path = HERE / spec["archive"]
+        tolerances_path = HERE / spec["tolerances"]
+        if not archive_path.exists():
+            print(f"note: {name} has no archive yet ({spec['archive']}); skipping")
+            continue
+        if not tolerances_path.exists():
+            raise SystemExit(
+                f"{name} has an archive but no frozen tolerances ({spec['tolerances']}); "
+                "an archive nothing can judge is not evidence"
+            )
+        pairs.append((archive_path, tolerances_path))
+    if not pairs:
+        raise SystemExit("no harmonic-scale archives found")
+    return pairs
+
+
+def _check_one(archive: Dict[str, object], tolerances: Dict[str, object]) -> List[str]:
     failures: List[str] = []
 
     fingerprint_failures = check_fingerprint(archive)
@@ -300,7 +368,7 @@ def main() -> None:
     if fingerprint_failures:
         # Everything below compares numbers between two different experiments,
         # which would produce a misleading list of failures.
-        raise SystemExit(1)
+        return fingerprint_failures
     print("OK   fixture fingerprint matches the grid this repository defines")
 
     for failure in check_provenance(archive):
@@ -329,10 +397,7 @@ def main() -> None:
     if not doc_failures:
         print(f"OK   prose in {len(docs)} document(s) states the archived numbers")
 
-    if failures:
-        print(f"\n{len(failures)} check(s) failed")
-        raise SystemExit(1)
-    print("\nall harmonic-scale checks passed")
+    return failures
 
 
 if __name__ == "__main__":
