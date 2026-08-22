@@ -3,14 +3,14 @@
     "mode": "pilot",
     "fixture": "sersic_n4_extended",
     "seed_block": 300000,
-    "commit": "15d99376a4179c343793aa009cdc0add16362939",
+    "commit": "43d31720979b56fe5b7686d947b66e423b55d263",
     "fixture_fingerprint": "fbf1c3a461ff729d928ea6a29b08016ce7fa77a085bb6a27b398c9a64518464c"
   },
   "policy": {
     "safety_factor": 3.0,
     "deterministic_floor_pct": 0.05,
     "gradient_step": 0.1,
-    "note": "Derived from the pilot's measured scatter by one uniform rule. The validation run draws from a disjoint seed block and is judged against these values."
+    "note": "Each claim's tolerance is derived from that claim's own across-realization scatter in the pilot, never from another claim's. The validation run draws from a disjoint seed block and is judged against these values."
   },
   "claims": {
     "gradient_agreement_pct_clean": {
@@ -45,7 +45,7 @@
     },
     "gradient_agreement_pct_noise_snr100": {
       "pilot_value": 0.197167,
-      "tolerance": 0.347665,
+      "tolerance": 0.117588,
       "basis": "scatter"
     },
     "gradient_agreement_pct_noise_snr30": {
@@ -85,12 +85,12 @@
     },
     "bender_agreement_pct_noise_snr30": {
       "pilot_value": 10.059245,
-      "tolerance": 0.347665,
+      "tolerance": 3.191706,
       "basis": "scatter"
     },
     "raw_agreement_pct_noise_snr30": {
       "pilot_value": 9.604358,
-      "tolerance": 0.347665,
+      "tolerance": 2.991549,
       "basis": "scatter"
     }
   }

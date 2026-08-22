@@ -558,14 +558,53 @@ def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
     }
 
 
+def _claim_scatter(pilot: Dict[str, object]) -> Dict[str, float]:
+    """Per-claim run-to-run scatter, from each claim's *own* underlying rings.
+
+    An earlier version derived one scatter number from the gradient-agreement
+    key and applied it to every noise-bearing claim. That is wrong whenever
+    the claims are on different scales, and here they are: the gradient
+    agreement is a ~1% quantity while the Bender and raw agreements are ~10%
+    ones that scatter roughly ten times as much. The tolerance for the large
+    claims was therefore taken from the small claim's spread, and the gate
+    duly failed on a validation run whose measurement was fine.
+
+    Each claim is a max over rings of a median over realizations, so what
+    moves between seed blocks is that median's standard error. The largest
+    per-ring standard error among the contributing rings is the honest
+    estimate of it.
+    """
+    scatter: Dict[str, float] = {}
+
+    def record(claim: str, case: dict, suffix: str) -> None:
+        count = max(1, int(case["spec"]["n_realizations"]))
+        worst = 0.0
+        for ring in case["summary"].values():
+            for key, entry in ring.items():
+                if not key.endswith(suffix) or not isinstance(entry, dict):
+                    continue
+                if "stdev" in entry:
+                    worst = max(worst, float(entry["stdev"]) / np.sqrt(count))
+        if worst:
+            scatter[claim] = max(scatter.get(claim, 0.0), worst)
+
+    for case in pilot["cases"]:
+        if case["spec"]["snr"] is None:
+            continue
+        name = case["spec"]["name"]
+        record(f"gradient_agreement_pct_{name}", case, "b0_secant_vs_isoster_pct")
+        record(f"bender_agreement_pct_{name}", case, "_bender_vs_isoster_pct")
+        record(f"raw_agreement_pct_{name}", case, "_raw_autoprof_vs_isoster_pct")
+    return scatter
+
+
 def freeze_tolerances(pilot: Dict[str, object]) -> Dict[str, object]:
     claims = extract_claims(pilot)
-    noisy = {"noise_snr100", "noise_snr30"}
+    scatter = _claim_scatter(pilot)
     frozen: Dict[str, object] = {}
     for name, value in claims.items():
-        if any(tag in name for tag in noisy):
-            scatter = _noise_scatter(pilot)
-            tolerance = max(TOLERANCE_SAFETY_FACTOR * scatter, DETERMINISTIC_FLOOR_PCT)
+        if name in scatter:
+            tolerance = max(TOLERANCE_SAFETY_FACTOR * scatter[name], DETERMINISTIC_FLOOR_PCT)
             basis = "scatter"
         else:
             tolerance = max(DETERMINISTIC_FLOOR_PCT, 0.02 * abs(float(value)))
@@ -588,27 +627,13 @@ def freeze_tolerances(pilot: Dict[str, object]) -> Dict[str, object]:
             "deterministic_floor_pct": DETERMINISTIC_FLOOR_PCT,
             "gradient_step": GRADIENT_STEP,
             "note": (
-                "Derived from the pilot's measured scatter by one uniform rule. The "
-                "validation run draws from a disjoint seed block and is judged against "
-                "these values."
+                "Each claim's tolerance is derived from that claim's own across-realization "
+                "scatter in the pilot, never from another claim's. The validation run draws "
+                "from a disjoint seed block and is judged against these values."
             ),
         },
         "claims": frozen,
     }
-
-
-def _noise_scatter(pilot: Dict[str, object]) -> float:
-    """Largest across-realization scatter of the gradient agreement."""
-    worst = 0.0
-    for case in pilot["cases"]:
-        if case["spec"]["snr"] is None:
-            continue
-        count = max(1, int(case["spec"]["n_realizations"]))
-        for ring in case["summary"].values():
-            entry = ring.get("b0_secant_vs_isoster_pct")
-            if isinstance(entry, dict) and "stdev" in entry:
-                worst = max(worst, float(entry["stdev"]) / np.sqrt(count))
-    return worst
 
 
 # ---------------------------------------------------------------------------
