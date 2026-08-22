@@ -233,3 +233,123 @@ def measure_photutils_fixed(
         else:
             rows.append(row)
     return rows
+
+
+def measure_autoprof_fixed(
+    image: np.ndarray,
+    request: Sequence[dict],
+    orders: Iterable[int],
+    workspace: str,
+    pixel_scale: float = 1.0,
+    zeropoint: float = 22.5,
+    isoclip: bool = True,
+    venv_python: str | None = None,
+    timeout: int = 600,
+) -> tuple[list[dict], dict]:
+    """Measure the requested rings with AutoProf's forced pipeline.
+
+    Runs :mod:`benchmarks.harmonic_scale.autoprof_worker` in the isolated venv,
+    because AutoProf pins ``numpy<2``. See that module for why the forced
+    pipeline needs an explicit ``UpdatePipeline``, a companion ``.aux`` even
+    with ``ap_set_center``, and per-ring sampling-mode instrumentation.
+
+    Returns ``(rows, provenance)``. Rows carry the native AutoProf
+    coefficients alongside the reconstructed raw and Bender values, and every
+    row records which angle basis produced it -- the conversion is only valid
+    for the polar-resampled path.
+
+    The Bender values are *not* filled here. AutoProf reports no radial
+    gradient, and inventing one from its own profile is a separate decision
+    that A4's measurement has to license first. Raw amplitudes are exact and
+    are the primary track.
+    """
+    import json
+    import subprocess
+    from pathlib import Path
+
+    from benchmarks.autoprof_env import resolve_autoprof_python
+
+    from .conventions import raw_from_autoprof, rotate_raw_to_major_axis
+
+    orders = list(orders)
+    workspace = Path(workspace)
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    rings = [
+        {
+            "sma_pix": float(r["sma"]),
+            "eps": float(r["eps"]),
+            # AutoProf takes astronomical degrees; isoster stores math radians.
+            "pa_deg_astro": (np.degrees(float(r["pa"])) - 90.0) % 180.0,
+        }
+        for r in request
+    ]
+    job = {
+        "name": "harmonic_scale",
+        "output_dir": str(workspace),
+        "result_path": str(workspace / "result.json"),
+        "rings": rings,
+        "orders": orders,
+        "pixel_scale": pixel_scale,
+        "zeropoint": zeropoint,
+        "isoclip": bool(isoclip),
+        "x0": float(request[0]["x0"]),
+        "y0": float(request[0]["y0"]),
+        "image": np.asarray(image, dtype=np.float64).tolist(),
+    }
+    job_path = workspace / "job.json"
+    job_path.write_text(json.dumps(job))
+
+    worker = Path(__file__).with_name("autoprof_worker.py")
+    completed = subprocess.run(
+        [resolve_autoprof_python(venv_python), str(worker), str(job_path)],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(f"autoprof worker failed (exit {completed.returncode}):\n{completed.stderr[-2000:]}")
+
+    payload = json.loads((workspace / "result.json").read_text())
+    provenance = dict(payload["provenance"])
+    provenance["sampling_mode"] = payload["sampling_mode"]
+
+    # The angle basis is decided by the same flag that chooses the resampling,
+    # and it decides whether the PA rotation applies at all.
+    basis = "polar_from_image_x_axis" if isoclip else "eccentric_anomaly"
+    provenance["harmonic_basis"] = basis
+
+    rows = []
+    for wanted, entry in zip(request, payload["rows"]):
+        pa_rad = float(wanted["pa"])
+        row = {
+            "tool": "autoprof",
+            "sma": entry["sma_pix"],
+            "x0": float(wanted["x0"]),
+            "y0": float(wanted["y0"]),
+            "eps": entry["eps"],
+            "pa": pa_rad,
+            "gradient": float("nan"),
+            "mean_intensity": entry["b0"],
+            "status": "measured",
+            "harmonic_basis": basis,
+            "autoprof_b0": entry["b0"],
+            "autoprof_a0": entry["a0"],
+        }
+        for order in orders:
+            native_a, native_b = entry[f"a{order}"], entry[f"b{order}"]
+            row[f"autoprof_a{order}_native"] = native_a
+            row[f"autoprof_b{order}_native"] = native_b
+            s_sky, c_sky = raw_from_autoprof(native_a, native_b, entry["b0"])
+            if basis == "polar_from_image_x_axis":
+                s_raw, c_raw = rotate_raw_to_major_axis(s_sky, c_sky, order=order, pa_rad=pa_rad)
+            else:
+                # A basis change, not a rotation: it mixes harmonic orders, so
+                # no same-order two-component transform can express it. Leave
+                # the sky-frame values and let the caller decide.
+                s_raw, c_raw = s_sky, c_sky
+            row[f"s{order}_raw"], row[f"c{order}_raw"] = s_raw, c_raw
+            row[f"a{order}_bender"] = float("nan")
+            row[f"b{order}_bender"] = float("nan")
+        rows.append(row)
+    return rows, provenance
