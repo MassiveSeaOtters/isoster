@@ -73,8 +73,17 @@ DOC_PATHS = (
 
 
 def _squash(text: str) -> str:
-    """Collapse whitespace so markdown line-wrapping cannot hide a match."""
-    return re.sub(r"\s+", " ", text)
+    """Normalize for matching: collapse whitespace, fold case.
+
+    Whitespace, because a clause may be wrapped across lines in markdown and
+    the check is on content rather than layout. Case, because prose
+    legitimately capitalizes at the start of a sentence --- and a
+    case-sensitive check does not merely fail there, it goes *vacuous*: the
+    stem stops matching too, so the claim is silently not checked at all.
+    That happened here, and the pass it produced looked identical to a real
+    one.
+    """
+    return re.sub(r"\s+", " ", text).lower()
 
 
 def _load(path: Path, what: str) -> Dict[str, object]:
@@ -196,21 +205,30 @@ def check_claims(archive: Dict[str, object], tolerances: Dict[str, object]) -> T
     return failures, lines
 
 
-def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str]]:
+def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str, str]]:
     """Sentences the prose must contain verbatim if it mentions these numbers.
 
     Whole clauses, never bare numbers. A fragment can match by accident --- the
     lesson ``check_draft_numbers.py`` records from a checker that passed
     against deliberately corrupted text.
     """
+    from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES
+
     claims = extract_claims(archive)
-    checks: List[Tuple[str, str]] = []
+    checks: List[Tuple[str, str, str]] = []
+    label = FIXTURES[archive.get("fixture", "sersic_n2_compact")]["label"]
 
     worst_clean = max(claims[f"clean_agreement_pct_{tool}"] for tool in ("isoster", "photutils", "autoprof"))
+    # Qualified by campaign. Two galaxies give two different numbers for the
+    # same sentence, so an unqualified clause would either fail against one of
+    # them or -- worse -- pass against the wrong one.
     checks.append(
         (
             "clean_agreement",
-            f"the three tools agree with the analytic truth to better than {worst_clean:.1f}%",
+            # Stem: identifies the campaign, carries no guarded number, so
+            # corrupting the number makes this FAIL instead of going dormant.
+            f"on the {label} fixture the three tools agree with the analytic truth",
+            f"on the {label} fixture the three tools agree with the analytic truth to better than {worst_clean:.1f}%",
         )
     )
     for key, value in sorted(claims.items()):
@@ -219,6 +237,8 @@ def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str]]:
             checks.append(
                 (
                     key,
+                    # Stem: identifies the ring, carries no guarded number.
+                    f"at sma = {radius} px when that ring is sampled by rounding to the nearest pixel",
                     f"reads {value:.1f}% high at sma = {radius} px when that ring is sampled "
                     "by rounding to the nearest pixel",
                 )
@@ -226,7 +246,7 @@ def build_doc_checks(archive: Dict[str, object]) -> List[Tuple[str, str]]:
     return checks
 
 
-def run_doc_checks(checks: List[Tuple[str, str]], docs: Dict[str, str]) -> List[str]:
+def run_doc_checks(checks: List[Tuple[str, str, str]], docs: Dict[str, str]) -> List[str]:
     """A claim is checked only where its topic is already discussed.
 
     The prose for Part A is not written yet, and a gate that demanded sentences
@@ -235,15 +255,32 @@ def run_doc_checks(checks: List[Tuple[str, str]], docs: Dict[str, str]) -> List[
     claim's opening words but not the whole clause.
     """
     failures = []
-    for name, expected in checks:
-        stem = _squash(" ".join(expected.split()[:4]))
+    fired = []
+    for name, stem_text, expected in checks:
+        stem = _squash(stem_text)
+        matched_somewhere = False
         for filename, text in docs.items():
             squashed = _squash(text)
-            if stem in squashed and _squash(expected) not in squashed:
+            if stem not in squashed:
+                continue
+            matched_somewhere = True
+            if _squash(expected) not in squashed:
                 failures.append(
                     f"{name}: {filename} discusses this claim but does not state it as "
                     f"archived.\n       expected verbatim: {expected!r}"
                 )
+        if matched_somewhere:
+            fired.append(name)
+
+    # Say which checks did nothing. A claim no document states is not an
+    # error -- the prose may not be written -- but it must not be counted as
+    # a pass, because a silently vacuous check is indistinguishable from a
+    # real one in the output and that is how a gate rots.
+    dormant = [name for name, _, _ in checks if name not in fired]
+    if dormant:
+        print(f"     note: {len(dormant)} claim(s) stated in no checked document: {', '.join(dormant)}")
+    else:
+        print(f"     note: all {len(checks)} claim(s) are stated somewhere and match the archive")
     return failures
 
 
@@ -278,7 +315,49 @@ def _self_test(archive: Dict[str, object], tolerances: Dict[str, object]) -> int
         else:
             print(f"self-test: corrupting the archive did NOT trip {name}")
     print(f"self-test: {caught}/{len(frozen)} claims trip when the archive is corrupted")
-    return 0 if caught == len(frozen) else 1
+    prose_ok = _doc_self_test(archive)
+    return 0 if caught == len(frozen) and prose_ok else 1
+
+
+def _doc_self_test(archive: Dict[str, object]) -> bool:
+    """Confirm a stale number in the prose is actually caught.
+
+    The failure this exists to prevent is not a wrong answer but a *silent*
+    one. The stem decides whether a document is discussing a claim; when the
+    stem contained the guarded number, corrupting that number stopped the stem
+    matching, the check went dormant, and the gate passed. Seven of nine
+    guarded numbers could be edited freely before this test existed.
+
+    Rather than editing the tracked documents, this moves the archive: if the
+    prose is bound to the archive, a claim whose archived value changes must
+    stop matching. Same binding, tested from the other side, and nothing on
+    disk is touched.
+    """
+    docs = {path.name: path.read_text() for path in DOC_PATHS if path.exists()}
+    live = [name for name, stem, expected in build_doc_checks(archive) if _stated(stem, docs)]
+    if not live:
+        print("self-test: no prose claims are stated in any checked document")
+        return True
+
+    shifted = json.loads(json.dumps(archive))
+    for case in shifted["cases"]:
+        for per_tool in case["summary"].values():
+            for ring in per_tool.values():
+                for entry in ring.values():
+                    if isinstance(entry, dict) and "median" in entry:
+                        entry["median"] = float(entry["median"]) + 0.07
+
+    failures = run_doc_checks(build_doc_checks(shifted), docs)
+    caught = {failure.split(":", 1)[0] for failure in failures}
+    missed = [name for name in live if name not in caught]
+    print(f"self-test: {len(live) - len(missed)}/{len(live)} prose claims trip when the archived value moves")
+    for name in missed:
+        print(f"  MISSED {name}: the prose can drift from the archive without failing")
+    return not missed
+
+
+def _stated(stem: str, docs: Dict[str, str]) -> bool:
+    return any(_squash(stem) in _squash(text) for text in docs.values())
 
 
 def main() -> None:

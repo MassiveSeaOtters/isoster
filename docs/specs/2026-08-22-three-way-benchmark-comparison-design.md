@@ -595,9 +595,9 @@ Measured on the designed grid, pilot on seed block 900000 and validation on
 validation run. Archived in `benchmarks/harmonic_scale/reference_harmonic_scale.json`.
 
 **The headline.** In the clean configuration — noiseless, clipping on, and on
-only those rings AutoProf actually interpolated — the three tools agree with
-the analytic truth to better than 2.3%, and the agreement is strongly
-radius-dependent:
+only those rings AutoProf actually interpolated — on the compact n=2 fixture
+the three tools agree with the analytic truth to better than 2.3%, and the
+agreement is strongly radius-dependent:
 
 | worst \|ratio − 1\| | sma=12 | sma=18 | sma=25 | sma=35 | sma=45 |
 |---|---|---|---|---|---|
@@ -613,9 +613,10 @@ converge to 0.13% at `sma = 45`; photutils does not, for a reason given below.
 
 **Sampling mode is the cause of the AutoProf excess, and this now says so
 rather than inferring it.** AutoProf reads 24.5% high at sma = 25 px when that
-ring is sampled by rounding to the nearest pixel, 13.4% high at sma = 35 px
-when that ring is sampled by rounding to the nearest pixel, and 8.4% high at
-sma = 45 px when that ring is sampled by rounding to the nearest pixel. The
+ring is sampled by rounding to the nearest pixel; it reads 13.4% high at
+sma = 35 px when that ring is sampled by rounding to the nearest pixel; and it
+reads 8.4% high at sma = 45 px when that ring is sampled by rounding to the
+nearest pixel. The
 radius × interpolation-start interaction is what makes this a causal statement
 instead of a correlation:
 
@@ -729,6 +730,74 @@ no same-order two-component rotation can express it. Therefore:
 - eccentric-anomaly output stays native and explicitly labelled, or is
   converted by resampling the original ring signal — never by
   transforming `a_n` and `b_n` alone.
+
+### A3 result, second campaign: what survives a change of galaxy
+
+The first campaign had six axes and one galaxy, so every number in it was
+conditional on that galaxy. A second campaign — Sérsic `n = 4`, `R_e = 40`,
+321 px, on its own seed blocks with its own tolerances frozen from its own
+pilot — says which conclusions were about the tools and which were about the
+fixture. Archived in `reference_harmonic_scale_n4.json`.
+
+**Agreement improves for two tools and not for the third.** On the extended
+n=4 fixture the three tools agree with the analytic truth to better than 2.4%,
+but that pooled number hides two opposite behaviours:
+
+| worst \|ratio − 1\| | sma=18 | sma=28 | sma=40 | sma=55 | sma=70 |
+|---|---|---|---|---|---|
+| isoster | 1.04% | 0.26% | 0.27% | 0.07% | 0.08% |
+| photutils | 1.67% | 2.01% | 2.12% | 2.41% | 1.85% |
+| AutoProf | 0.81% | 0.86% | 0.27% | 0.20% | 0.19% |
+
+isoster and AutoProf improve on this fixture — its rings are larger in pixels,
+so there is less pixelation — and fall to 0.08% and 0.19%. photutils does not
+improve at all: it is flat-to-rising with radius and ends worse than it
+started. Its leakage metric grew from 1.19% to 2.03% on the steeper profile.
+
+**That settles the photutils floor.** On one fixture its 1.85% at large radius
+could have been an artefact of that galaxy. Across two, with the other two
+tools converging below 0.2% on both, it is a property of the estimator:
+photutils' ring samples are not evenly spaced in polar angle, the harmonic
+basis is not orthogonal on them, and a fit that models one order at a time
+absorbs part of the others. A steeper profile has more structure per ring, so
+it leaks more.
+
+**The mechanism claim is now much harder to explain away.** Because
+`PSF_Assumed` fixes the PSF at 4.0 px, `ap_set_psf` is a second, independent
+route to the same threshold, and three cases exploit that:
+
+- **`threshold_matched_control`.** `ap_iso_interpolate_start = 10` with
+  `ap_set_psf = 2` reaches the same 20 px threshold as the default arm's
+  `5 × 4`. Both factors differ; the product does not. Every ring returns a
+  ratio identical to the default arm's to **0.0** — not "within tolerance",
+  identically zero on all five rings and all four components.
+- **`psf_x_interpolate`.** Holding `ap_iso_interpolate_start = 5` and doubling
+  only the PSF moves the switch from 20 px to 40 px, and `sma = 28` flips from
+  16.3% to 0.56%. The interpolation setting never changed.
+- **`psf_set_8`.** Doubling the PSF while the threshold is already far outside
+  the fixture changes nothing, to 0.0 — so `ap_set_psf` acts through the
+  threshold and nowhere else.
+
+Only the product matters. `mode_matched_spread` is 0 on both campaigns.
+
+**Reproduced across galaxies:** the eccentric-anomaly basis error, 12.3% on
+both fixtures at `eps = 0.3` (12.32% and 12.26%) and 68.2% / 63.4% at
+`eps = 0.6`; exact background-offset invariance for all three tools; and
+`mode_matched_spread = 0`.
+
+**Falsified by the second campaign:** that the nearest-pixel excess falls with
+radius. On this fixture AutoProf reads 16.3% high at sma = 28 px when that ring
+is sampled by rounding to the nearest pixel; it reads 1.2% high at sma = 40 px
+when that ring is sampled by rounding to the nearest pixel; it reads 7.2% high
+at sma = 55 px when that ring is sampled by rounding to the nearest pixel; and
+it reads 6.1% high at sma = 70 px when that ring is sampled by rounding to the
+nearest pixel. A nearly clean ring sits between two badly aliased ones, which
+no smooth function of radius can produce.
+
+**Still a limitation.** Two galaxies is not a survey. Neither fixture is
+PSF-convolved, both are Sérsic profiles on a square grid, and both use the same
+four planted amplitudes. This narrows the generalization gap; it does not close
+it.
 
 ### A4 decision: Track 1 is delivered, Track 2 stays unlicensed
 

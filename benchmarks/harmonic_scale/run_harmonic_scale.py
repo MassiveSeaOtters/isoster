@@ -110,6 +110,10 @@ TOLERANCES_PATH = HERE / "frozen_tolerances.json"
 #: grid, and therefore the fixture fingerprint, is exactly what was archived.
 FIXTURES = {
     "sersic_n2_compact": {
+        # Names the campaign in prose. Claims are qualified by it, because
+        # "the three tools agree to X%" is a different sentence for each
+        # galaxy and an unqualified one cannot be checked against either.
+        "label": "compact n=2",
         "galaxy": {
             "n": 2.0,
             "R_e": 25.0,
@@ -126,6 +130,7 @@ FIXTURES = {
         "tolerances": "frozen_tolerances.json",
     },
     "sersic_n4_extended": {
+        "label": "extended n=4",
         "galaxy": {
             "n": 4.0,
             "R_e": 40.0,
@@ -852,11 +857,7 @@ def run_grid(
     autoprof_python: str | None = None,
 ) -> Dict[str, object]:
     fixture_spec = FIXTURES[ACTIVE_FIXTURE]
-    seed_block = (
-        fixture_spec["pilot_seed_block"]
-        if mode == "pilot"
-        else fixture_spec["validation_seed_block"]
-    )
+    seed_block = fixture_spec["pilot_seed_block"] if mode == "pilot" else fixture_spec["validation_seed_block"]
     grid = build_grid()
     if only:
         grid = [case for case in grid if case["name"] == only]
