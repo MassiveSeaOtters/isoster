@@ -13,6 +13,10 @@ What it checks
 4. **The licensing verdict is the one the criteria imply.** Recomputed here
    rather than trusted, because a stored verdict that no longer follows from
    the stored numbers is the failure mode a gate exists to catch.
+5. **The prose quotes the archive.** Any document sentence stating one of
+   these numbers must state the archived value, so the write-up cannot drift
+   from what was measured. Same contract, and the same stem rule, as the
+   harmonic-scale gate.
 
 Usage::
 
@@ -33,6 +37,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import benchmarks.harmonic_scale.run_gradient_reconstruction as runner  # noqa: E402
+from benchmarks.harmonic_scale.check_harmonic_scale import (  # noqa: E402
+    DOC_PATHS,
+    _squash,
+    run_doc_checks,
+)
 
 HERE = Path(__file__).resolve().parent
 
@@ -168,9 +177,109 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
     return failures
 
 
+def build_doc_checks(fixture: str, archive: Dict[str, object]) -> List[tuple[str, str, str]]:
+    """Whole clauses the prose must contain, never bare numbers.
+
+    Every stem identifies the campaign and carries **none** of the value it
+    guards. That rule is not cosmetic: a stem containing its own number stops
+    matching when the number is corrupted, so the check goes dormant instead
+    of failing, and a dormant check reads exactly like a passing one. Seven of
+    nine numbers were editable in silence for that reason once already.
+    """
+    from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES
+
+    runner.ACTIVE_FIXTURE = fixture
+    claims = runner.extract_claims(archive)
+    licensing = archive["licensing"]
+    label = FIXTURES[fixture]["label"]
+    checks = [
+        (
+            f"gradient_agreement_{fixture}",
+            f"on the {label} fixture the matched secant reproduces isoster's gradient",
+            f"on the {label} fixture the matched secant reproduces isoster's gradient on the clean "
+            f"configuration to {claims['worst_ring_gradient_agreement_pct_clean']:.3f}% at the worst "
+            f"ring and {claims['typical_ring_gradient_agreement_pct_clean']:.3f}% at the typical one",
+        ),
+        (
+            f"criterion_1_margin_{fixture}",
+            f"on the {label} fixture the matched secant beats the point derivative",
+            f"on the {label} fixture the matched secant beats the point derivative by "
+            f"{licensing['criterion_1_margin']:.0f}x",
+        ),
+        (
+            f"convention_offset_{fixture}",
+            f"on the {label} fixture the forward secant and the point derivative disagree",
+            f"on the {label} fixture the forward secant and the point derivative disagree by "
+            f"{claims['worst_ring_secant_vs_point_derivative_pct']:.1f}% at the worst ring",
+        ),
+    ]
+    # The regime table decides where the licence applies, so every cell is
+    # guarded. The stem is the campaign label and the regime name --- both
+    # stable, neither a guarded value.
+    for name, regime in sorted(licensing["regimes"].items()):
+        if regime.get("criterion_2") is None:
+            continue
+        verdict = "yes" if regime["criterion_2"] else "no"
+        checks.append(
+            (
+                f"regime_{fixture}_{name}",
+                f"| {label} | `{name}` |",
+                f"| {label} | `{name}` | {regime['gradient_agreement_pct']:.2f}% | "
+                f"{regime['raw_agreement_pct']:.2f}% | {regime['bender_agreement_pct']:.2f}% | "
+                f"{regime['budget_pct']:.2f}% | {verdict} |",
+            )
+        )
+    return checks
+
+
+def check_prose(campaigns: List[tuple[str, Dict[str, object]]]) -> List[str]:
+    docs = {path.name: path.read_text() for path in DOC_PATHS if path.exists()}
+    if not docs:
+        print("note: no checked document exists yet; the prose gate has nothing to read")
+        return []
+    checks = [check for fixture, archive in campaigns for check in build_doc_checks(fixture, archive)]
+    failures = run_doc_checks(checks, docs)
+    if not failures:
+        print(f"OK   prose in {len(docs)} document(s) states the archived Track 2 numbers")
+    return failures
+
+
+def _prose_self_test(campaigns: List[tuple[str, Dict[str, object]]]) -> bool:
+    """A stale number in the prose must actually be caught.
+
+    Built by moving each archived value and requiring the claim to fail. A
+    claim no document states yet is skipped rather than counted as a pass.
+    """
+    docs = {path.name: path.read_text() for path in DOC_PATHS if path.exists()}
+    live, missed = [], []
+    for fixture, archive in campaigns:
+        for name, stem, expected in build_doc_checks(fixture, archive):
+            if not any(_squash(stem) in _squash(text) for text in docs.values()):
+                continue
+            live.append(name)
+            moved = json.loads(json.dumps(archive))
+            for case in moved["cases"]:
+                for ring in case["summary"].values():
+                    for entry in ring.values():
+                        if isinstance(entry, dict) and "median" in entry:
+                            entry["median"] = float(entry["median"]) * 1.5 + 1.0
+            moved["licensing"] = runner.evaluate_licensing(moved)
+            corrupted = {n: e for n, _, e in build_doc_checks(fixture, moved)}
+            if corrupted.get(name) == expected:
+                missed.append(name)
+    if not live:
+        print("self-test: no Track 2 prose claims are stated in any checked document")
+        return True
+    print(f"self-test: {len(live) - len(missed)}/{len(live)} prose claims trip when the archived value moves")
+    for name in missed:
+        print(f"  MISSED {name}: the prose can drift from the archive without failing")
+    return not missed
+
+
 def _self_test() -> int:
     """A corrupted archive must fail. A checker nobody has tried to fool is not evidence."""
     worst = 0
+    campaigns: List[tuple[str, Dict[str, object]]] = []
     for fixture, archive_path, tolerances_path in _campaigns():
         archive = json.loads(archive_path.read_text())
         tolerances = json.loads(tolerances_path.read_text())
@@ -196,6 +305,9 @@ def _self_test() -> int:
         print(f"self-test {fixture}: corrupted numbers caught={caught_claims}, flipped verdict caught={caught_verdict}")
         if not (caught_claims and caught_verdict):
             worst = 1
+        campaigns.append((fixture, archive))
+    if not _prose_self_test(campaigns):
+        worst = 1
     return worst
 
 
@@ -208,13 +320,21 @@ def main() -> None:
         raise SystemExit(_self_test())
 
     failures: List[str] = []
+    campaigns: List[tuple[str, Dict[str, object]]] = []
     for fixture, archive_path, tolerances_path in _campaigns():
         print(f"=== {archive_path.name}")
-        found = check_one(fixture, json.loads(archive_path.read_text()), json.loads(tolerances_path.read_text()))
+        archive = json.loads(archive_path.read_text())
+        campaigns.append((fixture, archive))
+        found = check_one(fixture, archive, json.loads(tolerances_path.read_text()))
         for failure in found:
             print(f"FAIL {failure}")
         failures.extend(found)
         print()
+
+    prose = check_prose(campaigns)
+    for failure in prose:
+        print(f"FAIL prose: {failure}")
+    failures.extend(prose)
 
     if failures:
         print(f"{len(failures)} check(s) failed")

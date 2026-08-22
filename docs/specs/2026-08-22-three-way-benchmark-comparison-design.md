@@ -943,6 +943,90 @@ mixing Part A measured at 12% and 63%.
 and seed block. The two A3 archives are frozen and gated; nothing here may
 move them.
 
+### A4 Track 2 result: licensed, and narrowly
+
+Both fixtures were run: pilot on one seed block, tolerances frozen from it,
+validation on a disjoint block, archived as
+`reference_gradient_reconstruction_sersic_n2_compact.json` and
+`..._sersic_n4_extended.json`. Both are gated by
+`check_gradient_reconstruction.py`, the fourth gate in the docs CI job, and
+every number below is bound to those archives by its prose check — none of
+them is transcribed by hand.
+
+**Criterion 1 passes decisively, on both galaxies.** On the compact n=2
+fixture the matched secant reproduces isoster's gradient on the clean
+configuration to 0.131% at the worst ring and 0.041% at the typical one; on
+the extended n=4 fixture the matched secant reproduces isoster's gradient on
+the clean configuration to 0.081% at the worst ring and 0.049% at the typical
+one. Against the same target, the point derivative is two orders of magnitude
+further away: on the compact n=2 fixture the matched secant beats the point
+derivative by 101x, and on the extended n=4 fixture the matched secant beats
+the point derivative by 162x. The criterion asked only that the margin be
+decisive, with ten times fixed in advance as the bar; it is not close.
+
+**The convention offset is real, reproducible, and publishable on its own.**
+On the compact n=2 fixture the forward secant and the point derivative
+disagree by 13.2% at the worst ring, and on the extended n=4 fixture the
+forward secant and the point derivative disagree by 13.1% at the worst ring.
+Two galaxies of quite different concentration give the same figure, which
+means it is a property of the *definition*, not of the profile. The direct
+consequence for anyone comparing Bender amplitudes across tools: `a_4` from
+two codes is comparable only when their radial step matches. Had Track 2 used
+the accurate point derivative, this campaign would have reported a definition
+mismatch as a 13% disagreement between tools.
+
+**Criterion 2 is where the licence narrows.** All quantities are
+AutoProf-against-isoster, so the two sides differ only in the normalization.
+`budget` is `raw + gradient` — what the Bender agreement is allowed to be if
+normalizing has added nothing new.
+
+| fixture | regime | gradient | raw | Bender | budget | criterion 2 |
+|---|---|---|---|---|---|---|
+| compact n=2 | `reference` | 0.13% | 1.95% | 1.96% | 2.08% | yes |
+| compact n=2 | `eps_high` | 5.54% | 7.98% | 14.32% | 13.52% | no |
+| compact n=2 | `noise_snr30` | 1.33% | 9.19% | 11.06% | 10.52% | no |
+| extended n=4 | `reference` | 0.08% | 0.51% | 0.50% | 0.59% | yes |
+| extended n=4 | `eps_high` | 1.24% | 7.89% | 6.57% | 9.13% | yes |
+| extended n=4 | `noise_snr30` | 1.10% | 8.74% | 9.02% | 9.85% | yes |
+
+**Verdict: licensed on the reference configuration, on both fixtures, and
+nowhere else.** The two hard regimes pass on one galaxy and fail on the other.
+A verdict that flips with the choice of galaxy is not a licence, so `eps_high`
+and `noise_snr30` are excluded rather than reported as marginal. This is the
+regime-dependence the pre-registration anticipated, arriving exactly where it
+was expected: strong ellipticity and low signal-to-noise.
+
+**What "licensed" permits, and what it does not.** A5 may write Bender
+`a_n`/`b_n` for an AutoProf arm instead of NaN when, and only when, all of the
+following hold, which are the conditions recorded in the archive:
+
+- the polar-resampled path, `ap_isoclip = True`, never the eccentric-anomaly
+  basis, whose order mixing Part A measured at 12% and 63%;
+- rings sampled with interpolation rather than nearest-pixel rounding;
+- the comparison ring at `sma·(1 + astep)` **measured**, not interpolated;
+- moderate ellipticity and clean data — outside that, the columns keep their
+  NaN and a reason naming the condition.
+
+The third condition is the binding one in practice, and it is why the licence
+does not extend to the exhausted-benchmark campaign: that campaign's AutoProf
+arm is a free fit, so no ring exists at `sma·1.1` to difference against. Using
+Track 2 there would need either forced paired rings or an interpolated `b0`,
+and interpolating `b0` has not been tested. Until one of those is built, A5
+keeps its NaN on the campaign. See `docs/09-exhausted-benchmark.md`.
+
+**Two supporting numbers, archived rather than quoted loosely.** The wrong
+ring estimator — a median rather than a mean — costs about one percent in the
+reconstructed gradient, which is small enough that it is not the explanation
+for anything but large enough to be worth naming. And AutoProf's default
+nearest-pixel sampling perturbs the secant more than it perturbs either `b0`
+it is built from, which is the same aliasing A3 measured, arriving in a
+difference where it is amplified.
+
+**What this result does not establish.** Two galaxies, neither PSF-convolved,
+both noiseless in the reference configuration. The licence is a statement
+about a conversion under stated conditions, not a survey of how AutoProf
+behaves on real data.
+
 ### A5. Schema: preserve native values, never overwrite
 
 The pass-through columns must not simply be replaced. `profile.fits` from

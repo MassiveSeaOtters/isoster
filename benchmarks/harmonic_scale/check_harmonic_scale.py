@@ -69,6 +69,10 @@ DEFAULT_TOLERANCES = HERE / "frozen_tolerances.json"
 DOC_PATHS = (
     REPO_ROOT / "docs" / "specs" / "2026-08-22-three-way-benchmark-comparison-design.md",
     REPO_ROOT / "docs" / "05-testing.md",
+    # Listed before it quotes anything, on purpose. This document deliberately
+    # defers its Track 2 figures to the spec, but the moment someone repeats
+    # one here it must be checked rather than trusted.
+    REPO_ROOT / "docs" / "09-exhausted-benchmark.md",
 )
 
 

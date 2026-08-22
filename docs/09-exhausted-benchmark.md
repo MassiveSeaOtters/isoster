@@ -39,22 +39,31 @@ An explicit YAML path wins over `AUTOPROF_PYTHON`, which wins over the default;
 `~` is expanded in all three. When the venv is absent, AutoProf arms skip
 cleanly with a regeneration hint that prints the install commands.
 
-!!! warning "Open question: AutoProf harmonic scale"
+!!! warning "Settled: the AutoProf harmonic scale differs, and Prior 2 is not computable for that tool"
 
-    The cross-tool harmonic score (Prior 2) assumes all three tools report
-    coefficients on the same Bender-normalized scale. That is established for
-    ISOSTER and `photutils`, both of which divide by `sma * |grad|` at fit
-    time. It is **not** established for AutoProf: the adapter copies its
-    `a3`/`b3`/`a4`/`b4` columns through unconverted, which *assumes* they
-    already match, and that assumption has never been tested. There is no
-    measurement pointing the other way either — earlier documentation asserted
-    the scale differed, which was equally untested and has since been
-    corrected. The status is ignorance, not a known mismatch.
+    This was an open question. Part A measured it, and the answer is a real
+    mismatch rather than the ignorance recorded here before.
 
-    Settling it needs an AutoProf run against a planted deviation, compared to
-    the ISOSTER and `photutils` values on the same fixture. Until that is done,
-    **treat Prior 2 scores for the autoprof tool as unverified** and do not
-    publish them. The ISOSTER-vs-`photutils` harmonic comparison is unaffected.
+    AutoProf's native coefficients are `a_n = -S_n / (2|b0|)` and
+    `b_n = +C_n / (2|b0|)` — raw amplitudes divided by twice the ring mean.
+    Bender normalization divides instead by `sma·|dI/da|`. These are different
+    denominators, not different conventions for the same one, so the old
+    adapter behaviour of copying the columns through unconverted was comparing
+    two different quantities under one name. Schema version 2 fixes it: the
+    native values are preserved under `autoprof_*_native` and the Bender
+    columns are NaN with a recorded reason (see §4).
+
+    What Part A *did* establish is that the underlying scales agree. Measured
+    against integrated analytic truth at matched apertures, all three tools
+    recover the raw amplitudes to 0.1–0.3% once sampled comparably; the
+    apparent 13–25% AutoProf excess is nearest-pixel sampling, not scale.
+
+    **Consequence for Prior 2, unchanged in practice:** the cross-tool
+    harmonic score still cannot be computed for an AutoProf arm, because the
+    Bender columns it reads are NaN. Do not publish Prior 2 scores for the
+    autoprof tool. The ISOSTER-vs-`photutils` harmonic comparison is
+    unaffected. The route to filling those columns is Track 2, and its licence
+    does not currently reach this campaign — see §4.
 
 ## 1. Quick Start
 
@@ -262,11 +271,38 @@ across every tool, and the native values get names of their own:
 
 **Why the Bender columns are NaN for AutoProf.** Bender normalization divides
 by `sma·|dI/da|`, and AutoProf reports no radial gradient. Part A's Track 2
-would reconstruct one by finite-differencing AutoProf's own `b0` profile —
-`b0`, not the median `SB` profile, because `b0` is the mean of the exact
-vector that entered the FFT and so is the estimator consistent with the
-harmonic numerator. That reconstruction is a measurement Part A has not yet
-licensed, so nothing invents it here.
+reconstructs one by finite-differencing AutoProf's own `b0` profile — `b0`,
+not the median `SB` profile, because `b0` is the mean of the exact vector that
+entered the FFT and so is the estimator consistent with the harmonic
+numerator.
+
+**Track 2 is now licensed, but not for this campaign.** Part A measured the
+reconstruction on two galaxies and licensed it on the reference configuration
+of both: the matched secant reproduces isoster's gradient far more closely
+than a point derivative does, by a margin fixed in advance. The measured
+figures live in the design spec, where they are bound to the archive by a
+prose gate; they are deliberately not repeated here, because a number quoted
+in a second place is a number that can drift. The licence is narrow, and one
+of its conditions is what excludes the campaign:
+
+> the comparison ring at `sma·(1 + astep)` must be **measured**, not
+> interpolated.
+
+Track 2 differences `b0` between a ring and its partner at `sma·1.1`, and it
+gets both by asking AutoProf for a **fixed aperture** at each radius. This
+campaign's AutoProf arm is a **free fit**: AutoProf chooses its own radii, so
+in general no ring exists at `sma·1.1` to difference against. There is nothing
+to reconstruct from, and interpolating `b0` onto the missing radius is an
+untested step that would put an unmeasured quantity inside the denominator of
+every harmonic.
+
+So the licence covers the **fixed-aperture** comparison only, and the Bender
+columns here keep their NaN. Extending it needs one of two pieces of work,
+neither yet done: run the campaign's AutoProf arm with forced paired rings, or
+measure and license a `b0` interpolation. Until then, nothing invents a
+gradient here. The full result, its regime table and its conditions are in
+`docs/specs/2026-08-22-three-way-benchmark-comparison-design.md`, section
+"A4 Track 2 result".
 
 NaN rather than an omitted column because the output is a fixed-schema FITS
 table, where every row has every column and absence has to be represented by
