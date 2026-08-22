@@ -832,35 +832,96 @@ def freeze_tolerances(pilot: Dict[str, object]) -> Dict[str, object]:
     }
 
 
+#: Noise cases whose per-realization rows are summarized rather than stored in
+#: the committed archive. Above this count the raw rows dominate the file --- 25
+#: realizations is about 0.5 MB per case against 13 kB for its summary --- and
+#: nothing reads them: every claim is computed from the summary, which already
+#: carries n, median, min, max, quartiles and standard deviation.
+#:
+#: They are dropped rather than kept because they are *regenerable*, not
+#: irreplaceable: the run is deterministic given the recorded seed block, so
+#: any realization can be reproduced exactly by re-running the same mode. The
+#: full untrimmed run is always written to ``outputs/`` regardless.
+ARCHIVE_REALIZATION_LIMIT = 1
+
+
+def _archive_payload(results: Dict[str, object]) -> Dict[str, object]:
+    """The committed archive: everything except regenerable bulk.
+
+    What is dropped is stated in the file rather than silently omitted --- a
+    reader who finds one realization where the run made twenty-five should be
+    able to tell that from the archive itself, not from this source file.
+    """
+    import copy
+
+    trimmed = copy.deepcopy(results)
+    dropped = 0
+    for case in trimmed["cases"]:
+        realizations = case["realizations"]
+        if len(realizations) <= ARCHIVE_REALIZATION_LIMIT:
+            case["realizations_stored"] = len(realizations)
+            case["realizations_run"] = len(realizations)
+            continue
+        dropped += len(realizations) - ARCHIVE_REALIZATION_LIMIT
+        case["realizations_run"] = len(realizations)
+        case["realizations_stored"] = ARCHIVE_REALIZATION_LIMIT
+        case["realizations"] = realizations[:ARCHIVE_REALIZATION_LIMIT]
+
+    trimmed["archive_note"] = (
+        f"Per-realization rows beyond the first {ARCHIVE_REALIZATION_LIMIT} are summarized "
+        f"rather than stored; {dropped} were dropped. Every claim is computed from the "
+        "'summary' block, which is complete. The dropped rows are regenerable exactly: "
+        "the run is deterministic given the recorded seed block. The full untrimmed run "
+        "is in outputs/benchmark_harmonic_scale/."
+    )
+    return trimmed
+
+
 def _write(results: Dict[str, object], archive: bool) -> Path:
     output_root = Path(resolve_output_directory("benchmark_harmonic_scale"))
     out_path = output_root / f"{results['mode']}.json"
-    payload = json.dumps(results, indent=2, default=str)
-    out_path.write_text(payload)
+    out_path.write_text(json.dumps(results, indent=2, default=str))
     print(f"\n[harmonic-scale] wrote {out_path}")
     if archive:
-        ARCHIVE_PATH.write_text(payload)
-        print(f"[harmonic-scale] archived {ARCHIVE_PATH}")
+        ARCHIVE_PATH.write_text(json.dumps(_archive_payload(results), indent=2, default=str))
+        size_mb = ARCHIVE_PATH.stat().st_size / 1e6
+        print(f"[harmonic-scale] archived {ARCHIVE_PATH} ({size_mb:.2f} MB)")
     return out_path
 
 
+def _describe_dirty(git: Dict[str, object], when: str) -> List[str]:
+    """State whether a tree was clean, naming what was not."""
+    if git.get("dirty") is None:
+        return [f"could not determine whether the working tree was clean {when}"]
+    if not git["dirty"]:
+        return []
+    paths = list(git.get("dirty_paths") or [])
+    return [
+        f"working tree was dirty {when} ("
+        + ", ".join(paths[:5])
+        + ("..." if len(paths) > 5 else "")
+        + "); an archive that cannot be reproduced from a commit is not evidence"
+    ]
+
+
 def _refuse_archive(results: Dict[str, object], only: str | None) -> List[str]:
-    """Every reason this run must not become the committed archive."""
+    """Every reason this run must not become the committed archive.
+
+    The tree is checked at **two** times, and both must be clean. The state
+    recorded in the run says whether the numbers were produced from committed
+    code. The state *now* says whether the file about to be written can be
+    committed alongside it. For a run that archives immediately these are the
+    same check, but ``--rearchive`` can promote a months-old run from a tree
+    that has since changed --- and reading only the recorded state there would
+    let a dirty tree through, which is exactly the hole this once had.
+    """
     problems = []
     if results["mode"] != "validation":
         problems.append(f"mode is {results['mode']!r}; only a validation run may be archived")
     if only:
         problems.append(f"--only {only} runs one case; the archive must contain the whole grid")
-    git = results["environment"]["git"]
-    if git["dirty"] is None:
-        problems.append("could not determine whether the working tree is clean")
-    elif git["dirty"]:
-        problems.append(
-            "working tree is dirty ("
-            + ", ".join(git["dirty_paths"][:5])
-            + ("..." if len(git["dirty_paths"]) > 5 else "")
-            + "); an archive that cannot be reproduced from a commit is not evidence"
-        )
+    problems.extend(_describe_dirty(results["environment"]["git"], "when the run was made"))
+    problems.extend(_describe_dirty(_git_state(), "now"))
     if not TOLERANCES_PATH.exists():
         problems.append(
             f"{TOLERANCES_PATH.name} does not exist; tolerances must be frozen from the "
@@ -894,6 +955,16 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--rearchive",
+        type=Path,
+        metavar="VALIDATION_JSON",
+        help=(
+            "Re-write the committed archive from a completed validation run without "
+            "re-measuring anything. For changes to what the archive *stores*, never to "
+            "what it says: the numbers come from the run, and the same refusals apply."
+        ),
+    )
+    parser.add_argument(
         "--freeze-tolerances",
         type=Path,
         metavar="PILOT_JSON",
@@ -904,6 +975,22 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+
+    if args.rearchive is not None:
+        results = json.loads(args.rearchive.read_text())
+        # The run must still describe the experiment this code defines, or
+        # re-archiving would quietly promote numbers from a different grid.
+        archived_fingerprint = results.get("environment", {}).get("fixture_fingerprint")
+        if archived_fingerprint != _fixture_fingerprint():
+            raise SystemExit(
+                f"{args.rearchive} was produced by a different grid "
+                f"(fingerprint {archived_fingerprint}); re-run --mode validation --archive"
+            )
+        problems = _refuse_archive(results, None)
+        if problems:
+            raise SystemExit("refusing to overwrite the committed archive:\n  - " + "\n  - ".join(problems))
+        _write(results, archive=True)
+        return
 
     if args.freeze_tolerances is not None:
         pilot = json.loads(args.freeze_tolerances.read_text())

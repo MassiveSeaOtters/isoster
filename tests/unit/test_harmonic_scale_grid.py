@@ -238,6 +238,10 @@ class TestArchiveRefusal:
     def test_a_dirty_tree_is_refused(self, tmp_path, monkeypatch):
         monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
         (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": "abc", "branch": "b", "dirty": False, "dirty_paths": []},
+        )
         results = _synthetic_results()
         results["environment"]["git"] = {
             "commit": "abc",
@@ -250,11 +254,19 @@ class TestArchiveRefusal:
     def test_a_pilot_run_is_refused(self, tmp_path, monkeypatch):
         monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
         (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": "abc", "branch": "b", "dirty": False, "dirty_paths": []},
+        )
         assert any("validation" in p for p in _refuse_archive(_synthetic_results(mode="pilot"), None))
 
     def test_a_single_case_run_is_refused(self, tmp_path, monkeypatch):
         monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
         (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": "abc", "branch": "b", "dirty": False, "dirty_paths": []},
+        )
         assert any("whole grid" in p for p in _refuse_archive(_synthetic_results(), "reference"))
 
     def test_missing_frozen_tolerances_is_refused(self, tmp_path, monkeypatch):
@@ -265,7 +277,36 @@ class TestArchiveRefusal:
     def test_a_clean_validation_run_is_allowed(self, tmp_path, monkeypatch):
         monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
         (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": "abc", "branch": "b", "dirty": False, "dirty_paths": []},
+        )
         assert _refuse_archive(_synthetic_results(), None) == []
+
+    def test_a_tree_dirtied_since_the_run_is_refused(self, tmp_path, monkeypatch):
+        """The hole ``--rearchive`` opened: a clean *recorded* state is not enough.
+
+        Re-archiving promotes an older run, so the state that matters is the
+        one now as well as the one then. Reading only the recorded state let a
+        dirty tree straight through.
+        """
+        monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
+        (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": "abc", "branch": "b", "dirty": True, "dirty_paths": ["M x.py"]},
+        )
+        assert any("now" in problem for problem in _refuse_archive(_synthetic_results(), None))
+
+    def test_an_undeterminable_tree_state_is_refused(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("benchmarks.harmonic_scale.run_harmonic_scale.TOLERANCES_PATH", tmp_path / "t.json")
+        (tmp_path / "t.json").write_text("{}")
+        monkeypatch.setattr(
+            "benchmarks.harmonic_scale.run_harmonic_scale._git_state",
+            lambda: {"commit": None, "branch": None, "dirty": None, "dirty_paths": []},
+        )
+        problems = _refuse_archive(_synthetic_results(), None)
+        assert any("could not determine" in problem for problem in problems)
 
 
 class TestFingerprint:
