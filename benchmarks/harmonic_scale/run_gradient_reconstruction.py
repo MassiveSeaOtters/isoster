@@ -56,6 +56,7 @@ import json
 import statistics
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Dict, List, Sequence
 
@@ -453,46 +454,116 @@ def fixture_fingerprint() -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
+#: How a claim collapses its per-ring (and, for the harmonic families, its
+#: per-order) values into one number. Both are archived for every claim,
+#: because they answer different questions and neither substitutes for the
+#: other.
+#:
+#: ``worst_ring`` is the pre-registered statistic and the one the licensing
+#: criteria are evaluated on: a licence is a statement about the worst ring a
+#: reader might write into a table, not the typical one. It is, however, an
+#: unstable summary under noise --- it reports whichever of five rings happened
+#: to be worst in this seed block --- so it reproduces loosely and its
+#: tolerance is correspondingly loose.
+#:
+#: ``typical_ring`` is the median over the same values. It carries no verdict,
+#: but it reproduces roughly forty times more tightly between seed blocks and
+#: is therefore what actually constrains the gate.
+CLAIM_REDUCTIONS = {
+    "typical_ring": "median over rings (and over orders, where a claim spans several)",
+    "worst_ring": "max over rings (and over orders, where a claim spans several)",
+}
+
+#: Every gated quantity, before the reduction prefix is applied.
+#:
+#: A ``key`` selector names one exact per-ring column. A ``suffix`` selector
+#: gathers every per-ring column ending in it, which is how one harmonic claim
+#: covers a3, b3, a4 and b4 at once.
+CLAIM_DEFINITIONS: tuple[Dict[str, object], ...] = (
+    {"stem": "gradient_agreement_pct_clean", "case": "reference", "key": "b0_secant_vs_isoster_pct"},
+    *(
+        {"stem": f"gradient_agreement_pct_{name}", "case": name, "key": "b0_secant_vs_isoster_pct"}
+        for name in (
+            "eps_circular",
+            "eps_high",
+            "pa_30",
+            "background_offset",
+            "interpolate_default",
+            "noise_snr100",
+            "noise_snr30",
+        )
+    ),
+    # The wrong estimator, quantified rather than dismissed.
+    {"stem": "median_estimator_penalty_pct", "case": "reference", "key": "median_secant_vs_isoster_pct"},
+    # The convention offset, which is the finding that forced this design.
+    {"stem": "secant_vs_point_derivative_pct", "case": "reference", "key": "isoster_vs_point_derivative_pct"},
+    # Criterion 2: does normalizing introduce a new systematic?
+    *(
+        {"stem": f"{family}_agreement_pct_{name}", "case": name, "suffix": suffix}
+        for name in ("reference", "eps_high", "noise_snr30")
+        for family, suffix in (
+            ("bender", "_bender_vs_isoster_pct"),
+            ("raw", "_raw_autoprof_vs_isoster_pct"),
+        )
+    ),
+)
+
+
+def claims_fingerprint() -> str:
+    """Hash of the claim *definitions*, so a redefinition cannot pass unnoticed.
+
+    The fixture fingerprint covers what was measured. This covers what is
+    claimed about it. Without it, changing a reduction while leaving the
+    frozen tolerances in place would compare a validation value computed one
+    way against a pilot value computed another --- a silent comparison of two
+    different quantities, which is the failure this whole procedure exists to
+    prevent.
+    """
+    payload = json.dumps(
+        {"reductions": CLAIM_REDUCTIONS, "definitions": [dict(sorted(d.items())) for d in CLAIM_DEFINITIONS]},
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _selected_keys(case: Dict[str, object], definition: Dict[str, object]) -> List[str]:
+    """The per-ring columns one claim reduces over, in a stable order."""
+    if "key" in definition:
+        return [str(definition["key"])]
+    suffix = str(definition["suffix"])
+    rings = list(case["summary"].values())
+    if not rings:
+        return []
+    return sorted(key for key, entry in rings[0].items() if key.endswith(suffix) and isinstance(entry, dict))
+
+
+def _reduce(values: Sequence[float], reduction: str) -> float:
+    finite = [float(v) for v in values if np.isfinite(v)]
+    if not finite:
+        return float("nan")
+    return max(finite) if reduction == "worst_ring" else statistics.median(finite)
+
+
 def extract_claims(results: Dict[str, object]) -> Dict[str, float]:
-    """The numbers Track 2's acceptance turns on."""
+    """The numbers Track 2's acceptance turns on, under both reductions."""
     cases = {case["spec"]["name"]: case for case in results["cases"]}
     claims: Dict[str, float] = {}
 
-    def worst(case_name: str, key: str) -> float:
-        case = cases.get(case_name)
+    for definition in CLAIM_DEFINITIONS:
+        case = cases.get(str(definition["case"]))
         if case is None:
-            return float("nan")
-        values = [entry[key]["median"] for entry in case["summary"].values() if isinstance(entry.get(key), dict)]
-        return max(values) if values else float("nan")
-
-    # Criterion 1: does the reconstruction reproduce isoster's gradient?
-    claims["gradient_agreement_pct_clean"] = worst("reference", "b0_secant_vs_isoster_pct")
-    for name in ("eps_circular", "eps_high", "pa_30", "background_offset", "interpolate_default"):
-        claims[f"gradient_agreement_pct_{name}"] = worst(name, "b0_secant_vs_isoster_pct")
-    for name in ("noise_snr100", "noise_snr30"):
-        claims[f"gradient_agreement_pct_{name}"] = worst(name, "b0_secant_vs_isoster_pct")
-
-    # The wrong estimator, quantified rather than dismissed.
-    claims["median_estimator_penalty_pct"] = worst("reference", "median_secant_vs_isoster_pct")
-    # The convention offset, which is the finding that forced this design.
-    claims["secant_vs_point_derivative_pct"] = worst("reference", "isoster_vs_point_derivative_pct")
-
-    # Criterion 2: does normalizing introduce a new systematic?
-    for name in ("reference", "eps_high", "noise_snr30"):
-        bender = [
+            for reduction in CLAIM_REDUCTIONS:
+                claims[f"{reduction}_{definition['stem']}"] = float("nan")
+            continue
+        keys = _selected_keys(case, definition)
+        values = [
             entry[key]["median"]
-            for entry in (cases[name]["summary"].values() if name in cases else [])
-            for key in entry
-            if key.endswith("_bender_vs_isoster_pct") and isinstance(entry.get(key), dict)
+            for entry in case["summary"].values()
+            for key in keys
+            if isinstance(entry.get(key), dict)
         ]
-        raw = [
-            entry[key]["median"]
-            for entry in (cases[name]["summary"].values() if name in cases else [])
-            for key in entry
-            if key.endswith("_raw_autoprof_vs_isoster_pct") and isinstance(entry.get(key), dict)
-        ]
-        claims[f"bender_agreement_pct_{name}"] = max(bender) if bender else float("nan")
-        claims[f"raw_agreement_pct_{name}"] = max(raw) if raw else float("nan")
+        for reduction in CLAIM_REDUCTIONS:
+            claims[f"{reduction}_{definition['stem']}"] = _reduce(values, reduction)
     return claims
 
 
@@ -513,20 +584,27 @@ def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
     The verdict is per regime rather than global. The reconstruction is not
     uniformly good, and a single yes/no would either overstate it where it
     degrades or discard it where it works.
+
+    Both criteria are evaluated on the ``worst_ring`` reduction, which is what
+    the pre-registration fixed and the conservative choice for a licence: it
+    asks whether the worst ring a reader might quote is safe, not the typical
+    one. The ``typical_ring`` claims are archived and gated alongside, but no
+    verdict rests on them --- choosing a reduction after seeing which verdict
+    it produces is precisely what pre-registration forbids.
     """
     claims = extract_claims(results)
     cases = {case["spec"]["name"]: case for case in results["cases"]}
 
-    secant = claims.get("gradient_agreement_pct_clean", float("nan"))
-    point = claims.get("secant_vs_point_derivative_pct", float("nan"))
+    secant = claims.get("worst_ring_gradient_agreement_pct_clean", float("nan"))
+    point = claims.get("worst_ring_secant_vs_point_derivative_pct", float("nan"))
     criterion_1 = bool(np.isfinite(secant) and np.isfinite(point) and point > DECISIVE_MARGIN * secant)
 
     regimes = {}
     for name in sorted(cases):
-        gradient_key = "gradient_agreement_pct_clean" if name == "reference" else f"gradient_agreement_pct_{name}"
-        gradient = claims.get(gradient_key, float("nan"))
-        bender = claims.get(f"bender_agreement_pct_{name}")
-        raw = claims.get(f"raw_agreement_pct_{name}")
+        stem = "gradient_agreement_pct_clean" if name == "reference" else f"gradient_agreement_pct_{name}"
+        gradient = claims.get(f"worst_ring_{stem}", float("nan"))
+        bender = claims.get(f"worst_ring_bender_agreement_pct_{name}")
+        raw = claims.get(f"worst_ring_raw_agreement_pct_{name}")
         if bender is None or raw is None:
             regimes[name] = {
                 "gradient_agreement_pct": gradient,
@@ -558,78 +636,120 @@ def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
     }
 
 
-def _claim_scatter(pilot: Dict[str, object]) -> Dict[str, float]:
-    """Per-claim run-to-run scatter, from each claim's *own* underlying rings.
+#: Bootstrap resamples used to measure how far a claim moves between seed
+#: blocks. Two thousand is far more than a standard deviation needs and costs
+#: under a second per claim, so there is no reason to economize.
+BOOTSTRAP_DRAWS = 2000
 
-    An earlier version derived one scatter number from the gradient-agreement
-    key and applied it to every noise-bearing claim. That is wrong whenever
-    the claims are on different scales, and here they are: the gradient
-    agreement is a ~1% quantity while the Bender and raw agreements are ~10%
-    ones that scatter roughly ten times as much. The tolerance for the large
-    claims was therefore taken from the small claim's spread, and the gate
-    duly failed on a validation run whose measurement was fine.
 
-    Each claim is a max over rings of a median over realizations, so what
-    moves between seed blocks is that median's standard error. The largest
-    per-ring standard error among the contributing rings is the honest
-    estimate of it.
+def _claim_table(case: Dict[str, object], definition: Dict[str, object]) -> np.ndarray | None:
+    """Per-realization values for every column one claim reduces over.
+
+    Shape ``(n_realizations, n_rings * n_keys)``. Returns ``None`` for a
+    deterministic case, which has a single realization and therefore no
+    run-to-run scatter to measure.
     """
-    scatter: Dict[str, float] = {}
+    realizations = case.get("realizations") or []
+    if len(realizations) < 2:
+        return None
+    keys = _selected_keys(case, definition)
+    n_rings = len(case["summary"])
+    rows = []
+    for realization in realizations:
+        rings = realization["rings"]
+        rows.append([rings[index][key] for index in range(n_rings) for key in keys])
+    return np.asarray(rows, dtype=float)
 
-    def record(claim: str, case: dict, suffix: str) -> None:
-        count = max(1, int(case["spec"]["n_realizations"]))
-        worst = 0.0
-        for ring in case["summary"].values():
-            for key, entry in ring.items():
-                if not key.endswith(suffix) or not isinstance(entry, dict):
-                    continue
-                if "stdev" in entry:
-                    worst = max(worst, float(entry["stdev"]) / np.sqrt(count))
-        if worst:
-            scatter[claim] = max(scatter.get(claim, 0.0), worst)
 
-    for case in pilot["cases"]:
-        if case["spec"]["snr"] is None:
-            continue
-        name = case["spec"]["name"]
-        record(f"gradient_agreement_pct_{name}", case, "b0_secant_vs_isoster_pct")
-        record(f"bender_agreement_pct_{name}", case, "_bender_vs_isoster_pct")
-        record(f"raw_agreement_pct_{name}", case, "_raw_autoprof_vs_isoster_pct")
-    return scatter
+def _bootstrap_scatter(
+    case: Dict[str, object], definition: Dict[str, object], reduction: str, seed: int
+) -> float | None:
+    """Standard deviation of the claim itself, over resampled realizations.
+
+    This replaces an earlier derivation that took the largest *single-ring*
+    standard error and used it for a claim that was a max over five rings.
+    That proxy is only correct when the claim is one ring's median: a max
+    additionally varies through *which* ring wins, so its true spread is
+    larger, and the gate duly failed a validation run whose measurement was
+    fine. Resampling whole realizations keeps the rings correlated the way the
+    data has them and reduces exactly the statistic being claimed, so the
+    tolerance measures the claim rather than a stand-in for it.
+
+    The seed is derived from the claim's name, so every claim gets its own
+    stream and the frozen file is reproducible.
+    """
+    table = _claim_table(case, definition)
+    if table is None or table.shape[1] == 0:
+        return None
+    rng = np.random.default_rng(seed)
+    picks = rng.integers(0, table.shape[0], size=(BOOTSTRAP_DRAWS, table.shape[0]))
+    with warnings.catch_warnings():
+        # An all-NaN column is a ring nothing measured; it must not become a
+        # loud failure here, because the claim itself already drops it.
+        warnings.simplefilter("ignore", RuntimeWarning)
+        per_column = np.nanmedian(table[picks], axis=1)
+        statistic = np.nanmax(per_column, axis=1) if reduction == "worst_ring" else np.nanmedian(per_column, axis=1)
+    finite = statistic[np.isfinite(statistic)]
+    if finite.size < 2:
+        return None
+    return float(np.std(finite, ddof=1))
+
+
+def _claim_seed(name: str) -> int:
+    return int(hashlib.sha256(name.encode()).hexdigest()[:8], 16)
 
 
 def freeze_tolerances(pilot: Dict[str, object]) -> Dict[str, object]:
     claims = extract_claims(pilot)
-    scatter = _claim_scatter(pilot)
+    cases = {case["spec"]["name"]: case for case in pilot["cases"]}
     frozen: Dict[str, object] = {}
-    for name, value in claims.items():
-        if name in scatter:
-            tolerance = max(TOLERANCE_SAFETY_FACTOR * scatter[name], DETERMINISTIC_FLOOR_PCT)
-            basis = "scatter"
-        else:
-            tolerance = max(DETERMINISTIC_FLOOR_PCT, 0.02 * abs(float(value)))
-            basis = "deterministic_floor"
-        frozen[name] = {
-            "pilot_value": round(float(value), 6),
-            "tolerance": round(float(tolerance), 6),
-            "basis": basis,
-        }
+
+    for definition in CLAIM_DEFINITIONS:
+        case = cases.get(str(definition["case"]))
+        for reduction in CLAIM_REDUCTIONS:
+            name = f"{reduction}_{definition['stem']}"
+            value = float(claims[name])
+            scatter = None if case is None else _bootstrap_scatter(case, definition, reduction, _claim_seed(name))
+            if scatter is None:
+                tolerance = max(DETERMINISTIC_FLOOR_PCT, 0.02 * abs(value))
+                basis = "deterministic_floor"
+            else:
+                tolerance = max(TOLERANCE_SAFETY_FACTOR * scatter, DETERMINISTIC_FLOOR_PCT)
+                basis = "bootstrap"
+            frozen[name] = {
+                "pilot_value": round(value, 6),
+                "tolerance": round(float(tolerance), 6),
+                "basis": basis,
+                "reduction": reduction,
+            }
+            if scatter is not None:
+                frozen[name]["bootstrap_stdev"] = round(scatter, 6)
+
     return {
         "frozen_from": {
             "mode": pilot["mode"],
             "fixture": pilot["fixture"],
             "seed_block": pilot["seed_block"],
             "commit": pilot["environment"]["git"]["commit"],
+            # Recorded, not enforced. A pilot only sets the expected value; the
+            # archive it is judged against is what must come from a clean tree.
+            "dirty": pilot["environment"]["git"].get("dirty"),
             "fixture_fingerprint": pilot["environment"]["fixture_fingerprint"],
         },
         "policy": {
             "safety_factor": TOLERANCE_SAFETY_FACTOR,
             "deterministic_floor_pct": DETERMINISTIC_FLOOR_PCT,
             "gradient_step": GRADIENT_STEP,
+            "bootstrap_draws": BOOTSTRAP_DRAWS,
+            "claims_fingerprint": claims_fingerprint(),
+            "claim_reductions": dict(CLAIM_REDUCTIONS),
             "note": (
-                "Each claim's tolerance is derived from that claim's own across-realization "
-                "scatter in the pilot, never from another claim's. The validation run draws "
-                "from a disjoint seed block and is judged against these values."
+                "Each claim's tolerance is measured by bootstrapping that claim's own "
+                "definition -- the same reduction over the same columns -- across resampled "
+                "realizations of the pilot. Never from another claim, and never from a "
+                "single-ring standard error standing in for a reduction over many rings. "
+                "The validation run draws from a disjoint seed block and is judged against "
+                "these values."
             ),
         },
         "claims": frozen,

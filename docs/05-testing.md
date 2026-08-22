@@ -65,6 +65,48 @@ experiment, which the checker reports as a redefinition rather than as drift.
 Archiving refuses to run from a dirty working tree, checked both when the run
 was made and when the archive is written.
 
+A fourth gate, `benchmarks/harmonic_scale/check_gradient_reconstruction.py`,
+guards the two A4 Track 2 archives on the same terms, and adds two things the
+third does not need.
+
+First, every Track 2 quantity is archived under **two reductions over rings**,
+because a max and a median over five rings answer different questions and
+neither substitutes for the other:
+
+- `worst_ring_*` is the max. It is the statistic the acceptance criteria were
+  pre-registered on, and the conservative one for a licence, since a licence
+  is a claim about the worst ring a reader might quote. It is also unstable
+  under noise — it reports whichever ring happened to be worst in this seed
+  block — so it reproduces loosely.
+- `typical_ring_*` is the median over the same values. No verdict rests on it,
+  but it reproduces roughly forty times more tightly between seed blocks, so
+  it is what actually constrains the gate.
+
+The licensing criteria read the `worst_ring` family and nothing else. Choosing
+a reduction after seeing which verdict it produces is exactly what a
+pre-registration forbids, and the two do differ: a blanket switch to the
+median was measured to flip criterion 2 on the n = 2 fixture's reference case,
+which would have unlicensed Track 2 there.
+
+Second, each tolerance is **measured by bootstrapping that claim's own
+definition** — the same reduction over the same columns — across resampled
+realizations of the pilot. An earlier version used the largest single-ring
+standard error as a stand-in, which is only correct when the claim is one
+ring's median; a max additionally varies through *which* ring wins, so its
+true spread is larger, and the gate failed a validation run whose measurement
+was fine. Because a tolerance is now tied to a specific claim definition, the
+frozen file also carries a fingerprint of those definitions, and the gate
+fails if the definitions have moved since the freeze. Without it, editing a
+reduction would silently compare a validation value computed one way against a
+pilot value computed another.
+
+The gate reports two kinds of weak claim separately, and the distinction
+matters. A *measured* tolerance larger than half its own value means the claim
+is genuinely unstable and constrains little. A claim sitting under the
+deterministic floor is merely small: it reproduces exactly, and the floor is a
+fixed allowance rather than a statement about spread. Reporting both as one
+line would train the reader to skip it.
+
 Run `check_harmonic_scale.py --self-test` after changing the checker. It
 corrupts the archived values and requires every claim, and every prose
 sentence quoting one, to fail. That is not ceremony: the prose gate once
@@ -72,7 +114,10 @@ matched documents on a stem that contained the guarded number, so corrupting
 the number made the check *dormant* rather than failing, and seven of nine
 guarded figures could be edited without complaint. A stem must identify a
 claim by something stable — the campaign label, or the radius — never by the
-value it guards.
+value it guards. `check_gradient_reconstruction.py --self-test` does the
+equivalent for Track 2: it corrupts the archived medians and requires both the
+claims and the recomputed licensing verdict to trip. Both self-tests run in
+docs CI, so a gate that has gone quiet fails the build rather than passing it.
 
 ## 2. Directives
 

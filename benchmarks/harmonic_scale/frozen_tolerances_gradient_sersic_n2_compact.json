@@ -4,94 +4,221 @@
     "fixture": "sersic_n2_compact",
     "seed_block": 500000,
     "commit": "43d31720979b56fe5b7686d947b66e423b55d263",
+    "dirty": true,
     "fixture_fingerprint": "8d919191da378060338220367a724195583ca054091f9225e2f1a9fd6830f47c"
   },
   "policy": {
     "safety_factor": 3.0,
     "deterministic_floor_pct": 0.05,
     "gradient_step": 0.1,
-    "note": "Each claim's tolerance is derived from that claim's own across-realization scatter in the pilot, never from another claim's. The validation run draws from a disjoint seed block and is judged against these values."
+    "bootstrap_draws": 2000,
+    "claims_fingerprint": "79af82a3e1da9af1118fb86ea6fe4e8e25def662c86912f2b466e0c272a2b84d",
+    "claim_reductions": {
+      "typical_ring": "median over rings (and over orders, where a claim spans several)",
+      "worst_ring": "max over rings (and over orders, where a claim spans several)"
+    },
+    "note": "Each claim's tolerance is measured by bootstrapping that claim's own definition -- the same reduction over the same columns -- across resampled realizations of the pilot. Never from another claim, and never from a single-ring standard error standing in for a reduction over many rings. The validation run draws from a disjoint seed block and is judged against these values."
   },
   "claims": {
-    "gradient_agreement_pct_clean": {
+    "typical_ring_gradient_agreement_pct_clean": {
+      "pilot_value": 0.041026,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_clean": {
       "pilot_value": 0.130897,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_eps_circular": {
+    "typical_ring_gradient_agreement_pct_eps_circular": {
+      "pilot_value": 0.025764,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_eps_circular": {
       "pilot_value": 0.18272,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_eps_high": {
+    "typical_ring_gradient_agreement_pct_eps_high": {
+      "pilot_value": 0.35278,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_eps_high": {
       "pilot_value": 5.54124,
       "tolerance": 0.110825,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_pa_30": {
+    "typical_ring_gradient_agreement_pct_pa_30": {
+      "pilot_value": 0.069505,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_pa_30": {
       "pilot_value": 0.224703,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_background_offset": {
+    "typical_ring_gradient_agreement_pct_background_offset": {
+      "pilot_value": 0.041026,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_background_offset": {
       "pilot_value": 0.130897,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_interpolate_default": {
+    "typical_ring_gradient_agreement_pct_interpolate_default": {
+      "pilot_value": 1.20683,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_gradient_agreement_pct_interpolate_default": {
       "pilot_value": 2.275045,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "gradient_agreement_pct_noise_snr100": {
+    "typical_ring_gradient_agreement_pct_noise_snr100": {
+      "pilot_value": 0.173124,
+      "tolerance": 0.070319,
+      "basis": "bootstrap",
+      "reduction": "typical_ring",
+      "bootstrap_stdev": 0.02344
+    },
+    "worst_ring_gradient_agreement_pct_noise_snr100": {
       "pilot_value": 0.260108,
-      "tolerance": 0.13097,
-      "basis": "scatter"
+      "tolerance": 0.130385,
+      "basis": "bootstrap",
+      "reduction": "worst_ring",
+      "bootstrap_stdev": 0.043462
     },
-    "gradient_agreement_pct_noise_snr30": {
+    "typical_ring_gradient_agreement_pct_noise_snr30": {
+      "pilot_value": 0.521456,
+      "tolerance": 0.269891,
+      "basis": "bootstrap",
+      "reduction": "typical_ring",
+      "bootstrap_stdev": 0.089964
+    },
+    "worst_ring_gradient_agreement_pct_noise_snr30": {
       "pilot_value": 0.974621,
-      "tolerance": 0.481701,
-      "basis": "scatter"
+      "tolerance": 0.523198,
+      "basis": "bootstrap",
+      "reduction": "worst_ring",
+      "bootstrap_stdev": 0.174399
     },
-    "median_estimator_penalty_pct": {
+    "typical_ring_median_estimator_penalty_pct": {
+      "pilot_value": 0.738863,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_median_estimator_penalty_pct": {
       "pilot_value": 0.978942,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "secant_vs_point_derivative_pct": {
+    "typical_ring_secant_vs_point_derivative_pct": {
+      "pilot_value": 10.546245,
+      "tolerance": 0.210925,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_secant_vs_point_derivative_pct": {
       "pilot_value": 13.186083,
       "tolerance": 0.263722,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "bender_agreement_pct_reference": {
+    "typical_ring_bender_agreement_pct_reference": {
+      "pilot_value": 0.116135,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_bender_agreement_pct_reference": {
       "pilot_value": 1.962288,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "raw_agreement_pct_reference": {
+    "typical_ring_raw_agreement_pct_reference": {
+      "pilot_value": 0.051634,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_raw_agreement_pct_reference": {
       "pilot_value": 1.945446,
       "tolerance": 0.05,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "bender_agreement_pct_eps_high": {
+    "typical_ring_bender_agreement_pct_eps_high": {
+      "pilot_value": 1.027867,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_bender_agreement_pct_eps_high": {
       "pilot_value": 14.315905,
       "tolerance": 0.286318,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "raw_agreement_pct_eps_high": {
+    "typical_ring_raw_agreement_pct_eps_high": {
+      "pilot_value": 0.152892,
+      "tolerance": 0.05,
+      "basis": "deterministic_floor",
+      "reduction": "typical_ring"
+    },
+    "worst_ring_raw_agreement_pct_eps_high": {
       "pilot_value": 7.981386,
       "tolerance": 0.159628,
-      "basis": "deterministic_floor"
+      "basis": "deterministic_floor",
+      "reduction": "worst_ring"
     },
-    "bender_agreement_pct_noise_snr30": {
+    "typical_ring_bender_agreement_pct_noise_snr30": {
+      "pilot_value": 3.586812,
+      "tolerance": 0.846456,
+      "basis": "bootstrap",
+      "reduction": "typical_ring",
+      "bootstrap_stdev": 0.282152
+    },
+    "worst_ring_bender_agreement_pct_noise_snr30": {
       "pilot_value": 9.910608,
-      "tolerance": 8.161388,
-      "basis": "scatter"
+      "tolerance": 5.274362,
+      "basis": "bootstrap",
+      "reduction": "worst_ring",
+      "bootstrap_stdev": 1.758121
     },
-    "raw_agreement_pct_noise_snr30": {
+    "typical_ring_raw_agreement_pct_noise_snr30": {
+      "pilot_value": 3.312363,
+      "tolerance": 0.850805,
+      "basis": "bootstrap",
+      "reduction": "typical_ring",
+      "bootstrap_stdev": 0.283602
+    },
+    "worst_ring_raw_agreement_pct_noise_snr30": {
       "pilot_value": 10.505219,
-      "tolerance": 8.197028,
-      "basis": "scatter"
+      "tolerance": 5.770098,
+      "basis": "bootstrap",
+      "reduction": "worst_ring",
+      "bootstrap_stdev": 1.923366
     }
   }
 }

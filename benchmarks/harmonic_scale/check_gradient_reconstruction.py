@@ -80,8 +80,20 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
         failures.append(
             "the archive and its tolerances used different gradient steps; they describe different quantities"
         )
+    # The fixture fingerprint above says the same thing was *measured*. This
+    # says the same thing is being *claimed* about it. Without it, editing a
+    # reduction while leaving the frozen file in place would judge a validation
+    # value computed one way against a pilot value computed another, and pass.
+    frozen_claims = tolerances["policy"].get("claims_fingerprint")
+    if frozen_claims is None:
+        failures.append("the frozen tolerances predate the claim-definition fingerprint; re-freeze from the pilot")
+    elif frozen_claims != runner.claims_fingerprint():
+        failures.append(
+            "the claim definitions have changed since these tolerances were frozen; "
+            "the pilot values describe different quantities. Re-freeze from the pilot."
+        )
     if not failures:
-        print("OK   provenance complete, validation mode, clean tree, matching gradient step")
+        print("OK   provenance complete, validation mode, clean tree, matching gradient step and claim definitions")
 
     measured = runner.extract_claims(archive)
     for name, entry in sorted(tolerances["claims"].items()):
@@ -101,16 +113,37 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
     # A tolerance comparable to the value it guards is not a constraint. Say
     # so, for the same reason dormant prose checks are reported: a pass that
     # could not have failed must not read like one that could.
-    weak = [
-        name
-        for name, entry in tolerances["claims"].items()
-        if abs(float(entry["pilot_value"])) > 0 and float(entry["tolerance"]) > 0.5 * abs(float(entry["pilot_value"]))
-    ]
-    print(f"OK   {len(tolerances['claims'])} claims checked against frozen tolerances")
-    if weak:
+    #
+    # Two quite different things land in that bucket and must not be reported
+    # as one. A *measured* tolerance that is large says the claim itself is
+    # unstable, which is a real weakness. A claim sitting under the
+    # deterministic floor is merely small: it reproduces exactly, and the
+    # floor is a fixed allowance rather than a statement about its spread.
+    # Listing both together would train the reader to skip the line.
+    weak_measured, under_floor = [], []
+    for name, entry in tolerances["claims"].items():
+        value, tolerance = abs(float(entry["pilot_value"])), float(entry["tolerance"])
+        if value <= 0 or tolerance <= 0.5 * value:
+            continue
+        (under_floor if entry.get("basis") == "deterministic_floor" else weak_measured).append(name)
+    by_reduction: Dict[str, int] = {}
+    for entry in tolerances["claims"].values():
+        by_reduction[str(entry.get("reduction", "unspecified"))] = (
+            by_reduction.get(str(entry.get("reduction", "unspecified")), 0) + 1
+        )
+    breakdown = ", ".join(f"{count} {name}" for name, count in sorted(by_reduction.items()))
+    print(f"OK   {len(tolerances['claims'])} claims checked against frozen tolerances ({breakdown})")
+    if weak_measured:
         print(
-            f"     note: {len(weak)} claim(s) have a tolerance over half their own value and so "
-            f"constrain little: {', '.join(sorted(weak))}"
+            f"     note: {len(weak_measured)} claim(s) have a *measured* tolerance over half their "
+            f"own value, so the claim is genuinely unstable and constrains little: "
+            f"{', '.join(sorted(weak_measured))}"
+        )
+    if under_floor:
+        floor = tolerances["policy"]["deterministic_floor_pct"]
+        print(
+            f"     note: {len(under_floor)} deterministic claim(s) sit below the {floor} floor. "
+            f"They reproduce exactly; the floor is a fixed allowance, not a measured spread."
         )
 
     # The verdict must follow from the numbers, not merely accompany them.
@@ -129,8 +162,8 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
     if not any("licensing" in f or "criterion_2" in f for f in failures):
         verdict = "licensed" if recomputed["licensed_on_reference_configuration"] else "NOT licensed"
         print(
-            f"OK   licensing verdict recomputes: {verdict} on the reference configuration "
-            f"(criterion 1 margin {recomputed['criterion_1_margin']:.0f}x)"
+            f"OK   licensing verdict recomputes from the worst_ring claims: {verdict} on the "
+            f"reference configuration (criterion 1 margin {recomputed['criterion_1_margin']:.0f}x)"
         )
     return failures
 

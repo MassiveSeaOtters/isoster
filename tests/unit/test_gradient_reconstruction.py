@@ -19,11 +19,16 @@ from benchmarks.harmonic_scale.conventions import (
     matched_secant_gradient,
 )
 from benchmarks.harmonic_scale.run_gradient_reconstruction import (
+    CLAIM_DEFINITIONS,
+    CLAIM_REDUCTIONS,
     GRADIENT_STEP,
     SEED_BLOCKS,
     build_grid,
+    claims_fingerprint,
+    evaluate_licensing,
     extract_claims,
     fixture_fingerprint,
+    freeze_tolerances,
 )
 
 
@@ -134,12 +139,12 @@ class TestSeedBlocks:
 
 
 class TestClaimExtraction:
-    def _results(self, gradient_pct=0.05, bender_pct=0.4, raw_pct=0.4):
-        def ring():
+    def _results(self, gradient_pct=0.05, bender_pct=0.4, raw_pct=0.4, rings=("sma=12",)):
+        def ring(scale=1.0):
             entry = {
                 key: {"n": 1, "median": value, "min": value, "max": value}
                 for key, value in (
-                    ("b0_secant_vs_isoster_pct", gradient_pct),
+                    ("b0_secant_vs_isoster_pct", gradient_pct * scale),
                     ("median_secant_vs_isoster_pct", 0.9),
                     ("isoster_vs_point_derivative_pct", 12.0),
                     ("b0_secant_vs_point_derivative_pct", 12.0),
@@ -155,29 +160,28 @@ class TestClaimExtraction:
             return entry
 
         names = [case["name"] for case in build_grid()]
-        return {
-            "cases": [
-                {"spec": {"name": n, "snr": None, "n_realizations": 1}, "summary": {"sma=12": ring()}} for n in names
-            ]
-        }
+        summary = {name: ring(scale) for scale, name in enumerate(rings, start=1)}
+        return {"cases": [{"spec": {"name": n, "snr": None, "n_realizations": 1}, "summary": summary} for n in names]}
 
     def test_it_reports_the_gradient_agreement(self):
         claims = extract_claims(self._results(gradient_pct=0.05))
-        assert claims["gradient_agreement_pct_clean"] == pytest.approx(0.05)
+        assert claims["worst_ring_gradient_agreement_pct_clean"] == pytest.approx(0.05)
+        assert claims["typical_ring_gradient_agreement_pct_clean"] == pytest.approx(0.05)
 
     def test_it_reports_the_wrong_estimator_penalty_separately(self):
         # The median column must be quantified, not dismissed.
-        assert extract_claims(self._results())["median_estimator_penalty_pct"] == pytest.approx(0.9)
+        claims = extract_claims(self._results())
+        assert claims["worst_ring_median_estimator_penalty_pct"] == pytest.approx(0.9)
 
     def test_it_reports_the_convention_offset(self):
         # The finding that forced the design belongs in the archive.
         claims = extract_claims(self._results())
-        assert claims["secant_vs_point_derivative_pct"] == pytest.approx(12.0)
+        assert claims["worst_ring_secant_vs_point_derivative_pct"] == pytest.approx(12.0)
 
     def test_both_acceptance_quantities_are_present(self):
         claims = extract_claims(self._results())
-        assert "bender_agreement_pct_reference" in claims
-        assert "raw_agreement_pct_reference" in claims
+        assert "worst_ring_bender_agreement_pct_reference" in claims
+        assert "worst_ring_raw_agreement_pct_reference" in claims
 
     def test_the_raw_baseline_is_tool_to_tool_not_tool_to_truth(self):
         """Criterion 2 must compare like with like.
@@ -192,9 +196,201 @@ class TestClaimExtraction:
         claims = extract_claims(self._results(raw_pct=0.4))
         # The synthetic fixture sets vs-truth to 99% and vs-isoster to raw_pct;
         # the claim must pick up the latter.
-        assert claims["raw_agreement_pct_reference"] == pytest.approx(0.4)
+        assert claims["worst_ring_raw_agreement_pct_reference"] == pytest.approx(0.4)
 
     def test_normalizing_a_worse_bender_than_raw_is_visible(self):
         """Criterion 2 must be able to fail, not only to pass."""
         claims = extract_claims(self._results(bender_pct=9.0, raw_pct=0.4))
-        assert claims["bender_agreement_pct_reference"] > claims["raw_agreement_pct_reference"]
+        assert claims["worst_ring_bender_agreement_pct_reference"] > claims["worst_ring_raw_agreement_pct_reference"]
+
+    def test_every_claim_is_archived_under_both_reductions(self):
+        claims = extract_claims(self._results())
+        for definition in CLAIM_DEFINITIONS:
+            for reduction in CLAIM_REDUCTIONS:
+                assert f"{reduction}_{definition['stem']}" in claims
+        assert len(claims) == len(CLAIM_DEFINITIONS) * len(CLAIM_REDUCTIONS)
+
+    def test_the_two_reductions_actually_differ(self):
+        """A max and a median that always agree would hide the instability
+        the split exists to separate, so the fixture must have several rings."""
+        claims = extract_claims(self._results(rings=("sma=12", "sma=20", "sma=30")))
+        worst = claims["worst_ring_gradient_agreement_pct_clean"]
+        typical = claims["typical_ring_gradient_agreement_pct_clean"]
+        assert worst > typical
+
+
+class TestLicensingRestsOnTheWorstRing:
+    """The verdict must not follow whichever reduction happens to be kinder.
+
+    A blanket switch to the median was measured to flip criterion 2 on the
+    n=2 fixture's reference case, which would have unlicensed Track 2 there.
+    Pinning the criteria to the pre-registered worst-ring statistic is what
+    keeps the reduction from being chosen after seeing the verdict.
+    """
+
+    def _results(self, **kwargs):
+        return TestClaimExtraction()._results(**kwargs)
+
+    def test_criterion_1_reads_the_worst_ring_claims(self):
+        results = self._results(gradient_pct=0.05)
+        verdict = evaluate_licensing(results)
+        # 12.0 point-derivative offset against a 0.05 secant agreement: decisive.
+        assert verdict["criterion_1_beats_point_derivative"]
+        assert verdict["criterion_1_margin"] == pytest.approx(12.0 / 0.05)
+
+    def test_a_verdict_survives_adding_the_typical_ring_claims(self):
+        """The typical-ring family is archived, but nothing may hang on it."""
+        results = self._results(rings=("sma=12", "sma=20", "sma=30"))
+        claims = extract_claims(results)
+        verdict = evaluate_licensing(results)
+        assert verdict["regimes"]["reference"]["gradient_agreement_pct"] == pytest.approx(
+            claims["worst_ring_gradient_agreement_pct_clean"]
+        )
+
+
+class TestFrozenTolerances:
+    def _pilot(self, spread):
+        """A pilot with two rings and several realizations, so a bootstrap has
+        something to resample."""
+        import numpy as np
+
+        rng = np.random.default_rng(7)
+        # Five rings, as both real fixtures have: with only two, a max and a
+        # median over them are nearly the same statistic and the test could
+        # not tell them apart.
+        n_real, n_rings = 25, 5
+        draws = rng.normal(1.0, spread, size=(n_real, n_rings))
+        realizations = [
+            {"rings": [{"b0_secant_vs_isoster_pct": float(draws[r, i])} for i in range(n_rings)]} for r in range(n_real)
+        ]
+        summary = {
+            f"sma={10 * (i + 1)}": {
+                "b0_secant_vs_isoster_pct": {
+                    "n": n_real,
+                    "median": float(np.median(draws[:, i])),
+                    "stdev": float(np.std(draws[:, i], ddof=1)),
+                }
+            }
+            for i in range(n_rings)
+        }
+        case = {
+            "spec": {"name": "noise_snr100", "snr": 100.0, "n_realizations": n_real},
+            "summary": summary,
+            "realizations": realizations,
+        }
+        return {
+            "mode": "pilot",
+            "fixture": "sersic_n2_compact",
+            "seed_block": 500_000,
+            "environment": {"git": {"commit": "deadbeef", "dirty": False}, "fixture_fingerprint": "abc"},
+            "cases": [case],
+        }
+
+    def test_a_noisier_pilot_earns_a_wider_tolerance(self):
+        """The tolerance must track the claim's own scatter, not a constant."""
+        quiet = freeze_tolerances(self._pilot(spread=0.01))
+        loud = freeze_tolerances(self._pilot(spread=0.20))
+        name = "worst_ring_gradient_agreement_pct_noise_snr100"
+        assert loud["claims"][name]["tolerance"] > quiet["claims"][name]["tolerance"]
+
+    def test_the_worst_ring_scatters_more_than_the_typical_ring(self):
+        """The defect this replaced: one number used for both. A max varies
+        through *which* ring wins as well as through that ring's noise, so its
+        measured spread must come out larger."""
+        frozen = freeze_tolerances(self._pilot(spread=0.20))["claims"]
+        worst = frozen["worst_ring_gradient_agreement_pct_noise_snr100"]
+        typical = frozen["typical_ring_gradient_agreement_pct_noise_snr100"]
+        assert worst["basis"] == typical["basis"] == "bootstrap"
+        assert worst["bootstrap_stdev"] > typical["bootstrap_stdev"]
+
+    def test_a_deterministic_case_falls_back_to_the_floor(self):
+        pilot = self._pilot(spread=0.05)
+        pilot["cases"][0]["realizations"] = pilot["cases"][0]["realizations"][:1]
+        frozen = freeze_tolerances(pilot)["claims"]
+        assert frozen["worst_ring_gradient_agreement_pct_noise_snr100"]["basis"] == "deterministic_floor"
+
+    def test_the_frozen_file_records_the_claim_definitions_it_was_built_from(self):
+        frozen = freeze_tolerances(self._pilot(spread=0.05))
+        assert frozen["policy"]["claims_fingerprint"] == claims_fingerprint()
+        assert frozen["policy"]["claim_reductions"] == dict(CLAIM_REDUCTIONS)
+
+    def test_freezing_is_reproducible(self):
+        """A bootstrap seeded from the clock would make the frozen file drift."""
+        import json
+
+        first = freeze_tolerances(self._pilot(spread=0.10))
+        second = freeze_tolerances(self._pilot(spread=0.10))
+        # Compared as text: this toy pilot carries one case, so most claims are
+        # NaN, and NaN never equals itself under dict equality.
+        assert json.dumps(first["claims"], sort_keys=True) == json.dumps(second["claims"], sort_keys=True)
+
+
+class TestClaimsFingerprint:
+    def test_changing_a_reduction_changes_the_fingerprint(self, monkeypatch):
+        import benchmarks.harmonic_scale.run_gradient_reconstruction as runner
+
+        before = claims_fingerprint()
+        monkeypatch.setattr(runner, "CLAIM_REDUCTIONS", {"worst_ring": "max over rings"})
+        assert claims_fingerprint() != before
+
+    def test_changing_a_claim_definition_changes_the_fingerprint(self, monkeypatch):
+        import benchmarks.harmonic_scale.run_gradient_reconstruction as runner
+
+        before = claims_fingerprint()
+        monkeypatch.setattr(
+            runner,
+            "CLAIM_DEFINITIONS",
+            runner.CLAIM_DEFINITIONS[:-1],
+        )
+        assert claims_fingerprint() != before
+
+
+class TestTheGateRejectsStaleTolerances:
+    """The guard added after a reduction change nearly slipped through.
+
+    Editing how a claim is reduced, while leaving the frozen file in place,
+    would have compared a validation value computed one way against a pilot
+    value computed another -- and passed, because both are just numbers. The
+    claim-definition fingerprint is what makes that impossible, so it needs a
+    test that watches it fail.
+    """
+
+    def _fixtures(self):
+        import json
+        from pathlib import Path
+
+        here = Path(__file__).resolve().parents[2] / "benchmarks" / "harmonic_scale"
+        archive = here / "reference_gradient_reconstruction_sersic_n4_extended.json"
+        tolerances = here / "frozen_tolerances_gradient_sersic_n4_extended.json"
+        if not (archive.exists() and tolerances.exists()):
+            pytest.skip("the n=4 Track 2 archive is not present")
+        return json.loads(archive.read_text()), json.loads(tolerances.read_text())
+
+    def _run(self, archive, tolerances):
+        import contextlib
+        import io
+
+        import benchmarks.harmonic_scale.check_gradient_reconstruction as gate
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            return gate.check_one("sersic_n4_extended", archive, tolerances)
+
+    def test_the_archive_passes_unmodified(self):
+        archive, tolerances = self._fixtures()
+        assert self._run(archive, tolerances) == []
+
+    def test_a_fingerprint_from_different_claim_definitions_is_rejected(self):
+        import json
+
+        archive, tolerances = self._fixtures()
+        stale = json.loads(json.dumps(tolerances))
+        stale["policy"]["claims_fingerprint"] = "0" * 64
+        assert any("claim definitions have changed" in f for f in self._run(archive, stale))
+
+    def test_tolerances_predating_the_fingerprint_are_rejected(self):
+        import json
+
+        archive, tolerances = self._fixtures()
+        old = json.loads(json.dumps(tolerances))
+        old["policy"].pop("claims_fingerprint")
+        assert any("predate the claim-definition fingerprint" in f for f in self._run(archive, old))
