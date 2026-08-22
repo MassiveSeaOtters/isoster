@@ -27,10 +27,12 @@ agrees with analytic truth to 0.1% with interpolation used everywhere. Both
 readings are true at their own setting, which is why the setting is crossed
 rather than chosen. It selects Lanczos sampling where ``Rlim < rad_interp``
 and rounding to the nearest pixel otherwise, with
-``rad_interp = ap_iso_interpolate_start * psf_fwhm`` --- and the PSF is one
-AutoProf measures from the image, so the switch radius moves between fixtures
-at a fixed setting. Every ring therefore carries the mode it actually got,
-observed inside the run rather than predicted from the option.
+``rad_interp = ap_iso_interpolate_start * results["psf fwhm"]``. On this
+pipeline that PSF is not measured: the ``psf`` step is ``PSF_Assumed``, which
+hardcodes 4.0 px unless told otherwise, so the threshold sits at 20 px at the
+default setting. Every ring nonetheless carries the mode it actually got,
+observed inside the run rather than predicted -- the per-ring mode is the
+thing being studied, and the PSF step is swappable.
 
 Pilot and validation are separate runs on disjoint seed blocks
 --------------------------------------------------------------
@@ -142,7 +144,7 @@ SINGLE_PLANTED_HARMONIC = {(3, "cos"): 0.020}
 ORDERS = (3, 4)
 
 #: Five radii, chosen to straddle the interpolation switch at more than one
-#: setting. On this fixture AutoProf measures a PSF FWHM near 4 px, so the
+#: setting. AutoProf's ``psf`` step assumes 4.0 px on this pipeline, so the
 #: switch sits near 20 px at the default setting of 5 and near 32 px at 8.
 #: Both splits are therefore visible within one radius set, which is what
 #: makes radius x interpolation start an interaction rather than two separate

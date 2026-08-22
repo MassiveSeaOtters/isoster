@@ -268,10 +268,11 @@ def measure_autoprof_fixed(
     ``interpolate_start`` is the campaign's largest single effect and is a
     grid axis rather than a setting to inherit -- 5.0 is AutoProf's own
     default, reproduced here so that omitting the argument reproduces stock
-    behaviour rather than a quietly better one. It multiplies a PSF AutoProf
-    measures from the image, so each returned row carries the mode its ring
-    actually got (``harmonic_sampling_mode``) rather than the mode the
-    setting implies.
+    behaviour rather than a quietly better one. It multiplies
+    ``results["psf fwhm"]``, which on this pipeline is the assumed 4.0 px
+    rather than a measured value. Each returned row still carries the mode its
+    ring actually got (``harmonic_sampling_mode``), observed rather than
+    inferred from the setting.
     """
     import json
     import subprocess
@@ -345,11 +346,12 @@ def measure_autoprof_fixed(
             "mean_intensity": entry["b0"],
             "status": "measured",
             "harmonic_basis": basis,
-            # Per ring, observed rather than derived from the setting: the
-            # threshold is a multiple of a PSF AutoProf measures itself, so
-            # the same setting switches at a different radius on a different
-            # image. ``None`` means the probe could not attribute the call to
-            # this ring, which is not the same as "nearest pixel".
+            # Per ring, observed rather than derived from the setting. The
+            # threshold is predictable on this pipeline (AutoProf assumes a
+            # 4.0 px PSF), but the per-ring mode is the measurand, and
+            # recomputing it here would check our arithmetic rather than
+            # AutoProf's behaviour. ``None`` means the probe could not
+            # attribute the call to this ring, which is not "nearest pixel".
             "harmonic_sampling_mode": (
                 "line_nearest_pixel"
                 if entry.get("interpolated") is False

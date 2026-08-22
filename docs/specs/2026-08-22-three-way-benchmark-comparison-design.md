@@ -154,12 +154,15 @@ A2 changed A3, which is the order these should happen in:
     setting, so the setting cannot be fixed; it has to be crossed. A3
     carries the reasoning and the added **radius × interpolation start**
     interaction.
-20. **The interpolation threshold is measured, not set.**
-    `ap_iso_interpolate_start` multiplies a PSF FWHM that AutoProf
-    estimates from the image, so the switch radius moves between fixtures
-    at a fixed setting. The realized PSF and threshold are archived per
-    case and the per-ring mode is instrumented, for the same reason
-    correction 11 instrumented line-versus-band sampling.
+20. **The interpolation threshold is set, not measured — the reverse of what
+    this note first claimed.** `ap_iso_interpolate_start` multiplies
+    `results["psf fwhm"]`, and the forced pipeline's `psf` step is
+    `PSF_Assumed`, which hardcodes 4.0 px. So the switch radius does *not*
+    move between fixtures at a fixed setting; it is 20 px at the default,
+    everywhere. The realized threshold is archived per case and the per-ring
+    mode is instrumented anyway, for the same reason correction 11
+    instrumented line-versus-band sampling: the mode is the measurand, and
+    the PSF step is swappable.
 
 ## Background: what the scales actually are
 
@@ -438,10 +441,12 @@ relative to the ring.
 - It is also a finding about `m=4` measurements generally: any tool sampling
   isophotes by nearest-pixel lookup will bias the four-fold mode, which is
   precisely the boxy/discy diagnostic. Worth stating in its own right.
-- The earlier reading that the excess "shrinks with radius" was a partial view
-  of this: at eps=0.6 the measured PSF differs, moving the switch radius, so
-  the excess is not monotonic in ellipticity. Radius dependence is real but
-  secondary to which side of the switch a ring falls.
+- The earlier reading that the excess "shrinks with radius" is a partial view
+  of this: what matters first is which side of the switch a ring falls on, and
+  only then its radius. (An earlier draft attributed the non-monotonicity to a
+  PSF that differs at eps=0.6. That was wrong — `PSF_Assumed` returns 4.0 px
+  regardless of the image, measured identical across all fifteen grid cases.
+  The switch radius is the same everywhere at a fixed setting.)
 
 Separately confirmed, and it settles difference 4: with `ap_isoclip=False` the
 eccentric-anomaly path degrades badly with ellipticity — ratios 0.99 at eps=0,
@@ -477,25 +482,44 @@ it would report a scale disagreement that is not a scale disagreement at all.
 Crossing it with the rest of the grid is what separates the two readings, and
 it is why the axis is listed first.
 
-**It is a radius threshold in units of a PSF the tool measures itself.**
-`ap_iso_interpolate_start` is not a boolean and not a radius in pixels:
-`Isophote_Extract.py:110-115` multiplies it by `results["psf fwhm"]` to get
-`rad_interp`, and `SharedFunctions.py:653` then samples with Lanczos where
-`Rlim < rad_interp` and by rounding to the nearest pixel otherwise. Two
-consequences the runner must respect:
+**It is a radius threshold, and the PSF it is measured in is assumed rather
+than measured.** `ap_iso_interpolate_start` is not a boolean and not a radius
+in pixels: `Isophote_Extract.py:110-115` multiplies it by
+`results["psf fwhm"]` to get `rad_interp`, and `SharedFunctions.py:653` then
+samples with Lanczos where `Rlim < rad_interp` and by rounding to the nearest
+pixel otherwise.
 
-- **The switch radius is data-dependent.** AutoProf measures the PSF from the
-  image, so the same setting puts the switch at a different radius on a
-  different fixture — which is exactly why the excess in A2 was not monotonic
-  in ellipticity. The realized `psf fwhm` and the realized `rad_interp` are
-  therefore archived per case, not assumed from the setting.
+**Corrected after measurement.** An earlier version of this section said the
+switch radius was data-dependent because AutoProf measures the PSF from the
+image. It does not, on this pipeline. The `psf` step resolves to
+`PSF_Assumed` (`Pipeline.py:53`), which **hardcodes 4.0 px** unless
+`ap_set_psf` or `ap_guess_psf` is supplied; measuring requires selecting
+`psf starfind` or another variant explicitly. Confirmed across all fifteen
+grid cases, which report `psf fwhm = 4.0` at every ellipticity, noise level
+and background offset. The threshold is therefore fully predictable here —
+20 px at the default setting, 32 px at 8, 400 px at 100 — and the archive
+records it per case as a fact rather than as a discovery.
+
+Two consequences the runner must still respect:
+
 - **The per-ring mode is instrumented, never inferred.** The runner records,
-  for every ring, whether it was interpolated or rounded, by observing the
-  same comparison AutoProf makes rather than by recomputing the threshold
-  alongside it. The value 100 is chosen to put every ring on this fixture
-  below the switch; whether it actually did is a measurement, not a
-  presumption. This is the same treatment `ap_isoband_fixed` already gets —
-  the band-versus-line probe exists for the identical reason.
+  for every ring, whether it was interpolated or rounded, by observing whether
+  AutoProf's interpolator actually ran. That the threshold is predictable does
+  not make the prediction a measurement: the per-ring mode is the quantity the
+  whole study turns on, recomputing it here would check our arithmetic rather
+  than AutoProf's behaviour, and the PSF step is swappable, so a prediction
+  that holds today holds only for this configuration. This is the same
+  treatment `ap_isoband_fixed` already gets — the band-versus-line probe
+  exists for the identical reason.
+- **The value 100 is a hypothesis about this fixture, not a guarantee.** It is
+  chosen to put every ring below the switch; whether it did is reported.
+
+Because the PSF is a constant here, a *second fixture will not move the switch
+radius on its own*. Varying it independently of `ap_iso_interpolate_start`
+requires `ap_set_psf`, which is why the second-fixture campaign adds that as
+an axis: two different options that both act only through `rad_interp` should
+give identical answers at matched sampling mode, which is a stronger test of
+the mechanism than either alone.
 
 The `m=4` finding generalizes past AutoProf and is reported in its own right:
 a square pixel grid is four-fold symmetric, so *any* tool that samples an

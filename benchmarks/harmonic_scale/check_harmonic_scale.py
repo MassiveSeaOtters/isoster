@@ -131,8 +131,7 @@ def check_provenance(archive: Dict[str, object]) -> List[str]:
                 problems.append(f"{case['spec']['name']}: AutoProf provenance is missing {key}")
         if autoprof.get("psf_fwhm_pix") is None:
             problems.append(
-                f"{case['spec']['name']}: no measured PSF recorded, so the interpolation "
-                "switch radius cannot be reconstructed"
+                f"{case['spec']['name']}: no PSF recorded, so the interpolation switch radius cannot be reconstructed"
             )
     return problems
 

@@ -543,10 +543,11 @@ Two design points that are easy to undo by accident:
 - **`ap_iso_interpolate_start` is a grid axis, not a setting.** It selects
   Lanczos sampling below a radius threshold and nearest-pixel rounding above
   it, and it is the largest effect in the study by an order of magnitude. The
-  threshold is a multiple of a PSF AutoProf measures from the image, so it
-  cannot be predicted from the option value; the worker observes AutoProf's
-  own branch by watching whether the interpolator ran, and reports the mode
-  per ring.
+  threshold is `ap_iso_interpolate_start * results["psf fwhm"]`, and on the
+  forced pipeline that PSF is **not measured** — the `psf` step is
+  `PSF_Assumed`, which hardcodes 4.0 px. The worker observes AutoProf's own
+  branch anyway, by watching whether the interpolator ran, because the
+  per-ring mode is the measurand and the PSF step is swappable.
 - **Raw amplitudes are the primary track; Bender is secondary and currently
   unlicensed for AutoProf.** The raw reconstruction is exact from the native
   pair and `b0`, and needs no gradient. Bender normalization needs one that

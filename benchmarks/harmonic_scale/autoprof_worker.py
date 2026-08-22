@@ -40,11 +40,18 @@ names suggest. Each is load-bearing; none is defensive tidiness.
    ``Rlim < rad_interp`` and by ``np.rint`` otherwise
    (``SharedFunctions.py:653``), with
    ``rad_interp = ap_iso_interpolate_start * results["psf fwhm"]``
-   (``Isophote_Extract.py:110-116``). Because the threshold is a multiple of
-   a PSF **AutoProf measures from the image**, the switch radius moves
-   between fixtures at a fixed setting, so it cannot be predicted from the
-   option value. We therefore observe AutoProf's own branch rather than
-   recompute it: ``interpolate_Lanczos`` and ``interpolate_bicubic`` are
+   (``Isophote_Extract.py:110-116``). Note what ``results["psf fwhm"]``
+   actually is on this pipeline: the ``psf`` step resolves to ``PSF_Assumed``
+   (``Pipeline.py:53``), which **hardcodes 4.0 px** unless ``ap_set_psf`` or
+   ``ap_guess_psf`` is given -- it measures nothing. Measuring requires
+   selecting ``psf starfind`` or another variant explicitly.
+
+   So the threshold *is* predictable here, at ``5 x 4.0 = 20`` px. We observe
+   AutoProf's branch anyway, for two reasons that outlive that convenience:
+   the per-ring mode is what the study is about and recomputing it would test
+   our arithmetic against itself, and the PSF step is swappable, so a
+   prediction that holds today is a prediction, not a measurement.
+   ``interpolate_Lanczos`` and ``interpolate_bicubic`` are
    wrapped to count calls, and a ring is recorded as interpolated when the
    interpolator ran during its ``_iso_extract`` call. ``_iso_between`` never
    interpolates, so a call can only have come from the ring extraction.
@@ -322,7 +329,7 @@ def main(job_path):
         "ap_isoband_fixed": True,
         "ap_isoband_width": 0.1,
         # A grid axis, not an inherited default: see the design spec's A3 and
-        # module docstring point 5. Multiplied by the measured PSF FWHM, so
+        # module docstring point 5. Multiplied by results["psf fwhm"], so
         # the realized threshold is reported back rather than assumed.
         "ap_iso_interpolate_start": float(job.get("interpolate_start", 5.0)),
     }
