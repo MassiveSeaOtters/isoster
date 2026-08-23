@@ -676,12 +676,22 @@ the radius does not matter except through which side of the switch it falls.
   1.85% floor at `sma = 45` is not a scale error. Its ring samples are not
   evenly spaced in polar angle — measured spacing varies by a factor of 1.4
   around one ring — so the harmonic basis is not orthogonal on them
-  (`⟨sin 3φ, cos 4φ⟩ = 6e-4`, against `1e-18` on an even grid), and a fit that
-  models one order at a time absorbs part of the others. The single-mode
-  control case settles it: with only `m=3 cos` planted, photutils recovers it
-  to 0.24%. The excess is a property of the estimator on multi-mode rings, and
-  the control case is what keeps it separable from the scale question in the
-  archive.
+  (`⟨sin 3φ, cos 4φ⟩ = 6e-4`, against `1e-18` on an even grid), which *would*
+  let a fit that models one order at a time absorb part of the others. The
+  single-mode control is consistent with that: with only `m=3 cos` planted,
+  photutils recovers it to 0.24%.
+
+  What is observed: the residual appears only on multi-mode rings, and the
+  non-orthogonality is arithmetic and certain. What is hypothesis: that the
+  non-orthogonality is *the cause* of the residual's size. The control shows
+  the excess needs other modes present; it does not measure how much of the
+  excess those modes explain, and the archived leakage metric compares
+  differences between worst errors rather than a cross-order response
+  coefficient. A joint four-component fit on photutils' own sampled angles, or
+  the 4×4 response matrix built from them, would settle it. Until then the
+  excess is an estimator-dependent effect rather than a scale error — which is
+  all the archive needs, since the control case is what keeps it separable
+  from the scale question.
 
 **Difference 4 confirmed and quantified.** With clipping off, AutoProf is in
 the eccentric-anomaly basis and the same-order rotation is not a valid
@@ -782,13 +792,15 @@ profile. Note this is a finite fixed-aperture experiment, so "flat-to-rising
 across the tested radii" is what the data support; it is not an asymptotic
 convergence test and no statement about the limit is being made.
 
-**That establishes the photutils floor as reproducible, not its cause.** On one fixture its 1.85% at large radius
-could have been an artefact of that galaxy. Across two, with the other two
-tools converging below 0.2% on both, it is a property of the estimator:
-photutils' ring samples are not evenly spaced in polar angle, the harmonic
-basis is not orthogonal on them, and a fit that models one order at a time
-absorbs part of the others. A steeper profile has more structure per ring, so
-it leaks more.
+**That establishes the photutils floor as reproducible, not its cause.** On one
+fixture its 1.85% at large radius could have been an artefact of that galaxy.
+Across two, with the other two tools reaching below 0.2% on both, it is
+estimator-dependent rather than a scale error. The proposed mechanism —
+photutils' ring samples are not evenly spaced in polar angle, so the harmonic
+basis is not orthogonal on them and a fit modelling one order at a time could
+absorb part of the others — remains a hypothesis; the observation that a
+steeper profile shows a larger effect is consistent with it and does not
+establish it.
 
 **The mechanism claim is now much harder to explain away.** Because
 `PSF_Assumed` fixes the PSF at 4.0 px, `ap_set_psf` is a second, independent
@@ -827,7 +839,7 @@ PSF-convolved, both are Sérsic profiles on a square grid, and both use the same
 four planted amplitudes. This narrows the generalization gap; it does not close
 it.
 
-### A4 decision, first pass: Track 1 is delivered, Track 2 was unlicensed
+### A4 decision, first pass (superseded): Track 1 delivered, Track 2 not yet reconstructed
 
 **Track 1 is done.** Raw amplitudes are reconstructed exactly for all three
 tools and measured against integrated analytic truth across the whole grid.
@@ -916,9 +928,13 @@ effects people use it to argue about.
 comparison radius measured too, so the AutoProf ring count doubles and the
 paired rings must be requested explicitly. The realized pairing is archived.
 
-**Acceptance, fixed in advance.** Track 2 is licensed — meaning the schema may
-write `a_n`/`b_n` for an AutoProf arm instead of NaN — only if **both** hold on
-the clean configuration:
+**Acceptance, fixed in advance — ORIGINAL PRE-REGISTRATION, SUPERSEDED.**
+Retained for history because a pre-registration that is quietly edited is
+worthless. Criterion 2 below was **withdrawn on 2026-08-23**; the current model
+is in "A4 Track 2 result" further down, and this section is not an instruction.
+As written in advance, Track 2 was licensed — meaning the schema may write
+`a_n`/`b_n` for an AutoProf arm instead of NaN — only if **both** held on the
+clean configuration:
 
 1. the `b0` matched secant reproduces isoster's gradient **decisively better
    than the point derivative does**, and
@@ -971,7 +987,7 @@ mixing Part A measured at 12% and 63%.
 and seed block. The two A3 archives are frozen and gated; nothing here may
 move them.
 
-### A4 Track 2 result: licensed, and narrowly
+### A4 Track 2 result: the method is validated; applicability is per row
 
 Both fixtures were run: pilot on one seed block, tolerances frozen from it,
 validation on a disjoint block, archived as
@@ -1103,23 +1119,36 @@ criterion. The regimes are structurally valid; what varies between them is
 Bender column and decide whether 14% is tolerable for their purpose, rather
 than be handed a yes/no derived from an identity.
 
-**What "licensed" permits, and what it does not.** A5 may write Bender
-`a_n`/`b_n` for an AutoProf arm instead of NaN when, and only when, all of the
-following hold, which are the conditions recorded in the archive:
+**Applicability rules — per row, never per case.** A5 may write Bender
+`a_n`/`b_n` for a given AutoProf **ring pair** instead of NaN when, and only
+when, all of the following hold. Each is read from realized provenance
+recorded in the archive, not from the run's requested configuration:
 
-- the polar-resampled path, `ap_isoclip = True`, never the eccentric-anomaly
-  basis, whose order mixing Part A measured at 12% and 63%;
-- rings sampled with interpolation rather than nearest-pixel rounding;
-- the comparison ring at `sma·(1 + astep)` **measured**, not interpolated;
-- moderate ellipticity and clean data — outside that, the columns keep their
-  NaN and a reason naming the condition.
+- the realized harmonic basis is `polar_from_image_x_axis` — never the
+  eccentric-anomaly basis, whose order mixing Part A measured at 12% and 63%;
+- the ring's realized sampling mode is interpolated, not nearest-pixel;
+- the comparison partner at `sma·(1 + astep)` has a realized sampling mode that
+  is also interpolated;
+- both were measured, so a secant exists.
 
-The third condition is the binding one in practice, and it is why the licence
-does not extend to the exhausted-benchmark campaign: that campaign's AutoProf
-arm is a free fit, so no ring exists at `sma·1.1` to difference against. Using
-Track 2 there would need either forced paired rings or an interpolated `b0`,
-and interpolating `b0` has not been tested. Until one of those is built, A5
-keeps its NaN on the campaign. See `docs/09-exhausted-benchmark.md`.
+Where any fails, that row keeps its NaN and a `harmonic_conversion_reason`
+naming the condition. Rows in the same case may differ: `interpolate_default`
+has 2 of 5 rows applicable on both fixtures.
+
+**Ellipticity and noise are deliberately absent from this list.** An earlier
+version added "moderate ellipticity and clean data", which contradicted the
+table above — `eps_high` and `noise_snr30` are structurally applicable on both
+fixtures. Those regimes are less *accurate*, which the table states directly.
+Accuracy is not an applicability condition, and folding it back in as one was
+the withdrawn licensing model returning under another name.
+
+The comparison-partner condition is the binding one in practice, and it is why
+none of the exhausted-benchmark campaign's rows qualify: that campaign's
+AutoProf arm is a free fit, so in general no ring exists at `sma·1.1` to
+difference against. Track 2 there would need either forced paired rings or an
+interpolated `b0`, and interpolating `b0` has not been tested. Until one of
+those is built, A5 keeps its NaN on the campaign. See
+`docs/09-exhausted-benchmark.md`.
 
 **Two supporting numbers, archived rather than quoted loosely.** The wrong
 ring estimator — a median rather than a mean — costs about one percent in the
@@ -1130,7 +1159,7 @@ it is built from, which is the same aliasing A3 measured, arriving in a
 difference where it is amplified.
 
 **What this result does not establish.** Two galaxies, neither PSF-convolved,
-both noiseless in the reference configuration. The licence is a statement
+both noiseless in the reference configuration. Method validation is a statement
 about a conversion under stated conditions, not a survey of how AutoProf
 behaves on real data.
 
@@ -1237,7 +1266,8 @@ error.
    lower bar and wins.
 4. Thresholds are justified from **scientific requirements or independently
    established numerical accuracy** — never from any tool's own pilot result.
-   Pilots set repetition counts and quantify timing scatter, nothing else.
+   The phase-2 timing calibration sets repetition counts and quantifies timing
+   scatter, and nothing else; it never touches a threshold.
 5. **Completion, radial coverage and scientific accuracy are three separate
    outcomes**, recorded separately and never collapsed into one verdict.
 6. **Every timing is archived**, including failed and ineligible ones.
@@ -1270,11 +1300,26 @@ several sessions in separate interpreters with interleaved arm order. This buys
 an uncertainty interval on every number. **It is not a survey**, and the
 archive must say so in those words. Harmonics on and off is a grid axis.
 
-**Still to be fixed before the pilot runs**, and to be frozen by commit in the
-same manner as Part A's tolerances: the numeric value of each common threshold
-and its scientific justification; session and repetition counts; the specific
-external contamination indicators and their bounds; and the success/failure
-taxonomy with partial-profile treatment.
+**Four phases, in order, each frozen by commit before the next begins.** An
+earlier version of this section said pilots set repetition counts *and* that
+repetition counts must be fixed before the pilot — a contradiction, because it
+left "the pilot" naming two different things.
+
+1. **Freeze the science.** Metrics, the numeric value of each common threshold
+   with its scientific justification, fixtures, coverage rules, contamination
+   indicators and their bounds, and the success/failure taxonomy including
+   partial profiles. **No timing is run in this phase**, so no threshold can be
+   chosen after seeing what a tool achieved.
+2. **Timing calibration** — explicitly named as such, and *not* the benchmark.
+   Its only outputs are batching, repetition counts and session structure,
+   chosen from observed timing scatter. Its accuracy numbers are discarded:
+   they may not inform any threshold from phase 1.
+3. **Commit those timing parameters.**
+4. **Run the campaign**, independent of phases 2 and 3's data.
+
+Phase 1 is the blocker. Implementation scaffolding and small functional smoke
+tests may be written now; the scientific timing work may not start until the
+thresholds exist and are committed.
 
 **A new archive, not a replacement.** See B5, which stands unchanged.
 

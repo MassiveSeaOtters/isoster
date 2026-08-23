@@ -189,23 +189,22 @@ PLANTED_HARMONICS = {
 #: cause needed a one-mode ring: with only ``m=3 cos`` planted, photutils
 #: recovers it to 0.24% and the excess is gone.
 #:
-#: The mechanism is angular sampling. photutils' ring samples are not evenly
-#: spaced in polar angle -- measured spacing varies by a factor of 1.4 around
-#: one ring -- so the harmonic basis is not orthogonal on them
-#: (``<sin 3phi, cos 4phi>`` = 6e-4, against 1e-18 on an even grid), and a
-#: fit that models one order at a time absorbs part of the others. isoster
-#: and AutoProf's polar-resampled path both work on evenly spaced angles,
-#: where the orders are orthogonal and no such leakage is possible.
+#: The proposed mechanism is angular sampling, and it is a hypothesis. What is
+#: certain is arithmetic: photutils' ring samples are not evenly spaced in
+#: polar angle -- measured spacing varies by a factor of 1.4 around one ring --
+#: so the harmonic basis is not orthogonal on them (``<sin 3phi, cos 4phi>`` =
+#: 6e-4, against 1e-18 on an even grid). That *would* let a fit modelling one
+#: order at a time absorb part of the others. isoster and AutoProf's
+#: polar-resampled path both work on evenly spaced angles, where the orders are
+#: orthogonal and no such leakage is possible.
 #:
-#: The non-orthogonality above is arithmetic and certain. That it is *the
-#: cause* of photutils' residual is **not established** --- the metric below
-#: compares differences between worst errors, possibly at different radii, and
-#: is not a cross-order response coefficient. Treat it as consistent with
-#: cross-order leakage, not as a demonstration of it; settling it needs a joint
-#: four-component fit on photutils' own sampled angles, or the 4x4 response
-#: matrix built from those angles.
+#: What is **not established** is that this non-orthogonality is the cause of
+#: the residual's size. The metric below compares differences between worst
+#: errors, possibly at different radii, and is not a cross-order response
+#: coefficient. Settling it needs a joint four-component fit on photutils' own
+#: sampled angles, or the 4x4 response matrix built from those angles.
 #:
-#: Either way it is a property of the estimators rather than of the scale, so
+#: Either way the effect is estimator-dependent rather than a scale error, so
 #: it must not be folded into the scale tolerance; the control case is what
 #: keeps the two separable in the archive.
 SINGLE_PLANTED_HARMONIC = {(3, "cos"): 0.020}
