@@ -29,17 +29,24 @@ the ring count doubles. The realized pairing is archived.
 
 Acceptance, fixed before this ran
 ---------------------------------
-Track 2 is licensed --- meaning A5's schema may write ``a_n``/``b_n`` for an
-AutoProf arm instead of NaN --- only if **both** hold on the clean
-configuration:
+As pre-registered, Track 2 was to be "licensed" on two criteria. **Criterion 2
+was withdrawn on 2026-08-23 after review**: it asked that the Bender agreement
+be no worse than the raw agreement plus the gradient error, but Bender *is* raw
+divided by gradient, so it compared a quantity against the two it is built
+from. That is an arithmetic identity check, not evidence.
 
-1. the ``b0`` matched secant reproduces isoster's gradient within the frozen
-   tolerance, and
-2. normalizing introduces no *new* systematic: the Bender agreement is no
-   worse than Track 1's raw agreement plus that gradient error.
+The word "licensed" went with it. It merged three separate things into one
+boolean, and the three are now reported separately:
 
-If either fails, Track 2 stays unlicensed. A criterion that can only be met is
-not a criterion.
+1. ``conversion_method_validated`` --- criterion 1, unchanged. Does the matched
+   secant beat a point derivative against the same target, decisively? This is
+   an accuracy comparison and is campaign-level empirical support for the
+   *method*, not a property of any ring.
+2. ``harmonic_conversion_valid`` --- per **ring pair**, from **realized**
+   provenance: the polar angular basis, both rings sampled by interpolation,
+   both measured. Structural, and observed rather than inferred from what was
+   requested.
+3. per-regime accuracy, reported and gating nothing.
 
 Usage::
 
@@ -573,31 +580,95 @@ def extract_claims(results: Dict[str, object]) -> Dict[str, float]:
 DECISIVE_MARGIN = 10.0
 
 
-def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
-    """Is the conversion *applicable* here? Not: is it accurate here?
+#: The realized basis Track 2's reconstruction is defined in. Anything else --
+#: notably AutoProf's eccentric-anomaly basis -- mixes harmonic orders.
+VALID_HARMONIC_BASIS = "polar_from_image_x_axis"
 
-    Track 2's validity is structural. The reconstruction is defined when the
-    angular basis is the polar one, the ring was sampled by interpolation
-    rather than nearest-pixel rounding, and the comparison ring at
-    ``sma*(1+astep)`` was actually measured so a secant exists. Those are
-    properties of the configuration, checkable without reference to how close
-    the answer came.
+#: The realized sampling mode a ring must have been measured with.
+VALID_SAMPLING_MODE = "line_interpolated"
 
-    Accuracy is reported separately, as performance. Conflating the two was
-    the defect a review caught: see :func:`evaluate_licensing`.
+
+def _comparison_ring_sampling_mode(ring: Dict[str, object], provenance: Dict[str, object]) -> str | None:
+    """Realized sampling mode of the *comparison* ring at ``sma*(1+astep)``.
+
+    Derived, not assumed. AutoProf interpolates a ring when its radius is below
+    the recorded ``rad_interp_pix`` threshold and rounds to the nearest pixel
+    otherwise; that rule reproduces the archived ``sampling_mode`` of every base
+    ring in both campaigns, which is what licenses using it for the partner
+    ring.
+
+    It is a derivation only because the archives record one mode per pair. A
+    future archive should store the comparison ring's realized mode directly,
+    and then this function should read it instead of deriving it --- the whole
+    point of the surrounding change is that validity must be observed rather
+    than inferred, and a derivation is a weaker thing than a measurement even
+    when it is exact on the data in hand.
     """
-    spec = case["spec"]
-    gradients = [
-        entry["b0_secant_vs_isoster_pct"]["median"]
-        for entry in case["summary"].values()
-        if isinstance(entry.get("b0_secant_vs_isoster_pct"), dict)
-    ]
-    conditions = {
-        "polar_angular_basis": bool(spec["isoclip"]),
-        "interpolated_sampling": float(spec["interpolate_start"]) >= 100.0,
-        "comparison_ring_measured": bool(gradients) and all(np.isfinite(v) for v in gradients),
+    threshold = provenance.get("rad_interp_pix")
+    comparison = ring.get("comparison_sma")
+    if threshold is None or comparison is None:
+        return None
+    return VALID_SAMPLING_MODE if float(comparison) < float(threshold) else "line_nearest_pixel"
+
+
+def ring_pair_validity(ring: Dict[str, object], provenance: Dict[str, object]) -> Dict[str, object]:
+    """Is the conversion defined for *this* ring and its comparison partner?
+
+    Row-level, and read from **realized** provenance rather than from what was
+    requested. A review caught the previous version inferring both the basis
+    and the sampling mode from the requested configuration, so an archive whose
+    realized behaviour disagreed with its request still reported valid. That
+    inverts this project's own rule: instrument the sampling mode, never
+    predict it.
+
+    Evaluated per *pair* because a secant needs both rings. A case-wide boolean
+    cannot express that, and the `interpolate_default` case proves the point ---
+    it contains interpolated and nearest-pixel rings at once, so any single
+    verdict for it is wrong for some of its rows.
+    """
+    base_mode = ring.get("sampling_mode")
+    comparison_mode = _comparison_ring_sampling_mode(ring, provenance)
+    reasons = []
+    basis = provenance.get("harmonic_basis")
+    if basis != VALID_HARMONIC_BASIS:
+        reasons.append(f"realized harmonic basis is {basis!r}, which mixes orders")
+    if base_mode != VALID_SAMPLING_MODE:
+        reasons.append(f"base ring realized sampling is {base_mode!r}, not interpolated")
+    if comparison_mode != VALID_SAMPLING_MODE:
+        reasons.append(f"comparison ring realized sampling is {comparison_mode!r}, not interpolated")
+    if ring.get("status") != "measured":
+        reasons.append(f"ring status is {ring.get('status')!r}, so no secant exists")
+    if not np.isfinite(ring.get("autoprof_b0_secant", float("nan"))):
+        reasons.append("the reconstructed secant is not finite")
+    return {
+        "sma": ring.get("sma"),
+        "comparison_sma": ring.get("comparison_sma"),
+        "base_sampling_mode": base_mode,
+        "comparison_sampling_mode": comparison_mode,
+        "comparison_sampling_mode_source": "derived from rad_interp_pix",
+        "harmonic_basis": basis,
+        "harmonic_conversion_valid": not reasons,
+        "harmonic_conversion_reasons": reasons,
     }
-    return {"conditions": conditions, "valid": all(conditions.values())}
+
+
+def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
+    """Row-level validity for a case, plus an aggregate for summaries only.
+
+    The rows are the result. The aggregate exists so a table can say "3 of 5",
+    and must never be the thing a decision reads --- that was the defect.
+    """
+    provenance = case.get("autoprof_provenance") or {}
+    realizations = case.get("realizations") or []
+    rows = [ring_pair_validity(ring, provenance) for ring in (realizations[0]["rings"] if realizations else [])]
+    valid = [row for row in rows if row["harmonic_conversion_valid"]]
+    return {
+        "rows": rows,
+        "valid_rows": len(valid),
+        "total_rows": len(rows),
+        "all_rows_valid": bool(rows) and len(valid) == len(rows),
+        "any_row_valid": bool(valid),
+    }
 
 
 def algebraic_consistency(case: Dict[str, object]) -> Dict[str, object]:
@@ -694,14 +765,24 @@ def evaluate_licensing(results: Dict[str, object]) -> Dict[str, object]:
             "algebraic_consistency": algebraic_consistency(cases[name]),
         }
 
-    reference_valid = bool(regimes.get("reference", {}).get("structural_validity", {}).get("valid"))
-    licensed = criterion_1 and reference_valid
+    reference = regimes.get("reference", {}).get("structural_validity", {})
+    reference_valid = bool(reference.get("all_rows_valid"))
     return {
+        # 1. Did the *method* get empirical support? This is criterion 1, and it
+        #    is an accuracy comparison -- two candidate reconstructions weighed
+        #    against one target. Campaign-level, and named so that nobody reads
+        #    it as a property of a ring.
+        "conversion_method_validated": criterion_1,
         "criterion_1_beats_point_derivative": criterion_1,
         "criterion_1_margin": float(point / secant) if secant else float("nan"),
         "criterion_1_decisive_margin_required": DECISIVE_MARGIN,
-        "structurally_valid_on_reference_configuration": reference_valid,
-        "licensed_on_reference_configuration": licensed,
+        # 2. Does a given *row* structurally support conversion? Per ring pair,
+        #    from realized provenance. See regimes[*].structural_validity.rows.
+        "all_reference_rows_structurally_valid": reference_valid,
+        # 3. How accurate was it, per regime? Reported, gating nothing.
+        #    Deliberately no "licensed_on_..." field: it merged all three of
+        #    these into one boolean and read as a property of the conversion
+        #    when it was partly a statement about accuracy in one regime.
         "regimes": regimes,
         "withdrawn_criterion_2": (
             "The original criterion 2 (bender <= raw + gradient) was withdrawn on 2026-08-23. "
@@ -965,7 +1046,9 @@ def main() -> None:
         )
         archive_path().write_text(json.dumps(archive, indent=2, default=str))
         print(f"[gradient] regenerated licensing in {archive_path().name}")
-        print(f"   licensed={archive['licensing']['licensed_on_reference_configuration']}")
+        verdict = archive["licensing"]
+        print(f"   conversion_method_validated={verdict['conversion_method_validated']}")
+        print(f"   all_reference_rows_structurally_valid={verdict['all_reference_rows_structurally_valid']}")
         return
 
     results = run_grid(args.mode, only=args.only)

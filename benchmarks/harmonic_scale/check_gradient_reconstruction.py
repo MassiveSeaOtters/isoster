@@ -162,8 +162,8 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
     stored = archive.get("licensing") or {}
     for key in (
         "criterion_1_beats_point_derivative",
-        "structurally_valid_on_reference_configuration",
-        "licensed_on_reference_configuration",
+        "conversion_method_validated",
+        "all_reference_rows_structurally_valid",
     ):
         if bool(stored.get(key)) != bool(recomputed[key]):
             failures.append(
@@ -183,14 +183,22 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
         )
     for name, regime in recomputed["regimes"].items():
         stored_regime = (stored.get("regimes") or {}).get(name, {})
-        stored_valid = (stored_regime.get("structural_validity") or {}).get("valid")
-        if bool(stored_valid) != bool(regime["structural_validity"]["valid"]):
-            failures.append(f"stored structural validity for {name} does not follow from the archived numbers")
+        stored_valid = stored_regime.get("structural_validity") or {}
+        recomputed_valid = regime["structural_validity"]
+        if stored_valid.get("valid") is not None:
+            failures.append(
+                f"the archive stores a case-wide structural validity for {name}; validity is "
+                "row-level as of 2026-08-23. Regenerate with --regenerate-licensing."
+            )
+        if stored_valid.get("valid_rows") != recomputed_valid["valid_rows"]:
+            failures.append(f"stored row-level validity for {name} does not follow from the archived provenance")
     if not any("licensing" in f or "criterion_2" in f for f in failures):
-        verdict = "licensed" if recomputed["licensed_on_reference_configuration"] else "NOT licensed"
+        method = "validated" if recomputed["conversion_method_validated"] else "NOT validated"
+        rows = recomputed["regimes"]["reference"]["structural_validity"]
         print(
-            f"OK   licensing verdict recomputes from the worst_ring claims: {verdict} on the "
-            f"reference configuration (criterion 1 margin {recomputed['criterion_1_margin']:.0f}x)"
+            f"OK   verdict recomputes: method {method} (criterion 1 margin "
+            f"{recomputed['criterion_1_margin']:.0f}x); {rows['valid_rows']}/{rows['total_rows']} "
+            f"reference rows structurally valid, from realized provenance"
         )
     return failures
 
@@ -237,7 +245,8 @@ def build_doc_checks(fixture: str, archive: Dict[str, object]) -> List[tuple[str
     for name, regime in sorted(licensing["regimes"].items()):
         if regime.get("raw_agreement_pct") is None:
             continue
-        valid = "yes" if regime["structural_validity"]["valid"] else "no"
+        rows = regime["structural_validity"]
+        valid = f"{rows['valid_rows']}/{rows['total_rows']}"
         checks.append(
             (
                 f"regime_{fixture}_{name}",

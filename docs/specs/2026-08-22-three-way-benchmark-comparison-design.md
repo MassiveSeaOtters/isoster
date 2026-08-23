@@ -1028,21 +1028,49 @@ of 3.4e-4 and 6.6e-5. Under the exact bound, every noiseless case satisfies it
 to rounding (worst excess 0.000000 and 0.000001). The earlier reading, that the
 paired form "fails everywhere and so is no escape", was wrong.
 
-**Validity is therefore structural, and accuracy is reported as performance.**
-A conversion is applicable where the angular basis is polar, the ring was
-sampled by interpolation rather than nearest-pixel rounding, and the comparison
-ring at `sma·(1 + astep)` was measured so a secant exists. Those are properties
-of the configuration, checkable without reference to how close the answer came.
-How close it came is reported per regime and gated on nothing:
+**Validity is therefore structural, row-level, and observed.** A conversion is
+applicable for a given **ring pair** where the realized harmonic basis is the
+polar one, *both* the ring and its comparison partner at `sma·(1 + astep)` were
+sampled by interpolation rather than nearest-pixel rounding, and both were
+measured so a secant exists.
 
-| fixture | regime | gradient (worst) | gradient (typical) | raw | Bender | structurally valid |
+Two corrections here, both from review. These are read from **realized
+provenance**, not from the requested configuration — an earlier version
+inferred them from `spec["isoclip"]` and `spec["interpolate_start"]`, so an
+archive whose realized behaviour disagreed with its request still reported
+valid, inverting this campaign's own rule to instrument the sampling mode and
+never predict it. And they are evaluated **per pair**, because a secant needs
+both rings and a case-wide boolean cannot express a case that mixes modes.
+
+The three things the withdrawn "licensed" boolean had merged are now separate
+fields, because they answer different questions:
+
+| field | scope | question |
+|---|---|---|
+| `conversion_method_validated` | campaign | did the method get empirical support? (criterion 1 — itself an accuracy comparison) |
+| `harmonic_conversion_valid` | ring pair | does this row structurally support conversion? |
+| per-regime accuracy | regime | how close was it here? gates nothing |
+
+Criterion 1 remains an accuracy comparison, so the earlier claim that accuracy
+"gates nothing" was too broad: accuracy supports the *method*, campaign-wide.
+It does not gate any row, and no regime is excluded for being inaccurate.
+
+How close it came is reported per regime:
+
+| fixture | regime | gradient (worst) | gradient (typical) | raw | Bender | valid rows |
 |---|---|---|---|---|---|---|
-| compact n=2 | `reference` | 0.13% | 0.04% | 1.95% | 1.96% | yes |
-| compact n=2 | `eps_high` | 5.54% | 0.35% | 7.98% | 14.32% | yes |
-| compact n=2 | `noise_snr30` | 1.33% | 0.59% | 9.19% | 11.06% | yes |
-| extended n=4 | `reference` | 0.08% | 0.05% | 0.51% | 0.50% | yes |
-| extended n=4 | `eps_high` | 1.24% | 0.16% | 7.89% | 6.57% | yes |
-| extended n=4 | `noise_snr30` | 1.10% | 0.33% | 8.74% | 9.02% | yes |
+| compact n=2 | `reference` | 0.13% | 0.04% | 1.95% | 1.96% | 5/5 |
+| compact n=2 | `eps_high` | 5.54% | 0.35% | 7.98% | 14.32% | 5/5 |
+| compact n=2 | `noise_snr30` | 1.33% | 0.59% | 9.19% | 11.06% | 5/5 |
+| extended n=4 | `reference` | 0.08% | 0.05% | 0.51% | 0.50% | 5/5 |
+| extended n=4 | `eps_high` | 1.24% | 0.16% | 7.89% | 6.57% | 5/5 |
+| extended n=4 | `noise_snr30` | 1.10% | 0.33% | 8.74% | 9.02% | 5/5 |
+
+The last column counts **ring pairs**, not cases. Validity is row-level and is
+read from realized provenance -- the recorded harmonic basis and each ring's
+recorded sampling mode -- never from what the run requested. A case-wide
+boolean would be wrong for `interpolate_default`, which contains interpolated
+and nearest-pixel rings at once.
 
 Every row is bound to the archives by `check_gradient_reconstruction.py`.
 

@@ -28,6 +28,7 @@ from benchmarks.harmonic_scale.run_gradient_reconstruction import (
     build_grid,
     claims_fingerprint,
     evaluate_licensing,
+    structural_validity,
     extract_claims,
     fixture_fingerprint,
     freeze_tolerances,
@@ -253,42 +254,103 @@ class TestLicensingRestsOnTheWorstRing:
         )
 
 
-class TestValidityIsStructuralNotAccuracy:
-    """Criterion 2 was withdrawn on 2026-08-23 after review.
+class TestValidityIsObservedNotInferred:
+    """Validity must come from realized provenance, never from the request.
 
-    Bender is raw divided by gradient, so comparing it against those two is an
-    arithmetic identity check, not evidence. Validity is now a property of the
-    configuration; accuracy is reported and gated on nothing.
+    A review found the first version of this reading `spec["isoclip"]` and
+    `spec["interpolate_start"]` -- what was *asked for*. An archive whose
+    realized behaviour disagreed with its request still reported valid, and the
+    tests preserved the defect by only ever mutating the request. So these
+    mutate the realized provenance and the recorded per-ring mode, and one test
+    makes the two disagree on purpose.
     """
 
+    def _case(self, basis="polar_from_image_x_axis", modes=("line_interpolated",) * 3, rad=400.0, status="measured"):
+        rings = [
+            {
+                "sma": sma,
+                "comparison_sma": sma * 1.1,
+                "sampling_mode": mode,
+                "status": status,
+                "autoprof_b0_secant": -1.0,
+            }
+            for sma, mode in zip((12.0, 18.0, 25.0), modes)
+        ]
+        return {
+            "spec": {"name": "reference", "snr": None, "n_realizations": 1},
+            "autoprof_provenance": {"harmonic_basis": basis, "rad_interp_pix": rad},
+            "realizations": [{"rings": rings}],
+            "summary": {},
+        }
+
+    def test_a_clean_case_is_valid_on_every_row(self):
+        result = structural_validity(self._case())
+        assert result["all_rows_valid"] and result["valid_rows"] == 3
+
+    def test_a_realized_eccentric_anomaly_basis_invalidates_every_row(self):
+        """The request said nothing; the provenance did. Only the latter counts."""
+        result = structural_validity(self._case(basis="eccentric_anomaly"))
+        assert result["valid_rows"] == 0
+        assert any("mixes orders" in r for r in result["rows"][0]["harmonic_conversion_reasons"])
+
+    def test_a_realized_nearest_pixel_ring_invalidates_only_that_row(self):
+        """Row-level, because a case-wide boolean is wrong for some of its rows.
+
+        `interpolate_default` really does contain both modes at once.
+        """
+        result = structural_validity(self._case(modes=("line_interpolated", "line_nearest_pixel", "line_interpolated")))
+        assert [row["harmonic_conversion_valid"] for row in result["rows"]] == [True, False, True]
+        assert not result["all_rows_valid"] and result["any_row_valid"]
+
+    def test_an_unmeasured_comparison_ring_invalidates_the_pair(self):
+        """A secant needs both rings, so the partner's mode is checked too.
+
+        With the threshold between the pair, the base ring is interpolated and
+        its partner is not; the pair must fail even though the base ring alone
+        looks fine.
+        """
+        case = self._case(rad=13.0)
+        row = structural_validity(case)["rows"][0]
+        assert row["base_sampling_mode"] == "line_interpolated"
+        assert row["comparison_sampling_mode"] == "line_nearest_pixel"
+        assert not row["harmonic_conversion_valid"]
+
+    def test_a_failed_ring_is_invalid(self):
+        result = structural_validity(self._case(status="autoprof_failed"))
+        assert result["valid_rows"] == 0
+
+    def test_the_request_cannot_override_the_provenance(self):
+        """The exact defect: make them disagree, and provenance must win."""
+        case = self._case(basis="eccentric_anomaly")
+        case["spec"]["isoclip"] = True  # the request claims the good basis
+        case["spec"]["interpolate_start"] = 100.0
+        assert structural_validity(case)["valid_rows"] == 0
+
+
+class TestTheVerdictSeparatesItsThreeConcepts:
     def _results(self, **kwargs):
         return TestClaimExtraction()._results(**kwargs)
 
-    def test_no_criterion_2_verdict_survives_anywhere(self):
+    def test_no_licensed_field_survives(self):
+        """'licensed' merged method validation, row validity and accuracy."""
         verdict = evaluate_licensing(self._results())
-        assert "criterion_2" not in json.dumps(verdict["regimes"])
+        assert not any("licensed_on" in key for key in verdict)
         assert verdict["withdrawn_criterion_2"]
 
-    def test_a_wildly_inaccurate_conversion_is_still_structurally_valid(self):
-        """The point of the change: accuracy must not masquerade as validity."""
-        verdict = evaluate_licensing(self._results(bender_pct=90.0, raw_pct=0.4))
-        assert verdict["regimes"]["reference"]["structural_validity"]["valid"]
-        assert verdict["regimes"]["reference"]["bender_agreement_pct"] == pytest.approx(90.0)
+    def test_method_validation_and_row_validity_are_distinct_fields(self):
+        verdict = evaluate_licensing(self._results())
+        assert "conversion_method_validated" in verdict
+        assert "all_reference_rows_structurally_valid" in verdict
 
-    def test_nearest_pixel_sampling_makes_it_structurally_invalid(self):
-        results = self._results()
-        for case in results["cases"]:
-            case["spec"]["interpolate_start"] = 5.0
-        verdict = evaluate_licensing(results)
-        assert not verdict["regimes"]["reference"]["structural_validity"]["valid"]
-        assert not verdict["licensed_on_reference_configuration"]
+    def test_a_wildly_inaccurate_conversion_does_not_change_row_validity(self):
+        """Accuracy must not masquerade as validity."""
+        accurate = evaluate_licensing(self._results(bender_pct=0.4))
+        awful = evaluate_licensing(self._results(bender_pct=90.0))
+        assert accurate["all_reference_rows_structurally_valid"] == awful["all_reference_rows_structurally_valid"]
+        assert awful["regimes"]["reference"]["bender_agreement_pct"] == pytest.approx(90.0)
 
-    def test_the_eccentric_anomaly_basis_makes_it_structurally_invalid(self):
-        results = self._results()
-        for case in results["cases"]:
-            case["spec"]["isoclip"] = False
-        verdict = evaluate_licensing(results)
-        assert not verdict["regimes"]["reference"]["structural_validity"]["valid"]
+    def test_no_criterion_2_verdict_survives_anywhere(self):
+        assert "criterion_2" not in json.dumps(evaluate_licensing(self._results())["regimes"])
 
     def test_the_consistency_diagnostic_uses_the_exact_bound(self):
         """The linear form B <= R + G is only first order, and its error is
@@ -297,10 +359,8 @@ class TestValidityIsStructuralNotAccuracy:
         from benchmarks.harmonic_scale.run_gradient_reconstruction import algebraic_consistency
 
         results = self._results(gradient_pct=5.0, raw_pct=1.0, bender_pct=6.2)
-        # Linear bound 6.0 would flag this; the exact bound 6.0/(1-0.05)=6.316
-        # does not.
-        assert 6.2 > 1.0 + 5.0
-        assert algebraic_consistency(results["cases"][0])["consistent"]
+        assert 6.2 > 1.0 + 5.0  # the linear bound would flag this
+        assert algebraic_consistency(results["cases"][0])["consistent"]  # the exact one does not
 
 
 class TestFrozenTolerances:

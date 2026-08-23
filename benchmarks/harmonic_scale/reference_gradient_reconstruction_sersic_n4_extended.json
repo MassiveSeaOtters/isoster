@@ -6370,11 +6370,11 @@
     }
   ],
   "licensing": {
+    "conversion_method_validated": true,
     "criterion_1_beats_point_derivative": true,
     "criterion_1_margin": 162.48961641524414,
     "criterion_1_decisive_margin_required": 10.0,
-    "structurally_valid_on_reference_configuration": true,
-    "licensed_on_reference_configuration": true,
+    "all_reference_rows_structurally_valid": true,
     "regimes": {
       "background_offset": {
         "gradient_agreement_pct": 0.080608,
@@ -6382,12 +6382,62 @@
         "bender_agreement_pct": null,
         "typical_ring_gradient_agreement_pct": 0.048952,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6403,12 +6453,62 @@
         "bender_agreement_pct": null,
         "typical_ring_gradient_agreement_pct": 0.055112,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6424,12 +6524,62 @@
         "bender_agreement_pct": 6.565988,
         "typical_ring_gradient_agreement_pct": 0.160414,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6445,12 +6595,74 @@
         "bender_agreement_pct": null,
         "typical_ring_gradient_agreement_pct": 0.077674,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": false,
-            "comparison_ring_measured": true
-          },
-          "valid": false
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": false,
+              "harmonic_conversion_reasons": [
+                "base ring realized sampling is 'line_nearest_pixel', not interpolated",
+                "comparison ring realized sampling is 'line_nearest_pixel', not interpolated"
+              ]
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": false,
+              "harmonic_conversion_reasons": [
+                "base ring realized sampling is 'line_nearest_pixel', not interpolated",
+                "comparison ring realized sampling is 'line_nearest_pixel', not interpolated"
+              ]
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": false,
+              "harmonic_conversion_reasons": [
+                "base ring realized sampling is 'line_nearest_pixel', not interpolated",
+                "comparison ring realized sampling is 'line_nearest_pixel', not interpolated"
+              ]
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode": "line_nearest_pixel",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": false,
+              "harmonic_conversion_reasons": [
+                "base ring realized sampling is 'line_nearest_pixel', not interpolated",
+                "comparison ring realized sampling is 'line_nearest_pixel', not interpolated"
+              ]
+            }
+          ],
+          "valid_rows": 1,
+          "total_rows": 5,
+          "all_rows_valid": false,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6466,12 +6678,62 @@
         "bender_agreement_pct": null,
         "typical_ring_gradient_agreement_pct": 0.113821,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6487,12 +6749,62 @@
         "bender_agreement_pct": 9.020067,
         "typical_ring_gradient_agreement_pct": 0.33034,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6508,12 +6820,62 @@
         "bender_agreement_pct": null,
         "typical_ring_gradient_agreement_pct": 0.029693,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
@@ -6529,12 +6891,62 @@
         "bender_agreement_pct": 0.496282,
         "typical_ring_gradient_agreement_pct": 0.048952,
         "structural_validity": {
-          "conditions": {
-            "polar_angular_basis": true,
-            "interpolated_sampling": true,
-            "comparison_ring_measured": true
-          },
-          "valid": true
+          "rows": [
+            {
+              "sma": 18.0,
+              "comparison_sma": 19.8,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 28.0,
+              "comparison_sma": 30.800000000000004,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 40.0,
+              "comparison_sma": 44.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 55.0,
+              "comparison_sma": 60.50000000000001,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            },
+            {
+              "sma": 70.0,
+              "comparison_sma": 77.0,
+              "base_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode": "line_interpolated",
+              "comparison_sampling_mode_source": "derived from rad_interp_pix",
+              "harmonic_basis": "polar_from_image_x_axis",
+              "harmonic_conversion_valid": true,
+              "harmonic_conversion_reasons": []
+            }
+          ],
+          "valid_rows": 5,
+          "total_rows": 5,
+          "all_rows_valid": true,
+          "any_row_valid": true
         },
         "algebraic_consistency": {
           "checked": 20,
