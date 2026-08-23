@@ -103,11 +103,35 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
     none of the number it guards.
     """
     contamination = frozen["contamination"]
+    scientific_input = frozen["scientific_input"]
+    host = frozen["benchmark_host"]
+    autoprof = scientific_input["tool_harmonic_settings"]["autoprof"]
+    isoster = scientific_input["tool_harmonic_settings"]["isoster"]
+    autoprof_clause = (
+        "part b therefore fixes `use_eccentric_anomaly="
+        f"{str(isoster['use_eccentric_anomaly']).lower()}` for isoster and "
+        f"`ap_isoclip={str(autoprof['ap_isoclip']).lower()}`, "
+        f"`ap_iso_interpolate_start={int(autoprof['ap_iso_interpolate_start'])}` for autoprof, with an "
+        f"`ap_isoband_fixed={str(autoprof['ap_isoband_fixed']).lower()}` / "
+        f"`ap_isoband_width={autoprof['ap_isoband_width']}`"
+    )
     return [
         (
-            "holm_alpha",
-            "holm's smallest critical level is",
-            f"holm's smallest critical level is {frozen['ensemble_holm_smallest_alpha']}",
+            "harmonic_rmse_limit",
+            "resulting limits are",
+            f"resulting limits are {frozen['ensemble_standardized_rmse_limit_by_family']['harmonic']}",
+        ),
+        (
+            "intensity_rmse_limit",
+            "for the 20-member harmonic family and",
+            "for the 20-member harmonic family and "
+            f"{frozen['ensemble_standardized_rmse_limit_by_family']['intensity']}",
+        ),
+        (
+            "family_alpha",
+            "controlling the probability that an ideal arm fails anywhere at",
+            "controlling the probability that an ideal arm fails anywhere at "
+            f"{int(round(frozen['ensemble_family_alpha'] * 100))}%",
         ),
         (
             "harmonic_tests",
@@ -142,6 +166,37 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
             "baseline median must not exceed",
             f"baseline median must not exceed {contamination['baseline_median_max']}",
         ),
+        (
+            "noise_arm",
+            "gaussian_reference`:",
+            "gaussian_reference`: independent gaussian pixels from "
+            f"`numpy.random.generator(pcg64).normal`, mean zero and `sigma = i_e / "
+            f"{int(scientific_input['noise_arms']['gaussian_reference']['snr_at_r_e'])}`",
+        ),
+        (
+            "noise_realizations",
+            "with a constant variance map of",
+            "with a constant variance map of `sigma^2` and "
+            f"{scientific_input['noise_arms']['gaussian_reference']['realizations']} realizations",
+        ),
+        ("isoster_harmonic_basis", "part b therefore fixes", autoprof_clause),
+        ("autoprof_isoclip", "part b therefore fixes", autoprof_clause),
+        ("autoprof_interpolate_start", "part b therefore fixes", autoprof_clause),
+        ("autoprof_isoband_fixed", "part b therefore fixes", autoprof_clause),
+        ("autoprof_isoband_width", "part b therefore fixes", autoprof_clause),
+        (
+            "evaluation_grid",
+            "same five radii,",
+            "same five radii, **["
+            + ", ".join(str(value) for value in frozen["end_to_end_evaluation_radius_fractions"])
+            + "] r_e**",
+        ),
+        (
+            "benchmark_host",
+            "host identity:",
+            f"host identity:** {host['system']}/{host['machine']}, `{host['machine_model']}`, "
+            f"{host['logical_cpu_count']} logical cpus",
+        ),
     ]
 
 
@@ -155,10 +210,13 @@ def check_prose(frozen: Dict[str, object]) -> List[str]:
             failures.append(f"{name}: guarded claim is missing from the specification")
             continue
         fired.append(name)
-        if re.sub(r"\s+", " ", expected).lower() not in squashed:
+        expected_squashed = re.sub(r"\s+", " ", expected).lower()
+        if expected_squashed not in squashed:
             failures.append(
                 f"{name}: the spec discusses this but does not state it as frozen.\n       expected: {expected!r}"
             )
+        elif squashed.count(expected_squashed) != 1:
+            failures.append(f"{name}: guarded clause occurs {squashed.count(expected_squashed)} times; expected one")
     if len(fired) == len(prose_claims(frozen)):
         print(f"OK   all {len(fired)} quoted contract value(s) match the frozen contract")
     return failures
@@ -167,8 +225,12 @@ def check_prose(frozen: Dict[str, object]) -> List[str]:
 def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]:
     """Move only the frozen field or fields quoted by one prose claim."""
     moved = copy.deepcopy(frozen)
-    if name == "holm_alpha":
-        moved["ensemble_holm_smallest_alpha"] = 0.123456
+    if name == "harmonic_rmse_limit":
+        moved["ensemble_standardized_rmse_limit_by_family"]["harmonic"] = 9.123456
+    elif name == "intensity_rmse_limit":
+        moved["ensemble_standardized_rmse_limit_by_family"]["intensity"] = 8.123456
+    elif name == "family_alpha":
+        moved["ensemble_family_alpha"] = 0.99
     elif name == "harmonic_tests":
         moved["ensemble_harmonic_tests_per_arm"] = 999
     elif name == "geometry_displacement":
@@ -181,6 +243,24 @@ def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]
         moved["seed_blocks"] = {key: value + 7 for key, value in moved["seed_blocks"].items()}
     elif name == "load_ceiling":
         moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
+    elif name == "noise_arm":
+        moved["scientific_input"]["noise_arms"]["gaussian_reference"]["snr_at_r_e"] = 999.0
+    elif name == "noise_realizations":
+        moved["scientific_input"]["noise_arms"]["gaussian_reference"]["realizations"] = 999
+    elif name == "isoster_harmonic_basis":
+        moved["scientific_input"]["tool_harmonic_settings"]["isoster"]["use_eccentric_anomaly"] = True
+    elif name == "autoprof_isoclip":
+        moved["scientific_input"]["tool_harmonic_settings"]["autoprof"]["ap_isoclip"] = False
+    elif name == "autoprof_interpolate_start":
+        moved["scientific_input"]["tool_harmonic_settings"]["autoprof"]["ap_iso_interpolate_start"] = 999.0
+    elif name == "autoprof_isoband_fixed":
+        moved["scientific_input"]["tool_harmonic_settings"]["autoprof"]["ap_isoband_fixed"] = False
+    elif name == "autoprof_isoband_width":
+        moved["scientific_input"]["tool_harmonic_settings"]["autoprof"]["ap_isoband_width"] = 9.9
+    elif name == "evaluation_grid":
+        moved["end_to_end_evaluation_radius_fractions"] = [9.1, 9.2, 9.3, 9.4, 9.5]
+    elif name == "benchmark_host":
+        moved["benchmark_host"] = {**moved["benchmark_host"], "logical_cpu_count": 999}
     else:
         raise KeyError(f"no prose mutation registered for {name!r}")
     return moved

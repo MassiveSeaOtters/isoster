@@ -10,14 +10,14 @@ Five categories under `tests/`:
 
 | Directory | Tests | Scope |
 |---|---:|---|
-| `unit/` | 583 | Module behaviour and API contracts; fast, no I/O |
+| `unit/` | 599 | Module behaviour and API contracts; fast, no I/O |
 | `integration/` | 158 | Multi-module paths through `fit_image` and the drivers |
 | `validation/` | 8 | Accuracy against analytic truth and against `photutils` |
 | `multiband/` | 443 | Joint solver, `band_scale` invariant, per-band errors, validity policy, Schema-1 writer, CLI |
 | `real_data/` | 4 | Real images; **deselected by default** (needs bundled data, and LaTeX fonts for the figure tests) |
 
-As of 2026-08-23 pytest discovers 1196 tests and deselects 5, leaving 1191
-selected; a full run reports 1190 passed and 1 skipped. These figures drift —
+As of 2026-08-23 pytest discovers 1212 tests and deselects 5, leaving 1207
+selected; a full run reports 1206 passed and 1 skipped. These figures drift —
 regenerate rather than trusting them:
 
 ```bash
@@ -124,13 +124,20 @@ docs CI, so a gate that has gone quiet fails the build rather than passing it.
 
 A fifth gate, `benchmarks/timing/check_accuracy_thresholds.py`, freezes the
 Part B Stage 1 scientific contract before timing calibration begins. It derives
-the raw-harmonic and intensity bars from analytic aperture truth, freezes every
-rendering input and exact Holm-family member, and compares all contract leaves
+absolute raw-harmonic and intensity limits from the ideal estimator's noise
+scale, freezes every rendering input and fixed-grid accuracy-family member, and compares all contract leaves
 against `frozen_stage1_contract.json`. Its self-test moves every leaf
 individually. The docs workflow also executes `accuracy_thresholds.py --json`,
 so a broken generator cannot hide behind a checker that imports only its
 working path. Changes to this contract require an explicit re-freeze and spec
 amendment before any later-stage timing is run.
+
+Noisy arms use normalized root-mean-square error, not a test of whether their
+mean residual differs significantly from zero. Failure to detect bias is not
+evidence of accuracy and can reward a noisier estimator. End-to-end profiles
+are interpolated without extrapolation to the same five dimensionless radii
+before this gate is applied, so returning fewer rings never reduces the number
+of comparisons.
 
 ## 2. Directives
 

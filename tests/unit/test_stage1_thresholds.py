@@ -15,7 +15,7 @@ import pytest
 
 from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES, ORDERS, PLANTED_HARMONICS
 from benchmarks.timing import accuracy_thresholds as at
-from benchmarks.timing.stage1_fixtures import stage1_fixtures
+from benchmarks.timing.stage1_fixtures import render_stage1_fixture, stage1_fixtures, stage1_seed
 from benchmarks.utils.sersic_model import (
     analytic_truth_on_aperture,
     aperture_displacement_error_px,
@@ -163,7 +163,7 @@ class TestTheDerivationFailsClosed:
 
     def test_no_derived_bar_is_infinite_or_nan(self):
         contract = at.stage_1_contract()
-        for bars in contract["systematic_amplitude_error_pct_by_component"].values():
+        for bars in contract["descriptive_harmonic_error_pct_by_component"].values():
             for components in bars.values():
                 for value in components.values():
                     assert np.isfinite(value) and value > 0
@@ -183,51 +183,42 @@ class TestTheDerivationFailsClosed:
 
 class TestArbitraryRadius:
     def test_a_bar_exists_for_a_radius_not_in_the_table(self):
-        value = at.amplitude_bar_at("sersic_n2_compact", 59.25, "s3_raw_major")
+        value = at.harmonic_absolute_error_limit_at("sersic_n2_compact", 59.25)
         assert np.isfinite(value) and value > 0
 
     def test_outside_the_target_interval_raises(self):
         with pytest.raises(ValueError, match="outside the target interval"):
-            at.amplitude_bar_at("sersic_n2_compact", 200.0, "s3_raw_major")
+            at.harmonic_absolute_error_limit_at("sersic_n2_compact", 200.0)
 
     def test_the_table_is_a_sample_of_the_function(self):
         contract = at.stage_1_contract()
-        bars = contract["systematic_amplitude_error_pct_by_component"]["sersic_n2_compact"]
-        for sma, components in bars.items():
-            for component, value in components.items():
-                # The table stores this function's value rounded to 4 decimals.
-                assert at.amplitude_bar_at("sersic_n2_compact", float(sma), component) == pytest.approx(value, abs=5e-5)
+        bars = contract["systematic_harmonic_absolute_error_by_ring"]["sersic_n2_compact"]
+        for sma, value in bars.items():
+            assert at.harmonic_absolute_error_limit_at("sersic_n2_compact", float(sma)) == pytest.approx(
+                value, abs=5e-9
+            )
 
-    def test_a_free_fit_bar_uses_truth_on_the_returned_aperture(self):
+    def test_harmonic_limit_is_absolute_and_does_not_divide_by_truth(self):
         fixture = "sersic_n2_compact"
         spec = stage1_fixtures()[fixture]
         x0, y0 = spec["galaxy"]["center"]
-        planted = at.amplitude_bar_at(fixture, 25.0, "c4_raw_major")
-        returned = at.amplitude_bar_on_aperture(
-            fixture,
-            x0 + 3.0,
-            y0 - 2.0,
-            25.0,
-            spec["reference_eps"] + 0.12,
-            spec["reference_pa"] + 0.20,
-            "c4_raw_major",
+        # This valid aperture is only 0.43 px from the planted boundary but
+        # rotates the s4 truth through zero. A percentage gate explodes there;
+        # an absolute raw-amplitude limit remains finite and unchanged.
+        zero_crossing_pa = 0.054053054142185836
+        truth = analytic_truth_on_aperture(
+            at._fixture_meta(fixture), x0, y0, 25.0, spec["reference_eps"], zero_crossing_pa, ORDERS
         )
-        assert returned != pytest.approx(planted, rel=1e-3)
+        assert abs(truth[4]["s_raw"]) < 1e-9
+        assert at.harmonic_absolute_error_limit_at(fixture, 25.0) == pytest.approx(
+            at.harmonic_absolute_error_limit_on_aperture(fixture, 25.0)
+        )
+        assert np.isfinite(at.harmonic_absolute_error_limit_on_aperture(fixture, 25.0))
 
-    def test_a_free_fit_intensity_bar_uses_the_returned_aperture(self):
-        fixture = "sersic_n2_compact"
-        spec = stage1_fixtures()[fixture]
-        x0, y0 = spec["galaxy"]["center"]
-        planted = at.ring_intensity_bar_at(fixture, 25.0)
-        returned = at.ring_intensity_bar_on_aperture(
-            fixture,
-            x0 + 3.0,
-            y0 - 2.0,
-            25.0,
-            spec["reference_eps"] + 0.12,
-            spec["reference_pa"] + 0.20,
+    def test_intensity_limit_is_absolute_and_depends_only_on_radius(self):
+        assert at.ring_intensity_absolute_error_limit_at("sersic_n2_compact", 25.0) == pytest.approx(
+            at.ring_intensity_absolute_error_limit_on_aperture("sersic_n2_compact", 25.0)
         )
-        assert returned != pytest.approx(planted, rel=1e-3)
 
 
 class TestApertureDisplacement:
@@ -297,14 +288,14 @@ class TestFamilyUnit:
         contract = at.stage_1_contract()
         rings = len(stage1_fixtures()["sersic_n2_compact"]["radii"])
         assert contract["ensemble_harmonic_tests_per_arm"] == rings * len(at._COMPONENTS) == 20
-        assert contract["ensemble_correction"] == "holm_bonferroni"
+        assert contract["ensemble_correction"] == "bonferroni_familywise_rmse_envelope"
 
     def test_family_partition_is_derived_from_the_arm(self):
         radii = [12.0, 18.0, 25.0, 35.0, 45.0]
         families = at.accuracy_family_members(radii, harmonics_enabled=True, geometry_free=True)
         assert len(families["harmonic"]) == 20
         assert len(families["intensity"]) == 5
-        assert len(families["geometry"]) == 20
+        assert len(families["geometry"]) == 5
 
         fixed_without_harmonics = at.accuracy_family_members(radii, harmonics_enabled=False, geometry_free=False)
         assert set(fixed_without_harmonics) == {"intensity"}
@@ -312,35 +303,59 @@ class TestFamilyUnit:
     def test_every_fixture_family_member_is_frozen(self):
         contract = at.stage_1_contract()
         for fixture, spec in stage1_fixtures().items():
-            expected = at.accuracy_family_members(list(spec["radii"]), harmonics_enabled=True, geometry_free=True)
-            frozen = contract["ensemble_family_members_by_fixture"][fixture]
-            assert frozen == {family: list(members) for family, members in expected.items()}
+            expected_fixed = at.accuracy_family_members(
+                list(spec["radii"]), harmonics_enabled=True, geometry_free=False
+            )
+            expected_natural = at.accuracy_family_members(
+                [fraction * spec["galaxy"]["R_e"] for fraction in at.END_TO_END_EVALUATION_RADIUS_FRACTIONS],
+                harmonics_enabled=True,
+                geometry_free=True,
+            )
+            frozen = contract["ensemble_family_members_by_fixture_and_scope"][fixture]
+            assert frozen["fixed_aperture"] == {family: list(members) for family, members in expected_fixed.items()}
+            assert frozen["end_to_end"] == {family: list(members) for family, members in expected_natural.items()}
 
-    def test_holm_applies_the_full_step_down_rule(self):
-        passed = at.holm_bonferroni({"a": 0.1, "b": 0.4, "c": 0.9}, alpha=0.01)
-        assert passed["family_passed"] is True
-        assert [row["threshold"] for row in passed["ordered_tests"]] == pytest.approx([0.01 / 3.0, 0.01 / 2.0, 0.01])
+    def test_accuracy_detects_bias_and_excess_scatter(self):
+        tiny_constant_bias = {"x": [1e-12] * at.ENSEMBLE_REALIZATIONS}
+        large_scattered_bias = {"x": (10.0 + np.array([-100.0, 100.0] * 12 + [0.0])).tolist()}
+        scales = {"x": 1.0}
+        assert at.evaluate_accuracy_family(tiny_constant_bias, scales)["family_passed"]
+        assert not at.evaluate_accuracy_family(large_scattered_bias, scales)["family_passed"]
 
-        failed = at.holm_bonferroni({"a": 0.001, "b": 0.006, "c": 0.007}, alpha=0.01)
-        assert failed["family_passed"] is False
-        assert [row["rejected"] for row in failed["ordered_tests"]] == [True, False, False]
+    def test_familywise_limit_accepts_the_declared_ideal_boundary(self):
+        limit = at.familywise_standardized_rmse_limit(20)
+        samples = {f"m{i}": [limit] * at.ENSEMBLE_REALIZATIONS for i in range(20)}
+        scales = {name: 1.0 for name in samples}
+        assert at.evaluate_accuracy_family(samples, scales)["family_passed"]
+        samples["m0"] = [np.nextafter(limit, np.inf)] * at.ENSEMBLE_REALIZATIONS
+        assert not at.evaluate_accuracy_family(samples, scales)["family_passed"]
 
-    @pytest.mark.parametrize("bad", [float("nan"), -0.1, 1.1])
-    def test_holm_fails_closed_on_an_invalid_p_value(self, bad):
-        with pytest.raises(ValueError, match="p-value"):
-            at.holm_bonferroni({"bad": bad}, alpha=0.01)
+    @pytest.mark.parametrize("bad", [float("nan"), float("inf"), 0.0, -1.0])
+    def test_accuracy_family_fails_closed_on_an_invalid_scale(self, bad):
+        with pytest.raises(ValueError, match="scale"):
+            at.evaluate_accuracy_family({"x": [0.0] * at.ENSEMBLE_REALIZATIONS}, {"x": bad})
 
-    def test_bias_test_uses_the_realization_scatter(self):
-        symmetric = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
-        shifted = symmetric + 10.0
-        assert at.one_sample_bias_p_value(symmetric) == pytest.approx(1.0)
-        assert at.one_sample_bias_p_value(shifted) < 0.01
+    def test_accuracy_family_requires_the_frozen_realization_count(self):
+        with pytest.raises(ValueError, match="exactly"):
+            at.evaluate_accuracy_family({"x": [0.0] * 24}, {"x": 1.0})
 
-    def test_geometry_bias_uses_an_axis_periodic_pa_residual(self):
-        reference = {"x0": 10.0, "y0": 20.0, "eps": 0.3, "pa": 0.2}
-        measured = {"x0": 11.0, "y0": 18.0, "eps": 0.31, "pa": 0.2 + np.pi}
-        residuals = at.geometry_bias_residuals(reference, measured)
-        assert residuals == pytest.approx({"x0": 1.0, "y0": -2.0, "eps": 0.01, "pa_rad": 0.0})
+    def test_family_scales_are_built_from_member_names(self):
+        members = ["s3_raw_major@sma=25", "ring_mean@sma=25"]
+        scales = at.ideal_sigma_by_family_member("sersic_n2_compact", members)
+        assert scales[members[0]] == pytest.approx(at.harmonic_absolute_error_limit_at("sersic_n2_compact", 25))
+        assert scales[members[1]] == pytest.approx(at.ring_intensity_absolute_error_limit_at("sersic_n2_compact", 25))
+        with pytest.raises(ValueError, match="no ideal"):
+            at.ideal_sigma_by_family_member("sersic_n2_compact", ["eps@sma=25"])
+
+    def test_geometry_family_uses_rms_boundary_displacement(self):
+        passed = {"sma=25": [0.5] * at.ENSEMBLE_REALIZATIONS}
+        failed = {"sma=25": [1.01] * at.ENSEMBLE_REALIZATIONS}
+        assert at.evaluate_geometry_accuracy_family(passed)["family_passed"]
+        assert not at.evaluate_geometry_accuracy_family(failed)["family_passed"]
+
+    def test_systematic_family_uses_absolute_error(self):
+        assert at.evaluate_systematic_accuracy_family({"x": -0.5}, {"x": 0.5})["family_passed"]
+        assert not at.evaluate_systematic_accuracy_family({"x": -0.5001}, {"x": 0.5})["family_passed"]
 
 
 class TestCompleteFixtureIdentity:
@@ -355,11 +370,75 @@ class TestCompleteFixtureIdentity:
                 "eps",
                 "pa",
                 "harmonics",
-                "radii",
+                "fixed_aperture_radii",
+                "end_to_end_evaluation_radii",
                 "scope",
                 "scientific_identity",
                 "independent_scientific_fixture",
             }
+
+    def test_the_scientific_input_contract_freezes_noise_and_rendering(self):
+        scientific_input = at.stage_1_contract()["scientific_input"]
+        assert scientific_input["renderer_function"].endswith("create_sersic_image_with_harmonics")
+        assert scientific_input["pixel_sampling"] == "pixel_centres_without_subpixel_integration"
+        assert scientific_input["psf"] == "none"
+        assert scientific_input["background"] == 0.0
+        assert scientific_input["noise_arms"]["noiseless"]["distribution"] == "none"
+        noisy = scientific_input["noise_arms"]["gaussian_reference"]
+        assert noisy["distribution"] == "independent_gaussian"
+        assert noisy["snr_at_r_e"] == at.REFERENCE_SNR
+        assert noisy["realizations"] == at.ENSEMBLE_REALIZATIONS
+        assert scientific_input["seed_derivation"] == "seed_blocks[stage] + realization_index"
+        assert scientific_input["harmonic_conversion_requirement"] == "every_source_ring_observed_valid"
+        assert scientific_input["tool_harmonic_settings"]["isoster"]["use_eccentric_anomaly"] is False
+        assert scientific_input["tool_harmonic_settings"]["autoprof"] == {
+            "ap_isoclip": True,
+            "ap_iso_interpolate_start": 1000.0,
+            "ap_isoband_fixed": True,
+            "ap_isoband_width": 0.1,
+            "required_observed_sampling_mode": "line_interpolated",
+        }
+
+    def test_seed_blocks_are_disjoint_and_exact(self):
+        calibration = {stage1_seed("calibration", index) for index in range(at.ENSEMBLE_REALIZATIONS)}
+        campaign = {stage1_seed("campaign", index) for index in range(at.ENSEMBLE_REALIZATIONS)}
+        assert calibration.isdisjoint(campaign)
+        assert min(calibration) == 100_000
+        assert min(campaign) == 60_260_822
+
+    def test_the_frozen_noise_renderer_is_repeatable(self):
+        first, first_variance, first_meta = render_stage1_fixture(
+            "sersic_n2_compact", "gaussian_reference", stage="calibration", realization_index=3
+        )
+        second, second_variance, second_meta = render_stage1_fixture(
+            "sersic_n2_compact", "gaussian_reference", stage="calibration", realization_index=3
+        )
+        assert np.array_equal(first, second)
+        assert np.array_equal(first_variance, second_variance)
+        assert first_meta["seed"] == second_meta["seed"] == 100_003
+        assert np.all(first_variance == first_meta["noise_sigma"] ** 2)
+
+    def test_every_scope_has_frozen_evaluation_radii(self):
+        contract = at.stage_1_contract()
+        for fixture, identity in contract["fixtures"].items():
+            assert len(identity["fixed_aperture_radii"]) == 5
+            assert len(identity["end_to_end_evaluation_radii"]) == 5
+            r_e = identity["R_e"]
+            assert identity["end_to_end_evaluation_radii"] == pytest.approx(
+                [fraction * r_e for fraction in at.END_TO_END_EVALUATION_RADIUS_FRACTIONS]
+            )
+
+    def test_host_specific_contamination_rule_names_the_host(self):
+        host = at.stage_1_contract()["benchmark_host"]
+        assert host == {
+            "system": "Darwin",
+            "machine": "arm64",
+            "machine_model": "MacBookPro18,2",
+            "logical_cpu_count": 10,
+            "thermal_command": "/usr/bin/pmset -g therm",
+        }
+        assert at.benchmark_host_mismatches(host) == []
+        assert "logical_cpu_count" in at.benchmark_host_mismatches({**host, "logical_cpu_count": 8})[0]
 
     def test_wide_canvas_is_a_workload_duplicate_not_independent_evidence(self):
         fixture = at.stage_1_contract()["fixtures"]["wide_canvas_961"]
@@ -371,5 +450,5 @@ def test_human_readable_generator_executes(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["accuracy_thresholds.py"])
     at.main()
     output = capsys.readouterr().out
-    assert "two-sided one-sample t tests with Holm-Bonferroni" in output
-    assert "geometry=20" in output
+    assert "family-wise normalized RMSE" in output
+    assert "geometry=5" in output
