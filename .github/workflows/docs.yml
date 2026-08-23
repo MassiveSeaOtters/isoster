@@ -12,6 +12,7 @@ on:
       - "benchmarks/performance/reference_speedup.json"
       - "benchmarks/performance/check_speedup_claims.py"
       - "benchmarks/harmonic_scale/**"
+      - "benchmarks/timing/**"
       - "README.md"
       - "CITATION.cff"
       - "CLAUDE.md"
@@ -77,6 +78,14 @@ jobs:
         # instead of quietly comparing two different quantities.
         run: uv run python benchmarks/harmonic_scale/check_gradient_reconstruction.py
 
+      - name: Check the Part B Stage 1 accuracy thresholds
+        # The bars deciding which timings enter a headline ratio are derived by
+        # accuracy_thresholds.py and transcribed into the design spec. A
+        # transcription that drifts still reads as derived, so it is gated on
+        # the same terms as the archived measurements -- before Part B has
+        # produced a single timing.
+        run: uv run python benchmarks/timing/check_accuracy_thresholds.py
+
       - name: Prove the archive gates can still fail
         # A gate that has gone quiet is worse than one that fails. Both
         # harmonic-scale gates carry a self-test that corrupts an archive and
@@ -84,6 +93,7 @@ jobs:
         run: |
           uv run python benchmarks/harmonic_scale/check_harmonic_scale.py --self-test
           uv run python benchmarks/harmonic_scale/check_gradient_reconstruction.py --self-test
+          uv run python benchmarks/timing/check_accuracy_thresholds.py --self-test
 
       - name: Build site (strict)
         run: uv run mkdocs build --strict

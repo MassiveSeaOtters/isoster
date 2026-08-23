@@ -386,6 +386,17 @@ class TestValidityIsObservedNotInferred:
         assert row["comparison_sampling_mode_source"] == "derived_legacy_archive"
         assert row["comparison_sampling_mode"] == "line_nearest_pixel"
 
+    def test_with_neither_observation_nor_threshold_the_source_is_unavailable(self):
+        """Claiming a derivation that did not happen describes work the code
+        did not do. With both inputs missing there is nothing to derive from."""
+        case = self._case()
+        case["autoprof_provenance"].pop("sampling_mode")
+        case["autoprof_provenance"].pop("rad_interp_pix")
+        row = structural_validity(case)["rows"][0]
+        assert row["comparison_sampling_mode"] is None
+        assert row["comparison_sampling_mode_source"] == "unavailable"
+        assert not row["harmonic_conversion_valid"]
+
     def test_a_realization_that_failed_to_measure_breaks_completion_not_structure(self):
         """The two must be separable: an aperture can be fine and the
         measurement still incomplete in some realizations."""

@@ -660,7 +660,12 @@ def ring_pair_validity(
     # An unattributed observation must not fall through to the derivation:
     # "we could not tell" is a different statement from "we worked it out".
     if comparison_mode is None and source != "observed_unattributed":
-        comparison_mode, source = _comparison_ring_legacy_mode(ring, provenance), "derived_legacy_archive"
+        legacy = _comparison_ring_legacy_mode(ring, provenance)
+        # Only claim a derivation when one actually happened. With neither the
+        # observed modes nor rad_interp_pix present there is nothing to derive
+        # from, and labelling that "derived_legacy_archive" would describe work
+        # the code did not do.
+        comparison_mode, source = (legacy, "derived_legacy_archive") if legacy is not None else (None, "unavailable")
 
     basis = provenance.get("harmonic_basis")
     structural_reasons = []
@@ -668,9 +673,9 @@ def ring_pair_validity(
         structural_reasons.append(f"realized harmonic basis is {basis!r}, which mixes orders")
     if base_mode != VALID_SAMPLING_MODE:
         structural_reasons.append(f"base ring realized sampling is {base_mode!r}, not interpolated")
-    if source == "observed_unattributed":
+    if source in ("observed_unattributed", "unavailable"):
         structural_reasons.append(
-            "comparison ring sampling mode is unknown: the worker could not attribute a sampling call to it"
+            f"comparison ring sampling mode is unknown ({source}); it was neither observed nor derivable"
         )
     elif comparison_mode != VALID_SAMPLING_MODE:
         structural_reasons.append(f"comparison ring realized sampling is {comparison_mode!r}, not interpolated")
