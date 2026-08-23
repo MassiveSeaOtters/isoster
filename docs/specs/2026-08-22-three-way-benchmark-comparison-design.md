@@ -1303,6 +1303,104 @@ several sessions in separate interpreters with interleaved arm order. This buys
 an uncertainty interval on every number. **It is not a survey**, and the
 archive must say so in those words. Harmonics on and off is a grid axis.
 
+### B0.1 Phase 1 contract — the scientific terms, frozen
+
+Everything Phase 1 must fix, fixed. Nothing here may be revised by looking at a
+timing result; revision requires a committed protocol amendment saying what was
+learned and why.
+
+**1. Metrics and their reductions.** Three, computed against analytic truth on
+the planted fixtures, each reduced over rings by **median** (typical behaviour)
+and **max** (worst ring), both archived, with the **max** deciding eligibility:
+
+| metric | definition |
+|---|---|
+| `raw_amplitude_error_pct` | \|measured/truth − 1\| × 100 for each planted harmonic amplitude, pooled over `a3,b3,a4,b4` |
+| `ring_intensity_error_pct` | \|measured ring mean / analytic ring mean − 1\| × 100 |
+| `geometry_error_px` | \|measured centre − true centre\|, in pixels (free-fit arms only) |
+
+**2. Thresholds, and why these numbers.** A systematic error is negligible when
+it sits below the *statistical* uncertainty a user faces at a stated depth. For
+`N` evenly spaced samples on a ring with noise `σ`, least-squares recovery of a
+harmonic amplitude has `σ(A) = σ·sqrt(2/N)`, and the ring mean has `σ/sqrt(N)`.
+No tool enters either expression. Evaluated on the Part A fixtures at the
+reference depth S/N = 100, with `N ≈ 2πr` samples:
+
+- amplitude: `σ(A)/A` runs 1.04% (innermost, extended) to 11.0% (outermost,
+  compact) for the planted 2% `m=4` mode;
+- ring mean: `σ/(sqrt(N)·I)` reaches 0.24% at the outermost compact ring.
+
+**The frozen bars are the tightest of those, applied to all three tools
+equally:** `raw_amplitude_error_pct ≤ 1.0`, `ring_intensity_error_pct ≤ 0.25`,
+`geometry_error_px ≤ 0.5`. Each is at or below the statistical 1σ at every
+tested radius, so an arm that clears it is delivering systematics a user could
+not detect at HSC-like depth. The geometry bar is half a pixel, the scale below
+which a centre difference cannot change which pixels a ring samples.
+
+**3. Fixture grid and seeds.** Eight configurations. The two Part A fixtures,
+already archived and instrumented, plus a size ladder at fixed Sérsic index,
+because timing scales with pixel count and size is the axis that most affects
+the answer:
+
+| # | fixture | n | R_e | shape | why |
+|---|---|---|---|---|---|
+| 1–2 | `sersic_n2_compact`, `sersic_n4_extended` | 2, 4 | 25, 40 | 241², 321² | Part A's, accuracy already instrumented |
+| 3–5 | `size_ladder_{241,481,961}` | 2 | 25 | 241², 481², 961² | pixel-count scaling at fixed profile |
+| 6–8 | each of 3–5 with harmonics off | 2 | 25 | as above | the cost of measuring `a4` |
+
+Harmonics on/off is a grid axis, per B0. Noise seed block **100000** (pilot)
+and **60260822** (campaign) — disjoint from all four Part A blocks.
+
+**4. Radial coverage and common overlap.** Fixed-aperture scope: identical
+requested radii, so coverage is exact by construction and any missing ring is a
+failure, not a coverage difference. End-to-end scope: each tool chooses its own
+radii, and accuracy is evaluated on **each tool's own returned apertures**,
+restricted to the **common radial overlap** — the intersection
+`[max(r_min,i), min(r_max,i)]` over the three tools, computed per fixture and
+archived. An arm covering less than **60%** of the requested range is recorded
+as `incomplete` and excluded from headline ratios. Achieved coverage is
+reported per tool always, so a tool that sampled less is visible rather than
+silently faster.
+
+**5. Contamination indicators and bounds.** External, never the timings.
+Recorded before and after every session:
+
+- **1-minute load average**, from `uptime`. Bound: **≤ 1.0**. Established from
+  a fresh idle baseline taken immediately before the campaign — today's reading
+  of 2.91 is contaminated by this session's own test runs and is an upper
+  bound, not the baseline.
+- **Thermal warnings**, from `pmset -g therm`. Bound: **no thermal or
+  performance warning level recorded** during the session. On this Apple
+  Silicon machine `kern.thermalpressurelevel` and
+  `machdep.xcpm.cpu_thermal_level` do not exist, so `pmset` is the available
+  signal and is binary rather than graded.
+
+A breach aborts the **whole campaign**, which is then re-run. Individual
+sessions are never dropped, because selecting sessions after seeing their
+numbers is outcome-based selection.
+
+**6. Completion and failure taxonomy.** Every timing is archived under exactly
+one status. Only `ok` enters a headline ratio; all statuses enter failure
+accounting.
+
+| status | meaning |
+|---|---|
+| `ok` | ran to completion and met every threshold in §2 |
+| `inaccurate` | completed, but missed a threshold — timed, archived, excluded from headlines |
+| `incomplete` | completed with coverage below 60% of the requested range |
+| `failed` | raised, crashed, or returned no profile |
+| `contaminated` | ran during an indicator breach; the campaign is re-run |
+
+`inaccurate` and `incomplete` are deliberately distinct from `failed`: a tool
+that is fast because it stops early must be visible as *fast and incomplete*,
+not absent.
+
+**7. Partial profiles.** A profile with some rings missing is **not** discarded
+and **not** padded. Its achieved ring count and coverage are archived, its
+accuracy is computed on the rings it returned, and it is classified by §6.
+Cost-per-isophote is reported alongside total time, since a tool taking fewer,
+coarser rings is not thereby faster at the same task.
+
 **Four phases, in order, each frozen by commit before the next begins.** An
 earlier version of this section said pilots set repetition counts *and* that
 repetition counts must be fixed before the pilot — a contradiction, because it
@@ -1314,9 +1412,19 @@ left "the pilot" naming two different things.
    partial profiles. **No timing is run in this phase**, so no threshold can be
    chosen after seeing what a tool achieved.
 2. **Timing calibration** — explicitly named as such, and *not* the benchmark.
-   Its only outputs are batching, repetition counts and session structure,
-   chosen from observed timing scatter. Its accuracy numbers are discarded:
-   they may not inform any threshold from phase 1.
+   Its only *decisional* outputs are batching, repetition counts and session
+   structure, chosen from observed timing scatter.
+
+   Its accuracy numbers are **retained in the calibration archive and are
+   explicitly non-decisional**: they may not inform any phase-1 threshold. An
+   earlier version said they were discarded. That was wrong — freezing the
+   thresholds before phase 2 already prevents outcome-driven selection, so
+   deleting the evidence buys nothing and costs the ability to notice that
+   calibration timed a broken arm. They are therefore checked *against* the
+   already-frozen thresholds, and a failure stops the work for investigation.
+   Changing a threshold afterwards requires an explicit, committed protocol
+   revision that says what was learned and why — never a quiet edit, and never
+   the deletion of the measurement that prompted it.
 3. **Commit those timing parameters.**
 4. **Run the campaign**, independent of phases 2 and 3's data.
 
