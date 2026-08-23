@@ -3,11 +3,16 @@
 Date: 2026-08-22
 Branch: `benchmarks/three-way-comparison`, 29 commits ahead of `main`, not
 merged, no PR.
-Anchor commit: `2d91217`. This is a **point-in-time snapshot**, not a live
-document: the figures below were true of that commit and are not bound to the
-archives by the prose gate, unlike those in the design spec. If the archives
-have since moved, trust the gates and the spec over this file, and check
-`git log benchmarks/harmonic_scale/`.
+Anchor commit: `2d91217`. **Superseded in part — read §9 first.**
+
+This was written as a point-in-time snapshot for review. The review then found
+seven issues, and two rounds of corrections followed, so several conclusions
+below no longer hold. Rather than silently rewriting a document whose purpose
+was to be reviewed, the original findings are left standing with dated
+inline corrections where they were factually wrong, and **§9 records what the
+review changed**. Where §9 and the body disagree, §9 wins; where §9 and the
+design spec disagree, the spec wins, because it alone is bound to the archives
+by the prose gate.
 
 Purpose: **independent review before Part B begins.** Part A is complete and
 its results are archived and gated. Part B (controlled three-way timing) has a
@@ -309,3 +314,71 @@ Still to be fixed by measurement, frozen from a pilot first: the accuracy bar
 per tool and fixture; session and repetition counts; a **dispersion abort
 rule** — a laptop under thermal load produces numbers that look like
 measurements — and success/failure accounting with partial-profile treatment.
+
+
+---
+
+## 9. Resolution — what the review changed (2026-08-23)
+
+Two review rounds. Every finding was verified against the archives before being
+acted on, and every one held. Three of them corrected work done in the round
+before, which is worth stating plainly: this document's own corrections needed
+correcting.
+
+**Superseded conclusions in the body above.** Read these before anything in
+§1–§8.
+
+| Body says | Now |
+|---|---|
+| **C5**, and §4 **D3**: "licensed on the reference configuration, nowhere else" | **Withdrawn.** That verdict rested entirely on criterion 2. |
+| **§4 D4**: keeping criterion 2's unpaired form was defensible because the paired form "fails everywhere" | **Wrong, and the evidence was the error.** Under the exact bound `(R+G)/(1-G)` the noiseless paired cases pass to rounding. The failures I cited were first-order approximation error. |
+| **§5**: `worst_ring`/`typical_ring` carries the licensing verdict | Partly. Criterion 1 reads `worst_ring`; **validity is now row-level and read from realized provenance**, not from any reduction. |
+| **§3.7** and **§2**: self-tests prove 36/36, 37/37 | Those counts were vacuous — one global mutation counted N times. Real coverage was 24/36 and 25/37 before the fix. |
+| **C1**, **C3**, **the 13% finding** | Corrected inline above; see the dated notes. |
+
+**What criterion 2 was.** It asked that the Bender agreement be no worse than
+the raw agreement plus the gradient error. But Bender *is* raw divided by
+gradient, so it compared a quantity against the two it is constructed from —
+an arithmetic identity check, not evidence. It could not have licensed anything
+whatever numbers it returned. The word "licensed" went with it, because it
+merged three separate questions into one boolean. They are now three fields:
+
+- `conversion_method_validated` — campaign-level, criterion 1, an accuracy
+  comparison and honestly labelled as one;
+- `harmonic_conversion_valid` — **per ring pair**, structural, read from
+  realized provenance (recorded harmonic basis; each ring's recorded sampling
+  mode; both rings measured);
+- per-regime accuracy — reported, gating nothing.
+
+**Validity is observed, not inferred.** The first correction pass read
+`spec["isoclip"]` and `spec["interpolate_start"]` — what the run *requested*.
+An archive whose realized behaviour disagreed with its request still reported
+valid, and the tests preserved the defect by only ever mutating the request.
+That inverted this campaign's own rule. It is now read from the archived
+provenance, per ring pair, and the tests make request and provenance disagree
+on purpose.
+
+**Answers to §7's questions, as resolved.**
+
+1. **C2** — causally supported for the two tested fixtures and the AutoProf
+   branch transition; the general square-grid explanation is "consistent with".
+2. **D3** — should never have determined validity. It is a performance
+   observation, and the regime exclusion is withdrawn.
+3. **D4** — not defensible. See above.
+4. **The reduction split** — survives review and stands, but it does not carry
+   validity, which is now row-level.
+5. **Not re-archiving** — correct. The measurements never changed; derived
+   metadata was regenerated from them via `--regenerate-licensing`, which
+   refuses to write if a measured value moves. No AutoProf rerun.
+6. **Could the criteria fail?** Criterion 1 can and does discriminate.
+   Criterion 2 could return false but was never evidence — the sharpest lesson
+   here, since "it can fail" was mistaken for "it can inform".
+7. **Part B** — its accuracy gate was redesigned (one common threshold per
+   metric and fixture for all tools, never per-tool) and the whole contract is
+   now consolidated in **B0** of the design spec, which supersedes B1–B5.
+
+**Still open.** The photutils leakage counterfactual — a joint four-component
+fit on photutils' own sampled angles, or the 4×4 response matrix from those
+angles. Until it is run, every causal leakage claim reads "consistent with"
+rather than "caused by", consistently across the spec, the runner comment and
+this document. It is not a Part B blocker.

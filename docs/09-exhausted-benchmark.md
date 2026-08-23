@@ -65,8 +65,8 @@ cleanly with a regeneration hint that prints the install commands.
     harmonic score still cannot be computed for an AutoProf arm, because the
     Bender columns it reads are NaN. Do not publish Prior 2 scores for the
     autoprof tool. The ISOSTER-vs-`photutils` harmonic comparison is
-    unaffected. The route to filling those columns is Track 2, and its licence
-    does not currently reach this campaign — see §4.
+    unaffected. The route to filling those columns is Track 2, and no ring in
+    this campaign structurally supports it — see §4.
 
 ## 1. Quick Start
 
@@ -279,14 +279,18 @@ not the median `SB` profile, because `b0` is the mean of the exact vector that
 entered the FFT and so is the estimator consistent with the harmonic
 numerator.
 
-**Track 2 is now licensed, but not for this campaign.** Part A measured the
-reconstruction on two galaxies and licensed it on the reference configuration
-of both: the matched secant reproduces isoster's gradient far more closely
-than a point derivative does, by a margin fixed in advance. The measured
-figures live in the design spec, where they are bound to the archive by a
-prose gate; they are deliberately not repeated here, because a number quoted
-in a second place is a number that can drift. The licence is narrow, and one
-of its conditions is what excludes the campaign:
+**The method is validated, but no row here can use it.** Part A measured the
+reconstruction on two galaxies: the matched secant reproduces isoster's
+gradient far more closely than a point derivative does, by a margin fixed in
+advance. The measured figures live in the design spec, where they are bound to
+the archive by a prose gate; they are deliberately not repeated here, because a
+number quoted in a second place is a number that can drift.
+
+The word "licensed" was withdrawn on 2026-08-23 after review, and the
+distinction now matters here. Validating the *method* is campaign-level.
+Whether a *particular ring pair* supports conversion is a separate, row-level
+question answered from realized provenance — `harmonic_conversion_valid`. This
+campaign fails the second question everywhere, for a structural reason:
 
 > the comparison ring at `sma·(1 + astep)` must be **measured**, not
 > interpolated.
@@ -299,11 +303,12 @@ to reconstruct from, and interpolating `b0` onto the missing radius is an
 untested step that would put an unmeasured quantity inside the denominator of
 every harmonic.
 
-So the licence covers the **fixed-aperture** comparison only, and the Bender
-columns here keep their NaN. Extending it needs one of two pieces of work,
-neither yet done: run the campaign's AutoProf arm with forced paired rings, or
-measure and license a `b0` interpolation. Until then, nothing invents a
-gradient here. The full result, its regime table and its conditions are in
+So conversion is applicable to the **fixed-aperture** comparison only, and
+every Bender column here keeps its NaN with `harmonic_conversion_reason`
+naming the missing comparison ring. Changing that needs one of two pieces of
+work, neither yet done: run the campaign's AutoProf arm with forced paired
+rings, or measure and validate a `b0` interpolation. Until then, nothing
+invents a gradient here. The full result, its regime table and its conditions are in
 `docs/specs/2026-08-22-three-way-benchmark-comparison-design.md`, section
 "A4 Track 2 result".
 

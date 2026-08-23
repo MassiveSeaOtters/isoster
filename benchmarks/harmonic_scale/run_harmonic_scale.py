@@ -197,9 +197,17 @@ PLANTED_HARMONICS = {
 #: and AutoProf's polar-resampled path both work on evenly spaced angles,
 #: where the orders are orthogonal and no such leakage is possible.
 #:
-#: This is a property of the estimators rather than of the scale, so it must
-#: not be folded into the scale tolerance; the control case is what keeps the
-#: two separable in the archive.
+#: The non-orthogonality above is arithmetic and certain. That it is *the
+#: cause* of photutils' residual is **not established** --- the metric below
+#: compares differences between worst errors, possibly at different radii, and
+#: is not a cross-order response coefficient. Treat it as consistent with
+#: cross-order leakage, not as a demonstration of it; settling it needs a joint
+#: four-component fit on photutils' own sampled angles, or the 4x4 response
+#: matrix built from those angles.
+#:
+#: Either way it is a property of the estimators rather than of the scale, so
+#: it must not be folded into the scale tolerance; the control case is what
+#: keeps the two separable in the archive.
 SINGLE_PLANTED_HARMONIC = {(3, "cos"): 0.020}
 
 ORDERS = (3, 4)

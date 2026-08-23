@@ -74,19 +74,22 @@ because a max and a median over five rings answer different questions and
 neither substitutes for the other:
 
 - `worst_ring_*` is the max. It is the statistic the acceptance criteria were
-  pre-registered on, and the conservative one for a licence, since a licence
-  is a claim about the worst ring a reader might quote. It is also unstable
-  under noise — it reports whichever ring happened to be worst in this seed
-  block — so it reproduces loosely.
+  pre-registered on, and the conservative one for a claim about a whole case,
+  since such a claim is about the worst ring a reader might quote. It is also
+  unstable under noise — it reports whichever ring happened to be worst in this
+  seed block — so it reproduces loosely.
 - `typical_ring_*` is the median over the same values. No verdict rests on it,
   but it reproduces roughly forty times more tightly between seed blocks, so
   it is what actually constrains the gate.
 
-The licensing criteria read the `worst_ring` family and nothing else. Choosing
-a reduction after seeing which verdict it produces is exactly what a
-pre-registration forbids, and the two do differ: a blanket switch to the
-median was measured to flip criterion 2 on the n = 2 fixture's reference case,
-which would have unlicensed Track 2 there.
+Criterion 1 reads the `worst_ring` family and nothing else. Choosing a
+reduction after seeing which verdict it produces is exactly what a
+pre-registration forbids, and the two do differ: a blanket switch to the median
+was measured to flip the since-withdrawn criterion 2 on the n = 2 fixture's
+reference case. (Criterion 2 was withdrawn on 2026-08-23 as an arithmetic
+identity check rather than evidence; the reduction split stands on its own
+merits, and structural validity is now row-level and read from realized
+provenance rather than from any reduction.)
 
 Second, each tolerance is **measured by bootstrapping that claim's own
 definition** — the same reduction over the same columns — across resampled

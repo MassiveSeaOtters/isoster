@@ -351,12 +351,30 @@ def _self_test() -> int:
             print(f"  MISSED {claim}: corrupting its own columns does not trip it")
         print(f"self-test {fixture}: per-claim mutation, {len(survivors)} survivor(s)")
 
-        # And a verdict that no longer follows from its numbers.
-        flipped = json.loads(json.dumps(archive))
-        flipped["licensing"]["licensed_on_reference_configuration"] = not flipped["licensing"][
-            "licensed_on_reference_configuration"
-        ]
-        caught_verdict = any("licensing" in f for f in check_one(fixture, flipped, tolerances))
+        # And a verdict that no longer follows from its numbers. Every live
+        # verdict key is flipped in turn: this test previously flipped
+        # `licensed_on_reference_configuration`, which was removed with the
+        # withdrawal of criterion 2, so it had gone dormant against a key that
+        # no longer existed.
+        verdict_keys = (
+            "conversion_method_validated",
+            "criterion_1_beats_point_derivative",
+            "all_reference_rows_structurally_valid",
+        )
+        missed_verdicts = []
+        for key in verdict_keys:
+            flipped = json.loads(json.dumps(archive))
+            if key not in flipped["licensing"]:
+                missed_verdicts.append(f"{key} (absent from the archive)")
+                continue
+            flipped["licensing"][key] = not flipped["licensing"][key]
+            with contextlib.redirect_stdout(io.StringIO()):
+                found = check_one(fixture, flipped, tolerances)
+            if not any(key in failure for failure in found):
+                missed_verdicts.append(key)
+        caught_verdict = not missed_verdicts
+        for key in missed_verdicts:
+            print(f"  MISSED verdict {key}: it can be flipped without the gate noticing")
         print(f"self-test {fixture}: corrupted numbers caught={caught_claims}, flipped verdict caught={caught_verdict}")
         if not (caught_claims and caught_verdict):
             worst = 1

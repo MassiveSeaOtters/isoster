@@ -466,7 +466,9 @@ the switch, not *large and decreasing*.
   largest effect on the grid by an order of magnitude, so pinning it to
   either value answers a different question than the one being asked.
 - It is also a finding about `m=4` measurements generally: any tool sampling
-  isophotes by nearest-pixel lookup will bias the four-fold mode, which is
+  isophotes by nearest-pixel lookup can contaminate the four-fold mode --- and
+  did inflate it on both fixtures tested here, though two fixtures do not
+  establish that it always will. It is
   precisely the boxy/discy diagnostic. Worth stating in its own right.
 - The earlier reading that the excess "shrinks with radius" is a partial view
   of this: what matters first is which side of the switch a ring falls on, and
@@ -664,7 +666,13 @@ the radius does not matter except through which side of the switch it falls.
   characterized rather than a background sensitivity. Both statements are true
   at their own level; A1 covers the formula, this axis covers the pipeline.
 
-- **photutils leaks between harmonic orders, and the other two do not.** Its
+- **photutils' residual is consistent with cross-order leakage, which the
+  other two cannot suffer.** *(Downgraded 2026-08-23 after review: the causal
+  claim is not established. The archived leakage metric compares differences
+  between worst errors, possibly at different radii, and is not a cross-order
+  response coefficient. Settling it needs a joint fit of all four n=3,4
+  components on photutils' own sampled angles, or the 4x4 response matrix built
+  from those angles — an in-process run needing no AutoProf.)* Its
   1.85% floor at `sma = 45` is not a scale error. Its ring samples are not
   evenly spaced in polar angle — measured spacing varies by a factor of 1.4
   around one ring — so the harmonic basis is not orthogonal on them
@@ -768,10 +776,13 @@ but that pooled number hides two opposite behaviours:
 
 isoster and AutoProf improve on this fixture — its rings are larger in pixels,
 so there is less pixelation — and fall to 0.08% and 0.19%. photutils does not
-improve at all: it is flat-to-rising with radius and ends worse than it
-started. Its leakage metric grew from 1.19% to 2.03% on the steeper profile.
+improve at all: it is flat-to-rising across the tested radii and ends worse
+than it started. Its leakage metric grew from 1.19% to 2.03% on the steeper
+profile. Note this is a finite fixed-aperture experiment, so "flat-to-rising
+across the tested radii" is what the data support; it is not an asymptotic
+convergence test and no statement about the limit is being made.
 
-**That settles the photutils floor.** On one fixture its 1.85% at large radius
+**That establishes the photutils floor as reproducible, not its cause.** On one fixture its 1.85% at large radius
 could have been an artefact of that galaxy. Across two, with the other two
 tools converging below 0.2% on both, it is a property of the estimator:
 photutils' ring samples are not evenly spaced in polar angle, the harmonic
@@ -1195,6 +1206,79 @@ CI has no AutoProf venv.
 
 ## Part B: controlled three-way timing
 
+### B0. The contract — authoritative, frozen 2026-08-23
+
+**Everything below this section is historical.** B1–B5 record how the design
+was reached and were then corrected twice; reading them as instructions
+produces contradictions, because successive corrections were appended rather
+than folded in. This section supersedes them wherever they disagree. Nothing in
+Part B may be implemented against B1–B5 directly.
+
+**Scope, and what each number is called.**
+
+1. **Fixed-aperture extraction and harmonic evaluation** (the controlled
+   scope). Geometry is imposed, so nothing about geometry *fitting* is timed.
+   It is not a comparison of fitting algorithms and must never be described as
+   one. Initialization and background supplied, output writing excluded,
+   AutoProf on a persistent worker.
+2. **End-to-end** (the natural scope). Same scientific input and required
+   output for all three; each tool uses its own radial grid and stopping rule.
+   Matched radii are *not* imposed. Achieved coverage and partial profiles are
+   reported per tool.
+
+These are archived separately. A single ratio spanning both is a category
+error.
+
+**The accuracy contract.**
+
+3. **One common threshold per metric and per fixture, applied to all three
+   tools.** Never a per-tool bar: that preserves whatever accuracy a tool
+   already has, so a faster but less accurate implementation passes its own
+   lower bar and wins.
+4. Thresholds are justified from **scientific requirements or independently
+   established numerical accuracy** — never from any tool's own pilot result.
+   Pilots set repetition counts and quantify timing scatter, nothing else.
+5. **Completion, radial coverage and scientific accuracy are three separate
+   outcomes**, recorded separately and never collapsed into one verdict.
+6. **Every timing is archived**, including failed and ineligible ones.
+   Eligibility affects which timings enter a headline summary; it never affects
+   retention, and never affects failure accounting.
+7. **Harmonic accuracy criteria apply only to harmonics-on arms.**
+8. **End-to-end accuracy is evaluated on each tool's own returned apertures,
+   over a defined common radial overlap.** Part A's fixed-ring truth does not
+   transfer to a free fit.
+9. **Accuracy is computed outside the timed region.** A tool must not be
+   charged for the harness measuring it.
+
+**Environment and abort rules.**
+
+10. The **interpreter gap is measured on its own calibration line** — one
+    identical CPU-bound workload timed in both interpreters — and reported
+    beside every AutoProf timing. Never subtracted: the penalty is real for a
+    user, and never hidden: it is not part of AutoProf's algorithm.
+11. **Harness cost** — serialization, FITS round-trip, IPC — is timed apart
+    from the fit. Both fit-only and fit-plus-harness figures are published.
+12. **Contamination aborts key on external indicators** (machine load, thermal
+    state, competing processes) **or abort an entire campaign.** Individual
+    sessions are never rejected for having dispersed timings: discarding
+    measurements because of their values is outcome-based selection.
+    Dispersion is reported, not used as a filter.
+
+**Structure.** Few fixtures, many repetitions — roughly six to ten
+configurations across size, Sersic index and signal-to-noise, timed over
+several sessions in separate interpreters with interleaved arm order. This buys
+an uncertainty interval on every number. **It is not a survey**, and the
+archive must say so in those words. Harmonics on and off is a grid axis.
+
+**Still to be fixed before the pilot runs**, and to be frozen by commit in the
+same manner as Part A's tolerances: the numeric value of each common threshold
+and its scientific justification; session and repetition counts; the specific
+external contamination indicators and their bounds; and the success/failure
+taxonomy with partial-profile treatment.
+
+**A new archive, not a replacement.** See B5, which stands unchanged.
+
+
 ### B1. Where the protocol goes
 
 `archive_speedup.py` *summarizes*; the timing protocol belongs in the
@@ -1367,7 +1451,8 @@ its own timing and the difference stands in the open.
 **Still to be fixed by measurement before the full run**, in the same manner
 as Part A's tolerances — frozen from a pilot, committed, then validated:
 
-- the accuracy bar itself, per tool and per fixture;
+- ~~the accuracy bar itself, per tool and per fixture~~ — **superseded by B0.3**:
+  one common threshold per metric and fixture, applied to all three tools;
 - session and repetition counts, chosen so the reported interval is narrower
   than the effect being claimed;
 - the **contamination abort rule**. An earlier draft of this section proposed

@@ -28,10 +28,10 @@ from benchmarks.harmonic_scale.run_gradient_reconstruction import (
     build_grid,
     claims_fingerprint,
     evaluate_licensing,
-    structural_validity,
     extract_claims,
     fixture_fingerprint,
     freeze_tolerances,
+    structural_validity,
 )
 
 
