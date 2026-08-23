@@ -170,6 +170,15 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
                 f"stored licensing {key}={stored.get(key)} does not follow from the archived "
                 f"numbers (recomputed {recomputed[key]})"
             )
+    # Criterion 1's numbers, not only its boolean. The margin is quoted in the
+    # prose and was editable in silence.
+    for key in ("criterion_1_margin", "criterion_1_decisive_margin_required"):
+        stored_value, recomputed_value = stored.get(key), recomputed[key]
+        if stored_value is None or abs(float(stored_value) - float(recomputed_value)) > 1e-6:
+            failures.append(
+                f"stored licensing {key}={stored_value} does not follow from the archived "
+                f"numbers (recomputed {recomputed_value})"
+            )
     # Look for a criterion_2 *verdict*, not the word: the replacement block
     # carries a `withdrawn_criterion_2` note explaining the removal, and a
     # substring check on the whole blob flags that note as the thing it warns
@@ -190,8 +199,21 @@ def check_one(fixture: str, archive: Dict[str, object], tolerances: Dict[str, ob
                 f"the archive stores a case-wide structural validity for {name}; validity is "
                 "row-level as of 2026-08-23. Regenerate with --regenerate-licensing."
             )
-        if stored_valid.get("valid_rows") != recomputed_valid["valid_rows"]:
-            failures.append(f"stored row-level validity for {name} does not follow from the archived provenance")
+        # Compare the *whole* object, not a summary count of it.
+        #
+        # A review corrupted rows[0].harmonic_conversion_valid, its reasons
+        # list, its recorded sampling mode, total_rows and all_rows_valid, and
+        # every one passed, because only valid_rows was ever compared. A field
+        # nothing reads is a field anyone can edit, and the row-level verdict is
+        # the thing this change exists to make trustworthy.
+        if json.dumps(stored_valid, sort_keys=True) != json.dumps(recomputed_valid, sort_keys=True):
+            failures.append(
+                f"stored structural validity for {name} does not match the object recomputed from "
+                f"the archived provenance (stored {stored_valid.get('valid_rows')}/"
+                f"{stored_valid.get('total_rows')} valid rows, recomputed "
+                f"{recomputed_valid['valid_rows']}/{recomputed_valid['total_rows']}); "
+                "regenerate with --regenerate-licensing"
+            )
     if not any("licensing" in f or "criterion_2" in f for f in failures):
         method = "validated" if recomputed["conversion_method_validated"] else "NOT validated"
         rows = recomputed["regimes"]["reference"]["structural_validity"]
@@ -356,26 +378,60 @@ def _self_test() -> int:
         # `licensed_on_reference_configuration`, which was removed with the
         # withdrawal of criterion 2, so it had gone dormant against a key that
         # no longer existed.
-        verdict_keys = (
-            "conversion_method_validated",
-            "criterion_1_beats_point_derivative",
-            "all_reference_rows_structurally_valid",
-        )
+        def _row(archive_copy, field, value):
+            archive_copy["licensing"]["regimes"]["reference"]["structural_validity"]["rows"][0][field] = value
+
+        def _aggregate(archive_copy, field, value):
+            archive_copy["licensing"]["regimes"]["reference"]["structural_validity"][field] = value
+
+        # Every guarded field, one at a time. A review corrupted five of these
+        # and every mutation passed, so "the self-test flips every live verdict
+        # key" was simply untrue when it was claimed.
+        mutations = [
+            ("conversion_method_validated", lambda a: a["licensing"].__setitem__("conversion_method_validated", False)),
+            (
+                "criterion_1_beats_point_derivative",
+                lambda a: a["licensing"].__setitem__("criterion_1_beats_point_derivative", False),
+            ),
+            (
+                "all_reference_rows_structurally_valid",
+                lambda a: a["licensing"].__setitem__("all_reference_rows_structurally_valid", False),
+            ),
+            ("criterion_1_margin", lambda a: a["licensing"].__setitem__("criterion_1_margin", 3.0)),
+            (
+                "criterion_1_decisive_margin_required",
+                lambda a: a["licensing"].__setitem__("criterion_1_decisive_margin_required", 1.0),
+            ),
+            ("rows[0].harmonic_conversion_valid", lambda a: _row(a, "harmonic_conversion_valid", False)),
+            ("rows[0].harmonic_conversion_reasons", lambda a: _row(a, "harmonic_conversion_reasons", ["invented"])),
+            ("rows[0].base_sampling_mode", lambda a: _row(a, "base_sampling_mode", "line_nearest_pixel")),
+            ("rows[0].comparison_sampling_mode", lambda a: _row(a, "comparison_sampling_mode", "line_nearest_pixel")),
+            (
+                "rows[0].comparison_sampling_mode_source",
+                lambda a: _row(a, "comparison_sampling_mode_source", "derived_legacy_archive"),
+            ),
+            ("rows[0].structurally_applicable", lambda a: _row(a, "structurally_applicable", False)),
+            ("rows[0].realizations_measured", lambda a: _row(a, "realizations_measured", 0)),
+            ("total_rows", lambda a: _aggregate(a, "total_rows", 99)),
+            ("all_rows_valid", lambda a: _aggregate(a, "all_rows_valid", False)),
+            ("valid_rows", lambda a: _aggregate(a, "valid_rows", 0)),
+            ("structurally_applicable_rows", lambda a: _aggregate(a, "structurally_applicable_rows", 0)),
+        ]
         missed_verdicts = []
-        for key in verdict_keys:
+        for key, mutate in mutations:
             flipped = json.loads(json.dumps(archive))
-            if key not in flipped["licensing"]:
-                missed_verdicts.append(f"{key} (absent from the archive)")
-                continue
-            flipped["licensing"][key] = not flipped["licensing"][key]
+            mutate(flipped)
             with contextlib.redirect_stdout(io.StringIO()):
                 found = check_one(fixture, flipped, tolerances)
-            if not any(key in failure for failure in found):
+            if not found:
                 missed_verdicts.append(key)
         caught_verdict = not missed_verdicts
         for key in missed_verdicts:
             print(f"  MISSED verdict {key}: it can be flipped without the gate noticing")
-        print(f"self-test {fixture}: corrupted numbers caught={caught_claims}, flipped verdict caught={caught_verdict}")
+        print(
+            f"self-test {fixture}: corrupted numbers caught={caught_claims}, "
+            f"{len(mutations) - len(missed_verdicts)}/{len(mutations)} verdict fields guarded"
+        )
         if not (caught_claims and caught_verdict):
             worst = 1
         campaigns.append((fixture, archive))

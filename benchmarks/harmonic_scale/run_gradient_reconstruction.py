@@ -588,22 +588,32 @@ VALID_HARMONIC_BASIS = "polar_from_image_x_axis"
 VALID_SAMPLING_MODE = "line_interpolated"
 
 
-def _comparison_ring_sampling_mode(ring: Dict[str, object], provenance: Dict[str, object]) -> str | None:
-    """Realized sampling mode of the *comparison* ring at ``sma*(1+astep)``.
+def _comparison_ring_sampling_mode(provenance: Dict[str, object], index: int, n_rings: int) -> tuple[str | None, str]:
+    """Realized sampling mode of the *comparison* ring, observed where possible.
 
-    Derived, not assumed. AutoProf interpolates a ring when its radius is below
-    the recorded ``rad_interp_pix`` threshold and rounds to the nearest pixel
-    otherwise; that rule reproduces the archived ``sampling_mode`` of every base
-    ring in both campaigns, which is what licenses using it for the partner
-    ring.
+    The worker records ``sampling_mode.per_ring_interpolated`` with one entry
+    per requested ring: ``n_rings`` base rings followed by their ``n_rings``
+    comparison partners, in request order. So the partner's mode is *observed*,
+    and an earlier version of this function deriving it from ``rad_interp_pix``
+    put inference back into the one field this design says is measured.
 
-    It is a derivation only because the archives record one mode per pair. A
-    future archive should store the comparison ring's realized mode directly,
-    and then this function should read it instead of deriving it --- the whole
-    point of the surrounding change is that validity must be observed rather
-    than inferred, and a derivation is a weaker thing than a measurement even
-    when it is exact on the data in hand.
+    The derivation survives only as a labelled fallback for archives written
+    before the observation was read, and it reports itself as such. It is exact
+    on those archives --- no pair in either straddles the threshold --- but
+    "exact on the data in hand" is not the same as "measured", and a new run
+    must never reach it.
     """
+    modes = (provenance.get("sampling_mode") or {}).get("per_ring_interpolated")
+    if isinstance(modes, list) and len(modes) == 2 * n_rings:
+        interpolated = bool(modes[n_rings + index])
+        return (VALID_SAMPLING_MODE if interpolated else "line_nearest_pixel"), "observed"
+    threshold = provenance.get("rad_interp_pix")
+    if threshold is None:
+        return None, "unavailable"
+    return None, "legacy_derivation_unavailable"
+
+
+def _comparison_ring_legacy_mode(ring: Dict[str, object], provenance: Dict[str, object]) -> str | None:
     threshold = provenance.get("rad_interp_pix")
     comparison = ring.get("comparison_sma")
     if threshold is None or comparison is None:
@@ -611,56 +621,90 @@ def _comparison_ring_sampling_mode(ring: Dict[str, object], provenance: Dict[str
     return VALID_SAMPLING_MODE if float(comparison) < float(threshold) else "line_nearest_pixel"
 
 
-def ring_pair_validity(ring: Dict[str, object], provenance: Dict[str, object]) -> Dict[str, object]:
+def ring_pair_validity(
+    ring: Dict[str, object],
+    provenance: Dict[str, object],
+    index: int,
+    n_rings: int,
+    completion: Dict[str, object] | None = None,
+) -> Dict[str, object]:
     """Is the conversion defined for *this* ring and its comparison partner?
 
     Row-level, and read from **realized** provenance rather than from what was
-    requested. A review caught the previous version inferring both the basis
-    and the sampling mode from the requested configuration, so an archive whose
-    realized behaviour disagreed with its request still reported valid. That
-    inverts this project's own rule: instrument the sampling mode, never
-    predict it.
+    requested --- a review caught the previous version inferring both the basis
+    and the sampling mode from the requested configuration, which inverts this
+    project's rule to instrument the sampling mode and never predict it.
 
-    Evaluated per *pair* because a secant needs both rings. A case-wide boolean
-    cannot express that, and the `interpolate_default` case proves the point ---
-    it contains interpolated and nearest-pixel rings at once, so any single
-    verdict for it is wrong for some of its rows.
+    Two separable things are reported, because they fail for different reasons
+    and on different schedules:
+
+    * **Structural applicability** is a property of the aperture and the
+      configuration --- basis and both rings' sampling modes. It does not vary
+      between noise realizations.
+    * **Measurement completion** does vary: a ring can be structurally fine and
+      still fail to measure in some realizations. ``completion`` carries the
+      per-ring finite count from the summary, which covers *every* realization
+      rather than the single one archives retain.
     """
     base_mode = ring.get("sampling_mode")
-    comparison_mode = _comparison_ring_sampling_mode(ring, provenance)
-    reasons = []
+    comparison_mode, source = _comparison_ring_sampling_mode(provenance, index, n_rings)
+    if comparison_mode is None:
+        comparison_mode, source = _comparison_ring_legacy_mode(ring, provenance), "derived_legacy_archive"
+
     basis = provenance.get("harmonic_basis")
+    structural_reasons = []
     if basis != VALID_HARMONIC_BASIS:
-        reasons.append(f"realized harmonic basis is {basis!r}, which mixes orders")
+        structural_reasons.append(f"realized harmonic basis is {basis!r}, which mixes orders")
     if base_mode != VALID_SAMPLING_MODE:
-        reasons.append(f"base ring realized sampling is {base_mode!r}, not interpolated")
+        structural_reasons.append(f"base ring realized sampling is {base_mode!r}, not interpolated")
     if comparison_mode != VALID_SAMPLING_MODE:
-        reasons.append(f"comparison ring realized sampling is {comparison_mode!r}, not interpolated")
+        structural_reasons.append(f"comparison ring realized sampling is {comparison_mode!r}, not interpolated")
+
+    measured, expected = (completion or {}).get("measured"), (completion or {}).get("expected")
+    completion_reasons = []
     if ring.get("status") != "measured":
-        reasons.append(f"ring status is {ring.get('status')!r}, so no secant exists")
-    if not np.isfinite(ring.get("autoprof_b0_secant", float("nan"))):
-        reasons.append("the reconstructed secant is not finite")
+        completion_reasons.append(f"ring status is {ring.get('status')!r} in the archived realization")
+    if measured is not None and expected is not None and measured < expected:
+        completion_reasons.append(f"only {measured} of {expected} realizations produced a finite secant")
+
     return {
         "sma": ring.get("sma"),
         "comparison_sma": ring.get("comparison_sma"),
+        "harmonic_basis": basis,
         "base_sampling_mode": base_mode,
         "comparison_sampling_mode": comparison_mode,
-        "comparison_sampling_mode_source": "derived from rad_interp_pix",
-        "harmonic_basis": basis,
-        "harmonic_conversion_valid": not reasons,
-        "harmonic_conversion_reasons": reasons,
+        "comparison_sampling_mode_source": source,
+        "structurally_applicable": not structural_reasons,
+        "measurement_complete": not completion_reasons,
+        "realizations_measured": measured,
+        "realizations_expected": expected,
+        "harmonic_conversion_valid": not (structural_reasons or completion_reasons),
+        "harmonic_conversion_reasons": structural_reasons + completion_reasons,
     }
 
 
 def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
-    """Row-level validity for a case, plus an aggregate for summaries only.
+    """Row-level validity for a case, plus aggregates for summaries only.
 
-    The rows are the result. The aggregate exists so a table can say "3 of 5",
-    and must never be the thing a decision reads --- that was the defect.
+    The rows are the result. The aggregates exist so a table can say "3 of 5",
+    and must never be what a decision reads --- that was the original defect.
     """
     provenance = case.get("autoprof_provenance") or {}
     realizations = case.get("realizations") or []
-    rows = [ring_pair_validity(ring, provenance) for ring in (realizations[0]["rings"] if realizations else [])]
+    rings = realizations[0]["rings"] if realizations else []
+    expected = int(case.get("spec", {}).get("n_realizations") or 0) or None
+
+    summary = case.get("summary") or {}
+    completions = []
+    for entry in summary.values():
+        spread = entry.get("b0_secant_vs_isoster_pct") if isinstance(entry, dict) else None
+        completions.append({"measured": (spread or {}).get("n"), "expected": expected})
+    while len(completions) < len(rings):
+        completions.append({"measured": None, "expected": expected})
+
+    rows = [
+        ring_pair_validity(ring, provenance, index, len(rings), completions[index]) for index, ring in enumerate(rings)
+    ]
     valid = [row for row in rows if row["harmonic_conversion_valid"]]
     return {
         "rows": rows,
@@ -668,6 +712,8 @@ def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
         "total_rows": len(rows),
         "all_rows_valid": bool(rows) and len(valid) == len(rows),
         "any_row_valid": bool(valid),
+        "structurally_applicable_rows": sum(1 for row in rows if row["structurally_applicable"]),
+        "measurement_complete_rows": sum(1 for row in rows if row["measurement_complete"]),
     }
 
 

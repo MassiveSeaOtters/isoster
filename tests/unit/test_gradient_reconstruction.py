@@ -265,7 +265,14 @@ class TestValidityIsObservedNotInferred:
     makes the two disagree on purpose.
     """
 
-    def _case(self, basis="polar_from_image_x_axis", modes=("line_interpolated",) * 3, rad=400.0, status="measured"):
+    def _case(
+        self,
+        basis="polar_from_image_x_axis",
+        modes=("line_interpolated",) * 3,
+        rad=400.0,
+        status="measured",
+        partner_interpolated=(True, True, True),
+    ):
         rings = [
             {
                 "sma": sma,
@@ -276,9 +283,16 @@ class TestValidityIsObservedNotInferred:
             }
             for sma, mode in zip((12.0, 18.0, 25.0), modes)
         ]
+        # per_ring_interpolated carries the observed mode of every requested
+        # ring: the base rings, then their comparison partners, in order.
+        observed = [m == "line_interpolated" for m in modes] + list(partner_interpolated)
         return {
             "spec": {"name": "reference", "snr": None, "n_realizations": 1},
-            "autoprof_provenance": {"harmonic_basis": basis, "rad_interp_pix": rad},
+            "autoprof_provenance": {
+                "harmonic_basis": basis,
+                "rad_interp_pix": rad,
+                "sampling_mode": {"per_ring_interpolated": observed},
+            },
             "realizations": [{"rings": rings}],
             "summary": {},
         }
@@ -302,18 +316,41 @@ class TestValidityIsObservedNotInferred:
         assert [row["harmonic_conversion_valid"] for row in result["rows"]] == [True, False, True]
         assert not result["all_rows_valid"] and result["any_row_valid"]
 
-    def test_an_unmeasured_comparison_ring_invalidates_the_pair(self):
+    def test_a_nearest_pixel_comparison_ring_invalidates_the_pair(self):
         """A secant needs both rings, so the partner's mode is checked too.
 
-        With the threshold between the pair, the base ring is interpolated and
-        its partner is not; the pair must fail even though the base ring alone
-        looks fine.
+        The partner's mode is *observed*, from per_ring_interpolated, so this
+        sets it independently of the base ring rather than inferring it from a
+        radius threshold.
         """
-        case = self._case(rad=13.0)
+        case = self._case(partner_interpolated=(False, True, True))
         row = structural_validity(case)["rows"][0]
         assert row["base_sampling_mode"] == "line_interpolated"
         assert row["comparison_sampling_mode"] == "line_nearest_pixel"
+        assert row["comparison_sampling_mode_source"] == "observed"
         assert not row["harmonic_conversion_valid"]
+
+    def test_an_archive_without_observed_partner_modes_falls_back_and_says_so(self):
+        """Legacy archives may derive it, but must never claim it was observed."""
+        case = self._case(rad=13.0)
+        case["autoprof_provenance"].pop("sampling_mode")
+        row = structural_validity(case)["rows"][0]
+        assert row["comparison_sampling_mode_source"] == "derived_legacy_archive"
+        assert row["comparison_sampling_mode"] == "line_nearest_pixel"
+
+    def test_a_realization_that_failed_to_measure_breaks_completion_not_structure(self):
+        """The two must be separable: an aperture can be fine and the
+        measurement still incomplete in some realizations."""
+        case = self._case()
+        case["spec"]["n_realizations"] = 25
+        case["summary"] = {
+            f"sma={sma:g}": {"b0_secant_vs_isoster_pct": {"n": n}} for sma, n in ((12.0, 25), (18.0, 19), (25.0, 25))
+        }
+        rows = structural_validity(case)["rows"]
+        assert all(row["structurally_applicable"] for row in rows)
+        assert [row["measurement_complete"] for row in rows] == [True, False, True]
+        assert not rows[1]["harmonic_conversion_valid"]
+        assert rows[1]["realizations_measured"] == 19
 
     def test_a_failed_ring_is_invalid(self):
         result = structural_validity(self._case(status="autoprof_failed"))
