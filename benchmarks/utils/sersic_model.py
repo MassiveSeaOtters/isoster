@@ -5,6 +5,8 @@ This module provides functions to create 2D Sersic profile images with
 proper central region oversampling and optional noise.
 """
 
+from typing import Mapping
+
 import numpy as np
 from scipy.special import gammaincinv
 
@@ -569,26 +571,40 @@ def analytic_truth_on_aperture(meta, x0, y0, sma, eps, pa, orders, n_phi=8192):
     galaxy_x0, galaxy_y0 = meta["center"]
     galaxy_eps, galaxy_pa = float(meta["eps"]), float(meta["pa"])
 
-    phi = np.linspace(0.0, 2.0 * np.pi, n_phi, endpoint=False)
+    polar_angle = np.linspace(0.0, 2.0 * np.pi, n_phi, endpoint=False)
+    aperture_axis_ratio = 1.0 - float(eps)
+    if not np.isfinite(sma) or float(sma) <= 0.0:
+        raise ValueError(f"sma must be finite and positive, got {sma!r}")
+    if not np.isfinite(aperture_axis_ratio) or not 0.0 < aperture_axis_ratio <= 1.0:
+        raise ValueError(f"eps must be finite and satisfy 0 <= eps < 1, got {eps!r}")
 
     def intensities_at(scale):
         """Analytic intensity on the aperture of semi-major axis ``scale``."""
-        # Points on the requested ellipse, in image coordinates.
-        a = scale
-        b = scale * (1.0 - float(eps))
-        x = float(x0) + a * np.cos(phi) * np.cos(pa) - b * np.sin(phi) * np.sin(pa)
-        y = float(y0) + a * np.cos(phi) * np.sin(pa) + b * np.sin(phi) * np.cos(pa)
+        # The compared raw harmonics use physical polar angle, not eccentric
+        # anomaly.  Parameterising an ellipse as (a*cos(t), b*sin(t)) would
+        # make t the eccentric anomaly and silently change the harmonic basis
+        # whenever this aperture differs from the planted one.
+        polar_radius = (
+            float(scale)
+            * aperture_axis_ratio
+            / np.sqrt((aperture_axis_ratio * np.cos(polar_angle)) ** 2 + np.sin(polar_angle) ** 2)
+        )
+        aperture_x = polar_radius * np.cos(polar_angle)
+        aperture_y = polar_radius * np.sin(polar_angle)
+        x = float(x0) + aperture_x * np.cos(pa) - aperture_y * np.sin(pa)
+        y = float(y0) + aperture_x * np.sin(pa) + aperture_y * np.cos(pa)
 
         # Map into the galaxy's own frame.
         dx, dy = x - galaxy_x0, y - galaxy_y0
         u = dx * np.cos(galaxy_pa) + dy * np.sin(galaxy_pa)
         v = -dx * np.sin(galaxy_pa) + dy * np.cos(galaxy_pa)
-        galaxy_b_over_a = 1.0 - galaxy_eps
-        radius = np.hypot(u, v / galaxy_b_over_a) if galaxy_b_over_a else np.hypot(u, v)
-        # Angle in the galaxy frame, which is what the planted distortion is
-        # a function of.
-        galaxy_phi = np.arctan2(v / galaxy_b_over_a if galaxy_b_over_a else v, u)
-        return profile(radius / _harmonic_distortion(galaxy_phi, harmonics))
+        galaxy_axis_ratio = 1.0 - galaxy_eps
+        radius = np.hypot(u, v / galaxy_axis_ratio) if galaxy_axis_ratio else np.hypot(u, v)
+        # The renderer plants the distortion in physical polar angle. Dividing
+        # v by q here would circularize the ellipse and return eccentric
+        # anomaly instead.
+        galaxy_polar_angle = np.arctan2(v, u)
+        return profile(radius / _harmonic_distortion(galaxy_polar_angle, harmonics))
 
     intensities = intensities_at(sma)
     delta = max(sma * 1e-4, 1e-6)
@@ -599,8 +615,8 @@ def analytic_truth_on_aperture(meta, x0, y0, sma, eps, pa, orders, n_phi=8192):
     factor = sma * abs(gradient)
     result = {}
     for order in orders:
-        s_raw = 2.0 * float(np.mean(intensities * np.sin(order * phi)))
-        c_raw = 2.0 * float(np.mean(intensities * np.cos(order * phi)))
+        s_raw = 2.0 * float(np.mean(intensities * np.sin(order * polar_angle)))
+        c_raw = 2.0 * float(np.mean(intensities * np.cos(order * polar_angle)))
         result[order] = {
             "s_raw": s_raw,
             "c_raw": c_raw,
@@ -611,6 +627,42 @@ def analytic_truth_on_aperture(meta, x0, y0, sma, eps, pa, orders, n_phi=8192):
             "mean_intensity": float(np.mean(intensities)),
         }
     return result
+
+
+def aperture_displacement_error_px(
+    reference: Mapping[str, float],
+    measured: Mapping[str, float],
+    n_angles: int = 4096,
+) -> float:
+    """Maximum boundary displacement between two elliptical apertures.
+
+    Both boundaries are evaluated along the same physical sky directions. The
+    position angle is therefore axis-periodic automatically: adding ``pi``
+    describes the same boundary. Unlike separate fixed tolerances on
+    ellipticity and position angle, this metric scales with semi-major axis and
+    answers the quantity the accuracy contract needs directly, in pixels.
+
+    The mappings must contain ``x0``, ``y0``, ``sma``, ``eps`` and ``pa``.
+    """
+
+    sky_angle = np.linspace(0.0, 2.0 * np.pi, int(n_angles), endpoint=False)
+
+    def boundary(aperture):
+        x0 = float(aperture["x0"])
+        y0 = float(aperture["y0"])
+        sma = float(aperture["sma"])
+        axis_ratio = 1.0 - float(aperture["eps"])
+        pa = float(aperture["pa"])
+        values = np.asarray([x0, y0, sma, axis_ratio, pa], dtype=np.float64)
+        if not np.all(np.isfinite(values)) or sma <= 0.0 or not 0.0 < axis_ratio <= 1.0:
+            raise ValueError(f"invalid aperture geometry: {dict(aperture)!r}")
+        relative_angle = sky_angle - pa
+        radius = sma * axis_ratio / np.sqrt((axis_ratio * np.cos(relative_angle)) ** 2 + np.sin(relative_angle) ** 2)
+        return np.column_stack((x0 + radius * np.cos(sky_angle), y0 + radius * np.sin(sky_angle)))
+
+    reference_boundary = boundary(reference)
+    measured_boundary = boundary(measured)
+    return float(np.max(np.linalg.norm(measured_boundary - reference_boundary, axis=1)))
 
 
 def linearized_harmonic_truth(meta, orders):

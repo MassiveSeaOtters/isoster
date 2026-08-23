@@ -24,6 +24,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES as PART_A_FIXTURES  # noqa: E402
+from benchmarks.harmonic_scale.run_harmonic_scale import PLANTED_HARMONICS  # noqa: E402
 
 #: Radii as fractions of R_e, shared by every Part B fixture so the ladder
 #: measures size rather than a change of sampling strategy. Part A's own radii
@@ -37,8 +38,12 @@ def _ladder(name: str, r_e: float, shape: int, scope: str) -> Dict[str, object]:
         "label": name.replace("_", " "),
         "galaxy": {"n": 2.0, "R_e": r_e, "I_e": 100.0, "shape": (shape, shape), "center": (center, center)},
         "reference_eps": 0.3,
+        "reference_pa": 0.0,
+        "reference_harmonics": dict(PLANTED_HARMONICS),
         "radii": tuple(round(r_e * f, 3) for f in RADIUS_FRACTIONS),
         "scope": scope,
+        "scientific_identity": name,
+        "independent_scientific_fixture": True,
     }
 
 
@@ -48,6 +53,10 @@ def stage1_fixtures() -> Dict[str, Dict[str, object]]:
     for name in ("sersic_n2_compact", "sersic_n4_extended"):
         spec = dict(PART_A_FIXTURES[name])
         spec["scope"] = "both"
+        spec["reference_pa"] = 0.0
+        spec["reference_harmonics"] = dict(PLANTED_HARMONICS)
+        spec["scientific_identity"] = name
+        spec["independent_scientific_fixture"] = True
         fixtures[name] = spec
     fixtures["size_ladder_481"] = _ladder("size_ladder_481", 50.0, 481, "both")
     fixtures["size_ladder_961"] = _ladder("size_ladder_961", 100.0, 961, "both")
@@ -55,6 +64,8 @@ def stage1_fixtures() -> Dict[str, Dict[str, object]]:
     # Galaxy identical to sersic_n2_compact; only the canvas grows.
     wide = _ladder("wide_canvas_961", 25.0, 961, "end_to_end")
     wide["radii"] = PART_A_FIXTURES["sersic_n2_compact"]["radii"]
+    wide["scientific_identity"] = "sersic_n2_compact"
+    wide["independent_scientific_fixture"] = False
     fixtures["wide_canvas_961"] = wide
     return fixtures
 

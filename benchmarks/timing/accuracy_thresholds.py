@@ -47,15 +47,18 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scipy.stats import norm  # noqa: E402
+from scipy.stats import t as student_t  # noqa: E402
 
-from benchmarks.harmonic_scale.run_harmonic_scale import ORDERS, PLANTED_HARMONICS  # noqa: E402
+from benchmarks.harmonic_scale.run_harmonic_scale import ORDERS  # noqa: E402
 from benchmarks.timing.stage1_fixtures import stage1_fixtures  # noqa: E402
 from benchmarks.utils.sersic_model import (  # noqa: E402
+    analytic_truth_on_aperture,
     compute_bn,
     create_sersic_image_with_harmonics,
     integrated_harmonic_truth,
@@ -92,9 +95,10 @@ ENSEMBLE_REALIZATIONS = 25
 #: is exactly the assumption available here.
 ENSEMBLE_FAMILY_ALPHA = 0.01
 
-#: Geometry bars, in the units of the quantity. Half a pixel is the scale below
-#: which a centre difference cannot change which pixels a ring samples.
-GEOMETRY_BARS = {"center_error_px": 0.5, "eps_error": 0.01, "pa_error_deg": 1.0}
+#: Maximum allowed displacement of a returned aperture boundary from the true
+#: boundary. This replaces fixed eps/PA tolerances, whose physical displacement
+#: grows with radius (eps=0.01 moves a 600-pixel ring by six pixels).
+MAX_APERTURE_DISPLACEMENT_PX = 1.0
 
 #: Free-fit coverage target, as fractions of R_e, and the fraction of it an arm
 #: must reach to count as complete.
@@ -130,10 +134,10 @@ def _fixture_meta(fixture: str):
         R_e=galaxy["R_e"],
         I_e=galaxy["I_e"],
         eps=spec["reference_eps"],
-        pa=0.0,
+        pa=spec["reference_pa"],
         shape=galaxy["shape"],
         center=galaxy["center"],
-        harmonics=PLANTED_HARMONICS,
+        harmonics=spec["reference_harmonics"],
     )
     return meta
 
@@ -152,6 +156,19 @@ def _component_truth(fixture: str, sma: float) -> Dict[str, float]:
         out[f"s{order}_raw_major"] = float(entry.get("s_raw", float("nan")))
         out[f"c{order}_raw_major"] = float(entry.get("c_raw", float("nan")))
     return out
+
+
+def _component_from_truth(truth: Dict[int, Dict[str, float]], component: str) -> float:
+    """Read one schema-named raw component from an integrated truth result."""
+    prefix = component.split("_", 1)[0]
+    if len(prefix) < 2 or prefix[0] not in ("s", "c") or not prefix[1:].isdigit():
+        raise ValueError(f"unknown raw harmonic component {component!r}")
+    order = int(prefix[1:])
+    key = "s_raw" if prefix[0] == "s" else "c_raw"
+    try:
+        return float(truth[order][key])
+    except KeyError as error:
+        raise ValueError(f"truth does not contain {component!r}") from error
 
 
 def _ring_mean(fixture: str, sma: float) -> float:
@@ -213,6 +230,116 @@ def ring_statistics(fixture: str) -> List[Dict[str, object]]:
     return rows
 
 
+def accuracy_family_members(
+    radii: List[float],
+    *,
+    harmonics_enabled: bool,
+    geometry_free: bool,
+) -> Dict[str, tuple[str, ...]]:
+    """Build the exact Holm families for one tool/fixture/setting arm.
+
+    Harmonic and intensity members are signed residuals at each returned ring.
+    Free-fit geometry uses four signed primitive residuals per ring (x, y,
+    ellipticity and axis-periodic PA). The separate noiseless geometry gate is
+    the maximum boundary displacement in pixels; a non-negative displacement
+    is not suitable for a one-sample zero-bias test.
+    """
+    radius_labels = tuple(f"{float(radius):g}" for radius in radii)
+    families: Dict[str, tuple[str, ...]] = {
+        "intensity": tuple(f"ring_mean@sma={radius}" for radius in radius_labels),
+    }
+    if harmonics_enabled:
+        families["harmonic"] = tuple(
+            f"{component}@sma={radius}" for radius in radius_labels for component in _COMPONENTS
+        )
+    if geometry_free:
+        geometry_components = ("x0", "y0", "eps", "pa_rad")
+        families["geometry"] = tuple(
+            f"{component}@sma={radius}" for radius in radius_labels for component in geometry_components
+        )
+    return families
+
+
+def geometry_bias_residuals(reference: Dict[str, float], measured: Dict[str, float]) -> Dict[str, float]:
+    """Signed geometry residuals used by the noisy-arm bias family.
+
+    Position angle describes an axis, so its signed difference is wrapped into
+    ``[-pi/2, pi/2)``. The returned keys match the geometry family members.
+    """
+    pa_difference = (float(measured["pa"]) - float(reference["pa"]) + math.pi / 2.0) % math.pi - math.pi / 2.0
+    residuals = {
+        "x0": float(measured["x0"]) - float(reference["x0"]),
+        "y0": float(measured["y0"]) - float(reference["y0"]),
+        "eps": float(measured["eps"]) - float(reference["eps"]),
+        "pa_rad": pa_difference,
+    }
+    if not all(math.isfinite(value) for value in residuals.values()):
+        raise ValueError(f"geometry residuals must be finite, got {residuals!r}")
+    return residuals
+
+
+def one_sample_bias_p_value(residuals: List[float]) -> float:
+    """Two-sided one-sample t-test of a realization ensemble against zero.
+
+    The scatter is measured from the realizations themselves, so this is a
+    Student-t test with ``R - 1`` degrees of freedom, not a normal z-test with
+    an assumed known variance. Missing or non-finite samples fail closed.
+    """
+    values = np.asarray(residuals, dtype=np.float64)
+    if values.ndim != 1 or values.size < 2 or not np.all(np.isfinite(values)):
+        raise ValueError("bias test requires at least two finite residuals")
+    mean = float(np.mean(values))
+    standard_deviation = float(np.std(values, ddof=1))
+    if standard_deviation == 0.0:
+        return 1.0 if mean == 0.0 else 0.0
+    statistic = mean / (standard_deviation / math.sqrt(values.size))
+    return float(2.0 * student_t.sf(abs(statistic), df=values.size - 1))
+
+
+def holm_bonferroni(p_values: Dict[str, float], alpha: float = ENSEMBLE_FAMILY_ALPHA) -> Dict[str, object]:
+    """Apply Holm's step-down family-wise error correction.
+
+    A rejected null means statistically detectable ensemble bias, so an
+    accuracy family passes only when no member is rejected. The ordered audit
+    table is returned so Stage 2 can archive every comparison and threshold.
+    """
+    if not math.isfinite(alpha) or not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must lie in (0, 1), got {alpha!r}")
+    if not p_values:
+        raise ValueError("Holm family must contain at least one p-value")
+    checked = {}
+    for name, value in p_values.items():
+        p_value = float(value)
+        if not math.isfinite(p_value) or not 0.0 <= p_value <= 1.0:
+            raise ValueError(f"p-value for {name!r} must lie in [0, 1], got {value!r}")
+        checked[str(name)] = p_value
+
+    ordered = sorted(checked.items(), key=lambda item: (item[1], item[0]))
+    rows = []
+    continue_rejecting = True
+    family_size = len(ordered)
+    for index, (name, p_value) in enumerate(ordered):
+        threshold = alpha / (family_size - index)
+        rejected = bool(continue_rejecting and p_value <= threshold)
+        if not rejected:
+            continue_rejecting = False
+        rows.append(
+            {
+                "name": name,
+                "p_value": p_value,
+                "threshold": threshold,
+                "rejected": rejected,
+            }
+        )
+    return {"family_passed": not any(row["rejected"] for row in rows), "ordered_tests": rows}
+
+
+def evaluate_bias_family(samples_by_test: Dict[str, List[float]]) -> Dict[str, object]:
+    """Compute one p-value per named residual series, then apply Holm."""
+    p_values = {name: one_sample_bias_p_value(values) for name, values in samples_by_test.items()}
+    return {"p_values": p_values, **holm_bonferroni(p_values)}
+
+
 def thresholds() -> Dict[str, object]:
     """The frozen bars, per fixture, ring and component."""
     per_fixture = {name: ring_statistics(name) for name in sorted(stage1_fixtures())}
@@ -229,34 +356,55 @@ def thresholds() -> Dict[str, object]:
             row["sma"]: round(IDEAL_SIGMA_FRACTION * row["ring_mean_sigma_pct"], 4) for row in rows
         }
 
-    # A family is ONE arm: one tool, one fixture, one harmonic setting. An
-    # earlier draft summed every fixture together and called 120 "tests per
-    # arm", which is six arms' worth.
+    # A family is ONE arm: one tool, one fixture, one harmonic setting. Build
+    # the partition through the same function Stage 2 must call rather than
+    # freezing a prose description of it.
     rings_per_fixture = {name: len(rows) for name, rows in per_fixture.items()}
-    harmonic_tests_per_arm = max(rings_per_fixture.values()) * len(_COMPONENTS)
-    intensity_tests_per_arm = max(rings_per_fixture.values())
+    representative_radii = [float(index) for index in range(max(rings_per_fixture.values()))]
+    all_families = accuracy_family_members(representative_radii, harmonics_enabled=True, geometry_free=True)
+    harmonic_tests_per_arm = len(all_families["harmonic"])
+    intensity_tests_per_arm = len(all_families["intensity"])
+    geometry_tests_per_arm = len(all_families["geometry"])
+    family_members_by_fixture = {
+        fixture: {
+            family: list(members)
+            for family, members in accuracy_family_members(
+                [float(row["sma"]) for row in rows],
+                harmonics_enabled=True,
+                geometry_free=True,
+            ).items()
+        }
+        for fixture, rows in per_fixture.items()
+    }
     return {
         "reference_snr": REFERENCE_SNR,
         "ideal_sigma_fraction": IDEAL_SIGMA_FRACTION,
         "ensemble_realizations": ENSEMBLE_REALIZATIONS,
         "ensemble_family_alpha": ENSEMBLE_FAMILY_ALPHA,
-        # Arm-level statistic: the sum of squared standardized mean residuals
-        # over every component and ring is chi-squared with that many degrees
-        # of freedom under the no-bias hypothesis. One decisive test per arm,
-        # so multiplicity is handled by construction rather than by a screen
-        # that fires 10% of the time on an unbiased tool.
         "ensemble_family_unit": "one tool x fixture x harmonic-setting arm",
+        "ensemble_test": "two_sided_one_sample_t",
+        "ensemble_degrees_of_freedom": ENSEMBLE_REALIZATIONS - 1,
         "ensemble_harmonic_tests_per_arm": harmonic_tests_per_arm,
         "ensemble_intensity_tests_per_arm": intensity_tests_per_arm,
+        "ensemble_geometry_tests_per_arm": geometry_tests_per_arm,
+        "ensemble_family_builder": "benchmarks.timing.accuracy_thresholds.accuracy_family_members",
+        "ensemble_family_evaluator": "benchmarks.timing.accuracy_thresholds.evaluate_bias_family",
+        "geometry_bias_residual_function": "benchmarks.timing.accuracy_thresholds.geometry_bias_residuals",
+        "ensemble_family_applicability": {
+            "harmonic": "harmonics_enabled",
+            "intensity": "always",
+            "geometry": "geometry_free",
+        },
+        "ensemble_family_members_by_fixture": family_members_by_fixture,
         "ensemble_correction": "holm_bonferroni",
         # Holm's smallest critical level: the most significant of k tests is
         # compared against alpha/k. Quoted so the spec has something concrete
         # to state and the gate something concrete to guard.
         "ensemble_holm_smallest_alpha": round(ENSEMBLE_FAMILY_ALPHA / harmonic_tests_per_arm, 6),
-        "ensemble_holm_largest_z": round(float(norm.isf(ENSEMBLE_FAMILY_ALPHA / (2.0 * harmonic_tests_per_arm))), 4),
         "systematic_amplitude_error_pct_by_component": amplitude_bars,
         "systematic_ring_intensity_error_pct_by_ring": intensity_bars,
-        "geometry_bars": dict(GEOMETRY_BARS),
+        "systematic_aperture_displacement_error_px": MAX_APERTURE_DISPLACEMENT_PX,
+        "descriptive_geometry_metrics": ["center_error_px", "eps_error", "pa_error_deg"],
         "target_interval_r_e": list(TARGET_INTERVAL_R_E),
         "outer_limit_min_sigma": OUTER_LIMIT_MIN_SIGMA,
         "outer_limit_significance": outer_limit_significance(),
@@ -266,8 +414,38 @@ def thresholds() -> Dict[str, object]:
     }
 
 
+def _validate_scored_radius(fixture: str, sma: float) -> Dict[str, object]:
+    spec = stage1_fixtures()[fixture]
+    r_e = float(spec["galaxy"]["R_e"])
+    low, high = (fraction * r_e for fraction in TARGET_INTERVAL_R_E)
+    if not (low <= float(sma) <= high):
+        raise ValueError(f"{fixture}: sma={sma:g} lies outside the target interval [{low:g}, {high:g}]")
+    return spec
+
+
+def amplitude_bar_on_aperture(
+    fixture: str,
+    x0: float,
+    y0: float,
+    sma: float,
+    eps: float,
+    pa: float,
+    component: str,
+) -> float:
+    """Systematic harmonic bar on the aperture a free fit returned."""
+    spec = _validate_scored_radius(fixture, sma)
+    sigma = float(spec["galaxy"]["I_e"]) / REFERENCE_SNR
+    n_samples = max(8, int(2.0 * math.pi * float(sma)))
+    amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
+    truth = analytic_truth_on_aperture(_fixture_meta(fixture), x0, y0, sma, eps, pa, ORDERS)
+    magnitude = abs(_component_from_truth(truth, component))
+    if not math.isfinite(magnitude) or magnitude <= 0.0:
+        raise ValueError(f"{fixture} sma={sma:g}: no finite truth for {component} on returned aperture")
+    return IDEAL_SIGMA_FRACTION * 100.0 * amplitude_sigma / magnitude
+
+
 def amplitude_bar_at(fixture: str, sma: float, component: str) -> float:
-    """The systematic bar for a component at an **arbitrary** radius.
+    """The systematic bar on the planted aperture at an arbitrary radius.
 
     Free-fit arms return radii the frozen table does not contain, and there was
     no rule for judging a ring at, say, 2.37 R_e. The bar is therefore computed
@@ -278,20 +456,34 @@ def amplitude_bar_at(fixture: str, sma: float, component: str) -> float:
     Raises rather than extrapolating outside the frozen target interval: a bar
     for a radius nobody agreed to score is not a bar.
     """
-    spec = stage1_fixtures()[fixture]
-    r_e = float(spec["galaxy"]["R_e"])
-    low, high = (f * r_e for f in TARGET_INTERVAL_R_E)
-    if not (low <= float(sma) <= high):
-        raise ValueError(f"{fixture}: sma={sma:g} lies outside the target interval [{low:g}, {high:g}]")
+    spec = _validate_scored_radius(fixture, sma)
+    return amplitude_bar_on_aperture(
+        fixture,
+        *spec["galaxy"]["center"],
+        sma,
+        spec["reference_eps"],
+        spec["reference_pa"],
+        component,
+    )
 
-    galaxy = spec["galaxy"]
-    sigma = float(galaxy["I_e"]) / REFERENCE_SNR
+
+def ring_intensity_bar_on_aperture(
+    fixture: str,
+    x0: float,
+    y0: float,
+    sma: float,
+    eps: float,
+    pa: float,
+) -> float:
+    """Ring-mean bar on the aperture a free fit returned."""
+    spec = _validate_scored_radius(fixture, sma)
+    sigma = float(spec["galaxy"]["I_e"]) / REFERENCE_SNR
     n_samples = max(8, int(2.0 * math.pi * float(sma)))
-    amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
-    magnitude = abs(_component_truth(fixture, float(sma)).get(component, float("nan")))
-    if not math.isfinite(magnitude) or magnitude <= 0.0:
-        raise ValueError(f"{fixture} sma={sma:g}: no finite truth for {component}")
-    return IDEAL_SIGMA_FRACTION * 100.0 * amplitude_sigma / magnitude
+    truth = analytic_truth_on_aperture(_fixture_meta(fixture), x0, y0, sma, eps, pa, ORDERS)
+    mean_intensity = float(next(iter(truth.values()))["mean_intensity"])
+    if not math.isfinite(mean_intensity) or mean_intensity <= 0.0:
+        raise ValueError(f"{fixture} sma={sma:g}: no finite ring mean on returned aperture")
+    return IDEAL_SIGMA_FRACTION * 100.0 * sigma / (math.sqrt(n_samples) * mean_intensity)
 
 
 def ring_intensity_bar_at(fixture: str, sma: float) -> float:
@@ -302,18 +494,14 @@ def ring_intensity_bar_at(fixture: str, sma: float) -> float:
     the azimuthal mean by ~0.1% on the outer rings, which is small but is a
     difference between the analytic model and a convenient stand-in for it.
     """
-    spec = stage1_fixtures()[fixture]
-    r_e = float(spec["galaxy"]["R_e"])
-    low, high = (f * r_e for f in TARGET_INTERVAL_R_E)
-    if not (low <= float(sma) <= high):
-        raise ValueError(f"{fixture}: sma={sma:g} lies outside the target interval [{low:g}, {high:g}]")
-    sigma = float(spec["galaxy"]["I_e"]) / REFERENCE_SNR
-    n_samples = max(8, int(2.0 * math.pi * float(sma)))
-    truth = integrated_harmonic_truth(_fixture_meta(fixture), float(sma), ORDERS)
-    mean_intensity = float(next(iter(truth.values()))["mean_intensity"])
-    if not math.isfinite(mean_intensity) or mean_intensity <= 0.0:
-        raise ValueError(f"{fixture} sma={sma:g}: no finite ring mean")
-    return IDEAL_SIGMA_FRACTION * 100.0 * sigma / (math.sqrt(n_samples) * mean_intensity)
+    spec = _validate_scored_radius(fixture, sma)
+    return ring_intensity_bar_on_aperture(
+        fixture,
+        *spec["galaxy"]["center"],
+        sma,
+        spec["reference_eps"],
+        spec["reference_pa"],
+    )
 
 
 #: Metric-specific accuracy outcomes. An earlier contract used one
@@ -325,7 +513,21 @@ def ring_intensity_bar_at(fixture: str, sma: float) -> float:
 ACCURACY_METRICS = ("harmonic_accuracy_status", "intensity_accuracy_status", "geometry_accuracy_status")
 
 
-def headline_eligible(outcome: Dict[str, object]) -> bool:
+def metric_applicability(*, harmonics_enabled: bool, geometry_free: bool) -> Dict[str, bool]:
+    """Return which accuracy metrics must be evaluated for this arm."""
+    return {
+        "harmonic_accuracy_status": bool(harmonics_enabled),
+        "intensity_accuracy_status": True,
+        "geometry_accuracy_status": bool(geometry_free),
+    }
+
+
+def headline_eligible(
+    outcome: Dict[str, object],
+    *,
+    harmonics_enabled: bool,
+    geometry_free: bool,
+) -> bool:
     """The single executable eligibility rule.
 
     The contract used to freeze an eligibility *string*, which the runner would
@@ -339,10 +541,14 @@ def headline_eligible(outcome: Dict[str, object]) -> bool:
         return False
     if outcome.get("contamination_status") != "clean":
         return False
-    for metric in ACCURACY_METRICS:
+    for metric, applicable in metric_applicability(
+        harmonics_enabled=harmonics_enabled, geometry_free=geometry_free
+    ).items():
         status = outcome.get(metric)
-        if status not in ("pass", "not_applicable"):
-            # Includes None: an unevaluated applicable metric is not a pass.
+        expected = "pass" if applicable else "not_applicable"
+        if status != expected:
+            # An arm cannot assign itself out of a required comparison, and a
+            # non-applicable metric cannot masquerade as additional evidence.
             return False
     return True
 
@@ -363,7 +569,13 @@ def outer_limit_significance() -> Dict[str, float]:
         n_samples = max(8, int(2.0 * math.pi * sma))
         amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
         weakest = min(abs(v) for v in _component_truth(fixture, sma).values())
-        out[fixture] = round(weakest / amplitude_sigma, 3)
+        significance = weakest / amplitude_sigma
+        if not math.isfinite(significance) or significance < OUTER_LIMIT_MIN_SIGMA:
+            raise ValueError(
+                f"{fixture}: weakest outer component is {significance:.3g} sigma, "
+                f"below the frozen {OUTER_LIMIT_MIN_SIGMA:g}-sigma requirement"
+            )
+        out[fixture] = round(significance, 3)
     return out
 
 
@@ -385,17 +597,31 @@ def stage_1_contract() -> Dict[str, object]:
             name: {
                 "n": spec["galaxy"]["n"],
                 "R_e": spec["galaxy"]["R_e"],
+                "I_e": spec["galaxy"]["I_e"],
                 "shape": list(spec["galaxy"]["shape"]),
+                "center": list(spec["galaxy"]["center"]),
                 "eps": spec["reference_eps"],
+                "pa": spec["reference_pa"],
+                "harmonics": [
+                    {"order": order, "kind": kind, "amplitude": amplitude}
+                    for (order, kind), amplitude in sorted(spec["reference_harmonics"].items())
+                ],
                 "radii": [float(r) for r in spec["radii"]],
                 "scope": spec["scope"],
+                "scientific_identity": spec["scientific_identity"],
+                "independent_scientific_fixture": spec["independent_scientific_fixture"],
             }
             for name, spec in sorted(stage1_fixtures().items())
         },
         "components": list(_COMPONENTS),
         "reduction_order": ["component", "radius", "seed", "session"],
+        "aperture_truth_function": "benchmarks.utils.sersic_model.analytic_truth_on_aperture",
+        "amplitude_bar_function": "benchmarks.timing.accuracy_thresholds.amplitude_bar_on_aperture",
+        "intensity_bar_function": "benchmarks.timing.accuracy_thresholds.ring_intensity_bar_on_aperture",
+        "aperture_displacement_function": "benchmarks.utils.sersic_model.aperture_displacement_error_px",
         # The rule is a function, not a string the runner must reimplement.
         "eligibility_function": "benchmarks.timing.accuracy_thresholds.headline_eligible",
+        "metric_applicability_function": "benchmarks.timing.accuracy_thresholds.metric_applicability",
         "accuracy_metrics": list(ACCURACY_METRICS),
         "outcome_fields": [
             "execution_status",
@@ -430,10 +656,16 @@ def main() -> None:
     for fixture, bars in contract["systematic_ring_intensity_error_pct_by_ring"].items():
         cells = ", ".join(f"{sma:g}:{v:.3f}%" for sma, v in bars.items())
         print(f"   {fixture:20s} {cells}")
-    print(f"\ngeometry: {contract['geometry_bars']}")
     print(
-        f"ensemble bias: chi-squared over {contract['ensemble_tests_per_arm']} tests, "
-        f"critical {contract['ensemble_chi2_critical']} at alpha={contract['ensemble_family_alpha']}"
+        "\ngeometry: maximum aperture-boundary displacement "
+        f"{contract['systematic_aperture_displacement_error_px']:.1f} px"
+    )
+    print(
+        "ensemble bias: two-sided one-sample t tests with Holm-Bonferroni at "
+        f"alpha={contract['ensemble_family_alpha']}; family sizes "
+        f"harmonic={contract['ensemble_harmonic_tests_per_arm']}, "
+        f"intensity={contract['ensemble_intensity_tests_per_arm']}, "
+        f"geometry={contract['ensemble_geometry_tests_per_arm']}"
     )
     print(f"fingerprint: {contract['fingerprint'][:16]}")
 

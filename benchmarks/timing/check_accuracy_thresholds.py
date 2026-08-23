@@ -115,11 +115,10 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
             f"harmonic tests in one arm: {frozen['ensemble_harmonic_tests_per_arm']}",
         ),
         (
-            "geometry_bars",
-            "geometry bars:",
-            f"geometry bars: `center_error_px ≤ {frozen['geometry_bars']['center_error_px']}`, "
-            f"`eps_error ≤ {frozen['geometry_bars']['eps_error']}`, "
-            f"`pa_error_deg ≤ {frozen['geometry_bars']['pa_error_deg']}`",
+            "geometry_displacement",
+            "geometry gate:",
+            "geometry gate: maximum aperture-boundary displacement "
+            f"≤ {frozen['systematic_aperture_displacement_error_px']} px",
         ),
         (
             "target_interval",
@@ -148,24 +147,43 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
 
 def check_prose(frozen: Dict[str, object]) -> List[str]:
     if not SPEC.exists():
-        print("note: spec not present; the prose gate has nothing to read")
-        return []
+        return [f"specification is missing: {SPEC}"]
     squashed = re.sub(r"\s+", " ", SPEC.read_text()).lower()
     failures, fired = [], []
     for name, stem, expected in prose_claims(frozen):
         if re.sub(r"\s+", " ", stem).lower() not in squashed:
+            failures.append(f"{name}: guarded claim is missing from the specification")
             continue
         fired.append(name)
         if re.sub(r"\s+", " ", expected).lower() not in squashed:
             failures.append(
                 f"{name}: the spec discusses this but does not state it as frozen.\n       expected: {expected!r}"
             )
-    dormant = [n for n, _, _ in prose_claims(frozen) if n not in fired]
-    if dormant:
-        print(f"     note: {len(dormant)} prose claim(s) stated nowhere: {', '.join(dormant)}")
-    else:
+    if len(fired) == len(prose_claims(frozen)):
         print(f"OK   all {len(fired)} quoted contract value(s) match the frozen contract")
     return failures
+
+
+def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]:
+    """Move only the frozen field or fields quoted by one prose claim."""
+    moved = copy.deepcopy(frozen)
+    if name == "holm_alpha":
+        moved["ensemble_holm_smallest_alpha"] = 0.123456
+    elif name == "harmonic_tests":
+        moved["ensemble_harmonic_tests_per_arm"] = 999
+    elif name == "geometry_displacement":
+        moved["systematic_aperture_displacement_error_px"] = 99.0
+    elif name == "target_interval":
+        moved["target_interval_r_e"] = [9.1, 9.2]
+    elif name == "coverage":
+        moved["min_coverage_fraction"] = 0.11
+    elif name == "seeds":
+        moved["seed_blocks"] = {key: value + 7 for key, value in moved["seed_blocks"].items()}
+    elif name == "load_ceiling":
+        moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
+    else:
+        raise KeyError(f"no prose mutation registered for {name!r}")
+    return moved
 
 
 def _prose_self_test(frozen: Dict[str, object]) -> bool:
@@ -176,14 +194,7 @@ def _prose_self_test(frozen: Dict[str, object]) -> bool:
     live = [n for n, stem, _ in prose_claims(frozen) if re.sub(r"\s+", " ", stem).lower() in squashed]
     missed = []
     for name in live:
-        moved = copy.deepcopy(frozen)
-        moved["ensemble_holm_smallest_alpha"] = 0.123456
-        moved["ensemble_harmonic_tests_per_arm"] = 999
-        moved["geometry_bars"] = {k: v * 3.0 + 1.0 for k, v in moved["geometry_bars"].items()}
-        moved["target_interval_r_e"] = [9.1, 9.2]
-        moved["min_coverage_fraction"] = 0.11
-        moved["seed_blocks"] = {k: v + 7 for k, v in moved["seed_blocks"].items()}
-        moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
+        moved = _move_prose_claim(frozen, name)
         if not any(f.startswith(f"{name}:") for f in check_prose(moved)):
             missed.append(name)
     print(f"self-test: {len(live) - len(missed)}/{len(live)} quoted values trip when the contract moves")

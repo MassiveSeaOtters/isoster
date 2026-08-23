@@ -1,15 +1,15 @@
 # Design: three-way benchmark comparison (isoster / photutils / AutoProf)
 
-Date: 2026-08-22 (revised through five review rounds)
+Date: 2026-08-22 (revised through the 2026-08-23 Stage 1 implementation review)
 Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
 Status (2026-08-23): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
-were corrected against the archives. **Part B specified but not implemented**;
-its accuracy contract is being redesigned after review (see B2–B4) and must be
-frozen before the pilot produces any measurement.
+were corrected against the archives. **Part B Stage 1 is implemented, frozen
+and gated; no Stage 2 timing has been run.** The frozen contract and executable
+helpers, not B1–B5's historical discussion, govern that calibration.
 
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:
@@ -1309,6 +1309,19 @@ archive must say so in those words. Harmonics on and off is a grid axis.
 study, so the sub-steps of Part B are **Stages 1–4**. An earlier draft called
 them "Phase 1–4", which collided confusingly with Part A/B.)*
 
+**Implementation-review amendment (2026-08-23).** The first frozen Stage 1
+implementation still parameterized a returned ellipse in eccentric anomaly
+while calling it polar angle, recorded only the name of Holm's correction
+without implementing its family decisions, evaluated free-fit tolerances on
+the planted aperture, and justified fixed ellipticity/PA bars as a one-pixel
+displacement although that displacement grows with radius. The implementation
+now integrates in physical polar angle, computes truth and bars on the returned
+aperture, freezes and executes the complete Student-t-plus-Holm procedure, and
+gates the returned boundary directly in pixels. It also derives applicability
+from arm settings, freezes the full rendering inputs, and marks the wide-canvas
+case as a workload duplicate. These changes were committed before any Stage 2
+timing existed.
+
 Everything Stage 1 must fix, fixed. Nothing here may be revised by looking at a
 timing result; revision requires a committed protocol amendment saying what was
 learned and why.
@@ -1321,14 +1334,17 @@ the raw components `a3,b3,a4,b4`, which the Schema-1 reference reserves for
 |---|---|---|
 | `raw_amplitude_error_pct` | `s3_raw_major`, `c3_raw_major`, `s4_raw_major`, `c4_raw_major` | \|measured/truth − 1\| × 100 |
 | `ring_intensity_error_pct` | ring mean | \|measured/analytic − 1\| × 100 |
-| `center_error_px` | centre only | \|measured − true centre\|, pixels |
-| `eps_error` | ellipticity | \|measured − true\| |
-| `pa_error_deg` | position angle | \|measured − true\| mod 180° |
+| `aperture_displacement_error_px` | complete returned ellipse | maximum boundary displacement from the true aperture, pixels |
+| `center_error_px` | centre, descriptive | \|measured − true centre\|, pixels |
+| `eps_error` | ellipticity, descriptive | \|measured − true\| |
+| `pa_error_deg` | position angle, descriptive | \|measured − true\| mod 180° |
 
-The last three are free-fit arms only. Centre alone is insufficient — a fit can
-have the right centre with wrong ellipticity or PA and so sample quite
-different apertures — which is why `eps_error` and `pa_error_deg` were added
-and the centre metric renamed from `geometry_error_px` to `center_error_px`.
+The geometry quantities are free-fit arms only. Centre, ellipticity and PA are
+retained because they diagnose *how* an aperture moved, but their separate
+fixed tolerances are not a scale-independent accuracy test: the same
+ellipticity or PA error moves a large ring farther than a small one. The
+decisive geometry metric therefore evaluates the whole returned boundary in
+pixels.
 
 **Reduction order, fixed:** over **component** (max of the four), then
 **radius** (per-ring, not pooled — the bars are per-ring), then **seed** (see
@@ -1367,16 +1383,26 @@ Whether existing tools clear these bars is a **result**, reported separately in
 the A3 archive, and never an input to the bar.
 
 *Noisy fixtures are judged on ensemble bias, per arm, by Holm–Bonferroni.* A
-family is **one arm** — one tool, one fixture, one harmonic setting — so the
-harmonic tests in one arm: 20 (5 rings × 4 components), with a separate family
-of 5 for the ring means and one for geometry. An earlier draft pooled all six
-fixtures into 120 and called that "tests per arm", which is six arms' worth,
-and misreported the resulting false-alarm rate as ~10% when it is **27.7%**
-(10% corresponds to 40 tests).
+family is **one arm** — one tool, one fixture, one harmonic setting — and the
+partition is built by `accuracy_family_members()`, which the runner calls:
 
-The mean over R = 25 realizations has standard error σ/√R, so each test is a
-two-sided one-sample test on the standardized mean residual. Holm's smallest
-critical level is 0.0005, i.e. α = 0.01 divided by the 20 tests in the family.
+- harmonic tests in one arm: 20 (5 rings × 4 signed components), present only
+  when harmonics are enabled;
+- intensity: a separate family of 5 signed ring-mean residuals, present in
+  every arm;
+- geometry: a separate family of 20 signed residuals (x centre, y centre,
+  ellipticity and axis-periodic PA × 5 rings), present only for free geometry.
+
+An earlier draft pooled all six fixtures into 120 and called that "tests per
+arm", which is six arms' worth, and misreported the resulting false-alarm rate
+as ~10% when it is **27.7%** (10% corresponds to 40 tests).
+
+Each member is a two-sided one-sample Student-t test over R = 25 realizations,
+with 24 degrees of freedom. The variance is measured from those realizations;
+it is not treated as a known population variance. `evaluate_bias_family()`
+computes every p-value and applies the complete ordered Holm step-down rule.
+Holm's smallest critical level is 0.0005, i.e. α = 0.01 divided by the 20 tests
+in the largest family. Missing, non-finite or empty inputs fail closed.
 
 **Why Holm and not a pooled χ².** A sum of squared standardized residuals is
 χ²-distributed only if the residual vector is independent standard normal, or
@@ -1387,17 +1413,14 @@ realizations a 20 × 20 covariance cannot be estimated, let alone inverted.
 Holm controls the family-wise error rate under *arbitrary* dependence, which is
 the only assumption actually available here.
 
-Geometry bars: `center_error_px ≤ 0.5`, `eps_error ≤ 0.01`,
-`pa_error_deg ≤ 1.0`.
+Geometry gate: maximum aperture-boundary displacement ≤ 1.0 px.
 
-These are declared limits on an aperture's displacement, not derived ones, and
-the previous justification for the centre bar — "half a pixel cannot change
-which pixels a ring samples" — was simply false: with interpolation every
-sub-pixel shift changes the sampled values, and near a nearest-pixel boundary
-an arbitrarily small shift changes which pixel is read. The honest statement is
-that each bar keeps the aperture's displacement at the outer radius below
-roughly one pixel, and they are frozen in advance as a scope decision rather
-than derived from anything.
+The two boundaries are evaluated along the same physical sky directions and
+the maximum separation is taken. This makes the gate scale with radius and is
+automatically invariant under PA → PA + π. The one-pixel value is a declared
+scope decision, not a claim that sub-pixel changes leave interpolated samples
+unchanged. Centre, ellipticity and PA errors remain archived as descriptive
+diagnostics, not three additional gates.
 
 **Rejected alternative, recorded.** Gating a single realization's worst error at
 a statistical 1σ gives an unbiased ring at σ = 9.8% an 8.1% chance of passing
@@ -1410,21 +1433,21 @@ harmonics on and off — a full factorial. All six are **defined executably** in
 earlier draft named four of them in prose only, so no accuracy bar could be
 computed for them and Stage 2 could not have checked most of its arms.
 
-| fixture | n | R_e | shape | radii | scope |
-|---|---|---|---|---|---|
-| `sersic_n2_compact` | 2 | 25 | 241² | 12 / 18 / 25 / 35 / 45 | both |
-| `sersic_n4_extended` | 4 | 40 | 321² | 18 / 28 / 40 / 55 / 70 | both |
-| `size_ladder_481` | 2 | 50 | 481² | 25 / 37.5 / 50 / 70 / 90 | both |
-| `size_ladder_961` | 2 | 100 | 961² | 50 / 75 / 100 / 140 / 180 | both |
-| `size_ladder_1921` | 2 | 200 | 1921² | 100 / 150 / 200 / 280 / 360 | both |
-| `wide_canvas_961` | 2 | 25 | 961² | 12 / 18 / 25 / 35 / 45 | end-to-end only |
+| fixture | n | R_e | shape | radii | scope | scientific role |
+|---|---|---|---|---|---|---|
+| `sersic_n2_compact` | 2 | 25 | 241² | 12 / 18 / 25 / 35 / 45 | both | independent numerical fixture |
+| `sersic_n4_extended` | 4 | 40 | 321² | 18 / 28 / 40 / 55 / 70 | both | independent numerical fixture |
+| `size_ladder_481` | 2 | 50 | 481² | 25 / 37.5 / 50 / 70 / 90 | both | independent numerical fixture |
+| `size_ladder_961` | 2 | 100 | 961² | 50 / 75 / 100 / 140 / 180 | both | independent numerical fixture |
+| `size_ladder_1921` | 2 | 200 | 1921² | 100 / 150 / 200 / 280 / 360 | both | independent numerical fixture |
+| `wide_canvas_961` | 2 | 25 | 961² | 12 / 18 / 25 / 35 / 45 | end-to-end only | workload duplicate of `sersic_n2_compact` |
 
 The ladder scales `R_e` and the radii with the canvas, so ring count and
 samples-per-ring grow together and the extraction workload genuinely changes.
 `wide_canvas_961` holds the galaxy fixed and grows only the image, which
 changes whole-image overhead but barely touches fixed-ring extraction — so it
 is confined to the end-to-end scope, where overhead is legitimately part of the
-task.
+task. It is not counted as an independent scientific accuracy fixture.
 
 Seed blocks: calibration 100000, campaign 60260822 — disjoint from all four
 Part A blocks.
@@ -1462,15 +1485,18 @@ mutual overlap while covering little of the science.
 
 *Truth on a free-fit aperture* is defined operationally: for each returned
 aperture `(x0, y0, sma, eps, pa)`, the analytic harmonic truth is integrated
-**on that ellipse**, by the same routine Part A uses on the planted reference
-ellipse (`integrated_harmonic_truth`), evaluated with the tool's own geometry
-rather than the planted geometry. Where a tool's geometry differs from the
-planted one, that difference shows up in `eps_error`/`pa_error_deg`, not
-silently in the amplitude comparison.
+**on that ellipse** by `analytic_truth_on_aperture()`, uniformly in physical
+polar angle from its major axis — the same basis in which the raw comparison
+components are defined, not eccentric anomaly. The harmonic and intensity
+bars are recomputed from this same returned-aperture truth. The planted
+aperture table is only a printed sample of those functions. Where a tool's
+geometry differs from the planted one, the difference is also reported through
+the displacement and descriptive geometry metrics; it is not silently folded
+into a truth or tolerance defined on another ellipse.
 
-**5. Outcome fields — five, not one status.** An earlier draft required
+**5. Outcome fields — seven, not one status.** An earlier draft required
 exactly one status per timing, which re-collapses precisely the separation B0
-demands: a run can be both incomplete and inaccurate. Five independent fields
+demands: a run can be both incomplete and inaccurate. Seven independent fields
 are archived, and eligibility is *derived* rather than assigned:
 
 | field | values |
@@ -1483,8 +1509,15 @@ are archived, and eligibility is *derived* rather than assigned:
 | `contamination_status` | `clean` / `contaminated` |
 | `headline_eligible` | derived by `accuracy_thresholds.headline_eligible()`, which the runner **calls** rather than reimplementing |
 
-Every timing is archived under all five regardless of value. Only
+Every timing is archived under all seven regardless of value. Only
 `headline_eligible` affects summaries; nothing affects retention.
+
+`headline_eligible()` receives the arm's `harmonics_enabled` and
+`geometry_free` values and derives applicability itself. Harmonic accuracy may
+be `not_applicable` only when harmonics are disabled; geometry may be
+`not_applicable` only for a fixed aperture; intensity is always required. A
+caller cannot opt out of an applicable comparison by writing
+`not_applicable` into its own result.
 
 **6. Contamination — measured, and the first bound was wrong.** The rule keys
 on external state, never on the timings.

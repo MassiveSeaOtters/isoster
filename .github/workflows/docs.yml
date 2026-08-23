@@ -84,7 +84,12 @@ jobs:
         # transcription that drifts still reads as derived, so it is gated on
         # the same terms as the archived measurements -- before Part B has
         # produced a single timing.
-        run: uv run python benchmarks/timing/check_accuracy_thresholds.py
+        run: |
+          # Exercise the generator itself as well as comparing its result. A
+          # stale human-readable branch once crashed while the JSON checker
+          # remained green.
+          uv run python benchmarks/timing/accuracy_thresholds.py --json > /dev/null
+          uv run python benchmarks/timing/check_accuracy_thresholds.py
 
       - name: Prove the archive gates can still fail
         # A gate that has gone quiet is worse than one that fails. Both
