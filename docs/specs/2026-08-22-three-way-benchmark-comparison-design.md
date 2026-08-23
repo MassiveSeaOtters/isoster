@@ -1334,67 +1334,78 @@ and the centre metric renamed from `geometry_error_px` to `center_error_px`.
 **radius** (per-ring, not pooled — the bars are per-ring), then **seed** (see
 §2), then **session** (median, with the full spread archived).
 
-**2. Thresholds — derived by `benchmarks/timing/accuracy_thresholds.py`, not
-by prose.** That module is executable and its numbers are guarded by
-`check_accuracy_thresholds.py`; this section quotes it and must not drift from
-it. Two regimes, and conflating them was a defect caught in review:
+**2. Thresholds — derived, per component, by
+`benchmarks/timing/accuracy_thresholds.py`.** The whole contract is committed
+as `frozen_stage1_contract.json` and gated field by field by
+`check_accuracy_thresholds.py`; this prose describes it and is not the source
+of truth. Two regimes:
 
 *Noiseless fixtures gate systematic accuracy.* With no noise there is no
 sampling variance, so a departure from analytic truth is the tool's own
-numerics. The bar for each ring is **that ring's own statistical 1σ scale at
-S/N = 100**: at that depth noise alone moves the measurement by this much, so a
-bias beneath it is undetectable in data. Tool-independent, varying with radius
-because the physics does, applied identically to all three:
+numerics. The bar for each **component** on each ring is that component's own
+ideal 1σ at S/N = 100, obtained from the exact raw amplitude by dense Fourier
+integration (`integrated_harmonic_truth`) — not from a planted fraction times
+the ring intensity, which an earlier draft used. Raw harmonic truth depends on
+the radial gradient, Sérsic curvature, mode products and each component's own
+planted amplitude, so one bar for all four was simultaneously too strict for
+the large modes and too loose for the small ones, and since eligibility takes
+the worst component it penalised the smallest systematically. For
+`sersic_n2_compact`, s3/c3/s4/c4:
 
-| fixture | per-ring amplitude bar | per-ring intensity bar |
-|---|---|---|
-| `sersic_n2_compact` | 1.76 / 2.54 / 3.76 / 6.24 / 9.84 % | 0.037 / 0.054 / 0.080 / 0.132 / 0.209 % |
-| `sersic_n4_extended` | 1.11 / 1.85 / 2.98 / 4.79 / 7.12 % | 0.024 / 0.039 / 0.063 / 0.102 / 0.151 % |
+| sma | s3 | c3 | s4 | c4 |
+|---|---|---|---|---|
+| 12 | 2.771% | 2.078% | 4.156% | 1.385% |
+| 45 | 7.995% | 5.996% | 11.991% | 3.997% |
 
-plus `center_error_px ≤ 0.5`, `eps_error ≤ 0.01`, `pa_error_deg ≤ 1.0`.
+**The justification is declared, not borrowed from any tool.** The bar is
+`IDEAL_SIGMA_FRACTION = 1.0` times the uncertainty of an *ideal* estimator at
+the reference depth — a systematic at or below the noise a user faces cannot be
+detected in their data, whoever wrote the code. An earlier draft additionally
+argued that a tighter bar should be rejected "because no current implementation
+meets it". That is exactly the reasoning B0.4 forbids and it has been removed.
+Whether existing tools clear these bars is a **result**, reported separately in
+the A3 archive, and never an input to the bar.
 
-*Noisy fixtures are judged on ensemble bias, never on one realization.* The
-mean over R = 25 realizations has standard error σ/√R, so the criterion is
-`|mean residual| ≤ 3 × σ/√R` per component and ring — a bound an unbiased tool
-passes and a biased one fails.
+*Noisy fixtures are judged on ensemble bias, at the arm level.* The mean over
+R = 25 realizations has standard error σ/√R. A per-test 3σ screen across the
+120 component–ring tests would fail an unbiased tool about 10% of the time by
+chance alone, so the decisive statistic is **one χ² per arm**: the sum of
+squared standardized mean residuals over all tests, which is χ²(120) under the
+no-bias hypothesis, compared against its 99th percentile (158.95). Multiplicity
+is handled by construction rather than by a screen that cries wolf.
 
-**Two rejected alternatives, recorded because both would have rejected
-everything.** Gating a single realization's worst error at 1% gives an unbiased
-ring at σ = 9.8% an 8.1% chance of passing, and a *perfect* tool a 1.7 × 10⁻²⁴ %
-chance of passing every ring and component at once: that gate tests noise, not
-accuracy. Setting the systematic bar at a tenth of the statistical scale gives
-bars no current implementation meets, measuring "better than the state of the
-art" rather than "good enough for the science".
+Geometry bars: `center_error_px ≤ 0.5`, `eps_error ≤ 0.01`,
+`pa_error_deg ≤ 1.0`.
 
-**Sanity check, reported and not used to set the bars.** Part A's archived
-noiseless errors clear the amplitude bars in 24 of 30 ring–tool combinations.
-The six failures are all innermost rings, where the bar is tightest and
-pixelation worst, and all three tools fail the innermost `n=2` ring together —
-a bar that discriminates without rejecting everyone.
-
-**Note on depth.** S/N = 100 at R_e is the fixtures' noise parameter and
-nothing more. These mocks have uncorrelated pixel noise and no PSF, so they are
-**not** "HSC-like"; an earlier draft claimed that and it is unsupported.
+**Rejected alternative, recorded.** Gating a single realization's worst error at
+a statistical 1σ gives an unbiased ring at σ = 9.8% an 8.1% chance of passing
+and a *perfect* tool a vanishing chance of passing every test at once. That
+gate measures noise, not accuracy.
 
 **3. Fixture grid and seeds.** Six galaxy configurations, each run with
-harmonics **on and off** — a full factorial, unlike an earlier draft that gave
-off-arms to only three of them and duplicated `sersic_n2_compact` as
-`size_ladder_241`:
+harmonics on and off — a full factorial. All six are **defined executably** in
+`benchmarks/timing/stage1_fixtures.py` with frozen fixed-aperture radii; an
+earlier draft named four of them in prose only, so no accuracy bar could be
+computed for them and Stage 2 could not have checked most of its arms.
 
-| # | fixture | n | R_e | shape | scope | why |
-|---|---|---|---|---|---|---|
-| 1 | `sersic_n2_compact` | 2 | 25 | 241² | both | Part A's, accuracy instrumented |
-| 2 | `sersic_n4_extended` | 4 | 40 | 321² | both | Part A's, steeper profile |
-| 3–5 | `size_ladder_{481,961,1921}` | 2 | 50 / 100 / 200 | 481² / 961² / 1921² | both | **galaxy and radial workload scale with the canvas**, so ring count and samples-per-ring grow together |
-| 6 | `wide_canvas_961` | 2 | 25 | 961² | **end-to-end only** | canvas-only growth, which changes whole-image overhead but barely touches fixed-ring extraction |
+| fixture | n | R_e | shape | radii | scope |
+|---|---|---|---|---|---|
+| `sersic_n2_compact` | 2 | 25 | 241² | 12 / 18 / 25 / 35 / 45 | both |
+| `sersic_n4_extended` | 4 | 40 | 321² | 18 / 28 / 40 / 55 / 70 | both |
+| `size_ladder_481` | 2 | 50 | 481² | 25 / 37.5 / 50 / 70 / 90 | both |
+| `size_ladder_961` | 2 | 100 | 961² | 50 / 75 / 100 / 140 / 180 | both |
+| `size_ladder_1921` | 2 | 200 | 1921² | 100 / 150 / 200 / 280 / 360 | both |
+| `wide_canvas_961` | 2 | 25 | 961² | 12 / 18 / 25 / 35 / 45 | end-to-end only |
 
-Twelve arms per tool per scope. The size ladder scales `R_e` and the radial
-range with the canvas on purpose: changing only the canvas measures image
-overhead, not extraction work, so that case is confined to the end-to-end scope
-where overhead is legitimately part of the task.
+The ladder scales `R_e` and the radii with the canvas, so ring count and
+samples-per-ring grow together and the extraction workload genuinely changes.
+`wide_canvas_961` holds the galaxy fixed and grows only the image, which
+changes whole-image overhead but barely touches fixed-ring extraction — so it
+is confined to the end-to-end scope, where overhead is legitimately part of the
+task.
 
-Seed block **100000** (calibration) and **60260822** (campaign), disjoint from
-all four Part A blocks.
+Seed blocks: calibration **100000**, campaign **60260822**, disjoint from all
+four Part A blocks.
 
 **4. Radial range, coverage and overlap.**
 

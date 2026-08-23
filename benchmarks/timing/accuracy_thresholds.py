@@ -2,34 +2,48 @@
 
 These numbers decide which timings enter a headline ratio, so they must not
 live only in prose where they can drift. Everything here is analytic --- no
-tool is run, nothing is fitted --- which is the point: a threshold derived from
-what a tool achieved is not a threshold.
+tool is run and nothing is fitted --- which is the point: a threshold derived
+from what a tool achieved is not a threshold.
 
-Two regimes, and conflating them was a real defect caught in review.
+Three defects in earlier versions are worth stating, because each would have
+produced a gate that looked principled and was not.
 
-**Systematic accuracy** is gated on the **noiseless** fixtures. With no noise
-there is no sampling variance, so a tool's departure from analytic truth is
-entirely its own numerics, and a fixed bar means what it appears to mean.
+**The statistical scale must be computed against the quantity actually
+measured.** These arms report *raw intensity* harmonics, whose truth is not
+``planted_fraction * intensity``: it depends on the radial gradient, the Sersic
+curvature, products between modes, and each component's own planted amplitude.
+An earlier version used the largest planted fraction times the ring intensity
+for all four components, giving one bar that was simultaneously too strict for
+the large modes and too loose for the small ones --- and since eligibility
+takes the worst component, systematically penalising the smallest. The bars are
+now **per component**, from :func:`integrated_harmonic_truth`, the same dense
+Fourier integration Part A measures against.
 
-**Noise** is handled by an *ensemble* criterion instead. A single noisy
-realization scatters around truth by construction, so requiring its worst ring
-to sit inside a statistical 1-sigma is close to requiring the impossible: at
-the outer compact ring, where sigma(A)/A = 11%, an unbiased measurement lands
-within +-1% only 7.2% of the time, and demanding it of every ring and component
-at once gives a perfect tool a 5.6e-13% chance of passing. That was the first
-version of this contract. What is testable is *bias*: the mean over R
-realizations has standard error sigma/sqrt(R), so a pre-registered bound on the
-standardized mean residual is a criterion an unbiased tool passes and a biased
-one fails.
+**Systematic and statistical accuracy are different regimes.** Gating a single
+noisy realization's worst error at a statistical 1-sigma is close to requiring
+the impossible: an unbiased ring at sigma = 9.8% lands inside +-1% only 8% of
+the time. Systematic accuracy is therefore gated on **noiseless** fixtures, and
+noise is judged by an ensemble-bias statistic instead.
 
-Run ``python benchmarks/timing/accuracy_thresholds.py`` to print the table;
-``check_accuracy_thresholds.py`` asserts the spec quotes what this computes.
+**The tolerance may not be justified by what current tools achieve.** An
+earlier version rejected a tighter bar on the grounds that "no current
+implementation meets it", which is exactly the reasoning the contract forbids.
+The bar is now stated for what it is: **a declared fraction of an ideal
+estimator's uncertainty**, with the fraction fixed in advance at 1.0 and
+defended on its own terms --- a systematic at or below the noise a user faces
+at the reference depth cannot be detected in their data, whoever wrote the
+tool. Whether existing tools clear it is a *result*, reported separately, never
+an input.
 """
 
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import math
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
@@ -37,54 +51,128 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scipy.stats import chi2  # noqa: E402
 
-from benchmarks.harmonic_scale.run_harmonic_scale import FIXTURES, PLANTED_HARMONICS  # noqa: E402
+from benchmarks.harmonic_scale.run_harmonic_scale import ORDERS, PLANTED_HARMONICS  # noqa: E402
+from benchmarks.timing.stage1_fixtures import stage1_fixtures  # noqa: E402
+from benchmarks.utils.sersic_model import (  # noqa: E402
+    compute_bn,
+    create_sersic_image_with_harmonics,
+    integrated_harmonic_truth,
+)
 
-#: Depth the statistical scale is quoted at. Not a claim about any survey ---
-#: these mocks have uncorrelated pixel noise and no PSF, so they are not
-#: "HSC-like"; S/N at R_e is simply the noise parameter the fixtures accept.
+#: Depth the statistical scale is quoted at. Not a survey claim: these mocks
+#: have uncorrelated pixel noise and no PSF, so they are not "HSC-like".
+#: S/N at R_e is simply the noise parameter the fixtures accept.
 REFERENCE_SNR = 100.0
+
+#: The declared fraction of the ideal estimator's uncertainty that a
+#: systematic may occupy. Fixed in advance, independent of every tool.
+IDEAL_SIGMA_FRACTION = 1.0
 
 #: Realizations the ensemble-bias criterion averages over.
 ENSEMBLE_REALIZATIONS = 25
 
-#: How many standard errors of the ensemble mean a tool may be biased by
-#: before it is called biased. Two-sided, chosen in advance, and loose enough
-#: that an unbiased tool passes ~99.7% of the time per component.
-BIAS_SIGMA_ALLOWANCE = 3.0
+#: Family-wise false-alarm rate for the arm-level bias test. A per-test 3-sigma
+#: screen across 40 component-ring tests fails an unbiased tool about 10% of the
+#: time by chance alone, so the decisive statistic is arm-level rather than
+#: per-test.
+ENSEMBLE_FAMILY_ALPHA = 0.01
+
+#: Geometry bars, in the units of the quantity. Half a pixel is the scale below
+#: which a centre difference cannot change which pixels a ring samples.
+GEOMETRY_BARS = {"center_error_px": 0.5, "eps_error": 0.01, "pa_error_deg": 1.0}
+
+#: Free-fit coverage target, as fractions of R_e, and the fraction of it an arm
+#: must reach to count as complete.
+TARGET_INTERVAL_R_E = (0.3, 3.0)
+MIN_COVERAGE_FRACTION = 0.60
+
+#: Contamination limits. The ceiling is derived from the hardware --- 10 cores,
+#: so 2.0 is 20% of capacity committed before the benchmark starts --- because
+#: the only load sample available was taken on a busy machine and cannot set
+#: the bar it was meant to validate.
+CONTAMINATION = {
+    "baseline_samples": 30,
+    "baseline_interval_s": 10,
+    "baseline_median_max": 2.0,
+    "in_session_excess_max": 2.0,
+    "thermal_signal": "pmset -g therm",
+    "max_campaign_retries": 3,
+}
+
+#: Seed blocks, disjoint from all four Part A blocks.
+SEED_BLOCKS = {"calibration": 100_000, "campaign": 60_260_822}
+
+_COMPONENTS = tuple(f"{prefix}{order}_raw_major" for order in ORDERS for prefix in ("s", "c"))
 
 
-#: Sersic b_n approximation used by the fixture renderer.
-def _b_n(n: float) -> float:
-    return 1.9992 * n - 0.3271
-
-
-def ring_statistics(fixture: str) -> List[Dict[str, float]]:
-    """Per-ring analytic noise scale, from sample count and profile alone."""
-    spec = FIXTURES[fixture]
+@lru_cache(maxsize=None)
+def _fixture_meta(fixture: str):
+    """Render once per fixture. The 1921 px ladder rung is not cheap."""
+    spec = stage1_fixtures()[fixture]
     galaxy = spec["galaxy"]
-    # sigma is defined by S/N at R_e: I(R_e) = I_e, so sigma = I_e / snr.
+    _, meta = create_sersic_image_with_harmonics(
+        n=galaxy["n"],
+        R_e=galaxy["R_e"],
+        I_e=galaxy["I_e"],
+        eps=spec["reference_eps"],
+        pa=0.0,
+        shape=galaxy["shape"],
+        center=galaxy["center"],
+        harmonics=PLANTED_HARMONICS,
+    )
+    return meta
+
+
+def _component_truth(fixture: str, sma: float) -> Dict[str, float]:
+    """Exact raw harmonic amplitudes on this ring, by dense integration.
+
+    ``integrated_harmonic_truth`` keys its result by *order*, with ``s_raw``
+    and ``c_raw`` inside; reading it as if it were keyed by component name
+    yields nothing and silently produced an infinite bar for every component.
+    """
+    truth = integrated_harmonic_truth(_fixture_meta(fixture), float(sma), ORDERS)
+    out = {}
+    for order in ORDERS:
+        entry = truth.get(order) or {}
+        out[f"s{order}_raw_major"] = float(entry.get("s_raw", float("nan")))
+        out[f"c{order}_raw_major"] = float(entry.get("c_raw", float("nan")))
+    return out
+
+
+def ring_statistics(fixture: str) -> List[Dict[str, object]]:
+    """Per-ring, per-component analytic noise scale.
+
+    Nothing here depends on a tool: the sample count follows from the ring's
+    circumference, sigma from the fixture's own S/N definition, and the truth
+    from dense Fourier integration of the analytic model.
+    """
+    spec = stage1_fixtures()[fixture]
+    galaxy = spec["galaxy"]
     sigma = float(galaxy["I_e"]) / REFERENCE_SNR
-    planted = max(abs(v) for v in PLANTED_HARMONICS.values())
+    b_n = compute_bn(float(galaxy["n"]))
 
     rows = []
     for sma in spec["radii"]:
-        # One sample per pixel of circumference, the sampling all three tools
-        # approximate on a ring of this radius.
         n_samples = max(8, int(2.0 * math.pi * float(sma)))
         intensity = float(galaxy["I_e"]) * math.exp(
-            -_b_n(float(galaxy["n"])) * ((float(sma) / float(galaxy["R_e"])) ** (1.0 / float(galaxy["n"])) - 1.0)
+            -b_n * ((float(sma) / float(galaxy["R_e"])) ** (1.0 / float(galaxy["n"])) - 1.0)
         )
-        # Least squares on evenly spaced angles: sigma(A) = sigma * sqrt(2/N).
         amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
+        truth = _component_truth(fixture, float(sma))
+        per_component = {}
+        for component in _COMPONENTS:
+            magnitude = abs(truth.get(component, float("nan")))
+            per_component[component] = (
+                float("inf") if not magnitude or magnitude != magnitude else 100.0 * amplitude_sigma / magnitude
+            )
         rows.append(
             {
                 "sma": float(sma),
                 "n_samples": n_samples,
                 "intensity": intensity,
-                # Relative to the planted amplitude at this ring.
-                "amplitude_sigma_pct": 100.0 * amplitude_sigma / (planted * intensity),
-                # Ring mean: sigma / sqrt(N), relative to the ring intensity.
+                "amplitude_sigma_pct": per_component,
                 "ring_mean_sigma_pct": 100.0 * sigma / (math.sqrt(n_samples) * intensity),
             }
         )
@@ -92,92 +180,110 @@ def ring_statistics(fixture: str) -> List[Dict[str, float]]:
 
 
 def thresholds() -> Dict[str, object]:
-    """The frozen bars, and the quantities they were derived from."""
-    per_fixture = {name: ring_statistics(name) for name in sorted(FIXTURES)}
-    amplitude = [row["amplitude_sigma_pct"] for rows in per_fixture.values() for row in rows]
-    ring_mean = [row["ring_mean_sigma_pct"] for rows in per_fixture.values() for row in rows]
+    """The frozen bars, per fixture, ring and component."""
+    per_fixture = {name: ring_statistics(name) for name in sorted(stage1_fixtures())}
+    amplitude_bars, intensity_bars = {}, {}
+    for fixture, rows in per_fixture.items():
+        amplitude_bars[fixture] = {
+            row["sma"]: {
+                component: round(IDEAL_SIGMA_FRACTION * value, 4)
+                for component, value in row["amplitude_sigma_pct"].items()
+            }
+            for row in rows
+        }
+        intensity_bars[fixture] = {
+            row["sma"]: round(IDEAL_SIGMA_FRACTION * row["ring_mean_sigma_pct"], 4) for row in rows
+        }
+
+    tests = sum(len(rows) * len(_COMPONENTS) for rows in per_fixture.values())
     return {
         "reference_snr": REFERENCE_SNR,
+        "ideal_sigma_fraction": IDEAL_SIGMA_FRACTION,
         "ensemble_realizations": ENSEMBLE_REALIZATIONS,
-        "bias_sigma_allowance": BIAS_SIGMA_ALLOWANCE,
-        "amplitude_sigma_pct_min": min(amplitude),
-        "amplitude_sigma_pct_max": max(amplitude),
-        "ring_mean_sigma_pct_max": max(ring_mean),
-        # Systematic bars, applied on NOISELESS fixtures where they are
-        # meaningful, and set **per ring** at that ring's own statistical
-        # 1-sigma scale at the reference depth.
-        #
-        # The criterion is "a systematic a user could not detect": at this
-        # depth, noise alone moves the measurement by this much, so a bias
-        # below it is invisible in the data. It is tool-independent, it varies
-        # with radius because the physics does, and it is applied identically
-        # to all three tools.
-        #
-        # A tenth of that was tried first and rejected: it is a bar no current
-        # implementation meets, so it would have measured "better than the
-        # state of the art" rather than "good enough for the science", and
-        # rejected every arm just as the single-realization gate did.
-        "systematic_amplitude_error_pct_by_ring": {
-            fixture: {row["sma"]: round(row["amplitude_sigma_pct"], 4) for row in rows}
-            for fixture, rows in per_fixture.items()
-        },
-        "systematic_ring_intensity_error_pct_by_ring": {
-            fixture: {row["sma"]: round(row["ring_mean_sigma_pct"], 4) for row in rows}
-            for fixture, rows in per_fixture.items()
-        },
-        "systematic_center_error_px": 0.5,
-        "systematic_eps_error": 0.01,
-        "systematic_pa_error_deg": 1.0,
-        # Noisy fixtures are judged on ensemble bias, never on one realization.
-        "ensemble_bias_max_standardized": BIAS_SIGMA_ALLOWANCE,
-        "per_fixture": per_fixture,
+        "ensemble_family_alpha": ENSEMBLE_FAMILY_ALPHA,
+        # Arm-level statistic: the sum of squared standardized mean residuals
+        # over every component and ring is chi-squared with that many degrees
+        # of freedom under the no-bias hypothesis. One decisive test per arm,
+        # so multiplicity is handled by construction rather than by a screen
+        # that fires 10% of the time on an unbiased tool.
+        "ensemble_tests_per_arm": tests,
+        "ensemble_chi2_critical": round(float(chi2.ppf(1.0 - ENSEMBLE_FAMILY_ALPHA, tests)), 3),
+        "systematic_amplitude_error_pct_by_component": amplitude_bars,
+        "systematic_ring_intensity_error_pct_by_ring": intensity_bars,
+        "geometry_bars": dict(GEOMETRY_BARS),
+        "target_interval_r_e": list(TARGET_INTERVAL_R_E),
+        "min_coverage_fraction": MIN_COVERAGE_FRACTION,
+        "contamination": dict(CONTAMINATION),
+        "seed_blocks": dict(SEED_BLOCKS),
     }
 
 
-def _probability_within(tolerance_pct: float, sigma_pct: float) -> float:
-    return math.erf(tolerance_pct / (sigma_pct * math.sqrt(2.0)))
+def stage_1_contract() -> Dict[str, object]:
+    """Every decisive Stage 1 field in one object, so all of it can be gated.
+
+    The previous checker guarded four transcribed table rows. Everything else
+    --- the realization count, the family-wise alpha, all three geometry bars,
+    the target interval, the coverage fraction and the contamination limits ---
+    could be edited in the spec without any check firing. A contract is not
+    partly frozen.
+    """
+    contract = {
+        "fixtures": {
+            name: {
+                "n": spec["galaxy"]["n"],
+                "R_e": spec["galaxy"]["R_e"],
+                "shape": list(spec["galaxy"]["shape"]),
+                "eps": spec["reference_eps"],
+                "radii": [float(r) for r in spec["radii"]],
+                "scope": spec["scope"],
+            }
+            for name, spec in sorted(stage1_fixtures().items())
+        },
+        "components": list(_COMPONENTS),
+        "reduction_order": ["component", "radius", "seed", "session"],
+        "eligibility_expression": (
+            "execution_status == 'ok' and coverage_status == 'complete' "
+            "and accuracy_status != 'fail' and contamination_status == 'clean'"
+        ),
+        "outcome_fields": [
+            "execution_status",
+            "coverage_status",
+            "accuracy_status",
+            "contamination_status",
+            "headline_eligible",
+        ],
+        **thresholds(),
+    }
+    contract["fingerprint"] = hashlib.sha256(json.dumps(contract, sort_keys=True, default=str).encode()).hexdigest()
+    return contract
 
 
 def main() -> None:
-    computed = thresholds()
-    print(f"Reference S/N at R_e: {computed['reference_snr']:.0f}\n")
-    for fixture, rows in computed["per_fixture"].items():
-        print(f"{fixture}")
-        for row in rows:
-            print(
-                f"   sma={row['sma']:5.1f}  N={row['n_samples']:4d}  I={row['intensity']:9.4g}  "
-                f"sigma(A)/A={row['amplitude_sigma_pct']:7.3f}%  sigma(ring mean)/I="
-                f"{row['ring_mean_sigma_pct']:6.3f}%"
-            )
-    print(
-        f"\nstatistical amplitude scale: {computed['amplitude_sigma_pct_min']:.2f}% "
-        f"to {computed['amplitude_sigma_pct_max']:.2f}%"
-    )
-    print(f"statistical ring-mean scale: up to {computed['ring_mean_sigma_pct_max']:.2f}%")
-    print("\nfrozen systematic bars, applied on NOISELESS fixtures, per ring:")
-    for fixture, bars in computed["systematic_amplitude_error_pct_by_ring"].items():
-        cells = ", ".join(f"{sma:g}:{value:.2f}%" for sma, value in bars.items())
-        print(f"   amplitude  {fixture:20s} {cells}")
-    for fixture, bars in computed["systematic_ring_intensity_error_pct_by_ring"].items():
-        cells = ", ".join(f"{sma:g}:{value:.3f}%" for sma, value in bars.items())
-        print(f"   intensity  {fixture:20s} {cells}")
-    print(f"   center error          <= {computed['systematic_center_error_px']} px")
-    print(f"   ellipticity error     <= {computed['systematic_eps_error']}")
-    print(f"   position angle error  <= {computed['systematic_pa_error_deg']} deg (mod 180)")
-    print(f"\nnoisy fixtures: |standardized ensemble bias| <= {computed['ensemble_bias_max_standardized']}")
-    print(f"   over {computed['ensemble_realizations']} realizations")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--json", action="store_true", help="Emit the whole contract as JSON.")
+    args = parser.parse_args()
+    contract = stage_1_contract()
+    if args.json:
+        print(json.dumps(contract, indent=2, default=str))
+        return
 
-    # Why a single-realization max-error gate was rejected, in numbers.
-    worst = computed["amplitude_sigma_pct_max"]
-    joint = 1.0
-    for rows in computed["per_fixture"].values():
-        for row in rows:
-            joint *= _probability_within(1.0, row["amplitude_sigma_pct"]) ** 4
+    print(f"Reference S/N at R_e: {contract['reference_snr']:.0f}")
+    print(f"Systematic bar: {contract['ideal_sigma_fraction']}x the ideal estimator's 1-sigma\n")
+    for fixture, bars in contract["systematic_amplitude_error_pct_by_component"].items():
+        print(f"{fixture}")
+        for sma, components in bars.items():
+            cells = "  ".join(f"{c.split('_')[0]}={v:.3f}%" for c, v in components.items())
+            print(f"   sma={sma:7.1f}  {cells}")
+    print("\nring-intensity bars:")
+    for fixture, bars in contract["systematic_ring_intensity_error_pct_by_ring"].items():
+        cells = ", ".join(f"{sma:g}:{v:.3f}%" for sma, v in bars.items())
+        print(f"   {fixture:20s} {cells}")
+    print(f"\ngeometry: {contract['geometry_bars']}")
     print(
-        f"\nrejected alternative -- gating one realization's worst error at 1%:\n"
-        f"   an unbiased ring at sigma={worst:.1f}% passes {100 * _probability_within(1.0, worst):.1f}% of the time;\n"
-        f"   a perfect tool passes every ring and component at once {100 * joint:.3g}% of the time."
+        f"ensemble bias: chi-squared over {contract['ensemble_tests_per_arm']} tests, "
+        f"critical {contract['ensemble_chi2_critical']} at alpha={contract['ensemble_family_alpha']}"
     )
+    print(f"fingerprint: {contract['fingerprint'][:16]}")
 
 
 if __name__ == "__main__":
