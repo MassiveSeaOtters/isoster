@@ -115,11 +115,18 @@
     "seed",
     "session"
   ],
-  "eligibility_expression": "execution_status == 'ok' and coverage_status == 'complete' and accuracy_status != 'fail' and contamination_status == 'clean'",
+  "eligibility_function": "benchmarks.timing.accuracy_thresholds.headline_eligible",
+  "accuracy_metrics": [
+    "harmonic_accuracy_status",
+    "intensity_accuracy_status",
+    "geometry_accuracy_status"
+  ],
   "outcome_fields": [
     "execution_status",
     "coverage_status",
-    "accuracy_status",
+    "harmonic_accuracy_status",
+    "intensity_accuracy_status",
+    "geometry_accuracy_status",
     "contamination_status",
     "headline_eligible"
   ],
@@ -127,8 +134,12 @@
   "ideal_sigma_fraction": 1.0,
   "ensemble_realizations": 25,
   "ensemble_family_alpha": 0.01,
-  "ensemble_tests_per_arm": 120,
-  "ensemble_chi2_critical": 158.95,
+  "ensemble_family_unit": "one tool x fixture x harmonic-setting arm",
+  "ensemble_harmonic_tests_per_arm": 20,
+  "ensemble_intensity_tests_per_arm": 5,
+  "ensemble_correction": "holm_bonferroni",
+  "ensemble_holm_smallest_alpha": 0.0005,
+  "ensemble_holm_largest_z": 3.4808,
   "systematic_amplitude_error_pct_by_component": {
     "sersic_n2_compact": {
       "12.0": {
@@ -328,15 +339,15 @@
       "12.0": 0.0374,
       "18.0": 0.0539,
       "25.0": 0.0798,
-      "35.0": 0.1324,
-      "45.0": 0.2088
+      "35.0": 0.1323,
+      "45.0": 0.2086
     },
     "sersic_n4_extended": {
       "18.0": 0.0235,
       "28.0": 0.0393,
       "40.0": 0.0631,
       "55.0": 0.1016,
-      "70.0": 0.151
+      "70.0": 0.1509
     },
     "size_ladder_1921": {
       "100.0": 0.0136,
@@ -350,21 +361,21 @@
       "37.5": 0.0399,
       "50.0": 0.0564,
       "70.0": 0.0935,
-      "90.0": 0.1475
+      "90.0": 0.1474
     },
     "size_ladder_961": {
       "50.0": 0.0193,
       "75.0": 0.0282,
       "100.0": 0.0399,
       "140.0": 0.0661,
-      "180.0": 0.1043
+      "180.0": 0.1042
     },
     "wide_canvas_961": {
       "12.0": 0.0374,
       "18.0": 0.0539,
       "25.0": 0.0798,
-      "35.0": 0.1324,
-      "45.0": 0.2088
+      "35.0": 0.1323,
+      "45.0": 0.2086
     }
   },
   "geometry_bars": {
@@ -376,6 +387,15 @@
     0.3,
     3.0
   ],
+  "outer_limit_min_sigma": 3.0,
+  "outer_limit_significance": {
+    "sersic_n2_compact": 3.318,
+    "sersic_n4_extended": 4.336,
+    "size_ladder_481": 4.693,
+    "size_ladder_961": 6.637,
+    "size_ladder_1921": 9.387,
+    "wide_canvas_961": 3.318
+  },
   "min_coverage_fraction": 0.6,
   "contamination": {
     "baseline_samples": 30,
@@ -389,5 +409,5 @@
     "calibration": 100000,
     "campaign": 60260822
   },
-  "fingerprint": "35d86decfa8a84bd8ea0a174ca9c12dc87076535ae43e9f34dc313bbdcece3af"
+  "fingerprint": "e1a84e04340f1e824d8f95d004350d8e249642820e23ab13c89b1f1fc003c202"
 }

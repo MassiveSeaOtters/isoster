@@ -51,7 +51,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scipy.stats import chi2  # noqa: E402
+from scipy.stats import norm  # noqa: E402
 
 from benchmarks.harmonic_scale.run_harmonic_scale import ORDERS, PLANTED_HARMONICS  # noqa: E402
 from benchmarks.timing.stage1_fixtures import stage1_fixtures  # noqa: E402
@@ -73,10 +73,23 @@ IDEAL_SIGMA_FRACTION = 1.0
 #: Realizations the ensemble-bias criterion averages over.
 ENSEMBLE_REALIZATIONS = 25
 
-#: Family-wise false-alarm rate for the arm-level bias test. A per-test 3-sigma
-#: screen across 40 component-ring tests fails an unbiased tool about 10% of the
-#: time by chance alone, so the decisive statistic is arm-level rather than
-#: per-test.
+#: Family-wise false-alarm rate for the arm-level bias test.
+#:
+#: A per-test 3-sigma screen is not enough on its own: across the 20 harmonic
+#: tests in one arm an unbiased tool trips at least one 5.3% of the time, and
+#: an earlier draft that pooled all six fixtures into 120 tests would have
+#: tripped 27.7% of the time --- a figure that draft misreported as "about
+#: 10%", which is the number for 40 tests.
+#:
+#: The decisive test is therefore **Holm-Bonferroni** over the family, not a
+#: pooled chi-squared. A sum of squared standardized residuals is chi-squared
+#: only if the residual vector is independent standard normal or has been
+#: whitened by its covariance, and these residuals are emphatically not
+#: independent: components and radii share the same noise image, the same
+#: interpolation, the same fitted geometry and overlapping ring samples. With
+#: 25 realizations a 20x20 covariance cannot be estimated, let alone inverted.
+#: Holm controls the family-wise error rate under *arbitrary* dependence, which
+#: is exactly the assumption available here.
 ENSEMBLE_FAMILY_ALPHA = 0.01
 
 #: Geometry bars, in the units of the quantity. Half a pixel is the scale below
@@ -141,6 +154,15 @@ def _component_truth(fixture: str, sma: float) -> Dict[str, float]:
     return out
 
 
+def _ring_mean(fixture: str, sma: float) -> float:
+    """Azimuthally integrated ring mean of the analytic model."""
+    truth = integrated_harmonic_truth(_fixture_meta(fixture), float(sma), ORDERS)
+    value = float(next(iter(truth.values()))["mean_intensity"])
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{fixture} sma={sma:g}: ring mean is {value!r}")
+    return value
+
+
 def ring_statistics(fixture: str) -> List[Dict[str, object]]:
     """Per-ring, per-component analytic noise scale.
 
@@ -164,16 +186,28 @@ def ring_statistics(fixture: str) -> List[Dict[str, object]]:
         per_component = {}
         for component in _COMPONENTS:
             magnitude = abs(truth.get(component, float("nan")))
-            per_component[component] = (
-                float("inf") if not magnitude or magnitude != magnitude else 100.0 * amplitude_sigma / magnitude
-            )
+            # Fail closed. An earlier version turned a missing, zero or NaN
+            # truth into an infinite bar, which is a tolerance every
+            # measurement passes -- and it fired for real when a truth lookup
+            # was reading the wrong keys, producing an authoritative-looking
+            # table of `inf`. A derivation that cannot compute its own bar must
+            # stop, not wave everything through.
+            if not math.isfinite(magnitude) or magnitude <= 0.0:
+                raise ValueError(
+                    f"{fixture} sma={sma:g}: truth for {component} is {truth.get(component)!r}; "
+                    "cannot derive a bar from it"
+                )
+            per_component[component] = 100.0 * amplitude_sigma / magnitude
         rows.append(
             {
                 "sma": float(sma),
                 "n_samples": n_samples,
                 "intensity": intensity,
                 "amplitude_sigma_pct": per_component,
-                "ring_mean_sigma_pct": 100.0 * sigma / (math.sqrt(n_samples) * intensity),
+                # From the integrated ring mean, not the undistorted Sersic
+                # value at sma: the planted distortion moves the azimuthal mean
+                # by ~0.1% on the outer rings.
+                "ring_mean_sigma_pct": 100.0 * sigma / (math.sqrt(n_samples) * _ring_mean(fixture, float(sma))),
             }
         )
     return rows
@@ -195,7 +229,12 @@ def thresholds() -> Dict[str, object]:
             row["sma"]: round(IDEAL_SIGMA_FRACTION * row["ring_mean_sigma_pct"], 4) for row in rows
         }
 
-    tests = sum(len(rows) * len(_COMPONENTS) for rows in per_fixture.values())
+    # A family is ONE arm: one tool, one fixture, one harmonic setting. An
+    # earlier draft summed every fixture together and called 120 "tests per
+    # arm", which is six arms' worth.
+    rings_per_fixture = {name: len(rows) for name, rows in per_fixture.items()}
+    harmonic_tests_per_arm = max(rings_per_fixture.values()) * len(_COMPONENTS)
+    intensity_tests_per_arm = max(rings_per_fixture.values())
     return {
         "reference_snr": REFERENCE_SNR,
         "ideal_sigma_fraction": IDEAL_SIGMA_FRACTION,
@@ -206,16 +245,130 @@ def thresholds() -> Dict[str, object]:
         # of freedom under the no-bias hypothesis. One decisive test per arm,
         # so multiplicity is handled by construction rather than by a screen
         # that fires 10% of the time on an unbiased tool.
-        "ensemble_tests_per_arm": tests,
-        "ensemble_chi2_critical": round(float(chi2.ppf(1.0 - ENSEMBLE_FAMILY_ALPHA, tests)), 3),
+        "ensemble_family_unit": "one tool x fixture x harmonic-setting arm",
+        "ensemble_harmonic_tests_per_arm": harmonic_tests_per_arm,
+        "ensemble_intensity_tests_per_arm": intensity_tests_per_arm,
+        "ensemble_correction": "holm_bonferroni",
+        # Holm's smallest critical level: the most significant of k tests is
+        # compared against alpha/k. Quoted so the spec has something concrete
+        # to state and the gate something concrete to guard.
+        "ensemble_holm_smallest_alpha": round(ENSEMBLE_FAMILY_ALPHA / harmonic_tests_per_arm, 6),
+        "ensemble_holm_largest_z": round(float(norm.isf(ENSEMBLE_FAMILY_ALPHA / (2.0 * harmonic_tests_per_arm))), 4),
         "systematic_amplitude_error_pct_by_component": amplitude_bars,
         "systematic_ring_intensity_error_pct_by_ring": intensity_bars,
         "geometry_bars": dict(GEOMETRY_BARS),
         "target_interval_r_e": list(TARGET_INTERVAL_R_E),
+        "outer_limit_min_sigma": OUTER_LIMIT_MIN_SIGMA,
+        "outer_limit_significance": outer_limit_significance(),
         "min_coverage_fraction": MIN_COVERAGE_FRACTION,
         "contamination": dict(CONTAMINATION),
         "seed_blocks": dict(SEED_BLOCKS),
     }
+
+
+def amplitude_bar_at(fixture: str, sma: float, component: str) -> float:
+    """The systematic bar for a component at an **arbitrary** radius.
+
+    Free-fit arms return radii the frozen table does not contain, and there was
+    no rule for judging a ring at, say, 2.37 R_e. The bar is therefore computed
+    from the same analytic expressions the table is built from, at whatever
+    radius is asked for --- the table is a printed sample of this function, not
+    a lookup the contract depends on.
+
+    Raises rather than extrapolating outside the frozen target interval: a bar
+    for a radius nobody agreed to score is not a bar.
+    """
+    spec = stage1_fixtures()[fixture]
+    r_e = float(spec["galaxy"]["R_e"])
+    low, high = (f * r_e for f in TARGET_INTERVAL_R_E)
+    if not (low <= float(sma) <= high):
+        raise ValueError(f"{fixture}: sma={sma:g} lies outside the target interval [{low:g}, {high:g}]")
+
+    galaxy = spec["galaxy"]
+    sigma = float(galaxy["I_e"]) / REFERENCE_SNR
+    n_samples = max(8, int(2.0 * math.pi * float(sma)))
+    amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
+    magnitude = abs(_component_truth(fixture, float(sma)).get(component, float("nan")))
+    if not math.isfinite(magnitude) or magnitude <= 0.0:
+        raise ValueError(f"{fixture} sma={sma:g}: no finite truth for {component}")
+    return IDEAL_SIGMA_FRACTION * 100.0 * amplitude_sigma / magnitude
+
+
+def ring_intensity_bar_at(fixture: str, sma: float) -> float:
+    """Ring-mean bar at an arbitrary radius, from the **integrated** ring mean.
+
+    The mean is taken from the same dense integration as the harmonics, not
+    from the undistorted Sersic value at ``sma``: the planted distortion moves
+    the azimuthal mean by ~0.1% on the outer rings, which is small but is a
+    difference between the analytic model and a convenient stand-in for it.
+    """
+    spec = stage1_fixtures()[fixture]
+    r_e = float(spec["galaxy"]["R_e"])
+    low, high = (f * r_e for f in TARGET_INTERVAL_R_E)
+    if not (low <= float(sma) <= high):
+        raise ValueError(f"{fixture}: sma={sma:g} lies outside the target interval [{low:g}, {high:g}]")
+    sigma = float(spec["galaxy"]["I_e"]) / REFERENCE_SNR
+    n_samples = max(8, int(2.0 * math.pi * float(sma)))
+    truth = integrated_harmonic_truth(_fixture_meta(fixture), float(sma), ORDERS)
+    mean_intensity = float(next(iter(truth.values()))["mean_intensity"])
+    if not math.isfinite(mean_intensity) or mean_intensity <= 0.0:
+        raise ValueError(f"{fixture} sma={sma:g}: no finite ring mean")
+    return IDEAL_SIGMA_FRACTION * 100.0 * sigma / (math.sqrt(n_samples) * mean_intensity)
+
+
+#: Metric-specific accuracy outcomes. An earlier contract used one
+#: ``accuracy_status`` with a ``not_evaluated`` value for harmonics-off arms,
+#: and an eligibility rule of ``!= 'fail'`` --- so those arms passed without
+#: their *intensity* or *geometry* ever being judged, which they can and must
+#: be. Each metric now carries its own status and ``not_applicable`` means only
+#: that this metric does not apply to this arm.
+ACCURACY_METRICS = ("harmonic_accuracy_status", "intensity_accuracy_status", "geometry_accuracy_status")
+
+
+def headline_eligible(outcome: Dict[str, object]) -> bool:
+    """The single executable eligibility rule.
+
+    The contract used to freeze an eligibility *string*, which the runner would
+    then have had to reimplement --- two definitions of one rule, and no way to
+    tell when they diverged. The contract now stores this function's name and
+    the runner calls it.
+    """
+    if outcome.get("execution_status") != "ok":
+        return False
+    if outcome.get("coverage_status") != "complete":
+        return False
+    if outcome.get("contamination_status") != "clean":
+        return False
+    for metric in ACCURACY_METRICS:
+        status = outcome.get(metric)
+        if status not in ("pass", "not_applicable"):
+            # Includes None: an unevaluated applicable metric is not a pass.
+            return False
+    return True
+
+
+def outer_limit_significance() -> Dict[str, float]:
+    """Weakest planted raw component's significance at the outer target radius.
+
+    The upper end of the target interval has a rule --- the faintest component
+    must still be measurable there --- and a rule asserted about two fixtures is
+    not a rule. This evaluates it for every fixture, so adding one cannot
+    quietly move the outer limit past where its harmonics vanish.
+    """
+    out = {}
+    for fixture, spec in stage1_fixtures().items():
+        galaxy = spec["galaxy"]
+        sma = TARGET_INTERVAL_R_E[1] * float(galaxy["R_e"])
+        sigma = float(galaxy["I_e"]) / REFERENCE_SNR
+        n_samples = max(8, int(2.0 * math.pi * sma))
+        amplitude_sigma = sigma * math.sqrt(2.0 / n_samples)
+        weakest = min(abs(v) for v in _component_truth(fixture, sma).values())
+        out[fixture] = round(weakest / amplitude_sigma, 3)
+    return out
+
+
+#: Significance the weakest planted component must retain at the outer limit.
+OUTER_LIMIT_MIN_SIGMA = 3.0
 
 
 def stage_1_contract() -> Dict[str, object]:
@@ -241,14 +394,13 @@ def stage_1_contract() -> Dict[str, object]:
         },
         "components": list(_COMPONENTS),
         "reduction_order": ["component", "radius", "seed", "session"],
-        "eligibility_expression": (
-            "execution_status == 'ok' and coverage_status == 'complete' "
-            "and accuracy_status != 'fail' and contamination_status == 'clean'"
-        ),
+        # The rule is a function, not a string the runner must reimplement.
+        "eligibility_function": "benchmarks.timing.accuracy_thresholds.headline_eligible",
+        "accuracy_metrics": list(ACCURACY_METRICS),
         "outcome_fields": [
             "execution_status",
             "coverage_status",
-            "accuracy_status",
+            *ACCURACY_METRICS,
             "contamination_status",
             "headline_eligible",
         ],

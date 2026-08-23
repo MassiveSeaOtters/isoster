@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -89,6 +90,108 @@ def compare(frozen: Dict[str, object], computed: Dict[str, object]) -> List[str]
     return failures
 
 
+SPEC = REPO_ROOT / "docs" / "specs" / "2026-08-22-three-way-benchmark-comparison-design.md"
+
+
+def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
+    """The handful of contract values the spec actually prints.
+
+    The 250-field structural gate never reads the specification, so the spec
+    could quote a wrong critical value, geometry bar, radius or seed block with
+    CI green. This covers only what is quoted --- there is no reason to
+    duplicate 250 leaves in prose --- with the usual rule that a stem carries
+    none of the number it guards.
+    """
+    contamination = frozen["contamination"]
+    return [
+        (
+            "holm_alpha",
+            "holm's smallest critical level is",
+            f"holm's smallest critical level is {frozen['ensemble_holm_smallest_alpha']}",
+        ),
+        (
+            "harmonic_tests",
+            "harmonic tests in one arm:",
+            f"harmonic tests in one arm: {frozen['ensemble_harmonic_tests_per_arm']}",
+        ),
+        (
+            "geometry_bars",
+            "geometry bars:",
+            f"geometry bars: `center_error_px ≤ {frozen['geometry_bars']['center_error_px']}`, "
+            f"`eps_error ≤ {frozen['geometry_bars']['eps_error']}`, "
+            f"`pa_error_deg ≤ {frozen['geometry_bars']['pa_error_deg']}`",
+        ),
+        (
+            "target_interval",
+            "the frozen target interval is",
+            f"the frozen target interval is [{frozen['target_interval_r_e'][0]}, "
+            f"{frozen['target_interval_r_e'][1]}] r_e",
+        ),
+        (
+            "coverage",
+            "an arm covering less than",
+            f"an arm covering less than {int(frozen['min_coverage_fraction'] * 100)}% of it",
+        ),
+        (
+            "seeds",
+            "seed blocks: calibration",
+            f"seed blocks: calibration {frozen['seed_blocks']['calibration']}, "
+            f"campaign {frozen['seed_blocks']['campaign']}",
+        ),
+        (
+            "load_ceiling",
+            "baseline median must not exceed",
+            f"baseline median must not exceed {contamination['baseline_median_max']}",
+        ),
+    ]
+
+
+def check_prose(frozen: Dict[str, object]) -> List[str]:
+    if not SPEC.exists():
+        print("note: spec not present; the prose gate has nothing to read")
+        return []
+    squashed = re.sub(r"\s+", " ", SPEC.read_text()).lower()
+    failures, fired = [], []
+    for name, stem, expected in prose_claims(frozen):
+        if re.sub(r"\s+", " ", stem).lower() not in squashed:
+            continue
+        fired.append(name)
+        if re.sub(r"\s+", " ", expected).lower() not in squashed:
+            failures.append(
+                f"{name}: the spec discusses this but does not state it as frozen.\n       expected: {expected!r}"
+            )
+    dormant = [n for n, _, _ in prose_claims(frozen) if n not in fired]
+    if dormant:
+        print(f"     note: {len(dormant)} prose claim(s) stated nowhere: {', '.join(dormant)}")
+    else:
+        print(f"OK   all {len(fired)} quoted contract value(s) match the frozen contract")
+    return failures
+
+
+def _prose_self_test(frozen: Dict[str, object]) -> bool:
+    """Move each quoted value and require its claim to stop matching."""
+    if not SPEC.exists():
+        return True
+    squashed = re.sub(r"\s+", " ", SPEC.read_text()).lower()
+    live = [n for n, stem, _ in prose_claims(frozen) if re.sub(r"\s+", " ", stem).lower() in squashed]
+    missed = []
+    for name in live:
+        moved = copy.deepcopy(frozen)
+        moved["ensemble_holm_smallest_alpha"] = 0.123456
+        moved["ensemble_harmonic_tests_per_arm"] = 999
+        moved["geometry_bars"] = {k: v * 3.0 + 1.0 for k, v in moved["geometry_bars"].items()}
+        moved["target_interval_r_e"] = [9.1, 9.2]
+        moved["min_coverage_fraction"] = 0.11
+        moved["seed_blocks"] = {k: v + 7 for k, v in moved["seed_blocks"].items()}
+        moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
+        if not any(f.startswith(f"{name}:") for f in check_prose(moved)):
+            missed.append(name)
+    print(f"self-test: {len(live) - len(missed)}/{len(live)} quoted values trip when the contract moves")
+    for name in missed:
+        print(f"  MISSED {name}: the spec can drift from the contract without failing")
+    return not missed
+
+
 def _self_test(frozen: Dict[str, object], computed: Dict[str, object]) -> int:
     if compare(frozen, computed):
         print("self-test: the contract already fails unmodified; fix that first")
@@ -113,7 +216,8 @@ def _self_test(frozen: Dict[str, object], computed: Dict[str, object]) -> int:
     print(f"self-test: {len(leaves) - len(missed)}/{len(leaves)} contract fields trip when moved")
     for name in missed:
         print(f"  MISSED {name}: it can be edited without the gate noticing")
-    return 1 if missed else 0
+    prose_ok = _prose_self_test(frozen)
+    return 1 if (missed or not prose_ok) else 0
 
 
 def main() -> None:
@@ -142,6 +246,12 @@ def main() -> None:
         raise SystemExit(1)
     print(f"OK   all {len(_leaves(frozen)) - 1} Stage 1 contract fields match the frozen contract")
     print(f"OK   fingerprint {frozen['fingerprint'][:16]}")
+
+    prose = check_prose(frozen)
+    for failure in prose:
+        print(f"FAIL prose: {failure}")
+    if prose:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

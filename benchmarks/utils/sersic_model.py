@@ -525,6 +525,94 @@ def integrated_harmonic_truth(meta, sma, orders, n_phi=8192):
     return result
 
 
+def analytic_truth_on_aperture(meta, x0, y0, sma, eps, pa, orders, n_phi=8192):
+    """Harmonic truth on an **arbitrary** aperture, not the planted one.
+
+    :func:`integrated_harmonic_truth` samples the galaxy's own unperturbed
+    ellipse, so it cannot answer "what is the truth on the ellipse this tool
+    actually returned". A free fit returns its own centre, ellipticity and
+    position angle, and comparing its amplitudes against truth on a *different*
+    ellipse charges it for a geometry difference twice --- once here and again
+    in the geometry metrics.
+
+    The aperture is sampled in image coordinates, each point is mapped back to
+    the galaxy's intrinsic radius, the analytic profile is evaluated there, and
+    the result is decomposed against the aperture's own angular parameter. No
+    pixels are touched and nothing is interpolated.
+
+    Passing the planted geometry reproduces :func:`integrated_harmonic_truth`
+    to integration precision, which ``TestApertureTruth`` pins.
+
+    Parameters
+    ----------
+    meta : dict
+        Second return value of :func:`create_sersic_image_with_harmonics`.
+    x0, y0 : float
+        Aperture centre in image coordinates (column, row), as the fitters
+        report it.
+    sma : float
+        Aperture semi-major axis, in pixels.
+    eps : float
+        Aperture ellipticity, ``1 - b/a``.
+    pa : float
+        Aperture position angle in radians, from the image x axis.
+    orders : iterable of int
+        Harmonic orders to report.
+
+    Returns
+    -------
+    dict
+        Same shape as :func:`integrated_harmonic_truth`.
+    """
+    profile = meta["profile"]
+    harmonics = meta["harmonics"]
+    galaxy_x0, galaxy_y0 = meta["center"]
+    galaxy_eps, galaxy_pa = float(meta["eps"]), float(meta["pa"])
+
+    phi = np.linspace(0.0, 2.0 * np.pi, n_phi, endpoint=False)
+
+    def intensities_at(scale):
+        """Analytic intensity on the aperture of semi-major axis ``scale``."""
+        # Points on the requested ellipse, in image coordinates.
+        a = scale
+        b = scale * (1.0 - float(eps))
+        x = float(x0) + a * np.cos(phi) * np.cos(pa) - b * np.sin(phi) * np.sin(pa)
+        y = float(y0) + a * np.cos(phi) * np.sin(pa) + b * np.sin(phi) * np.cos(pa)
+
+        # Map into the galaxy's own frame.
+        dx, dy = x - galaxy_x0, y - galaxy_y0
+        u = dx * np.cos(galaxy_pa) + dy * np.sin(galaxy_pa)
+        v = -dx * np.sin(galaxy_pa) + dy * np.cos(galaxy_pa)
+        galaxy_b_over_a = 1.0 - galaxy_eps
+        radius = np.hypot(u, v / galaxy_b_over_a) if galaxy_b_over_a else np.hypot(u, v)
+        # Angle in the galaxy frame, which is what the planted distortion is
+        # a function of.
+        galaxy_phi = np.arctan2(v / galaxy_b_over_a if galaxy_b_over_a else v, u)
+        return profile(radius / _harmonic_distortion(galaxy_phi, harmonics))
+
+    intensities = intensities_at(sma)
+    delta = max(sma * 1e-4, 1e-6)
+    gradient = (float(np.mean(intensities_at(sma + delta))) - float(np.mean(intensities_at(sma - delta)))) / (
+        2.0 * delta
+    )
+
+    factor = sma * abs(gradient)
+    result = {}
+    for order in orders:
+        s_raw = 2.0 * float(np.mean(intensities * np.sin(order * phi)))
+        c_raw = 2.0 * float(np.mean(intensities * np.cos(order * phi)))
+        result[order] = {
+            "s_raw": s_raw,
+            "c_raw": c_raw,
+            "a_bender": s_raw / factor if factor else float("nan"),
+            "b_bender": c_raw / factor if factor else float("nan"),
+            "gradient": gradient,
+            "sma": sma,
+            "mean_intensity": float(np.mean(intensities)),
+        }
+    return result
+
+
 def linearized_harmonic_truth(meta, orders):
     """First-order reference: the Bender coefficient *is* the planted amplitude.
 

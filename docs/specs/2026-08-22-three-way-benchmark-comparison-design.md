@@ -1269,7 +1269,7 @@ error.
    lower bar and wins.
 4. Thresholds are justified from **scientific requirements or independently
    established numerical accuracy** — never from any tool's own pilot result.
-   The phase-2 timing calibration sets repetition counts and quantifies timing
+   The Stage 2 timing calibration sets repetition counts and quantifies timing
    scatter, and nothing else; it never touches a threshold.
 5. **Completion, radial coverage and scientific accuracy are three separate
    outcomes**, recorded separately and never collapsed into one verdict.
@@ -1366,16 +1366,38 @@ meets it". That is exactly the reasoning B0.4 forbids and it has been removed.
 Whether existing tools clear these bars is a **result**, reported separately in
 the A3 archive, and never an input to the bar.
 
-*Noisy fixtures are judged on ensemble bias, at the arm level.* The mean over
-R = 25 realizations has standard error σ/√R. A per-test 3σ screen across the
-120 component–ring tests would fail an unbiased tool about 10% of the time by
-chance alone, so the decisive statistic is **one χ² per arm**: the sum of
-squared standardized mean residuals over all tests, which is χ²(120) under the
-no-bias hypothesis, compared against its 99th percentile (158.95). Multiplicity
-is handled by construction rather than by a screen that cries wolf.
+*Noisy fixtures are judged on ensemble bias, per arm, by Holm–Bonferroni.* A
+family is **one arm** — one tool, one fixture, one harmonic setting — so the
+harmonic tests in one arm: 20 (5 rings × 4 components), with a separate family
+of 5 for the ring means and one for geometry. An earlier draft pooled all six
+fixtures into 120 and called that "tests per arm", which is six arms' worth,
+and misreported the resulting false-alarm rate as ~10% when it is **27.7%**
+(10% corresponds to 40 tests).
+
+The mean over R = 25 realizations has standard error σ/√R, so each test is a
+two-sided one-sample test on the standardized mean residual. Holm's smallest
+critical level is 0.0005, i.e. α = 0.01 divided by the 20 tests in the family.
+
+**Why Holm and not a pooled χ².** A sum of squared standardized residuals is
+χ²-distributed only if the residual vector is independent standard normal, or
+has been whitened by its covariance. These residuals are emphatically not
+independent: components and radii share the same noise image, the same
+interpolation, the same fitted geometry and overlapping ring samples. With 25
+realizations a 20 × 20 covariance cannot be estimated, let alone inverted.
+Holm controls the family-wise error rate under *arbitrary* dependence, which is
+the only assumption actually available here.
 
 Geometry bars: `center_error_px ≤ 0.5`, `eps_error ≤ 0.01`,
 `pa_error_deg ≤ 1.0`.
+
+These are declared limits on an aperture's displacement, not derived ones, and
+the previous justification for the centre bar — "half a pixel cannot change
+which pixels a ring samples" — was simply false: with interpolation every
+sub-pixel shift changes the sampled values, and near a nearest-pixel boundary
+an arbitrarily small shift changes which pixel is read. The honest statement is
+that each bar keeps the aperture's displacement at the outer radius below
+roughly one pixel, and they are frozen in advance as a scope decision rather
+than derived from anything.
 
 **Rejected alternative, recorded.** Gating a single realization's worst error at
 a statistical 1σ gives an unbiased ring at σ = 9.8% an 8.1% chance of passing
@@ -1404,8 +1426,8 @@ changes whole-image overhead but barely touches fixed-ring extraction — so it
 is confined to the end-to-end scope, where overhead is legitimately part of the
 task.
 
-Seed blocks: calibration **100000**, campaign **60260822**, disjoint from all
-four Part A blocks.
+Seed blocks: calibration 100000, campaign 60260822 — disjoint from all four
+Part A blocks.
 
 **4. Radial range, coverage and overlap.**
 
@@ -1414,11 +1436,24 @@ exact by construction and a missing ring is a failure, not a coverage
 difference.
 
 *End-to-end scope:* each tool chooses its own radii, so "coverage" needs a
-target that exists independently of what any tool returned. The frozen,
-tool-independent **scientific target interval** is `[0.3 R_e, 3.0 R_e]` per
-fixture — inside the PSF-free core at one end and out to where the planted
-harmonics remain above the noise at the other. Coverage is measured against
-*that*, never against the tools' own extents.
+target that exists independently of what any tool returned. The frozen target
+interval is [0.3, 3.0] r_e per fixture, and an arm covering less than 60% of it
+is recorded as `partial`. Coverage is measured against that, never against the
+tools' own extents.
+
+**The upper limit has a rule; the lower is a declared scope decision.** The
+rule at the top is that the *weakest* planted raw component stays above 3σ at
+the reference depth, which the present fixtures satisfy at 3 R_e (≈3.3σ for
+n = 2 and ≈4.3σ for n = 4); `accuracy_thresholds.py` evaluates it for every
+fixture rather than leaving it as an assertion about two.
+
+The lower limit is **not** derived, and an earlier draft's justification for it
+was wrong twice over: these mocks have no PSF, so "inside the PSF-free core"
+distinguishes no radius at all, and 0.3 R_e is 7.5 px on the compact fixture —
+*inside* Part A's innermost 12 px ring. It is kept deliberately: 0.3 R_e
+includes an under-resolved central regime where pixelation is worst, which is
+where a tool that cuts corners on sampling should show it. That is a scope
+choice declared before any timing, not a derivation.
 
 The **common overlap** — `[max(r_min,i), min(r_max,i)]` across the three tools
 — is used **only** for cross-tool accuracy comparison, never for coverage
@@ -1442,9 +1477,11 @@ are archived, and eligibility is *derived* rather than assigned:
 |---|---|
 | `execution_status` | `ok` / `failed` (raised, crashed, or returned no profile) |
 | `coverage_status` | `complete` / `partial` (< 60% of the target interval) |
-| `accuracy_status` | `pass` / `fail` (against §2) / `not_evaluated` (harmonics-off arms are not judged on harmonic metrics) |
+| `harmonic_accuracy_status` | `pass` / `fail` / `not_applicable` (harmonics-off arms) |
+| `intensity_accuracy_status` | `pass` / `fail` — evaluated on **every** arm |
+| `geometry_accuracy_status` | `pass` / `fail` / `not_applicable` (fixed-aperture arms) |
 | `contamination_status` | `clean` / `contaminated` |
-| `headline_eligible` | derived: `execution_status == ok and coverage_status == complete and accuracy_status != fail and contamination_status == clean` |
+| `headline_eligible` | derived by `accuracy_thresholds.headline_eligible()`, which the runner **calls** rather than reimplementing |
 
 Every timing is archived under all five regardless of value. Only
 `headline_eligible` affects summaries; nothing affects retention.
@@ -1468,9 +1505,12 @@ capacity already committed before the benchmark starts.
 *Frozen rule:*
 
 - **Pre-campaign baseline**: 30 samples at 10 s **with no other work at all**,
-  agent sessions included. Require `median ≤ 2.0` (20% of 10 cores). If the
-  machine cannot meet this when genuinely idle, that is a finding about the
-  machine, to be reported — not a reason to raise the bar.
+  agent sessions included. The baseline median must not exceed 2.0. This is an
+  *empirical contamination proxy*, not a CPU-utilisation figure: load average
+  counts runnable **and uninterruptible** work, so on a 10-core host 2.0 is not
+  literally 20% of capacity, and an earlier draft said it was. A genuine idle
+  baseline remains a mandatory preflight; if the machine cannot meet the bound
+  when idle, that is a finding to report, not a reason to raise it.
 - **During sessions**: sample every 10 s, not merely before and after — a
   before/after pair misses contention in between. Abort if load exceeds
   `baseline_median + 2.0`. The benchmark is single-threaded on a 10-core host,
@@ -1498,7 +1538,7 @@ left "the pilot" naming two different things.
 1. **Stage 1 — freeze the science.** Metrics, the numeric value of each common threshold
    with its scientific justification, fixtures, coverage rules, contamination
    indicators and their bounds, and the success/failure taxonomy including
-   partial profiles. **No timing is run in this phase**, so no threshold can be
+   partial profiles. **No timing is run in this stage**, so no threshold can be
    chosen after seeing what a tool achieved.
 2. **Stage 2 — timing calibration** — explicitly named as such, and *not* the benchmark.
    Its only *decisional* outputs are batching, repetition counts and session
