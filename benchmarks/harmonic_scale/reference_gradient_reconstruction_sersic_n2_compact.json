@@ -6394,6 +6394,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6408,6 +6409,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6422,6 +6424,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6436,6 +6439,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6450,6 +6454,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -6487,6 +6492,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6501,6 +6507,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6515,6 +6522,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6529,6 +6537,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6543,6 +6552,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -6580,6 +6590,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6594,6 +6605,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6608,6 +6620,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6622,6 +6635,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6636,6 +6650,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -6673,6 +6688,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6687,6 +6703,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6701,6 +6718,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": false,
               "harmonic_conversion_reasons": [
                 "base ring realized sampling is 'line_nearest_pixel', not interpolated",
@@ -6718,6 +6736,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": false,
               "harmonic_conversion_reasons": [
                 "base ring realized sampling is 'line_nearest_pixel', not interpolated",
@@ -6735,6 +6754,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": false,
               "harmonic_conversion_reasons": [
                 "base ring realized sampling is 'line_nearest_pixel', not interpolated",
@@ -6775,6 +6795,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6789,6 +6810,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6803,6 +6825,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6817,6 +6840,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6831,6 +6855,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -6868,6 +6893,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6882,6 +6908,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6896,6 +6923,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6910,6 +6938,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6924,6 +6953,7 @@
               "measurement_complete": true,
               "realizations_measured": 25,
               "realizations_expected": 25,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -6961,6 +6991,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6975,6 +7006,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -6989,6 +7021,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7003,6 +7036,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7017,6 +7051,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }
@@ -7054,6 +7089,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7068,6 +7104,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7082,6 +7119,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7096,6 +7134,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             },
@@ -7110,6 +7149,7 @@
               "measurement_complete": true,
               "realizations_measured": 1,
               "realizations_expected": 1,
+              "realizations_measured_source": "b0_secant_vs_point_derivative_pct",
               "harmonic_conversion_valid": true,
               "harmonic_conversion_reasons": []
             }

@@ -666,8 +666,11 @@ the radius does not matter except through which side of the switch it falls.
   characterized rather than a background sensitivity. Both statements are true
   at their own level; A1 covers the formula, this axis covers the pipeline.
 
-- **photutils' residual is consistent with cross-order leakage, which the
-  other two cannot suffer.** *(Downgraded 2026-08-23 after review: the causal
+- **photutils' residual is consistent with cross-order leakage from uneven
+  angular sampling, to which the other two are not exposed.** They sample at
+  evenly spaced angles, so *this particular* non-orthogonality cannot arise in
+  them; that is not a claim that they are free of cross-order effects in
+  general, which nothing here tested. *(Downgraded 2026-08-23 after review: the causal
   claim is not established. The archived leakage metric compares differences
   between worst errors, possibly at different radii, and is not a cross-order
   response coefficient. Settling it needs a joint fit of all four n=3,4

@@ -605,8 +605,17 @@ def _comparison_ring_sampling_mode(provenance: Dict[str, object], index: int, n_
     """
     modes = (provenance.get("sampling_mode") or {}).get("per_ring_interpolated")
     if isinstance(modes, list) and len(modes) == 2 * n_rings:
-        interpolated = bool(modes[n_rings + index])
-        return (VALID_SAMPLING_MODE if interpolated else "line_nearest_pixel"), "observed"
+        observed = modes[n_rings + index]
+        # Three states, not two. The worker records ``None`` when it cannot
+        # attribute a sampling call to a ring, and ``bool(None)`` is ``False``
+        # --- so an *unattributed* ring was archived as observed nearest-pixel.
+        # That is a fabricated observation. The row is invalid either way, but
+        # for opposite reasons, and only one of them is true.
+        if observed is True:
+            return VALID_SAMPLING_MODE, "observed"
+        if observed is False:
+            return "line_nearest_pixel", "observed"
+        return None, "observed_unattributed"
     threshold = provenance.get("rad_interp_pix")
     if threshold is None:
         return None, "unavailable"
@@ -648,7 +657,9 @@ def ring_pair_validity(
     """
     base_mode = ring.get("sampling_mode")
     comparison_mode, source = _comparison_ring_sampling_mode(provenance, index, n_rings)
-    if comparison_mode is None:
+    # An unattributed observation must not fall through to the derivation:
+    # "we could not tell" is a different statement from "we worked it out".
+    if comparison_mode is None and source != "observed_unattributed":
         comparison_mode, source = _comparison_ring_legacy_mode(ring, provenance), "derived_legacy_archive"
 
     basis = provenance.get("harmonic_basis")
@@ -657,7 +668,11 @@ def ring_pair_validity(
         structural_reasons.append(f"realized harmonic basis is {basis!r}, which mixes orders")
     if base_mode != VALID_SAMPLING_MODE:
         structural_reasons.append(f"base ring realized sampling is {base_mode!r}, not interpolated")
-    if comparison_mode != VALID_SAMPLING_MODE:
+    if source == "observed_unattributed":
+        structural_reasons.append(
+            "comparison ring sampling mode is unknown: the worker could not attribute a sampling call to it"
+        )
+    elif comparison_mode != VALID_SAMPLING_MODE:
         structural_reasons.append(f"comparison ring realized sampling is {comparison_mode!r}, not interpolated")
 
     measured, expected = (completion or {}).get("measured"), (completion or {}).get("expected")
@@ -678,6 +693,7 @@ def ring_pair_validity(
         "measurement_complete": not completion_reasons,
         "realizations_measured": measured,
         "realizations_expected": expected,
+        "realizations_measured_source": (completion or {}).get("source"),
         "harmonic_conversion_valid": not (structural_reasons or completion_reasons),
         "harmonic_conversion_reasons": structural_reasons + completion_reasons,
     }
@@ -694,17 +710,37 @@ def structural_validity(case: Dict[str, object]) -> Dict[str, object]:
     rings = realizations[0]["rings"] if realizations else []
     expected = int(case.get("spec", {}).get("n_realizations") or 0) or None
 
+    # Keyed by radius, never by position. Iterating ``summary.values()`` and
+    # assigning positionally silently pairs a ring with another ring's count
+    # whenever the summary is ordered differently from the ring list --- the
+    # same defect ``_by_sma`` exists to prevent, reintroduced one level up.
+    #
+    # And the count comes from ``b0_secant_vs_point_derivative_pct``, not from
+    # the isoster comparison: the latter is undefined when *isoster's* gradient
+    # is zero or invalid, which says nothing about whether AutoProf measured
+    # both of its rings. The analytic point derivative is deterministic and
+    # non-zero, so that column is finite exactly when AutoProf's secant is.
     summary = case.get("summary") or {}
-    completions = []
-    for entry in summary.values():
-        spread = entry.get("b0_secant_vs_isoster_pct") if isinstance(entry, dict) else None
-        completions.append({"measured": (spread or {}).get("n"), "expected": expected})
-    while len(completions) < len(rings):
-        completions.append({"measured": None, "expected": expected})
+    by_radius: Dict[float, Dict[str, object]] = {}
+    for key, entry in summary.items():
+        if not isinstance(entry, dict):
+            continue
+        try:
+            radius = round(float(str(key).split("=", 1)[1]), 6)
+        except (IndexError, ValueError):
+            continue
+        explicit = entry.get("autoprof_secant_measured")
+        proxy = entry.get("b0_secant_vs_point_derivative_pct")
+        if isinstance(explicit, dict):
+            by_radius[radius] = {"measured": explicit.get("n"), "source": "autoprof_secant_measured"}
+        elif isinstance(proxy, dict):
+            by_radius[radius] = {"measured": proxy.get("n"), "source": "b0_secant_vs_point_derivative_pct"}
 
-    rows = [
-        ring_pair_validity(ring, provenance, index, len(rings), completions[index]) for index, ring in enumerate(rings)
-    ]
+    rows = []
+    for index, ring in enumerate(rings):
+        completion = dict(by_radius.get(round(float(ring.get("sma", float("nan"))), 6), {"measured": None}))
+        completion["expected"] = expected
+        rows.append(ring_pair_validity(ring, provenance, index, len(rings), completion))
     valid = [row for row in rows if row["harmonic_conversion_valid"]]
     return {
         "rows": rows,

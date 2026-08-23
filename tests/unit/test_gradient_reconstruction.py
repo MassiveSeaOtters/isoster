@@ -330,6 +330,54 @@ class TestValidityIsObservedNotInferred:
         assert row["comparison_sampling_mode_source"] == "observed"
         assert not row["harmonic_conversion_valid"]
 
+    def test_an_unattributed_partner_mode_is_unknown_not_nearest_pixel(self):
+        """`bool(None)` is False, so an unattributed ring was being archived as
+        an *observed* nearest-pixel measurement. Both make the row invalid, but
+        for opposite reasons, and only one of them is true."""
+        case = self._case(partner_interpolated=(None, True, True))
+        row = structural_validity(case)["rows"][0]
+        assert row["comparison_sampling_mode"] is None
+        assert row["comparison_sampling_mode_source"] == "observed_unattributed"
+        assert not row["harmonic_conversion_valid"]
+        assert any("unknown" in reason for reason in row["harmonic_conversion_reasons"])
+        assert not any("nearest" in reason for reason in row["harmonic_conversion_reasons"])
+
+    def test_an_unattributed_partner_never_falls_back_to_the_derivation(self):
+        """'We could not tell' must not become 'we worked it out'."""
+        case = self._case(partner_interpolated=(None, True, True), rad=13.0)
+        assert structural_validity(case)["rows"][0]["comparison_sampling_mode_source"] == "observed_unattributed"
+
+    def test_completion_counts_are_matched_by_radius_not_position(self):
+        """Assigning summary entries positionally pairs a ring with another
+        ring's count whenever the summary is ordered differently."""
+        case = self._case()
+        case["spec"]["n_realizations"] = 25
+        # Deliberately reversed relative to the ring order.
+        case["summary"] = {
+            "sma=25": {"b0_secant_vs_point_derivative_pct": {"n": 19}},
+            "sma=18": {"b0_secant_vs_point_derivative_pct": {"n": 25}},
+            "sma=12": {"b0_secant_vs_point_derivative_pct": {"n": 25}},
+        }
+        rows = structural_validity(case)["rows"]
+        assert [(row["sma"], row["realizations_measured"]) for row in rows] == [(12.0, 25), (18.0, 25), (25.0, 19)]
+
+    def test_completion_does_not_depend_on_isoster(self):
+        """A zero or invalid isoster gradient makes the cross-tool percentage
+        undefined while AutoProf's own secant is perfectly good, so completion
+        must not be counted from that column."""
+        case = self._case()
+        case["spec"]["n_realizations"] = 25
+        case["summary"] = {
+            "sma=12": {
+                "b0_secant_vs_isoster_pct": {"n": 3},
+                "b0_secant_vs_point_derivative_pct": {"n": 25},
+            }
+        }
+        row = structural_validity(case)["rows"][0]
+        assert row["realizations_measured"] == 25
+        assert row["realizations_measured_source"] == "b0_secant_vs_point_derivative_pct"
+        assert row["measurement_complete"]
+
     def test_an_archive_without_observed_partner_modes_falls_back_and_says_so(self):
         """Legacy archives may derive it, but must never claim it was observed."""
         case = self._case(rad=13.0)
@@ -344,7 +392,8 @@ class TestValidityIsObservedNotInferred:
         case = self._case()
         case["spec"]["n_realizations"] = 25
         case["summary"] = {
-            f"sma={sma:g}": {"b0_secant_vs_isoster_pct": {"n": n}} for sma, n in ((12.0, 25), (18.0, 19), (25.0, 25))
+            f"sma={sma:g}": {"b0_secant_vs_point_derivative_pct": {"n": n}}
+            for sma, n in ((12.0, 25), (18.0, 19), (25.0, 25))
         }
         rows = structural_validity(case)["rows"]
         assert all(row["structurally_applicable"] for row in rows)
