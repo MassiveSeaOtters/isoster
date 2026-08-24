@@ -1223,6 +1223,7 @@
     "baseline_interval_s": 10,
     "baseline_median_max": 4.0,
     "in_session_excess_max": 2.0,
+    "in_session_consecutive_load_samples": 2,
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3
   },
@@ -1230,5 +1231,5 @@
     "calibration": 100000,
     "campaign": 60260822
   },
-  "fingerprint": "9cca89434f6576760d08458f06e683674e457a0c7ad933b18e1a47d6ce14ef2c"
+  "fingerprint": "e5012aae4e3fbe00eb0623c0a178849954ca5294de89d6a0ca0763156e93cdbf"
 }

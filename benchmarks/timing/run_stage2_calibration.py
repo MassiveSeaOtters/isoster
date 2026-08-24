@@ -745,19 +745,42 @@ def _indicator_sample(limit):
     return {
         "time": time.time(),
         "load": load,
+        "load_limit_exceeded": load > limit,
         "thermal": thermal,
         "processes": processes,
-        "contaminated": load > limit or bool(thermal["warnings_recorded"]) or bool(processes),
+        "contaminated": bool(thermal["warnings_recorded"]) or bool(processes),
     }
+
+
+def _assess_sample(sample, consecutive_load_samples):
+    if sample["contaminated"]:
+        return 0, True
+    consecutive_load_samples = consecutive_load_samples + 1 if sample["load_limit_exceeded"] else 0
+    return (
+        consecutive_load_samples,
+        consecutive_load_samples >= int(CONTAMINATION["in_session_consecutive_load_samples"]),
+    )
+
+
+def _wait_for_clean_retry(trace, limit):
+    while trace[-1]["contaminated"] or trace[-1]["load_limit_exceeded"]:
+        print(
+            f"[stage2] waiting for clean indicators before retry: load {trace[-1]['load']:.2f} (limit {limit:.2f})",
+            flush=True,
+        )
+        time.sleep(MONITOR_INTERVAL_S)
+        trace.append(_indicator_sample(limit))
 
 
 def _run_monitored_session(command, trace, limit):
     process = subprocess.Popen(command, cwd=REPO_ROOT, start_new_session=True)
     next_sample = 0.0
+    consecutive_load_samples = 0
     while process.poll() is None:
         now = time.monotonic()
         if now >= next_sample:
             sample = _indicator_sample(limit)
+            consecutive_load_samples, sample["contaminated"] = _assess_sample(sample, consecutive_load_samples)
             trace.append(sample)
             if sample["contaminated"]:
                 os.killpg(process.pid, signal.SIGTERM)
@@ -765,8 +788,10 @@ def _run_monitored_session(command, trace, limit):
                 return "contaminated"
             next_sample = now + MONITOR_INTERVAL_S
         time.sleep(0.25)
-    trace.append(_indicator_sample(limit))
-    if trace[-1]["contaminated"]:
+    sample = _indicator_sample(limit)
+    _, sample["contaminated"] = _assess_sample(sample, 0)
+    trace.append(sample)
+    if sample["contaminated"]:
         return "contaminated"
     return "clean" if process.returncode == 0 else "failed"
 
@@ -815,7 +840,11 @@ def _run_parent(args):
         attempt = {"attempt": attempt_index + 1, "trace": trace, "status": "running"}
         attempts.append(attempt)
         trace.append(_indicator_sample(limit))
-        attempt_status = "clean" if not trace[-1]["contaminated"] else "contaminated"
+        if attempt_index:
+            _wait_for_clean_retry(trace, limit)
+        attempt_status = (
+            "clean" if not trace[-1]["contaminated"] and not trace[-1]["load_limit_exceeded"] else "contaminated"
+        )
         interpreter = None
         if attempt_status == "clean":
             try:
@@ -825,7 +854,7 @@ def _run_parent(args):
                 attempt["error"] = f"interpreter calibration failed: {type(error).__name__}: {error}"
         if attempt_status == "clean":
             trace.append(_indicator_sample(limit))
-            if trace[-1]["contaminated"]:
+            if trace[-1]["contaminated"] or trace[-1]["load_limit_exceeded"]:
                 attempt_status = "contaminated"
         for session_index in range(args.sessions):
             if attempt_status != "clean":

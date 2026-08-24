@@ -9,7 +9,8 @@ Status (2026-08-24): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
 and gated. The Stage 2 runner and persistent AutoProf worker are implemented
-and functionally checked; no Stage 2 scientific timing has been run.** The
+and functionally checked; the first Stage 2 attempt was rejected by the
+contamination guard before any result was accepted.** The
 frozen contract and executable helpers, not B1–B5's historical discussion,
 govern that calibration.
 
@@ -1629,18 +1630,30 @@ only a contamination proxy, not a literal CPU-utilisation percentage.
   baseline remains a mandatory preflight; if the machine cannot meet the bound
   when idle, that is a finding to report, not a reason to raise it.
 - **During sessions**: sample every 10 s, not merely before and after — a
-  before/after pair misses contention in between. Abort if load exceeds
-  `baseline_median + 2.0`. The benchmark is single-threaded, so it contributes
-  ≈ 1; the remaining 1.0 is jitter allowance.
+  before/after pair misses contention in between. **In-session load abort: 2
+  consecutive samples** must exceed `baseline_median + 2.0`. One isolated
+  sample is retained in the trace but does not abort. The one-minute load
+  average is lagged, and the first attempted calibration measured 104 clean
+  samples over 17 minutes before one sample crossed the bound; that single
+  point did not establish sustained competing work. Thermal warnings or a
+  competing process still abort immediately.
 - **Thermal**: `pmset -g therm` sampled per session; any recorded thermal or
   performance warning aborts. On this Apple Silicon host
   `kern.thermalpressurelevel` and `machdep.xcpm.cpu_thermal_level` do not
   exist, so this signal is binary rather than graded.
 - **On abort**: the whole campaign is re-run; individual sessions are never
   dropped. **Every aborted campaign is retained and archived**, with its
-  indicator trace. **Maximum 3 retries**; if a fourth would be needed, stop and
-  report the machine as unfit rather than continuing to draw until a quiet run
-  appears.
+  indicator trace. Before a retry is counted, the runner waits for a clean
+  indicator sample; this prevents a one-minute load average from spending all
+  retries before it can decay. **Maximum 3 retries**; if a fourth completed
+  campaign would be needed, stop and report the machine as unfit rather than
+  continuing to draw until a quiet run appears.
+
+This 2026-08-24 amendment was committed before another timing attempt. In the
+rejected archive, attempt 1 had 105 samples over 1037.8 s (median 1.65), with
+only its final sample above the 4.745 bound. Attempts 2–4 then sampled the same
+5.35 one-minute load average within 0.11 s, so they were not independent retry
+opportunities. The absolute load bound is unchanged.
 
 **7. Partial profiles.** Neither discarded nor padded. Achieved ring count and
 coverage are archived, accuracy is computed on the rings returned, and the run

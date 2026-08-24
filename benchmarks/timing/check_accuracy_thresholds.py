@@ -167,6 +167,11 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
             f"baseline median must not exceed {contamination['baseline_median_max']}",
         ),
         (
+            "in_session_load_samples",
+            "in-session load abort:",
+            f"in-session load abort: {contamination['in_session_consecutive_load_samples']} consecutive samples",
+        ),
+        (
             "noise_arm",
             "gaussian_reference`:",
             "gaussian_reference`: independent gaussian pixels from "
@@ -243,6 +248,11 @@ def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]
         moved["seed_blocks"] = {key: value + 7 for key, value in moved["seed_blocks"].items()}
     elif name == "load_ceiling":
         moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
+    elif name == "in_session_load_samples":
+        moved["contamination"] = {
+            **moved["contamination"],
+            "in_session_consecutive_load_samples": 99,
+        }
     elif name == "noise_arm":
         moved["scientific_input"]["noise_arms"]["gaussian_reference"]["snr_at_r_e"] = 999.0
     elif name == "noise_realizations":

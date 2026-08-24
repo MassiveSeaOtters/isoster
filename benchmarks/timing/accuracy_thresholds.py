@@ -119,6 +119,7 @@ CONTAMINATION = {
     "baseline_interval_s": 10,
     "baseline_median_max": 4.0,
     "in_session_excess_max": 2.0,
+    "in_session_consecutive_load_samples": 2,
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3,
 }
