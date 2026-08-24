@@ -62,6 +62,7 @@ import importlib
 import json
 import os
 import sys
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -288,10 +289,8 @@ def _attribute_extractions(extractions, rows, pixel_scale):
     }
 
 
-def main(job_path):
-    with open(job_path) as handle:
-        job = json.load(handle)
-
+def run_job(job):
+    """Run one forced-profile job and return its rows, provenance, and timings."""
     output_dir = job["output_dir"]
     os.makedirs(output_dir, exist_ok=True)
     name = job["name"]
@@ -300,11 +299,15 @@ def main(job_path):
 
     image = np.asarray(job["image"], dtype=np.float64) if "image" in job else None
     image_path = job.get("image_path")
+    fits_start = time.perf_counter()
     if image is not None:
         image_path = os.path.join(output_dir, f"{name}.fits")
         fits.PrimaryHDU(image).writeto(image_path, overwrite=True)
+    fits_write_s = time.perf_counter() - fits_start
 
+    forcing_start = time.perf_counter()
     profile_path, aux_path = _write_forcing_files(output_dir, name, rings, job["pixel_scale"])
+    forcing_write_s = time.perf_counter() - forcing_start
     events = _install_sampling_mode_probe()
 
     from autoprof.Pipeline import Isophote_Pipeline
@@ -323,7 +326,7 @@ def main(job_path):
         "ap_fluxunits": "intensity",
         "ap_forcing_profile": profile_path,
         "ap_set_center": {"x": job["x0"], "y": job["y0"]},
-        "ap_iso_measurecoefs": list(orders),
+        "ap_iso_measurecoefs": list(orders) if orders else None,
         "ap_isoclip": bool(job["isoclip"]),
         # Force line sampling unconditionally: see module docstring, point 3.
         "ap_isoband_fixed": True,
@@ -341,10 +344,13 @@ def main(job_path):
         options["ap_set_psf"] = float(job["set_psf"])
     options.update(job.get("extra_options", {}))
 
+    pipeline_start = time.perf_counter()
     outcome = pipeline.Process_Image(options=options)
+    pipeline_wall_s = time.perf_counter() - pipeline_start
     if outcome == 1:
         raise SystemExit(f"AutoProf reported failure for {name}")
 
+    parse_start = time.perf_counter()
     data = np.genfromtxt(os.path.join(output_dir, f"{name}.prof"), delimiter=",", names=True, skip_header=1)
     data = np.atleast_1d(data)
 
@@ -425,7 +431,21 @@ def main(job_path):
             "attribution_ok": interpolation["attribution_ok"],
             "attribution_note": interpolation["note"],
         },
+        "timing": {
+            "fits_write_s": fits_write_s,
+            "forcing_write_s": forcing_write_s,
+            "pipeline_wall_s": pipeline_wall_s,
+            "pipeline_steps_s": {key: float(value) for key, value in outcome.items()},
+            "profile_parse_s": time.perf_counter() - parse_start,
+        },
     }
+    return result
+
+
+def main(job_path):
+    with open(job_path) as handle:
+        job = json.load(handle)
+    result = run_job(job)
     with open(job["result_path"], "w") as handle:
         json.dump(result, handle)
 

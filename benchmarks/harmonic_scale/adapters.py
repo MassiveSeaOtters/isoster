@@ -109,7 +109,7 @@ def measure_isoster_fixed(
 
     orders = list(orders)
     config = IsosterConfig(
-        compute_deviations=True,
+        compute_deviations=bool(orders),
         harmonic_orders=orders,
         debug=True,
         use_eccentric_anomaly=False,
@@ -338,7 +338,7 @@ def measure_autoprof_fixed(
 
     rows = []
     for wanted, entry in zip(request, payload["rows"]):
-        pa_rad = float(wanted["pa"])
+        pa_rad = float(np.radians((entry["pa_deg_astro"] + 90.0) % 180.0))
         row = {
             "tool": "autoprof",
             "sma": entry["sma_pix"],

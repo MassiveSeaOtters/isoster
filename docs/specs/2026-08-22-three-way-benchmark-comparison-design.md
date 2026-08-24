@@ -5,11 +5,13 @@ Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
-Status (2026-08-23): **Part A complete, measured, archived and gated**, and
+Status (2026-08-24): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
-and gated; no Stage 2 timing has been run.** The frozen contract and executable
-helpers, not B1–B5's historical discussion, govern that calibration.
+and gated. The Stage 2 runner and persistent AutoProf worker are implemented
+and functionally checked; no Stage 2 scientific timing has been run.** The
+frozen contract and executable helpers, not B1–B5's historical discussion,
+govern that calibration.
 
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:
