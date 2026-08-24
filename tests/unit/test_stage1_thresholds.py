@@ -433,8 +433,8 @@ class TestCompleteFixtureIdentity:
         assert host == {
             "system": "Darwin",
             "machine": "arm64",
-            "machine_model": "MacBookPro18,2",
-            "logical_cpu_count": 10,
+            "machine_model": "Mac13,2",
+            "logical_cpu_count": 20,
             "thermal_command": "/usr/bin/pmset -g therm",
         }
         assert at.benchmark_host_mismatches(host) == []

@@ -381,8 +381,8 @@
   "benchmark_host": {
     "system": "Darwin",
     "machine": "arm64",
-    "machine_model": "MacBookPro18,2",
-    "logical_cpu_count": 10,
+    "machine_model": "Mac13,2",
+    "logical_cpu_count": 20,
     "thermal_command": "/usr/bin/pmset -g therm"
   },
   "benchmark_host_validation_function": "benchmarks.timing.accuracy_thresholds.benchmark_host_mismatches",
@@ -1221,7 +1221,7 @@
   "contamination": {
     "baseline_samples": 30,
     "baseline_interval_s": 10,
-    "baseline_median_max": 2.0,
+    "baseline_median_max": 4.0,
     "in_session_excess_max": 2.0,
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3
@@ -1230,5 +1230,5 @@
     "calibration": 100000,
     "campaign": 60260822
   },
-  "fingerprint": "943138f3843c34b2f935b56e1ac09095999e0b3869a893ebae0dee752b09b0aa"
+  "fingerprint": "9cca89434f6576760d08458f06e683674e457a0c7ad933b18e1a47d6ce14ef2c"
 }

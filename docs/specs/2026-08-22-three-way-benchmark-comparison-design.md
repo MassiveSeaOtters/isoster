@@ -1607,28 +1607,29 @@ at its quietest observed moment of 2.30. Measuring before freezing caught that.
 
 *The absolute ceiling is therefore derived from the hardware, not from that
 sample* — a contaminated measurement cannot set the bar it was meant to
-validate. The host has **10 cores**, so a 1-minute load of 2.0 is 20% of
-capacity already committed before the benchmark starts.
+validate. This host has **20 logical CPUs**, so the ceiling is fixed at 4.0,
+the same 0.2-times-logical-CPU rule used on the original host. Load average is
+only a contamination proxy, not a literal CPU-utilisation percentage.
 
 *Frozen rule:*
 
-- **Host identity:** Darwin/arm64, `MacBookPro18,2`, 10 logical CPUs, with
+- **Host identity:** Darwin/arm64, `Mac13,2`, 20 logical CPUs, with
   `/usr/bin/pmset -g therm` available. `benchmark_host_mismatches()` compares
   all five fields before calibration or campaign work. A different machine
   requires an explicit committed amendment and a newly justified load/thermal
   rule; it may not silently inherit this host's ceiling.
 
 - **Pre-campaign baseline**: 30 samples at 10 s **with no other work at all**,
-  agent sessions included. The baseline median must not exceed 2.0. This is an
+  agent sessions included. The baseline median must not exceed 4.0. This is an
   *empirical contamination proxy*, not a CPU-utilisation figure: load average
-  counts runnable **and uninterruptible** work, so on a 10-core host 2.0 is not
-  literally 20% of capacity, and an earlier draft said it was. A genuine idle
+  counts runnable **and uninterruptible** work, so on this host 4.0 is not
+  literally 20% of capacity. A genuine idle
   baseline remains a mandatory preflight; if the machine cannot meet the bound
   when idle, that is a finding to report, not a reason to raise it.
 - **During sessions**: sample every 10 s, not merely before and after — a
   before/after pair misses contention in between. Abort if load exceeds
-  `baseline_median + 2.0`. The benchmark is single-threaded on a 10-core host,
-  so it contributes ≈ 1; the remaining 1.0 is jitter allowance.
+  `baseline_median + 2.0`. The benchmark is single-threaded, so it contributes
+  ≈ 1; the remaining 1.0 is jitter allowance.
 - **Thermal**: `pmset -g therm` sampled per session; any recorded thermal or
   performance warning aborts. On this Apple Silicon host
   `kern.thermalpressurelevel` and `machdep.xcpm.cpu_thermal_level` do not

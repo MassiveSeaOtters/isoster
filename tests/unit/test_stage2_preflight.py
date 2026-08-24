@@ -6,8 +6,10 @@ there is no quiet machine to sample.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from benchmarks.timing.accuracy_thresholds import CONTAMINATION
-from benchmarks.timing.preflight import evaluate
+from benchmarks.timing.preflight import competing_processes, evaluate
 
 QUIET = {"median": 1.2, "min": 1.0, "max": 1.5}
 NO_THERMAL = {"warnings_recorded": False, "detail": []}
@@ -31,15 +33,32 @@ def test_a_competing_agent_session_refuses_even_when_load_looks_quiet():
     assert any("disqualifies a baseline" in p for p in problems)
 
 
+def test_an_idle_codex_session_is_detected_case_insensitively(monkeypatch):
+    process_table = """%CPU COMMAND
+0.0 /Applications/ChatGPT.app/Helpers/Codex (Service)
+0.0 /Applications/ChatGPT.app/Resources/Codex
+"""
+    monkeypatch.setattr(
+        "benchmarks.timing.preflight.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=process_table),
+    )
+    assert competing_processes() == ["/Applications/ChatGPT.app/Resources/Codex (0.0%)"]
+
+
 def test_a_thermal_warning_refuses():
     thermal = {"warnings_recorded": True, "detail": ["CPU_Speed_Limit = 80"]}
     assert any("thermal" in p for p in evaluate(QUIET, [], thermal))
 
 
+def test_a_host_mismatch_refuses_before_timing():
+    problems = evaluate(QUIET, [], NO_THERMAL, ["machine_model: expected 'Mac13,2', observed 'other'"])
+    assert any("machine_model" in p for p in problems)
+
+
 def test_every_reason_is_reported_not_just_the_first():
     loud = {**QUIET, "median": 99.0}
     thermal = {"warnings_recorded": True, "detail": ["x"]}
-    assert len(evaluate(loud, ["claude (34.4%)"], thermal)) == 3
+    assert len(evaluate(loud, ["claude (34.4%)"], thermal, ["host mismatch"])) == 4
 
 
 def test_the_bound_comes_from_the_frozen_contract():

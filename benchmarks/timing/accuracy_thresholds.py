@@ -111,14 +111,13 @@ MIN_COVERAGE_FRACTION = 0.60
 #: This prevents a tool returning fewer rings from receiving fewer tests.
 END_TO_END_EVALUATION_RADIUS_FRACTIONS = (0.3, 0.5, 1.0, 1.8, 3.0)
 
-#: Contamination limits. The ceiling is derived from the hardware --- 10 cores,
-#: so 2.0 is 20% of capacity committed before the benchmark starts --- because
-#: the only load sample available was taken on a busy machine and cannot set
-#: the bar it was meant to validate.
+#: Contamination limits. The ceiling is derived from the hardware at 0.2 times
+#: the 20 logical CPUs. Load average is only a contamination proxy, not literal
+#: CPU utilization; the idle baseline still has to pass before timing starts.
 CONTAMINATION = {
     "baseline_samples": 30,
     "baseline_interval_s": 10,
-    "baseline_median_max": 2.0,
+    "baseline_median_max": 4.0,
     "in_session_excess_max": 2.0,
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3,
@@ -130,8 +129,8 @@ CONTAMINATION = {
 BENCHMARK_HOST = {
     "system": "Darwin",
     "machine": "arm64",
-    "machine_model": "MacBookPro18,2",
-    "logical_cpu_count": 10,
+    "machine_model": "Mac13,2",
+    "logical_cpu_count": 20,
     "thermal_command": "/usr/bin/pmset -g therm",
 }
 

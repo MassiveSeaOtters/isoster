@@ -64,6 +64,7 @@ outputs/
 !docs/publication/latex/orcid-ID.png
 
 # Python
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class
