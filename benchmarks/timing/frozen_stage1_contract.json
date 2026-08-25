@@ -362,6 +362,13 @@
     "seed_derivation": "seed_blocks[stage] + realization_index",
     "harmonic_basis": "physical_polar_angle_from_major_axis",
     "harmonic_conversion_requirement": "every_source_ring_observed_valid",
+    "thread_limits": {
+      "MKL_NUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1"
+    },
     "tool_harmonic_settings": {
       "isoster": {
         "use_eccentric_anomaly": false
@@ -1231,5 +1238,5 @@
     "calibration": 100000,
     "campaign": 60260822
   },
-  "fingerprint": "e5012aae4e3fbe00eb0623c0a178849954ca5294de89d6a0ca0763156e93cdbf"
+  "fingerprint": "a1d9f776e5d199cdbebe55d4e4f0a9f9ddf566434a510ea021e2ec649d7aebf2"
 }

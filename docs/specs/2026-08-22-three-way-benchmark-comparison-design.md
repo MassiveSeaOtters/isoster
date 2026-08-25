@@ -5,12 +5,13 @@ Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
-Status (2026-08-24): **Part A complete, measured, archived and gated**, and
+Status (2026-08-25): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
 and gated. The Stage 2 runner and persistent AutoProf worker are implemented
-and functionally checked; the first Stage 2 attempt was rejected by the
-contamination guard before any result was accepted.** The
+and functionally checked; two Stage 2 attempts were rejected by the
+contamination guard before any result was accepted, and the second exposed an
+unfrozen numerical-library thread count.** The
 frozen contract and executable helpers, not B1–B5's historical discussion,
 govern that calibration.
 
@@ -1654,6 +1655,18 @@ rejected archive, attempt 1 had 105 samples over 1037.8 s (median 1.65), with
 only its final sample above the 4.745 bound. Attempts 2–4 then sampled the same
 5.35 one-minute load average within 0.11 s, so they were not independent retry
 opportunities. The absolute load bound is unchanged.
+
+**2026-08-25 threading amendment.** The second rejected calibration established
+that the statement “the benchmark is single-threaded” was false in the realized
+environment: AutoProf's NumPy loaded OpenBLAS with 20 threads. The four retained
+attempts crossed the load bound during benchmark work with no thermal warning
+or detected competing process. macOS recorded no system sleep or wake during
+the run, so the screen protector was not the abort signal. **Stage 2 fixes
+`MKL_NUM_THREADS=1`, `NUMEXPR_NUM_THREADS=1`, `OMP_NUM_THREADS=1`,
+`OPENBLAS_NUM_THREADS=1`, and `VECLIB_MAXIMUM_THREADS=1`** for every session
+subprocess and its AutoProf worker, and archives those values in every session.
+A direct startup probe measured AutoProf's OpenBLAS thread count changing from
+20 to 1 under these settings. The load bound remains unchanged.
 
 **7. Partial profiles.** Neither discarded nor padded. Achieved ring count and
 coverage are archived, accuracy is computed on the rings returned, and the run

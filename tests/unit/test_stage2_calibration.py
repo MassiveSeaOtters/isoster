@@ -2,8 +2,10 @@
 
 from benchmarks.timing.accuracy_thresholds import accuracy_family_members
 from benchmarks.timing.run_stage2_calibration import (
+    THREAD_LIMITS,
     _assess_sample,
     _base_record,
+    _session_environment,
     _set_accuracy_outcomes,
     _wait_for_clean_retry,
 )
@@ -66,3 +68,9 @@ def test_retry_waits_for_the_lagged_load_average_to_recover(monkeypatch):
 
     assert [sample["load"] for sample in trace] == [5.0, 5.0, 4.0]
     assert sleeps == [10.0, 10.0]
+
+
+def test_session_environment_overrides_numerical_library_thread_defaults(monkeypatch):
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "20")
+    environment = _session_environment()
+    assert {name: environment[name] for name in THREAD_LIMITS} == THREAD_LIMITS

@@ -45,6 +45,7 @@ from benchmarks.timing.accuracy_thresholds import (  # noqa: E402
     ENSEMBLE_REALIZATIONS,
     MAX_APERTURE_DISPLACEMENT_PX,
     MIN_COVERAGE_FRACTION,
+    SCIENTIFIC_INPUT,
     TARGET_INTERVAL_R_E,
     accuracy_family_members,
     benchmark_host_mismatches,
@@ -84,6 +85,7 @@ TARGET_RELATIVE_HALF_WIDTH = 0.05
 MAX_RETRIES = 3
 MONITOR_INTERVAL_S = 10.0
 ORDERS = (3, 4)
+THREAD_LIMITS = SCIENTIFIC_INPUT["thread_limits"]
 
 
 def _json_default(value):
@@ -586,6 +588,7 @@ def _run_session(session_index: int, repetitions: int, output_path: Path, autopr
                                     json.dumps(
                                         {
                                             "session_index": session_index,
+                                            "thread_limits": {name: os.environ.get(name) for name in THREAD_LIMITS},
                                             "autoprof_startup_s": client.startup_s,
                                             "autoprof_environment": client.environment,
                                             "records": records,
@@ -762,6 +765,12 @@ def _assess_sample(sample, consecutive_load_samples):
     )
 
 
+def _session_environment():
+    environment = os.environ.copy()
+    environment.update(THREAD_LIMITS)
+    return environment
+
+
 def _wait_for_clean_retry(trace, limit):
     while trace[-1]["contaminated"] or trace[-1]["load_limit_exceeded"]:
         print(
@@ -773,7 +782,7 @@ def _wait_for_clean_retry(trace, limit):
 
 
 def _run_monitored_session(command, trace, limit):
-    process = subprocess.Popen(command, cwd=REPO_ROOT, start_new_session=True)
+    process = subprocess.Popen(command, cwd=REPO_ROOT, start_new_session=True, env=_session_environment())
     next_sample = 0.0
     consecutive_load_samples = 0
     while process.poll() is None:

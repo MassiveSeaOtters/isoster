@@ -146,6 +146,13 @@ SCIENTIFIC_INPUT = {
     "seed_derivation": "seed_blocks[stage] + realization_index",
     "harmonic_basis": "physical_polar_angle_from_major_axis",
     "harmonic_conversion_requirement": "every_source_ring_observed_valid",
+    "thread_limits": {
+        "MKL_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "VECLIB_MAXIMUM_THREADS": "1",
+    },
     "tool_harmonic_settings": {
         "isoster": {"use_eccentric_anomaly": False},
         "photutils": {"basis": "native_physical_polar_angle"},

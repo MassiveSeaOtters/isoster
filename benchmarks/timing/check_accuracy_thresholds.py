@@ -115,6 +115,9 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
         f"`ap_isoband_fixed={str(autoprof['ap_isoband_fixed']).lower()}` / "
         f"`ap_isoband_width={autoprof['ap_isoband_width']}`"
     )
+    thread_limits = scientific_input["thread_limits"]
+    thread_pairs = [f"`{name.lower()}={value}`" for name, value in thread_limits.items()]
+    thread_clause = "stage 2 fixes " + ", ".join(thread_pairs[:-1]) + ", and " + thread_pairs[-1]
     return [
         (
             "harmonic_rmse_limit",
@@ -171,6 +174,7 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
             "in-session load abort:",
             f"in-session load abort: {contamination['in_session_consecutive_load_samples']} consecutive samples",
         ),
+        ("thread_limits", "stage 2 fixes", thread_clause),
         (
             "noise_arm",
             "gaussian_reference`:",
@@ -253,6 +257,8 @@ def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]
             **moved["contamination"],
             "in_session_consecutive_load_samples": 99,
         }
+    elif name == "thread_limits":
+        moved["scientific_input"]["thread_limits"] = {key: "99" for key in moved["scientific_input"]["thread_limits"]}
     elif name == "noise_arm":
         moved["scientific_input"]["noise_arms"]["gaussian_reference"]["snr_at_r_e"] = 999.0
     elif name == "noise_realizations":
