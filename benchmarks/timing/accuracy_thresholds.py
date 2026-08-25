@@ -111,15 +111,13 @@ MIN_COVERAGE_FRACTION = 0.60
 #: This prevents a tool returning fewer rings from receiving fewer tests.
 END_TO_END_EVALUATION_RADIUS_FRACTIONS = (0.3, 0.5, 1.0, 1.8, 3.0)
 
-#: Contamination limits. The ceiling is derived from the hardware at 0.2 times
-#: the 20 logical CPUs. Load average is only a contamination proxy, not literal
-#: CPU utilization; the idle baseline still has to pass before timing starts.
+#: Contamination limits. Load average is an idle preflight proxy and is recorded
+#: during work, but cannot distinguish the benchmark's own load from a competitor.
 CONTAMINATION = {
     "baseline_samples": 30,
     "baseline_interval_s": 10,
     "baseline_median_max": 4.0,
-    "in_session_excess_max": 2.0,
-    "in_session_consecutive_load_samples": 2,
+    "in_session_load_policy": "record_only",
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3,
 }

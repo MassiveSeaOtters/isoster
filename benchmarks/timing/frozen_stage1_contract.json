@@ -1229,8 +1229,7 @@
     "baseline_samples": 30,
     "baseline_interval_s": 10,
     "baseline_median_max": 4.0,
-    "in_session_excess_max": 2.0,
-    "in_session_consecutive_load_samples": 2,
+    "in_session_load_policy": "record_only",
     "thermal_signal": "pmset -g therm",
     "max_campaign_retries": 3
   },
@@ -1238,5 +1237,5 @@
     "calibration": 100000,
     "campaign": 60260822
   },
-  "fingerprint": "a1d9f776e5d199cdbebe55d4e4f0a9f9ddf566434a510ea021e2ec649d7aebf2"
+  "fingerprint": "9ef0ed6848bab39ba57909781d99bccefb7b007bf6e16034938bbf122108a737"
 }

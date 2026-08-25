@@ -170,9 +170,9 @@ def prose_claims(frozen: Dict[str, object]) -> List[Tuple[str, str, str]]:
             f"baseline median must not exceed {contamination['baseline_median_max']}",
         ),
         (
-            "in_session_load_samples",
-            "in-session load abort:",
-            f"in-session load abort: {contamination['in_session_consecutive_load_samples']} consecutive samples",
+            "in_session_load_policy",
+            "in-session load policy:",
+            f"in-session load policy: `{contamination['in_session_load_policy']}`",
         ),
         ("thread_limits", "stage 2 fixes", thread_clause),
         (
@@ -252,10 +252,10 @@ def _move_prose_claim(frozen: Dict[str, object], name: str) -> Dict[str, object]
         moved["seed_blocks"] = {key: value + 7 for key, value in moved["seed_blocks"].items()}
     elif name == "load_ceiling":
         moved["contamination"] = {**moved["contamination"], "baseline_median_max": 99.0}
-    elif name == "in_session_load_samples":
+    elif name == "in_session_load_policy":
         moved["contamination"] = {
             **moved["contamination"],
-            "in_session_consecutive_load_samples": 99,
+            "in_session_load_policy": "abort",
         }
     elif name == "thread_limits":
         moved["scientific_input"]["thread_limits"] = {key: "99" for key in moved["scientific_input"]["thread_limits"]}

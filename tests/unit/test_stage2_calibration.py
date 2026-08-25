@@ -3,8 +3,8 @@
 from benchmarks.timing.accuracy_thresholds import accuracy_family_members
 from benchmarks.timing.run_stage2_calibration import (
     THREAD_LIMITS,
-    _assess_sample,
     _base_record,
+    _indicator_sample,
     _session_environment,
     _set_accuracy_outcomes,
     _wait_for_clean_retry,
@@ -44,27 +44,31 @@ def test_noisy_arm_uses_all_realizations_and_derives_headline_eligibility():
     assert all(record["headline_eligible"] is True for record in records)
 
 
-def test_load_must_exceed_the_limit_twice_but_external_signals_abort_immediately():
-    high_load = {"load_limit_exceeded": True, "contaminated": False}
-    count, contaminated = _assess_sample(high_load, 0)
-    assert (count, contaminated) == (1, False)
-    assert _assess_sample(high_load, count) == (2, True)
-    assert _assess_sample({"load_limit_exceeded": False, "contaminated": True}, count) == (0, True)
+def test_in_session_load_is_recorded_but_does_not_abort(monkeypatch):
+    monkeypatch.setattr("benchmarks.timing.run_stage2_calibration.load_average", lambda: 7.33)
+    monkeypatch.setattr(
+        "benchmarks.timing.run_stage2_calibration.thermal_warnings",
+        lambda: {"warnings_recorded": False},
+    )
+    monkeypatch.setattr("benchmarks.timing.run_stage2_calibration.competing_processes", lambda: [])
+    sample = _indicator_sample()
+    assert sample["load"] == 7.33
+    assert sample["contaminated"] is False
 
 
-def test_retry_waits_for_the_lagged_load_average_to_recover(monkeypatch):
+def test_retry_waits_for_thermal_or_process_contamination_to_clear(monkeypatch):
     samples = iter(
         [
-            {"load": 5.0, "load_limit_exceeded": True, "contaminated": False},
-            {"load": 4.0, "load_limit_exceeded": False, "contaminated": False},
+            {"load": 5.0, "contaminated": True},
+            {"load": 4.0, "contaminated": False},
         ]
     )
     sleeps = []
-    monkeypatch.setattr("benchmarks.timing.run_stage2_calibration._indicator_sample", lambda limit: next(samples))
+    monkeypatch.setattr("benchmarks.timing.run_stage2_calibration._indicator_sample", lambda: next(samples))
     monkeypatch.setattr("benchmarks.timing.run_stage2_calibration.time.sleep", sleeps.append)
-    trace = [{"load": 5.0, "load_limit_exceeded": True, "contaminated": False}]
+    trace = [{"load": 5.0, "contaminated": True}]
 
-    _wait_for_clean_retry(trace, 4.745)
+    _wait_for_clean_retry(trace)
 
     assert [sample["load"] for sample in trace] == [5.0, 5.0, 4.0]
     assert sleeps == [10.0, 10.0]

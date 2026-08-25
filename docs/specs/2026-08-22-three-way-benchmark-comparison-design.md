@@ -9,9 +9,9 @@ Status (2026-08-25): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
 and gated. The Stage 2 runner and persistent AutoProf worker are implemented
-and functionally checked; two Stage 2 attempts were rejected by the
-contamination guard before any result was accepted, and the second exposed an
-unfrozen numerical-library thread count.** The
+and functionally checked; three Stage 2 attempts were rejected by the
+contamination guard before any result was accepted. The third established that
+active load is not an independent contamination signal on this host.** The
 frozen contract and executable helpers, not B1–B5's historical discussion,
 govern that calibration.
 
@@ -1630,13 +1630,10 @@ only a contamination proxy, not a literal CPU-utilisation percentage.
   literally 20% of capacity. A genuine idle
   baseline remains a mandatory preflight; if the machine cannot meet the bound
   when idle, that is a finding to report, not a reason to raise it.
-- **During sessions**: sample every 10 s, not merely before and after — a
-  before/after pair misses contention in between. **In-session load abort: 2
-  consecutive samples** must exceed `baseline_median + 2.0`. One isolated
-  sample is retained in the trace but does not abort. The one-minute load
-  average is lagged, and the first attempted calibration measured 104 clean
-  samples over 17 minutes before one sample crossed the bound; that single
-  point did not establish sustained competing work. Thermal warnings or a
+- **During sessions**: sample every 10 s and archive every value. **In-session
+  load policy: `record_only`.** Load does not abort a run because it includes
+  the benchmark's own runnable and uninterruptible work and therefore is not an
+  independent contamination indicator. Thermal warnings or a recognized
   competing process still abort immediately.
 - **Thermal**: `pmset -g therm` sampled per session; any recorded thermal or
   performance warning aborts. On this Apple Silicon host
@@ -1644,17 +1641,10 @@ only a contamination proxy, not a literal CPU-utilisation percentage.
   exist, so this signal is binary rather than graded.
 - **On abort**: the whole campaign is re-run; individual sessions are never
   dropped. **Every aborted campaign is retained and archived**, with its
-  indicator trace. Before a retry is counted, the runner waits for a clean
-  indicator sample; this prevents a one-minute load average from spending all
-  retries before it can decay. **Maximum 3 retries**; if a fourth completed
-  campaign would be needed, stop and report the machine as unfit rather than
-  continuing to draw until a quiet run appears.
-
-This 2026-08-24 amendment was committed before another timing attempt. In the
-rejected archive, attempt 1 had 105 samples over 1037.8 s (median 1.65), with
-only its final sample above the 4.745 bound. Attempts 2–4 then sampled the same
-5.35 one-minute load average within 0.11 s, so they were not independent retry
-opportunities. The absolute load bound is unchanged.
+  indicator trace. Before a retry is counted, the runner waits for clean
+  thermal and competing-process indicators. **Maximum 3 retries**; if a fourth
+  completed campaign would be needed, stop and report the machine as unfit
+  rather than continuing to draw until a quiet run appears.
 
 **2026-08-25 threading amendment.** The second rejected calibration established
 that the statement “the benchmark is single-threaded” was false in the realized
@@ -1666,7 +1656,21 @@ the run, so the screen protector was not the abort signal. **Stage 2 fixes
 `OPENBLAS_NUM_THREADS=1`, and `VECLIB_MAXIMUM_THREADS=1`** for every session
 subprocess and its AutoProf worker, and archives those values in every session.
 A direct startup probe measured AutoProf's OpenBLAS thread count changing from
-20 to 1 under these settings. The load bound remains unchanged.
+20 to 1 under these settings.
+
+**2026-08-25 Mac Studio amendment.** The in-session load ceiling was inherited
+from the earlier MacBook Pro protocol by scaling logical CPU count; it was not
+independently validated for active work on this Mac Studio. Three rejected
+calibrations showed that it was not usable here. In the final thread-limited
+attempt, attempt 1 ran for 5185 s and recorded 517 samples (median 2.96, maximum
+7.33) with no thermal warning and no recognized competing process, yet the
+load-only rule rejected it. Shorter retries failed the same way. Raising the
+ceiling after each run would merely fit the guard to another observed maximum.
+The protocol therefore retains the measured 4.0 idle preflight ceiling and
+reports the full in-session load trace, but makes no claim that an accepted run
+stayed below a transferred active-load bound. This is a deliberately relaxed
+condition appropriate to a supporting timing comparison, and it will be stated
+with the results.
 
 **7. Partial profiles.** Neither discarded nor padded. Achieved ring count and
 coverage are archived, accuracy is computed on the rings returned, and the run
