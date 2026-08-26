@@ -82,6 +82,8 @@ FORCED_PIPELINE_STEPS = [
     "writeprof",
 ]
 
+_ORIGINAL_PROBE_TARGETS = {}
+
 
 def _write_forcing_files(directory, name, rings, pixel_scale):
     """Write the forcing CSV and the minimal companion .aux AutoProf needs.
@@ -154,7 +156,7 @@ def _install_sampling_mode_probe():
         "extractions": [],
     }
 
-    original_between = extract_module._iso_between
+    original_between = _ORIGINAL_PROBE_TARGETS.setdefault("_iso_between", extract_module._iso_between)
 
     def between_probe(image, low, high, *args, **kwargs):
         events["total_calls"] += 1
@@ -166,7 +168,7 @@ def _install_sampling_mode_probe():
 
     # ``_iso_extract`` is imported into Isophote_Extract's namespace, so this
     # is the binding ``_Generate_Profile`` actually calls.
-    original_extract = extract_module._iso_extract
+    original_extract = _ORIGINAL_PROBE_TARGETS.setdefault("_iso_extract", extract_module._iso_extract)
 
     def extract_probe(image, sma, *args, **kwargs):
         before = events["interpolator_calls"]
@@ -190,7 +192,7 @@ def _install_sampling_mode_probe():
     extract_module._iso_extract = extract_probe
 
     def wrap_interpolator(name):
-        original = getattr(shared_module, name)
+        original = _ORIGINAL_PROBE_TARGETS.setdefault(name, getattr(shared_module, name))
 
         def interpolator_probe(*args, **kwargs):
             events["interpolator_calls"] += 1
@@ -348,7 +350,7 @@ def run_job(job):
     outcome = pipeline.Process_Image(options=options)
     pipeline_wall_s = time.perf_counter() - pipeline_start
     if outcome == 1:
-        raise SystemExit(f"AutoProf reported failure for {name}")
+        raise RuntimeError(f"AutoProf reported failure for {name}")
 
     parse_start = time.perf_counter()
     data = np.genfromtxt(os.path.join(output_dir, f"{name}.prof"), delimiter=",", names=True, skip_header=1)

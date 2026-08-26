@@ -5,15 +5,16 @@ Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
-Status (2026-08-25): **Part A complete, measured, archived and gated**, and
+Status (2026-08-26): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
-and gated. The Stage 2 runner and persistent AutoProf worker are implemented
-and functionally checked; three Stage 2 attempts were rejected by the
-contamination guard before any result was accepted. The third established that
-active load is not an independent contamination signal on this host.** The
-frozen contract and executable helpers, not B1–B5's historical discussion,
-govern that calibration.
+and gated. A Stage 2 run retained all 9,900 requested timings, but is not valid
+for Stage 3: 1,818 AutoProf executions are missing after the persistent worker
+accumulated nested sampling probes and exited. The shared probe now replaces
+its previous wrappers, and a pipeline failure is returned as a per-case error
+instead of terminating the worker. The retained archive remains diagnostic;
+execution coverage must be recovered before Stage 3.** The frozen contract and
+executable helpers, not B1–B5's historical discussion, govern that calibration.
 
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:
