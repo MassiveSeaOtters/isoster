@@ -504,12 +504,19 @@ def _request_id(record):
     )
 
 
+def _arm_label(record):
+    return "|".join(str(record[name]) for name in ("scope", "tool", "fixture", "noise_arm", "harmonics_enabled"))
+
+
 def _run_session(
     session_index: int,
     repetitions: int,
     output_path: Path,
     autoprof_python: str | None,
     request_ids: set[str] | None = None,
+    stage: str = "calibration",
+    calls_per_batch_by_arm: dict[str, int] | None = None,
+    tool_order_seed: int = 20260824,
 ):
     workspace = output_path.parent / f"session_{session_index:02d}_work"
     client = AutoprofClient(workspace / "autoprof_worker", autoprof_python)
@@ -527,11 +534,11 @@ def _run_session(
                             image, _, metadata = render_stage1_fixture(
                                 fixture,
                                 noise_arm,
-                                stage="calibration",
+                                stage=stage,
                                 realization_index=0 if noise_arm == "noiseless" else realization_index,
                             )
                             tools = ["isoster", "photutils", "autoprof"]
-                            random.Random(20260824 + session_index * 1000 + realization_index).shuffle(tools)
+                            random.Random(tool_order_seed + session_index * 1000 + realization_index).shuffle(tools)
                             for tool in tools:
                                 record = _base_record(
                                     scope,
@@ -542,34 +549,54 @@ def _run_session(
                                     session_index,
                                     realization_index,
                                 )
+                                record.update(
+                                    {
+                                        "fixture_stage": stage,
+                                        "input_seed": metadata["seed"],
+                                        "noise_sigma": float(metadata["noise_sigma"]),
+                                    }
+                                )
                                 request_id = _request_id(record)
                                 if pending_request_ids is not None:
                                     if request_id not in pending_request_ids:
                                         continue
                                     pending_request_ids.remove(request_id)
+                                calls_per_batch = (
+                                    calls_per_batch_by_arm[_arm_label(record)] if calls_per_batch_by_arm else 1
+                                )
                                 failed_attempt_start = time.perf_counter()
                                 try:
-                                    if scope == "fixed_aperture":
-                                        rows, fit_only_s, total_s = _fixed_rows(
-                                            tool,
-                                            image,
-                                            fixture,
-                                            harmonics_enabled,
-                                            float(metadata["noise_sigma"]),
-                                            client,
-                                            workspace,
-                                            request_id,
+                                    fit_only_batch_s = 0.0
+                                    total_batch_s = 0.0
+                                    for call_index in range(calls_per_batch):
+                                        call_request_id = (
+                                            request_id if calls_per_batch == 1 else f"{request_id}_call{call_index:03d}"
                                         )
-                                    else:
-                                        rows, fit_only_s, total_s = _end_to_end_rows(
-                                            tool,
-                                            image,
-                                            fixture,
-                                            harmonics_enabled,
-                                            client,
-                                            workspace,
-                                            request_id,
-                                        )
+                                        if scope == "fixed_aperture":
+                                            rows, fit_only_s, total_s = _fixed_rows(
+                                                tool,
+                                                image,
+                                                fixture,
+                                                harmonics_enabled,
+                                                float(metadata["noise_sigma"]),
+                                                client,
+                                                workspace,
+                                                call_request_id,
+                                            )
+                                        else:
+                                            rows, fit_only_s, total_s = _end_to_end_rows(
+                                                tool,
+                                                image,
+                                                fixture,
+                                                harmonics_enabled,
+                                                client,
+                                                workspace,
+                                                call_request_id,
+                                            )
+                                        fit_only_batch_s += fit_only_s
+                                        total_batch_s += total_s
+                                    fit_only_s = fit_only_batch_s / calls_per_batch
+                                    total_s = total_batch_s / calls_per_batch
                                     if not rows:
                                         raise RuntimeError("tool returned no profile")
                                     coverage_status, coverage_fraction = _coverage(fixture, rows, scope)
@@ -581,20 +608,31 @@ def _run_session(
                                             "fit_only_s": fit_only_s,
                                             "fit_plus_harness_s": total_s,
                                             "harness_s": total_s - fit_only_s,
+                                            "calls_per_batch": calls_per_batch,
+                                            "batch_fit_only_s": fit_only_batch_s,
+                                            "batch_fit_plus_harness_s": total_batch_s,
                                             "ring_count": len(rows),
                                             "fit_only_s_per_ring": fit_only_s / len(rows),
                                             "fit_plus_harness_s_per_ring": total_s / len(rows),
                                             "profile": rows,
                                         }
                                     )
-                                    try:
-                                        residuals, limits = _accuracy_inputs(
-                                            fixture, rows, scope, harmonics_enabled, metadata["truth"]
+                                    if tool == "autoprof" and scope == "fixed_aperture" and not harmonics_enabled:
+                                        record["intensity_accuracy_availability"] = "unavailable"
+                                        record["intensity_accuracy_unavailable_reason"] = (
+                                            "AutoProf does not emit b0 without coefficient extraction; "
+                                            "its I column is a different median estimator."
                                         )
-                                        record["accuracy_residuals"] = residuals
-                                        record["systematic_limits"] = limits
-                                    except (KeyError, TypeError, ValueError) as error:
-                                        record["accuracy_error"] = f"{type(error).__name__}: {error}"
+                                    else:
+                                        record["intensity_accuracy_availability"] = "available"
+                                        try:
+                                            residuals, limits = _accuracy_inputs(
+                                                fixture, rows, scope, harmonics_enabled, metadata["truth"]
+                                            )
+                                            record["accuracy_residuals"] = residuals
+                                            record["systematic_limits"] = limits
+                                        except (KeyError, TypeError, ValueError) as error:
+                                            record["accuracy_error"] = f"{type(error).__name__}: {error}"
                                 except Exception as error:  # noqa: BLE001
                                     record["error"] = f"{type(error).__name__}: {error}"
                                     record["failed_wall_s"] = time.perf_counter() - failed_attempt_start
@@ -603,6 +641,8 @@ def _run_session(
                                     json.dumps(
                                         {
                                             "session_index": session_index,
+                                            "stage": stage,
+                                            "tool_order_seed": tool_order_seed,
                                             "thread_limits": {name: os.environ.get(name) for name in THREAD_LIMITS},
                                             "autoprof_startup_s": client.startup_s,
                                             "autoprof_environment": client.environment,
@@ -634,36 +674,42 @@ def _set_accuracy_outcomes(records):
         noise_arm = key[3]
         successful = [record for record in arm_records if record["execution_status"] == "ok"]
         verdicts = {}
-        try:
-            if noise_arm == "noiseless":
-                source = successful[0]
-                for family, by_member in source["accuracy_residuals"].items():
-                    one_each = {member: values[0] for member, values in by_member.items()}
-                    if family == "geometry":
-                        passed = all(value <= MAX_APERTURE_DISPLACEMENT_PX for value in one_each.values())
-                    else:
-                        passed = evaluate_systematic_accuracy_family(one_each, source["systematic_limits"][family])[
-                            "family_passed"
-                        ]
-                    verdicts[family] = bool(passed)
-            else:
-                if len(successful) != ENSEMBLE_REALIZATIONS:
-                    raise ValueError(f"requires {ENSEMBLE_REALIZATIONS} successful realizations")
-                members = successful[0]["accuracy_residuals"]
-                for family in members:
-                    combined = {
-                        member: [record["accuracy_residuals"][family][member][0] for record in successful]
-                        for member in members[family]
-                    }
-                    if family == "geometry":
-                        passed = evaluate_geometry_accuracy_family(combined)["family_passed"]
-                    else:
-                        passed = evaluate_accuracy_family(
-                            combined, ideal_sigma_by_family_member(key[2], list(combined))
-                        )["family_passed"]
-                    verdicts[family] = bool(passed)
-        except (IndexError, KeyError, ValueError) as error:
-            failures.append({"arm": key, "error": str(error)})
+        intensity_unavailable = successful and all(
+            record.get("intensity_accuracy_availability") == "unavailable" for record in successful
+        )
+        if intensity_unavailable:
+            verdicts["intensity"] = False
+        else:
+            try:
+                if noise_arm == "noiseless":
+                    source = successful[0]
+                    for family, by_member in source["accuracy_residuals"].items():
+                        one_each = {member: values[0] for member, values in by_member.items()}
+                        if family == "geometry":
+                            passed = all(value <= MAX_APERTURE_DISPLACEMENT_PX for value in one_each.values())
+                        else:
+                            passed = evaluate_systematic_accuracy_family(one_each, source["systematic_limits"][family])[
+                                "family_passed"
+                            ]
+                        verdicts[family] = bool(passed)
+                else:
+                    if len(successful) != ENSEMBLE_REALIZATIONS:
+                        raise ValueError(f"requires {ENSEMBLE_REALIZATIONS} successful realizations")
+                    members = successful[0]["accuracy_residuals"]
+                    for family in members:
+                        combined = {
+                            member: [record["accuracy_residuals"][family][member][0] for record in successful]
+                            for member in members[family]
+                        }
+                        if family == "geometry":
+                            passed = evaluate_geometry_accuracy_family(combined)["family_passed"]
+                        else:
+                            passed = evaluate_accuracy_family(
+                                combined, ideal_sigma_by_family_member(key[2], list(combined))
+                            )["family_passed"]
+                        verdicts[family] = bool(passed)
+            except (IndexError, KeyError, ValueError) as error:
+                failures.append({"arm": key, "error": str(error)})
 
         for record in arm_records:
             record["harmonic_accuracy_status"] = (
@@ -947,12 +993,32 @@ def main():
     parser.add_argument("--session-index", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--session-output", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--request-ids", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--stage", choices=("calibration", "campaign"), default="calibration", help=argparse.SUPPRESS)
+    parser.add_argument("--timing-parameters", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.session_index is not None:
         if args.session_output is None:
             raise SystemExit("--session-output is required with --session-index")
         request_ids = set(json.loads(args.request_ids.read_text())) if args.request_ids else None
-        _run_session(args.session_index, args.repetitions, args.session_output, args.autoprof_python, request_ids)
+        if args.timing_parameters:
+            from benchmarks.timing.stage3_parameters import load_stage3_parameters
+
+            timing_parameters = load_stage3_parameters(args.timing_parameters)
+            calls_per_batch_by_arm = timing_parameters["calls_per_batch_by_arm"]
+            tool_order_seed = int(timing_parameters["tool_order_seed"])
+        else:
+            calls_per_batch_by_arm = None
+            tool_order_seed = 20260824
+        _run_session(
+            args.session_index,
+            args.repetitions,
+            args.session_output,
+            args.autoprof_python,
+            request_ids,
+            args.stage,
+            calls_per_batch_by_arm,
+            tool_order_seed,
+        )
         return
     _run_parent(args)
 

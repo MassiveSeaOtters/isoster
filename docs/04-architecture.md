@@ -571,6 +571,25 @@ onto one mechanism: at a matched threshold the two routes agree exactly.
 Both archives are gated in docs CI by `check_harmonic_scale.py`; see
 `docs/05-testing.md` for the rules on changing either.
 
+### Controlled three-way timing (`benchmarks/timing/`)
+
+The Part B timing study keeps scientific accuracy and timing eligibility as
+separate records. `run_stage2_calibration.py` supplies the shared per-session
+measurement path for isoster, photutils and the persistent AutoProf worker.
+`frozen_stage3_parameters.json` binds the measured per-arm batch sizes, three
+sessions, 25 repetitions and the independent campaign seed block with a
+fingerprint checked by `stage3_parameters.py`.
+
+`run_stage4_campaign.py` is the full-campaign entry point. It performs the idle
+preflight, starts fresh monitored session interpreters, records fit-only and
+fit-plus-harness time, and writes a new archive without replacing the
+established two-way benchmark. A record is timing-eligible only when execution,
+coverage and thermal/process conditions pass. Frozen scientific accuracy
+verdicts remain descriptive and are never rewritten to make a timing eligible.
+AutoProf's fixed-aperture, harmonics-off mean intensity is explicitly
+unavailable because AutoProf emits `b0` only when coefficient extraction is
+enabled; its median `I` column is not substituted.
+
 ## Documentation Policy
 
 - Stable docs live in `docs/` root.

@@ -132,6 +132,14 @@ so a broken generator cannot hide behind a checker that imports only its
 working path. Changes to this contract require an explicit re-freeze and spec
 amendment before any later-stage timing is run.
 
+Stage 4 timing parameters are separately frozen in
+`benchmarks/timing/frozen_stage3_parameters.json`. The campaign loader verifies
+its fingerprint, exact 132-arm batch table, session and repetition counts, and
+the independent Stage 4 seed block before timing. Run
+`benchmarks/timing/run_stage4_campaign.py --dry-run` after editing the file; a
+full run must use a new output directory and must be launched with agent
+sessions and other competing work closed.
+
 Noisy arms use normalized root-mean-square error, not a test of whether their
 mean residual differs significantly from zero. Failure to detect bias is not
 evidence of accuracy and can reward a noisier estimator. End-to-end profiles

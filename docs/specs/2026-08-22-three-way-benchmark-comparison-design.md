@@ -8,13 +8,12 @@ depends on should not live only on one machine.
 Status (2026-08-26): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
-and gated. A Stage 2 run retained all 9,900 requested timings, but is not valid
-for Stage 3: 1,818 AutoProf executions are missing after the persistent worker
-accumulated nested sampling probes and exited. The shared probe now replaces
-its previous wrappers, and a pipeline failure is returned as a per-case error
-instead of terminating the worker. The retained archive remains diagnostic;
-execution coverage must be recovered before Stage 3.** The frozen contract and
-executable helpers, not B1–B5's historical discussion, govern that calibration.
+and gated. Part B Stage 2 is complete after a non-destructive recovery restored
+all 1,818 missing AutoProf executions: all 9,900 records executed, achieved
+complete coverage and were measured without a thermal warning or recognized
+competing process. Stage 3 timing parameters and the post-calibration accuracy
+policy are frozen below.** The frozen contract and executable helpers, not
+B1–B5's historical discussion, govern the campaign.
 
 **Stage 2 AutoProf recovery amendment (2026-08-26).** Recovery is a separate,
 non-destructive run, not a replacement calibration. It selects only records
@@ -26,6 +25,28 @@ original error, records the recovery trace and output path, and recalculates
 the unchanged accuracy verdicts and Stage 3 timing recommendations. Recovery
 success means that execution coverage was restored; it does not turn a failed
 accuracy verdict into a pass.
+
+**Stage 3 decision (2026-08-26).** Stage 2 found that only 15 of 132 arms pass
+every frozen accuracy criterion, while no end-to-end arm does. Thirty
+evaluation errors have one known cause: AutoProf does not emit the Fourier mean
+`b0` in fixed-aperture, harmonics-off mode, and enabling coefficient extraction
+would change the task being timed. The thresholds and original
+`headline_eligible` values remain unchanged and descriptive. Stage 4 therefore
+adds a separate `timing_eligible` field derived only from successful execution,
+complete radial coverage and clean thermal/process indicators. The unavailable
+AutoProf mean is recorded explicitly; it is not substituted with AutoProf's
+different median estimator.
+
+Stage 4 uses three sessions and 25 repetitions per arm. Stage 2 recommended
+three sessions for 124 of 132 arms; eight Isoster arms requested 5–33 sessions
+under the calibration's 5% relative target. Three are retained because the
+timing comparison is supporting evidence and the matched Isoster effects are
+much larger than that target. The campaign reports its measured intervals and
+does not claim a small tool difference when intervals overlap. Each arm uses
+the Stage 2 batch count required to reach at least 0.1 seconds, frozen in
+`benchmarks/timing/frozen_stage3_parameters.json`. Campaign noise uses the
+already-frozen independent seed block 60260822, never Stage 2's calibration
+block.
 
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:

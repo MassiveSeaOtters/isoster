@@ -11,7 +11,9 @@ from benchmarks.timing.run_stage2_calibration import (
     _set_accuracy_outcomes,
     _wait_for_clean_retry,
 )
+from benchmarks.timing.run_stage4_campaign import _set_timing_eligibility, _timing_summaries
 from benchmarks.timing.stage1_fixtures import fixed_aperture_radii
+from benchmarks.timing.stage3_parameters import load_stage3_parameters
 
 
 def test_noisy_arm_uses_all_realizations_and_derives_headline_eligibility():
@@ -96,3 +98,50 @@ def test_recovery_selects_and_replaces_only_failed_autoprof_records(tmp_path):
     assert merged[0]["execution_status"] == "ok"
     assert merged[0]["recovery"]["original_error"] == "BrokenPipeError: worker exited"
     assert merged[1] is successful
+
+
+def test_frozen_stage3_parameters_cover_every_arm():
+    parameters = load_stage3_parameters()
+
+    assert len(parameters["calls_per_batch_by_arm"]) == 132
+    assert parameters["sessions"] == 3
+    assert parameters["repetitions_per_session"] == 25
+
+
+def test_unavailable_autoprof_mean_is_descriptive_not_an_evaluation_error():
+    record = _base_record("fixed_aperture", "autoprof", "fixture", "noiseless", False, 0, 0)
+    record.update(
+        {
+            "execution_status": "ok",
+            "coverage_status": "complete",
+            "intensity_accuracy_availability": "unavailable",
+        }
+    )
+
+    assert _set_accuracy_outcomes([record]) == []
+    assert record["intensity_accuracy_status"] == "fail"
+    assert record["headline_eligible"] is False
+
+
+def test_stage4_timing_eligibility_and_session_interval_are_separate_from_accuracy():
+    records = []
+    for session_index, elapsed in enumerate((1.0, 1.2, 0.9)):
+        record = _base_record("end_to_end", "isoster", "fixture", "noiseless", False, session_index, 0)
+        record.update(
+            {
+                "execution_status": "ok",
+                "coverage_status": "complete",
+                "fit_only_s": elapsed,
+                "fit_plus_harness_s": elapsed,
+                "calls_per_batch": 1,
+                "ring_count": 10,
+                "coverage_fraction": 1.0,
+            }
+        )
+        records.append(record)
+
+    _set_timing_eligibility(records)
+    summary = next(iter(_timing_summaries(records).values()))
+
+    assert all(record["timing_eligible"] for record in records)
+    assert summary["session_median_interval_s"] == [0.9, 1.2]
