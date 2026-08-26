@@ -111,6 +111,7 @@ def _run(args):
         request_path = args.output / f"session_{session_index:02d}_request_ids.json"
         session_path = args.output / f"session_{session_index:02d}.json"
         request_path.write_text(json.dumps(request_ids, indent=2))
+        print(f"[recovery] starting session {session_index} ({len(request_ids)} records)", flush=True)
         trace = [_indicator_sample()]
         if trace[-1]["contaminated"]:
             status = "contaminated"
@@ -130,6 +131,7 @@ def _run(args):
             if args.autoprof_python:
                 command.extend(["--autoprof-python", args.autoprof_python])
             status = _run_monitored_session(command, trace)
+        print(f"[recovery] session {session_index} finished with status: {status}", flush=True)
         session_metadata = {"session_index": session_index, "status": status, "trace": trace}
         recovery["sessions"].append(session_metadata)
         (args.output / "recovery.json").write_text(json.dumps(recovery, indent=2, default=_json_default))
