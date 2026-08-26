@@ -16,6 +16,17 @@ instead of terminating the worker. The retained archive remains diagnostic;
 execution coverage must be recovered before Stage 3.** The frozen contract and
 executable helpers, not B1–B5's historical discussion, govern that calibration.
 
+**Stage 2 AutoProf recovery amendment (2026-08-26).** Recovery is a separate,
+non-destructive run, not a replacement calibration. It selects only records
+whose tool is AutoProf and whose execution status is failed, recreates their
+inputs from the frozen fixture, seed and settings, and reruns each original
+session separately under the same thread and contamination controls. The
+source summary is never overwritten. The merged summary preserves each
+original error, records the recovery trace and output path, and recalculates
+the unchanged accuracy verdicts and Stage 3 timing recommendations. Recovery
+success means that execution coverage was restored; it does not turn a failed
+accuracy verdict into a pass.
+
 Closes the two items recorded as open in
 `docs/publication/method-code-consistency-audit.md`:
 

@@ -1,10 +1,12 @@
 """Small contract check for the Stage 2 calibration runner."""
 
 from benchmarks.timing.accuracy_thresholds import accuracy_family_members
+from benchmarks.timing.recover_stage2_autoprof import _merge_records, _select_failed_autoprof_records
 from benchmarks.timing.run_stage2_calibration import (
     THREAD_LIMITS,
     _base_record,
     _indicator_sample,
+    _request_id,
     _session_environment,
     _set_accuracy_outcomes,
     _wait_for_clean_retry,
@@ -78,3 +80,19 @@ def test_session_environment_overrides_numerical_library_thread_defaults(monkeyp
     monkeypatch.setenv("OPENBLAS_NUM_THREADS", "20")
     environment = _session_environment()
     assert {name: environment[name] for name in THREAD_LIMITS} == THREAD_LIMITS
+
+
+def test_recovery_selects_and_replaces_only_failed_autoprof_records(tmp_path):
+    failed = _base_record("end_to_end", "autoprof", "fixture", "noise", True, 0, 2)
+    failed["error"] = "BrokenPipeError: worker exited"
+    successful = _base_record("end_to_end", "isoster", "fixture", "noise", True, 0, 2)
+    successful["execution_status"] = "ok"
+    selected = _select_failed_autoprof_records([failed, successful])
+    replacement = {**failed, "execution_status": "ok", "fit_only_s": 1.0}
+
+    merged = _merge_records([failed, successful], [replacement], selected, tmp_path / "source.json")
+
+    assert set(selected) == {_request_id(failed)}
+    assert merged[0]["execution_status"] == "ok"
+    assert merged[0]["recovery"]["original_error"] == "BrokenPipeError: worker exited"
+    assert merged[1] is successful

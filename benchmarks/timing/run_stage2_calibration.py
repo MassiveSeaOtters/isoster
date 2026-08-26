@@ -497,10 +497,24 @@ def _base_record(scope, tool, fixture, noise_arm, harmonics_enabled, session_ind
     }
 
 
-def _run_session(session_index: int, repetitions: int, output_path: Path, autoprof_python: str | None):
+def _request_id(record):
+    return (
+        f"s{record['session_index']}_{record['scope']}_{record['tool']}_{record['fixture']}_"
+        f"{record['noise_arm']}_h{int(record['harmonics_enabled'])}_r{record['realization_index']}"
+    )
+
+
+def _run_session(
+    session_index: int,
+    repetitions: int,
+    output_path: Path,
+    autoprof_python: str | None,
+    request_ids: set[str] | None = None,
+):
     workspace = output_path.parent / f"session_{session_index:02d}_work"
     client = AutoprofClient(workspace / "autoprof_worker", autoprof_python)
     records = []
+    pending_request_ids = set(request_ids) if request_ids is not None else None
     try:
         fixtures = stage1_fixtures()
         for scope in ("fixed_aperture", "end_to_end"):
@@ -528,10 +542,11 @@ def _run_session(session_index: int, repetitions: int, output_path: Path, autopr
                                     session_index,
                                     realization_index,
                                 )
-                                request_id = (
-                                    f"s{session_index}_{scope}_{tool}_{fixture}_{noise_arm}_"
-                                    f"h{int(harmonics_enabled)}_r{realization_index}"
-                                )
+                                request_id = _request_id(record)
+                                if pending_request_ids is not None:
+                                    if request_id not in pending_request_ids:
+                                        continue
+                                    pending_request_ids.remove(request_id)
                                 failed_attempt_start = time.perf_counter()
                                 try:
                                     if scope == "fixed_aperture":
@@ -598,6 +613,8 @@ def _run_session(session_index: int, repetitions: int, output_path: Path, autopr
                                         allow_nan=True,
                                     )
                                 )
+        if pending_request_ids:
+            raise ValueError(f"unknown request ids: {sorted(pending_request_ids)}")
     finally:
         client.close()
 
@@ -929,11 +946,13 @@ def main():
     parser.add_argument("--autoprof-python")
     parser.add_argument("--session-index", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--session-output", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--request-ids", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.session_index is not None:
         if args.session_output is None:
             raise SystemExit("--session-output is required with --session-index")
-        _run_session(args.session_index, args.repetitions, args.session_output, args.autoprof_python)
+        request_ids = set(json.loads(args.request_ids.read_text())) if args.request_ids else None
+        _run_session(args.session_index, args.repetitions, args.session_output, args.autoprof_python, request_ids)
         return
     _run_parent(args)
 
