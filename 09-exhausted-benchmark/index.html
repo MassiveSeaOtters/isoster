@@ -1,0 +1,2519 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/09-exhausted-benchmark/">
+      
+      
+        <link rel="prev" href="../08-outer-regularization/">
+      
+      
+        <link rel="next" href="../10-multiband/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Exhausted Benchmark - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#exhausted-benchmark-campaign" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Exhausted Benchmark
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-autoprof-setup-one-time-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. AutoProf setup (one-time, optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-campaign-yaml-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Campaign YAML Schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-arm-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Arm File Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Arm File Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sentinels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#harm_higher_orders-expansion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harm_higher_orders::* expansion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-output-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Output Layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Output Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profilefits-harmonic-columns-schema-version-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile.fits harmonic columns — schema version 2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-composite-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Composite Score
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Composite Score">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evaluation-workflow-standard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation workflow standard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#artifact-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifact contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#region-gating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Region gating
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11-model-evaluation-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.1 model-evaluation metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-explicitly-not-scored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is explicitly not scored
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-tool-score-tool-neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-tool score (tool-neutral)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-comparison-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading comparison outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#surface-brightness-profile-scale-in-benchmark-qa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface-brightness profile scale in benchmark QA
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-writing-a-new-dataset-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Writing a New Dataset Adapter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Writing a New Dataset Adapter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-mock-driver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario mock driver
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-autoprof-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. AutoProf Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-parallel-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Parallel Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-command-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Command Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-autoprof-setup-one-time-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. AutoProf setup (one-time, optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-campaign-yaml-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Campaign YAML Schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-arm-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Arm File Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Arm File Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sentinels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sentinels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#harm_higher_orders-expansion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        harm_higher_orders::* expansion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-output-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Output Layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Output Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#profilefits-harmonic-columns-schema-version-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile.fits harmonic columns — schema version 2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-composite-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Composite Score
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Composite Score">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evaluation-workflow-standard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation workflow standard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#artifact-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Artifact contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#region-gating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Region gating
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11-model-evaluation-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.1 model-evaluation metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-explicitly-not-scored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is explicitly not scored
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-tool-score-tool-neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-tool score (tool-neutral)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-comparison-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading comparison outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#surface-brightness-profile-scale-in-benchmark-qa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface-brightness profile scale in benchmark QA
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-writing-a-new-dataset-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Writing a New Dataset Adapter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Writing a New Dataset Adapter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-mock-driver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario mock driver
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-autoprof-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. AutoProf Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-parallel-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Parallel Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-command-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Command Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="exhausted-benchmark-campaign">Exhausted Benchmark Campaign</h1>
+<p><code>benchmarks/exhausted/</code> is a declarative, multi-tool, multi-galaxy
+campaign framework for stress-testing <code>isoster</code> against alternatives
+(<code>photutils.isophote</code>, <code>autoprof</code>) across a curated knob roster
+("arms"). One campaign YAML drives the whole run: arms, galaxies,
+tools, QA, and aggregated statistics.</p>
+<p>This document is the reference for operators and the recipe for new
+contributions (new tools, new datasets, new arms).</p>
+<h2 id="0-autoprof-setup-one-time-optional">0. AutoProf setup (one-time, optional)</h2>
+<p>AutoProf 1.3.4 pins <code>numpy&lt;2</code> and <code>photutils&lt;=1.5</code>, so it cannot share the
+main <code>uv</code> environment. Install it in its own venv at a <strong>stable</strong> location —
+not <code>/tmp</code>, which macOS prunes periodically and will silently strip individual
+<code>.py</code> files mid-campaign:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>~/.venvs/autoprof_venv
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>~/.venvs/autoprof_venv/bin/python<span class="w"> </span><span class="s1">&#39;autoprof==1.3.4&#39;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>~/.venvs/autoprof_venv/bin/python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from autoprof.Pipeline import Isophote_Pipeline; print(&#39;ok&#39;)&quot;</span>
+</code></pre></div>
+<p>Run these from outside the repository so <code>uv</code> does not associate the venv with
+this project. Python 3.10 is the newest interpreter for which photutils 1.5.0
+publishes macOS arm64 wheels; newer versions work but build it from source.</p>
+<p>That path is the built-in default, so with the venv in this location nothing
+needs to be configured. <code>benchmarks/autoprof_env.py</code> holds the default and the
+resolution rules for both benchmark trees. To point somewhere else:</p>
+<table>
+<thead>
+<tr>
+<th>Consumer</th>
+<th>How to point it at a different venv</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exhausted campaigns (<code>benchmarks/exhausted/</code>)</td>
+<td><code>tools.autoprof.venv_python</code> in the campaign YAML</td>
+</tr>
+<tr>
+<td><code>bench_vs_autoprof.py</code> (<code>benchmarks/utils/autoprof_adapter.py</code>)</td>
+<td><code>AUTOPROF_PYTHON</code> environment variable</td>
+</tr>
+</tbody>
+</table>
+<p>An explicit YAML path wins over <code>AUTOPROF_PYTHON</code>, which wins over the default;
+<code>~</code> is expanded in all three. When the venv is absent, AutoProf arms skip
+cleanly with a regeneration hint that prints the install commands.</p>
+<div class="admonition warning">
+<p class="admonition-title">Settled: the AutoProf harmonic scale differs, and Prior 2 is not computable for that tool</p>
+<p>This was an open question. Part A measured it, and the answer is a real
+mismatch rather than the ignorance recorded here before.</p>
+<p>AutoProf's native coefficients are <code>a_n = -S_n / (2|b0|)</code> and
+<code>b_n = +C_n / (2|b0|)</code> — raw amplitudes divided by twice the ring mean.
+Bender normalization divides instead by <code>sma·|dI/da|</code>. These are different
+denominators, not different conventions for the same one, so the old
+adapter behaviour of copying the columns through unconverted was comparing
+two different quantities under one name. Schema version 2 fixes it: the
+native values are preserved under <code>autoprof_*_native</code> and the Bender
+columns are NaN with a recorded reason (see §4).</p>
+<p>What Part A <em>did</em> establish is that the underlying scales agree, and that
+the apparent 13–25% AutoProf excess is nearest-pixel sampling rather than
+scale. The agreement is radius-dependent, not uniform, and the figures are
+in the design spec where they are bound to the archive. They are not
+repeated here: an earlier version of this passage stated a 0.1–0.3%
+three-tool agreement that the archive contradicts, precisely because it was
+unguarded prose.</p>
+<p><strong>Consequence for Prior 2, unchanged in practice:</strong> the cross-tool
+harmonic score still cannot be computed for an AutoProf arm, because the
+Bender columns it reads are NaN. Do not publish Prior 2 scores for the
+autoprof tool. The ISOSTER-vs-<code>photutils</code> harmonic comparison is
+unaffected. The route to filling those columns is Track 2, and no ring in
+this campaign structurally supports it — see §4.</p>
+</div>
+<h2 id="1-quick-start">1. Quick Start</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># (one-time) set up the AutoProf venv if you want that tool active.</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># See section 0 above -- use a stable path, never /tmp.</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.10<span class="w"> </span>~/.venvs/autoprof_venv
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>~/.venvs/autoprof_venv/bin/python<span class="w"> </span><span class="s1">&#39;autoprof==1.3.4&#39;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Dry-run the planned fit matrix.</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.orchestrator.cli<span class="w"> </span>dry-run<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>benchmarks/exhausted/configs/campaign.example.yaml
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Execute it. Outputs land under `output_root/campaign_name/`.</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.orchestrator.cli<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span>benchmarks/exhausted/configs/campaign.example.yaml
+</code></pre></div>
+<p>Cached runs short-circuit: any arm whose <code>profile.fits</code> already exists
+under the campaign output is skipped and its inventory row is rebuilt
+from the on-disk <code>run_record.json</code>. Delete the arm directory to force a
+re-fit.</p>
+<h2 id="2-campaign-yaml-schema">2. Campaign YAML Schema</h2>
+<p>The campaign YAML is validated at load time by
+<code>benchmarks/exhausted/orchestrator/config_loader.py</code>. Top-level keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>campaign_name</code></td>
+<td>str</td>
+<td>Used as output subdirectory name.</td>
+</tr>
+<tr>
+<td><code>output_root</code></td>
+<td>path</td>
+<td>Repo-relative (under <code>outputs/</code>), absolute, or <code>~</code>-prefixed.</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>map</td>
+<td>One entry per tool (<code>isoster</code>, <code>photutils</code>, <code>autoprof</code>).</td>
+</tr>
+<tr>
+<td><code>isoster_harmonic_sweeps</code></td>
+<td>list[list[int]]</td>
+<td>Expands into <code>harm_higher_orders::*</code> isoster arms. Explicit <code>[]</code> disables the expansion; omitting the key falls back to <code>[[5, 6]]</code>.</td>
+</tr>
+<tr>
+<td><code>datasets</code></td>
+<td>map</td>
+<td>One entry per dataset. <code>adapter</code> is the module name under <code>adapters/</code>.</td>
+</tr>
+<tr>
+<td><code>qa</code></td>
+<td>map</td>
+<td>Per-figure toggles (see below).</td>
+</tr>
+<tr>
+<td><code>execution</code></td>
+<td>map</td>
+<td><code>max_parallel_galaxies</code>, <code>skip_existing</code>, <code>fail_fast</code>, <code>dry_run</code>.</td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>map</td>
+<td>Includes the composite-score weights.</td>
+</tr>
+</tbody>
+</table>
+<p>The canonical example lives at
+<code>benchmarks/exhausted/configs/campaign.example.yaml</code>; the smoke
+variant <code>campaign.smoke_local.yaml</code> is what the integration smoke test
+and hands-on debugging run against.</p>
+<p>Per-tool entry:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">tools</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">isoster</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">arms_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">benchmarks/exhausted/configs/isoster_arms.yaml</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">photutils</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">arms_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">benchmarks/exhausted/configs/photutils_arms.yaml</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">autoprof</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">arms_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">benchmarks/exhausted/configs/autoprof_arms.yaml</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="nt">venv_python</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~/.venvs/autoprof_venv/bin/python&quot;</span><span class="w">   </span><span class="c1"># stable path; see §0</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300</span><span class="w">        </span><span class="c1"># seconds per arm</span>
+</code></pre></div>
+<p>Per-dataset entry:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">huang2013</span><span class="p">:</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">adapter</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">huang2013</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">root</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;~/isophote_test/output/huang2013&quot;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">select</span><span class="p">:</span><span class="w">             </span><span class="c1"># optional allowlist</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;NGC_0596/mock001&quot;</span>
+</code></pre></div>
+<p><code>qa</code> toggles:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>per_galaxy_qa</code></td>
+<td>true</td>
+<td>Writes <code>arms/&lt;arm&gt;/qa.png</code>.</td>
+</tr>
+<tr>
+<td><code>cross_arm_overlay</code></td>
+<td>true</td>
+<td>Writes <code>&lt;tool&gt;/cross_arm_overlay.png</code> (6-panel all-arms overlay).</td>
+</tr>
+<tr>
+<td><code>cross_tool_comparison</code></td>
+<td>true</td>
+<td>Writes <code>&lt;galaxy&gt;/cross/cross_tool_comparison.png</code> (effective only when ≥2 tools are enabled and produce rows).</td>
+</tr>
+<tr>
+<td><code>summary_grids</code></td>
+<td>false</td>
+<td>Per-(tool, arm) multi-galaxy thumbnail grids. Off by default: the format does not scale past ~20 galaxies.</td>
+</tr>
+<tr>
+<td><code>residual_models</code></td>
+<td>true</td>
+<td>Writes <code>arms/&lt;arm&gt;/model.fits</code> with MODEL + RESIDUAL HDUs.</td>
+</tr>
+<tr>
+<td><code>sb_profile_scale</code></td>
+<td><code>log10</code></td>
+<td>1D SB profile scale for QA figures: <code>log10</code> or <code>asinh</code> / <code>arcsinh</code>.</td>
+</tr>
+<tr>
+<td><code>sb_asinh_softening</code></td>
+<td>null</td>
+<td>Optional positive asinh softening scale; in calibrated QA it is flux per arcsec².</td>
+</tr>
+</tbody>
+</table>
+<p><code>execution</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_parallel_galaxies</code></td>
+<td>1</td>
+<td><code>&gt;1</code> activates a <code>ProcessPoolExecutor</code> with <code>mp_context=spawn</code>. Tools and arms always run serially within one galaxy.</td>
+</tr>
+<tr>
+<td><code>skip_existing</code></td>
+<td>true</td>
+<td>Skip any arm whose <code>profile.fits</code> exists; rebuild the inventory row from <code>run_record.json</code>.</td>
+</tr>
+<tr>
+<td><code>fail_fast</code></td>
+<td>false</td>
+<td>On the first worker exception, cancel pending galaxies and raise. Already-running workers cannot be killed cleanly.</td>
+</tr>
+<tr>
+<td><code>dry_run</code></td>
+<td>false</td>
+<td>Reserved; use the <code>dry-run</code> subcommand for matrix inspection.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-arm-file-format">3. Arm File Format</h2>
+<p>Each arm is a minimal <em>delta</em> from the tool's baseline configuration.
+The runner merges the delta into the tool's default config before
+invoking the fitter. Arms live in:</p>
+<ul>
+<li><code>configs/isoster_arms.yaml</code>   — 22 declared arms + <code>harm_higher_orders::*</code> expansion</li>
+<li><code>configs/photutils_arms.yaml</code> — 5 arms</li>
+<li><code>configs/autoprof_arms.yaml</code>  — 4 arms</li>
+</ul>
+<p>Top-level schema:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">arms</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">ref_default</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">                </span><span class="c1"># empty delta = use the tool&#39;s baseline</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">sclip_off</span><span class="p">:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">nclip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">                     </span><span class="c1"># isoster knob override</span>
+</code></pre></div>
+<h3 id="sentinels">Sentinels</h3>
+<p>Certain values are resolved at fit time against the loaded galaxy
+rather than the static YAML. The runner routes through
+<code>fitters/&lt;tool&gt;_fitter.py</code> to substitute these before the config is
+built.</p>
+<table>
+<thead>
+<tr>
+<th>Sentinel</th>
+<th>Scope</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_use_Re</code></td>
+<td>isoster (integrator knobs)</td>
+<td>Replaced by <code>adapter.effective_Re_pix</code>. If the adapter supplies no Re, the arm is skipped with <code>status="skipped"</code> and a clear <code>error_msg</code>.</td>
+</tr>
+<tr>
+<td><code>_use_2Re</code></td>
+<td>isoster (integrator knobs)</td>
+<td>As above, multiplied by 2.</td>
+</tr>
+<tr>
+<td><code>_special: drop_variance</code></td>
+<td>isoster (top-level key)</td>
+<td>Forces <code>variance_map=None</code> (OLS path). If the adapter did not supply a variance map, the arm is skipped (nothing to drop).</td>
+</tr>
+<tr>
+<td><code>_fix_center_from: isoster_weighted</code></td>
+<td>autoprof</td>
+<td>Hard-fixes AutoProf's center via <code>ap_set_center</code> to the intensity-weighted (x0, y0) over the first 10 stop_code==0 isophotes of the companion isoster <code>ref_default</code> profile. Requires isoster to run first on the same galaxy; otherwise the arm is skipped with a clear <code>error_msg</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>A galaxy whose adapter metadata does not carry <code>effective_Re_pix</code> or
+whose bundle has no variance map will see these arms silently
+<code>status="skipped"</code> rather than failing — this is what lets a generic
+campaign run across heterogeneous datasets.</p>
+<h3 id="harm_higher_orders-expansion"><code>harm_higher_orders::*</code> expansion</h3>
+<p>The campaign YAML's <code>isoster_harmonic_sweeps</code> is a list of integer
+lists. Each entry expands into one isoster arm with id
+<code>harm_higher_orders::&lt;entries joined by "_"&gt;</code> and the delta
+<code>harmonic_orders: &lt;entry&gt;</code>. Example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">isoster_harmonic_sweeps</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">6</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">6</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">7</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># -&gt; arms: harm_higher_orders::5_6, harm_higher_orders::5_6_7_8</span>
+</code></pre></div>
+<h2 id="4-output-layout">4. Output Layout</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>&lt;output_root&gt;/&lt;campaign_name&gt;/
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>├── campaign.yaml                    # frozen snapshot of the input YAML
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>├── environment.json                 # python + deps + git sha at run start
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>└── &lt;dataset&gt;/                       # one per enabled dataset
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    ├── &lt;galaxy_id&gt;/
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    │   ├── MANIFEST.json            # bundle metadata + image_sigma
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    │   ├── cross/
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    │   │   └── cross_tool_comparison.png
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    │   └── &lt;tool&gt;/
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    │       ├── inventory.fits       # additive per-arm inventory schema
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    │       ├── cross_arm_overlay.png
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    │       ├── cross_arm_table.csv
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    │       ├── cross_arm_table.md
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    │       └── arms/&lt;arm&gt;/
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    │           ├── profile.fits     # canonical per-arm profile
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    │           ├── model.fits       # MODEL + RESIDUAL HDUs
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    │           ├── qa.png
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    │           ├── config.yaml      # effective config for this arm
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    │           └── run_record.json  # timings + metrics + flags
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    ├── &lt;tool&gt;/cross_arm_summary.{csv,md}   # per-tool medians across galaxies
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>    └── cross_tool_table.{csv,md}           # dataset-level tool comparison
+</code></pre></div>
+<p>Auxiliary AutoProf artifacts (<code>.prof</code>, <code>.aux</code>, <code>*_genmodel.fits</code>) land
+in <code>arms/&lt;arm&gt;/raw/</code> inside the per-arm directory.</p>
+<h3 id="profilefits-harmonic-columns-schema-version-2"><code>profile.fits</code> harmonic columns — schema version 2</h3>
+<p><strong>Schema version 2 changes what an existing column means, so files written
+before it and after it are not interchangeable.</strong> Every arm's
+<code>run_record.json</code> now carries <code>profile_schema_version</code>; a profile without
+that key is version 1 and must not be pooled with version 2 files.</p>
+<p><strong>What was wrong in version 1.</strong> The AutoProf fitter wrote AutoProf's
+<em>native</em> coefficients straight into <code>a3</code>, <code>b3</code>, <code>a4</code>, <code>b4</code> — the same column
+names the isoster and photutils fitters fill with Bender-normalized,
+major-axis values. Those are different quantities on different scales:
+AutoProf's are <code>a_n = -S_n / (2|b0|)</code> and <code>b_n = +C_n / (2|b0|)</code>, in
+whatever angle basis the run used, while the others are
+<code>S_n / (sma·|dI/da|)</code>. Once written, the two were indistinguishable, and any
+cross-tool comparison of an <code>a4</code> column was comparing two different things.</p>
+<p><strong>What version 2 writes.</strong> The bare names keep their established meaning
+across every tool, and the native values get names of their own:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>autoprof_a3_native</code>, <code>autoprof_b3_native</code>, <code>autoprof_a4_native</code>, <code>autoprof_b4_native</code></td>
+<td>exactly what AutoProf wrote, untouched</td>
+</tr>
+<tr>
+<td><code>autoprof_b0</code></td>
+<td>the DC term of the same vector, which makes the raw reconstruction exact rather than estimated</td>
+</tr>
+<tr>
+<td><code>s3_raw_sky</code>, <code>c3_raw_sky</code>, <code>s4_raw_sky</code>, <code>c4_raw_sky</code></td>
+<td>raw sine/cosine amplitudes in image intensity units, <strong>sky frame</strong></td>
+</tr>
+<tr>
+<td><code>a3</code>, <code>b3</code>, <code>a4</code>, <code>b4</code></td>
+<td>Bender-normalized, major-axis — <strong>NaN in an AutoProf arm</strong>, see below</td>
+</tr>
+<tr>
+<td><code>harmonic_basis</code></td>
+<td><code>polar_from_image_x_axis</code> or <code>eccentric_anomaly</code>, decided at runtime by <code>ap_isoclip</code></td>
+</tr>
+<tr>
+<td><code>harmonic_conversion_valid</code></td>
+<td>boolean</td>
+</tr>
+<tr>
+<td><code>harmonic_conversion_reason</code></td>
+<td>why, when not valid</td>
+</tr>
+<tr>
+<td><code>harmonic_measurement_status</code></td>
+<td>the producing tool's own failure reason for a NaN row</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why the Bender columns are NaN for AutoProf.</strong> Bender normalization divides
+by <code>sma·|dI/da|</code>, and AutoProf reports no radial gradient. Part A's Track 2
+reconstructs one by finite-differencing AutoProf's own <code>b0</code> profile — <code>b0</code>,
+not the median <code>SB</code> profile, because <code>b0</code> is the mean of the exact vector that
+entered the FFT and so is the estimator consistent with the harmonic
+numerator.</p>
+<p><strong>The method is validated, but no row here can use it.</strong> Part A measured the
+reconstruction on two galaxies: the matched secant reproduces isoster's
+gradient far more closely than a point derivative does, by a margin fixed in
+advance. The measured figures live in the design spec, where they are bound to
+the archive by a prose gate; they are deliberately not repeated here, because a
+number quoted in a second place is a number that can drift.</p>
+<p>The word "licensed" was withdrawn on 2026-08-23 after review, and the
+distinction now matters here. Validating the <em>method</em> is campaign-level.
+Whether a <em>particular ring pair</em> supports conversion is a separate, row-level
+question answered from realized provenance — <code>harmonic_conversion_valid</code>. This
+campaign fails the second question everywhere, for a structural reason:</p>
+<blockquote>
+<p>the comparison ring at <code>sma·(1 + astep)</code> must be <strong>measured</strong>, not
+interpolated.</p>
+</blockquote>
+<p>Track 2 differences <code>b0</code> between a ring and its partner at <code>sma·1.1</code>, and it
+gets both by asking AutoProf for a <strong>fixed aperture</strong> at each radius. This
+campaign's AutoProf arm is a <strong>free fit</strong>: AutoProf chooses its own radii, so
+in general no ring exists at <code>sma·1.1</code> to difference against. There is nothing
+to reconstruct from, and interpolating <code>b0</code> onto the missing radius is an
+untested step that would put an unmeasured quantity inside the denominator of
+every harmonic.</p>
+<p>So conversion is applicable to the <strong>fixed-aperture</strong> comparison only, and
+every Bender column here keeps its NaN with <code>harmonic_conversion_reason</code>
+naming the missing comparison ring. Changing that needs one of two pieces of
+work, neither yet done: run the campaign's AutoProf arm with forced paired
+rings, or measure and validate a <code>b0</code> interpolation. Until then, nothing
+invents a gradient here. The full result, its regime table and its conditions are in
+<code>docs/specs/2026-08-22-three-way-benchmark-comparison-design.md</code>, section
+"A4 Track 2 result".</p>
+<p>NaN rather than an omitted column because the output is a fixed-schema FITS
+table, where every row has every column and absence has to be represented by
+a value. NaN rather than <code>0.0</code> because it fails loudly in arithmetic.</p>
+<p>Where the basis is <code>eccentric_anomaly</code> a second reason applies and is
+recorded: that basis is not a rotation of the polar one but a different one,
+and changing between them mixes harmonic <em>orders</em>, so no same-order
+two-component transform can express it. Part A measured what pretending
+otherwise costs — 12% at <code>eps = 0.3</code> and 63% at <code>eps = 0.6</code>. Convert that
+path by resampling the ring signal, or leave it native and labelled; never
+by rotating <code>a_n</code> and <code>b_n</code> alone.</p>
+<p><strong>Migration.</strong> There is no in-place migration and none is possible: a
+version-1 AutoProf <code>a3</code> cannot be converted to a version-2 <code>a3</code> without the
+gradient that was never recorded. Re-run the affected arms. To read an old
+file, treat its <code>a3</code>/<code>b3</code>/<code>a4</code>/<code>b4</code> as <code>autoprof_*_native</code> and note that its
+<code>b0</code> was not preserved, so even the raw reconstruction is unavailable.</p>
+<h2 id="5-composite-score">5. Composite Score</h2>
+<h3 id="evaluation-workflow-standard">Evaluation workflow standard</h3>
+<p>The exhausted benchmark follows the same QA principle as the plotting
+API: every score should be traceable back to the same profile, model,
+mask, and metadata artifacts shown in the QA figures. A campaign run
+should therefore be read in this order:</p>
+<ol>
+<li>Confirm each arm's <code>status</code>, <code>flags</code>, and <code>flag_severity_max</code>.</li>
+<li>Inspect the per-arm <code>qa.png</code> for image/model/residual/profile
+   agreement.</li>
+<li>Use <code>cross_arm_overlay.png</code> to compare arms within one tool.</li>
+<li>Use <code>cross_tool_comparison.png</code> to compare the best available
+   method products for one galaxy.</li>
+<li>Use <code>inventory.fits</code>, cross-arm tables, and cross-tool tables for
+   ranking after the visual failure modes are understood.</li>
+</ol>
+<p>The score is a decision aid, not a replacement for QA inspection. A
+low score should mean "this run deserves to rank near the top among
+runs with comparable status," not "the fit is scientifically correct."</p>
+<h3 id="artifact-contract">Artifact contract</h3>
+<p>Each method/arm writes a small set of artifacts that serve both the QA
+figures and the metric code:</p>
+<ul>
+<li><code>profile.fits</code>: the profile table used for SB, geometry, and
+  completeness diagnostics.</li>
+<li><code>model.fits</code>: the rendered model and residual image used for visual
+  residual inspection and model-evaluation metrics.</li>
+<li><code>config.yaml</code>: the effective method configuration after arm deltas
+  and sentinels are resolved.</li>
+<li><code>run_record.json</code>: runtime, metrics, flags, and status for the arm.</li>
+<li><code>inventory.fits</code>: the additive per-tool table used by cross-arm and
+  cross-tool summaries.</li>
+</ul>
+<p>Do not rank a method using one residual definition while showing a
+different residual image in QA. If an adapter or fitter cannot write a
+model, the missing model should be visible as missing QA context and
+the row should not be silently promoted by a partial metric set.</p>
+<h3 id="region-gating">Region gating</h3>
+<p>Residual metrics are contour/geometry gated so that all tools are
+measured on the same galaxy footprint. This avoids rewarding a method
+for fitting blank sky or penalizing it for pixels outside the
+meaningful galaxy region. The residual zones are anchored to the
+adapter's initial geometry rather than the fit-derived geometry, so a
+method cannot move the evaluation aperture to make its own residuals
+look better.</p>
+<p>When comparing campaigns across datasets, confirm that <code>R_ref_used_pix</code>,
+<code>r_inner_floor_pix</code>, <code>image_sigma_adu</code>, and <code>sigma_method</code> are
+reasonable for the dataset. These fields document the scale and noise
+normalization that make the residual zones interpretable.</p>
+<h3 id="v11-model-evaluation-metrics">v1.1 model-evaluation metrics</h3>
+<p>Each successful arm writes the verified v1.1 metric contract into both
+<code>run_record.json["metrics"]</code> and the additive inventory schema. The
+residual zones are anchored to the adapter's initial geometry, not the
+fit-derived geometry, so different tools are measured on the same
+elliptical coordinate system.</p>
+<p>Zone definitions use <code>R_ref_used_pix</code>:</p>
+<ul>
+<li><code>inner</code>: <code>r_inner_floor_pix &lt;= r &lt; 0.5 * R_ref_used_pix</code></li>
+<li><code>mid</code>: <code>0.5 * R_ref_used_pix &lt;= r &lt; 1.5 * R_ref_used_pix</code></li>
+<li><code>outer</code>: <code>1.5 * R_ref_used_pix &lt;= r &lt; min(maxsma, 3 * R_ref_used_pix)</code></li>
+</ul>
+<p>The inventory preserves the older <code>resid_rms_{inner,mid,outer}</code> and
+<code>resid_median_{inner,mid,outer}</code> names, but they now use the v1.1 zone
+definitions. Additional amplitude metrics are:</p>
+<ul>
+<li><code>F_ref</code>, <code>R_ref_used_pix</code>, <code>r_inner_floor_pix</code></li>
+<li><code>sigma_{inner,mid,outer}</code> using <code>1.4826 * MAD</code> per zone</li>
+<li><code>abs_resid_over_ref_{inner,mid,outer}</code></li>
+<li><code>abs_resid_over_sigma_{inner,mid,outer}</code></li>
+</ul>
+<p>Azimuthal pattern metrics are:</p>
+<ul>
+<li><code>azim_A1_{zone}</code>, <code>azim_A2_{zone}</code></li>
+<li><code>azim_struct_ratio_{zone}</code>, <code>azim_phase1_deg_{zone}</code></li>
+<li><code>quadrant_imbalance_{zone}</code></li>
+</ul>
+<p>Quality flags use the v1.1 portable names and thresholds:
+<code>FEW_ISOPHOTES</code>, <code>FIRST_ISOPHOTE_RETRY</code>,
+<code>HIGH_NONZERO_STOP_FRAC</code>, <code>LARGE_DRIFT</code>, <code>LARGE_DPA</code>,
+<code>LARGE_DEPS</code>, <code>INNER_RESID_LARGE</code>, <code>OUTER_RESID_LARGE</code>,
+<code>FAILED</code>, and <code>SKIPPED</code>.</p>
+<p>Every inventory row is annotated with <code>composite_score</code> at write time.
+Lower is better. Rows with non-<code>ok</code> status or a severity-error quality
+flag get a flat penalty of <code>1_000_000</code> so pathological fits never rank
+best.</p>
+<p>All terms are dimension-normalized so no single axis dominates by
+amplitude alone:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>score =
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    # FIDELITY (residual RMS per zone, normalized by image sigma)
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    w_inner * resid_rms_inner / image_sigma
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  + w_mid   * resid_rms_mid   / image_sigma
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  + w_outer * resid_rms_outer / image_sigma
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    # CENTER STABILITY (centroid wander only)
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  + w_centroid * combined_drift_pix / centroid_tol_pix
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    # CONVERGENCE HEALTH
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>  + w_stop_m1 * n_stop_m1
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>  + w_frac_stop * frac_stop_nonzero
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    # COMPLETENESS (penalize short fits vs. best arm on this galaxy)
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>  + w_completeness * max(0, 1 - n_iso / n_iso_ref)
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    # SPEED (tie-breaker only)
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>  + w_wall_time * wall_time_fit_s
+</code></pre></div>
+<p>The reference <code>n_iso_ref</code> is the max <code>n_iso</code> across <code>status in {ok,
+cached}</code> rows with no severity-error flag; it is rebuilt per galaxy
+per tool and stamped into <code>image_sigma_adu</code> / <code>n_iso_ref_used</code> columns
+of the inventory for audit.</p>
+<h3 id="what-is-explicitly-not-scored">What is explicitly not scored</h3>
+<ul>
+<li><code>max_dpa_deg</code>, <code>max_deps</code> (PA / ellipticity drift): both can be
+  genuinely astrophysical in elliptical BCGs (isophote twist, ε
+  gradient). They are reported in the cross-arm tables for inspection
+  but do not enter the score.</li>
+</ul>
+<p>Defaults (from <code>stats.DEFAULT_WEIGHTS</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">summary</span><span class="p">:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">composite_score_weights</span><span class="p">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">resid_inner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">resid_mid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">resid_outer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">     </span><span class="c1"># LSB is where arms actually differ</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="nt">centroid_drift</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="nt">centroid_tol_pix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">  </span><span class="c1"># divisor; scale with PSF FWHM on real data</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="nt">n_stop_m1</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">frac_stop_nonzero</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="nt">n_iso_completeness</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3.0</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">wall_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+</code></pre></div>
+<h3 id="cross-tool-score-tool-neutral">Cross-tool score (tool-neutral)</h3>
+<p><code>composite_score</code> is only fair <em>within one tool</em>: different fitters do
+not populate the same axes uniformly. AutoProf forces a single shared
+center for the whole profile and emits no photutils-style stop codes,
+so <code>combined_drift_pix</code>, <code>n_stop_m1</code>, and <code>frac_stop_nonzero</code> are zero
+by construction and would hand AutoProf an unfair advantage in any
+cross-tool ranking.</p>
+<p>The cross-tool table therefore emits two additional columns alongside
+<code>composite_score</code>:</p>
+<ul>
+<li><code>cross_tool_score</code> (Option B, primary)</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cross_tool_score =
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    w_in  * resid_rms_inner / image_sigma
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  + w_mid * resid_rms_mid   / image_sigma
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  + w_out * resid_rms_outer / image_sigma
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  + w_t   * wall_time_fit_s
+</code></pre></div>
+<ul>
+<li><code>cross_tool_score_simple</code> (Option A, publication-friendly sanity
+  check) — outer-zone residual only, plus runtime:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cross_tool_score_simple =
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    w_out * resid_rms_outer / image_sigma
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  + w_t   * wall_time_fit_s
+</code></pre></div>
+<p>Both drop the unfair axes (<code>centroid_drift</code>, stop-code counts,
+completeness). Weights are independent of the intra-tool weights;
+defaults preserve the familiar 1 / 1 / 2 residual-zone emphasis:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">summary</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">cross_tool_score_weights</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">resid_inner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">resid_mid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="nt">resid_outer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="nt">wall_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+</code></pre></div>
+<p>Non-ok and severity-error rows sink to the same <code>1_000_000</code> penalty as
+the composite score, so catastrophic fits never win either ranking.</p>
+<h3 id="reading-comparison-outputs">Reading comparison outputs</h3>
+<p>Use <code>composite_score</code> for cross-arm selection inside one tool. It can
+include tool-specific health terms such as centroid drift, stop-code
+counts, and profile completeness because all arms share the same method
+contract.</p>
+<p>Use <code>cross_tool_score</code> for method comparison across tools. It is
+restricted to tool-neutral residual zones and runtime because methods
+do not expose equivalent convergence and geometry-health signals.
+Keep the excluded diagnostics in view: a method with a good
+tool-neutral residual score can still be operationally risky if its QA
+figure shows unstable geometry, poor coverage, or a severe flag.</p>
+<p>The <code>cross_tool_score_simple</code> column is intended as a sanity check and
+communication aid. It emphasizes the outer residual floor plus runtime,
+so it is easy to explain, but it should not replace the full
+zone-based score during detailed debugging.</p>
+<h3 id="surface-brightness-profile-scale-in-benchmark-qa">Surface-brightness profile scale in benchmark QA</h3>
+<p>Benchmark QA defaults to <code>sb_profile_scale: log10</code>. This keeps the
+historical log/magnitude profile behavior and is usually the right
+choice for high-S/N inner-region comparisons.</p>
+<p>Use <code>sb_profile_scale: asinh</code> when the outer profile approaches zero,
+has negative samples, or needs to show low-S/N behavior without
+dropping finite points. If the adapter provides both <code>sb_zeropoint</code> and
+<code>pixel_scale_arcsec</code>, the asinh profile is calibrated so high-S/N
+points match the log10 mag/arcsec² profile; the QA panel draws a dashed
+<code>I = 0</code> reference line to mark the zero-intensity level.</p>
+<p>When validating a new QA option, set <code>execution.skip_existing: false</code>
+or delete the target arm directories. Reusing cached <code>profile.fits</code>
+files can validate table reconstruction, but it does not prove that the
+new figure option was rendered.</p>
+<h2 id="6-writing-a-new-dataset-adapter">6. Writing a New Dataset Adapter</h2>
+<p>A dataset adapter is a module under <code>benchmarks/exhausted/adapters/</code>
+that exposes <code>ADAPTER_CLASS</code> pointing at a class implementing the
+<code>DatasetAdapter</code> protocol (<code>adapters/base.py</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyAdapter</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">dataset_name</span> <span class="o">=</span> <span class="s2">&quot;my_dataset&quot;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>        <span class="o">...</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">list_galaxies</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Stable-ordered galaxy_id strings found under self.root.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">load_galaxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">galaxy_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GalaxyBundle</span><span class="p">:</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return image + variance + mask + initial_geometry.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="n">ADAPTER_CLASS</span> <span class="o">=</span> <span class="n">MyAdapter</span>
+</code></pre></div>
+<p>Requirements:</p>
+<ul>
+<li>The adapter instance must be picklable: the orchestrator passes it
+  to spawn workers when <code>execution.max_parallel_galaxies &gt; 1</code>. Keep
+  state in plain attributes (paths, primitive dicts); avoid live file
+  handles or database connections.</li>
+<li><code>list_galaxies</code> is called once at run start, so it can be
+  O(filesystem-walk). <code>load_galaxy</code> runs inside the worker and should
+  be cheap (it fires once per arm-group per galaxy).</li>
+<li>Initial geometry keys: <code>x0, y0, eps, pa, sma0, maxsma</code>. <code>pa</code> is in
+  radians (IsosterConfig convention). Supply <code>effective_Re_pix</code> in the
+  returned <code>GalaxyMetadata</code> when the dataset knows the half-light
+  radius; <code>_use_Re</code> / <code>_use_2Re</code> arms are skipped otherwise.</li>
+</ul>
+<p>Reference implementations:</p>
+<ul>
+<li><code>adapters/huang2013.py</code> — multi-Sersic mock directory layout
+  (<code>&lt;galaxy&gt;_mockNNN.fits</code> per directory).</li>
+<li><code>adapters/huang2013_scenarios.py</code> — scenario grid layout
+  (<code>&lt;galaxy&gt;_{clean|wide|deep}_z{005|020|035|050}.fits</code>). Accepts
+  optional <code>depths</code> and <code>redshift_tags</code> constructor kwargs to narrow
+  the enumeration at the YAML level. Emits <code>galaxy_id</code> as
+  <code>&lt;galaxy&gt;/&lt;depth&gt;_z&lt;zzz&gt;</code> so <code>safe_galaxy_id</code> produces one flat
+  output directory per scenario.</li>
+<li><code>adapters/s4g_scenarios.py</code> — same layout as the Huang2013 scenario
+  adapter but emits <code>dataset_name="s4g"</code>. Thin subclass; no new logic.</li>
+<li><code>adapters/local_fits.py</code> — explicit FITS paths listed in the YAML.</li>
+</ul>
+<p>Register in the campaign YAML by setting <code>adapter: my_dataset</code>.</p>
+<h3 id="scenario-mock-driver">Scenario mock driver</h3>
+<p><code>benchmarks/exhausted/campaigns/run_mock_campaigns.py</code> wraps the
+orchestrator with a compact CLI for the depth x redshift grids. It
+generates a campaign YAML from flag values and hands it to
+<code>run_campaign</code> (the YAML is still snapshotted to the output directory,
+so every run remains reproducible from disk):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># 2-galaxy smoke, dry-run only.</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.campaigns.run_mock_campaigns<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span>--dataset<span class="w"> </span>huang2013<span class="w"> </span>--depth<span class="w"> </span>wide<span class="w"> </span>--redshift<span class="w"> </span><span class="m">020</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span>--select<span class="w"> </span>IC1459<span class="w"> </span>NGC1600<span class="w"> </span>--tools<span class="w"> </span>isoster,autoprof<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span>--max-parallel<span class="w"> </span><span class="m">2</span><span class="w"> </span>--dry-run
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># Real run. All scenarios for one galaxy, three tools.</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.campaigns.run_mock_campaigns<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">    </span>--dataset<span class="w"> </span>s4g<span class="w"> </span>--depth<span class="w"> </span>all<span class="w"> </span>--redshift<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">    </span>--select<span class="w"> </span>ESO026-001<span class="w"> </span>--tools<span class="w"> </span>all<span class="w"> </span>--max-parallel<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+<p>Default roots: <code>/Volumes/galaxy/isophote/huang2013</code> and
+<code>/Volumes/galaxy/isophote/s4g_mock</code>. Override with <code>--root-huang2013</code>
+/ <code>--root-s4g</code>. Pass <code>--write-yaml PATH</code> to also persist the generated
+YAML for later reuse via the plain <code>orchestrator.cli</code> entry point.</p>
+<h2 id="7-autoprof-setup">7. AutoProf Setup</h2>
+<p>AutoProf 1.3.4 requires <code>numpy &lt; 2</code> and <code>photutils &lt;= 1.5</code>, which
+cannot coexist in <code>isoster</code>'s <code>uv</code> environment (numpy 2.x). The
+campaign runs it via subprocess against a dedicated venv.</p>
+<p>See §0 for the install recipe. In short: put the venv at a stable path such
+as <code>~/.venvs/autoprof_venv</code>, never under <code>/tmp</code>, which macOS prunes and which
+will strip individual <code>.py</code> files out from under a running campaign.</p>
+<p>That canonical path is also the built-in default, defined once in
+<code>benchmarks/autoprof_env.py</code>, so a venv installed as §0 describes needs no
+configuration. Set <code>tools.autoprof.venv_python</code> only to point at a different
+environment. If the path is missing or the import fails, every autoprof arm is
+reported as <code>status="skipped"</code> with a regeneration hint that prints the install
+commands — the rest of the campaign continues.</p>
+<h2 id="8-parallel-execution">8. Parallel Execution</h2>
+<p>Set <code>execution.max_parallel_galaxies &gt; 1</code> to run galaxies concurrently
+via <code>concurrent.futures.ProcessPoolExecutor</code> with the <code>spawn</code> start
+method (deterministic across platforms). Each worker:</p>
+<ul>
+<li>Reloads the campaign plan from pickled state.</li>
+<li>Loads the galaxy bundle, estimates <code>image_sigma</code>, writes <code>MANIFEST.json</code>.</li>
+<li>Runs every enabled tool × arm serially for that galaxy.</li>
+<li>Writes per-galaxy cross-tool comparison figure.</li>
+</ul>
+<p>Dataset-level aggregation (per-tool cross-arm summary, cross-tool
+pivot table, optional multi-galaxy grids) runs in the main process
+once every galaxy future resolves.</p>
+<p>Caveats:</p>
+<ul>
+<li>Workers cannot share cached matplotlib state. <code>plotting/__init__.py</code>
+  calls <code>matplotlib.use("Agg")</code> and <code>_process_one_galaxy</code> re-asserts
+  it on entry, so figure rendering is headless and process-safe.</li>
+<li><code>fail_fast=true</code> cancels pending futures after the first worker
+  exception. Already-running workers continue to completion — Python
+  cannot kill them cleanly. The final <code>RuntimeError</code> chains the
+  original exception for debugging.</li>
+<li>Startup cost: macOS <code>spawn</code> pays ~1–2 s per worker to reimport
+  modules. Negligible against real fits (seconds to minutes each) but
+  noticeable on all-cached re-runs.</li>
+</ul>
+<h2 id="9-command-reference">9. Command Reference</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Dry-run the fit matrix (adapters loaded, no fits performed).</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.orchestrator.cli<span class="w"> </span>dry-run<span class="w"> </span>&lt;campaign.yaml&gt;
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># Run the campaign. Exit code 0 on zero failed arms, 1 otherwise.</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>benchmarks.exhausted.orchestrator.cli<span class="w"> </span>run<span class="w"> </span>&lt;campaign.yaml&gt;
+</code></pre></div>
+<p>The one-galaxy × two-arm integration smoke at
+<code>tests/integration/test_exhausted_smoke.py</code> is a self-contained
+executable example and should be kept passing as part of the regular
+test suite.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

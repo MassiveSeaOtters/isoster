@@ -1,0 +1,3411 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/08-outer-regularization/">
+      
+      
+        <link rel="prev" href="../07-lsb-features/">
+      
+      
+        <link rel="next" href="../09-exhausted-benchmark/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Outer Regularization - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#outer-region-regularization-for-elliptical-isophote-fitting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Outer Regularization
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-background-and-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Background and motivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Background and motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-elliptical-isophote-fitting-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Elliptical isophote fitting in brief
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-failure-mode-in-the-lsb-regime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Failure mode in the LSB regime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-prior-approach-and-its-limitation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Prior approach and its limitation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-solver-level-tikhonov-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Solver-level Tikhonov approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-mathematical-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Mathematical formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Mathematical formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-parameter-specific-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Parameter-specific Jacobians
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-tikhonov-objective-and-closed-form-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Tikhonov objective and closed-form step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-two-operating-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Two operating modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-logistic-ramp-in-sma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Logistic ramp in SMA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-position-angle-wrap-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Position-angle wrap handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-reference-geometry-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Reference geometry construction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-selector-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Selector layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-convergence-criterion-coupling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Convergence criterion coupling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Algorithm
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-outward-loop-skeleton" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Outward loop skeleton
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-per-isophote-fit-damping-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Per-isophote fit (damping mode)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-relation-to-simultaneous-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Relation to simultaneous mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-composition-with-other-mechanisms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Composition with other mechanisms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Composition with other mechanisms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-lsb-auto-lock-lsb_auto_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 LSB auto-lock (lsb_auto_lock)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-central-regularization-use_central_regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Central regularization (use_central_regularization)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-geometry-clipping-clip_max_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Geometry clipping (clip_max_*)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-fix-flags-fix_center-fix_pa-fix_eps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Fix flags (fix_center, fix_pa, fix_eps)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-forced-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Forced photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configuration interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Configuration interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-primary-fields-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Primary fields (5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-expert-tuning-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Expert tuning (2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-auto-coupled-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Auto-coupled fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-result-dict-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Result-dict additions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-empirical-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Empirical validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Empirical validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-benchmark-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Benchmark set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-smoothness-saturated-step-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Smoothness — saturated-step counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-smoothness-max-pa-by-galaxy-outer-deg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Smoothness — max |Δpa| by galaxy (outer, deg)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-center-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Center stability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-over-regularization-in-solver-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Over-regularization in solver mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-anchor-precision-in-the-inward-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Anchor precision in the inward reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-isofit-joint-harmonic-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 ISOFIT joint harmonic mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-degenerate-inner-pa-scatter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Degenerate inner PA scatter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-usage-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Usage guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Usage guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-minimal-recommended-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Minimal recommended configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-tuning-outer_reg_sma_onset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Tuning outer_reg_sma_onset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-tuning-outer_reg_strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Tuning outer_reg_strength
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-specialist-solver-mode-for-forced-like-anchoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 Specialist: solver mode for forced-like anchoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-combining-with-auto-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 Combining with auto-lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation references
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-background-and-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Background and motivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Background and motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-elliptical-isophote-fitting-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Elliptical isophote fitting in brief
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-failure-mode-in-the-lsb-regime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Failure mode in the LSB regime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-prior-approach-and-its-limitation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Prior approach and its limitation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-solver-level-tikhonov-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Solver-level Tikhonov approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-mathematical-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Mathematical formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Mathematical formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-parameter-specific-jacobians" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Parameter-specific Jacobians
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-tikhonov-objective-and-closed-form-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Tikhonov objective and closed-form step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-two-operating-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Two operating modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-logistic-ramp-in-sma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Logistic ramp in SMA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-position-angle-wrap-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Position-angle wrap handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-reference-geometry-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Reference geometry construction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-selector-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Selector layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-convergence-criterion-coupling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Convergence criterion coupling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Algorithm
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Algorithm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-outward-loop-skeleton" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Outward loop skeleton
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-per-isophote-fit-damping-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Per-isophote fit (damping mode)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-relation-to-simultaneous-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Relation to simultaneous mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-composition-with-other-mechanisms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Composition with other mechanisms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Composition with other mechanisms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-lsb-auto-lock-lsb_auto_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 LSB auto-lock (lsb_auto_lock)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-central-regularization-use_central_regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Central regularization (use_central_regularization)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-geometry-clipping-clip_max_" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Geometry clipping (clip_max_*)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-fix-flags-fix_center-fix_pa-fix_eps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Fix flags (fix_center, fix_pa, fix_eps)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-forced-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Forced photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configuration-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Configuration interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Configuration interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-primary-fields-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Primary fields (5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-expert-tuning-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Expert tuning (2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-auto-coupled-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Auto-coupled fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-result-dict-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Result-dict additions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-empirical-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Empirical validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Empirical validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-benchmark-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Benchmark set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-smoothness-saturated-step-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Smoothness — saturated-step counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-smoothness-max-pa-by-galaxy-outer-deg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Smoothness — max |Δpa| by galaxy (outer, deg)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-center-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Center stability
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-over-regularization-in-solver-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Over-regularization in solver mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-anchor-precision-in-the-inward-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Anchor precision in the inward reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-isofit-joint-harmonic-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 ISOFIT joint harmonic mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-degenerate-inner-pa-scatter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Degenerate inner PA scatter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-usage-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Usage guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Usage guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-minimal-recommended-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Minimal recommended configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-tuning-outer_reg_sma_onset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Tuning outer_reg_sma_onset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-tuning-outer_reg_strength" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 Tuning outer_reg_strength
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#84-specialist-solver-mode-for-forced-like-anchoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.4 Specialist: solver mode for forced-like anchoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#85-combining-with-auto-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.5 Combining with auto-lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-implementation-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Implementation references
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="outer-region-regularization-for-elliptical-isophote-fitting">Outer-Region Regularization for Elliptical Isophote Fitting</h1>
+<h2 id="abstract">Abstract</h2>
+<p><code>isoster</code> implements a Tikhonov-regularized coordinate-descent fitter for
+elliptical isophote extraction that remains stable in the
+low-surface-brightness (LSB) outer regions of galaxies, where
+harmonic-driven iterative fitters (Jedrzejewski 1987; Busko 1996) are
+known to diverge or produce quantized artefacts from clipped per-iteration
+step limits. The method adds a per-iteration penalty on geometry
+displacement from a frozen inner reference, with a logistic ramp in
+semi-major axis (SMA) that keeps the inner-region fit unchanged. Two
+operating modes are supported: <code>damping</code>, which shrinks harmonic steps
+without biasing toward the reference; and <code>solver</code>, which additionally
+pulls geometry toward the reference. A complementary selector-level
+penalty ensures cumulative drift is bounded. On a benchmark suite of 9
+galaxies spanning synthetic edge cases and real HSC cluster-central
+brightest-cluster galaxies (BCGs), <code>damping</code> mode with default tuning
+preserves physical b/a(s) and PA(s) walks in the meaningful fit regime
+(sma ≲ 80 px on HSC coadds) while suppressing clip-saturated jumps in
+the LSB outskirts, at no runtime cost measurable against the
+no-regularization baseline (§6.2).</p>
+<h2 id="1-background-and-motivation">1. Background and motivation</h2>
+<h3 id="11-elliptical-isophote-fitting-in-brief">1.1 Elliptical isophote fitting in brief</h3>
+<p>The standard algorithm (Jedrzejewski 1987; photutils.isophote) fits an
+intensity contour <code>I(φ) = I₀</code> at a series of SMA values by iteratively
+adjusting the ellipse geometry <code>(x₀, y₀, ε, PA)</code> until a residual
+function of azimuthal angle <code>φ</code> is minimal in a low-order harmonic
+basis. In each iteration the residuals are decomposed as</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ΔI(φ) = ∑ₙ [Aₙ cos(n φ) + Bₙ sin(n φ)]
+</code></pre></div>
+<p>and the <code>n = 1, 2</code> harmonic amplitudes drive updates to <code>(x₀, y₀)</code>,
+<code>PA</code>, and <code>ε</code> respectively via analytic Jacobian relations
+(<code>isoster/fitting.py</code> § geometry update). Each parameter update is
+<strong>clipped</strong> to a per-iteration maximum:</p>
+<table>
+<thead>
+<tr>
+<th>parameter</th>
+<th>config field</th>
+<th>default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>center shift</td>
+<td><code>clip_max_shift</code></td>
+<td>5.0 px</td>
+</tr>
+<tr>
+<td>PA step</td>
+<td><code>clip_max_pa</code></td>
+<td>0.5 rad (≈ 28.6°)</td>
+</tr>
+<tr>
+<td>ε step</td>
+<td><code>clip_max_eps</code></td>
+<td>0.1</td>
+</tr>
+</tbody>
+</table>
+<p>Clipping is a safety bound preventing catastrophic single-iteration
+excursions, inherited from photutils.</p>
+<h3 id="12-failure-mode-in-the-lsb-regime">1.2 Failure mode in the LSB regime</h3>
+<p>In the outer regions of galaxies where the intensity gradient approaches
+the background noise floor:</p>
+<ol>
+<li>All four harmonic amplitudes <code>(A₁, B₁, A₂, B₂)</code> become comparable in
+   magnitude (noise-dominated).</li>
+<li>Analytic geometry updates saturate at the clip limits.</li>
+<li>The "best iteration" selector among clipped candidates produces a
+   quantized output: either no update (<code>Δp = 0</code>) or a saturated step
+   (<code>|Δp| ≈ clip_max_p</code>).</li>
+</ol>
+<p>On the HSC BCG <code>37498869835124888</code>, an uncorrected fit shows:</p>
+<ul>
+<li>Maximum combined center drift <code>|Δ(x, y)|_max = 91 px</code> over the
+  outward sequence (sma 30-550 px).</li>
+<li>Saturated PA jumps <code>|ΔPA| ≈ 27°</code> (0.94 × clip_max_pa).</li>
+<li>Saturated ε jumps <code>|Δε| = 0.1</code>.</li>
+</ul>
+<p>These produce discontinuities in the 1-D <code>b/a(s)</code> and <code>PA(s)</code> profiles
+that no smoothing of the fit output can recover.</p>
+<h3 id="13-prior-approach-and-its-limitation">1.3 Prior approach and its limitation</h3>
+<p>The naive stabilization is a selector-level penalty:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>L_selector(iter) = |max_amp(iter)| + λ(sma) · d²(geom(iter), geom_ref)
+</code></pre></div>
+<p>where <code>d²</code> is a quadratic displacement from a frozen inner reference.
+The selector picks <code>argmin_iter L_selector</code>. This method was originally
+deployed in isoster under <code>outer_reg_mode = "selector"</code> (removed in the
+current version).</p>
+<p><strong>Structural limitation</strong>: the selector does not modify the iteration
+trajectory. In the noise-dominated regime the candidate set produced by
+the iterations is already quantized by clip limits; the selector is
+forced to pick between "no update" and "saturated step". The quantized
+output cannot be avoided by any choice of <code>λ</code> or weighting.</p>
+<p>Empirical evidence: on 9 benchmark galaxies, the selector-only method
+produces max <code>|ΔPA|</code> of 13–27° in the outer region — worse than the
+unregularized baseline on several cases where the baseline's natural
+convergence avoids saturating the clip.</p>
+<h3 id="14-solver-level-tikhonov-approach">1.4 Solver-level Tikhonov approach</h3>
+<p>The present method moves the penalty <strong>inside</strong> the per-iteration update
+equations, producing a candidate set that is <em>not</em> clip-quantized. Each
+iteration's step is the minimum of a Tikhonov-regularized linearized
+objective:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>L_solver(Δp) = ½ [amp + (Δp / c_p)]² + ½ λ(sma) w_p (p + Δp − p_ref)²
+</code></pre></div>
+<p>for each geometry parameter <code>p ∈ {x₀, y₀, ε, PA}</code> with Jacobian
+coefficient <code>c_p</code>, weight <code>w_p</code>, and reference <code>p_ref</code>. Solving
+analytically produces a penalty-aware step that naturally interpolates
+between the harmonic-driven and the reference-pulled limit.</p>
+<h2 id="2-mathematical-formulation">2. Mathematical formulation</h2>
+<h3 id="21-parameter-specific-jacobians">2.1 Parameter-specific Jacobians</h3>
+<p>Let <code>amp_p</code> denote the signed harmonic amplitude driving parameter <code>p</code>
+in a given iteration, and let <code>c_p</code> be the coefficient mapping
+amplitude to unregularized step:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Δp_harmonic = c_p · amp_p
+</code></pre></div>
+<p>The explicit forms (see <code>isoster/fitting.py</code>:1630-1800) are</p>
+<table>
+<thead>
+<tr>
+<th>p</th>
+<th>mapping</th>
+<th>c_p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>minor-axis center shift (from <code>A₁</code>)</td>
+<td><code>aux = −amp (1 − ε) / g</code></td>
+<td><code>(1 − ε) / g</code></td>
+</tr>
+<tr>
+<td>major-axis center shift (from <code>B₁</code>)</td>
+<td><code>aux = −amp / g</code></td>
+<td><code>1 / g</code></td>
+</tr>
+<tr>
+<td>PA (from <code>A₂</code>)</td>
+<td><code>Δpa = amp · 2(1 − ε) / (s · g · ((1 − ε)² − 1))</code></td>
+<td><code>2(1 − ε) / (s · g · ((1 − ε)² − 1))</code></td>
+</tr>
+<tr>
+<td>ε (from <code>B₂</code>)</td>
+<td><code>Δeps = amp · 2(1 − ε) / (s · g)</code></td>
+<td><code>2(1 − ε) / (s · g)</code></td>
+</tr>
+</tbody>
+</table>
+<p>where <code>s</code> is the SMA and <code>g = dI/dr</code> is the radial intensity gradient.
+A damping factor is applied to all four.</p>
+<h3 id="22-tikhonov-objective-and-closed-form-step">2.2 Tikhonov objective and closed-form step</h3>
+<p>Augmenting the linearized harmonic residual with a quadratic penalty on
+geometry displacement:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>L(Δp) = ½ [amp + Δp/c_p]²  +  ½ λ w (p + Δp − p_ref)²       (2.1)
+</code></pre></div>
+<p>Differentiating with respect to <code>Δp</code> and setting to zero:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>(1/c_p)[amp + Δp/c_p] + λ w (p + Δp − p_ref) = 0
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Δp [1/c_p² + λ w] = −amp/c_p − λ w (p − p_ref)
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Δp = [−amp c_p − λ w c_p² (p − p_ref)] / [1 + λ w c_p²]
+</code></pre></div>
+<p>Introducing the blend fraction</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>α ≡ λ w c_p² / (1 + λ w c_p²) ∈ [0, 1)                        (2.2)
+</code></pre></div>
+<p>the closed-form update is</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Δp = (1 − α) · (c_p · amp)  −  α · (p − p_ref)
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>   = (1 − α) · Δp_harmonic  −  α · (p − p_ref)                (2.3)
+</code></pre></div>
+<p>Equation (2.3) is the <strong>Tikhonov blend</strong>. Two limits:</p>
+<ul>
+<li><code>α = 0</code>: recovers <code>Δp = Δp_harmonic</code>. This is byte-identical to the
+  unregularized fit. Achieved when <code>λ = 0</code>, <code>w = 0</code>, or the fit is at
+  the harmonic minimum.</li>
+<li><code>α → 1</code>: recovers <code>Δp = −(p − p_ref)</code>. Full pull to reference. Reached
+  in the limit <code>λ w c_p² → ∞</code>, e.g. as <code>c_p → ∞</code> (vanishing gradient
+  <code>g → 0</code>, noise-dominated regime).</li>
+</ul>
+<p>The monotonic dependence of <code>α</code> on <code>c_p²</code> is astrophysically natural:
+<strong>where the harmonic fit has less local information (small <code>g</code>), the
+penalty takes over more strongly</strong>. Where the gradient is steep, the
+data dominates.</p>
+<h3 id="23-two-operating-modes">2.3 Two operating modes</h3>
+<p>The solver branch implements two variants of (2.3):</p>
+<p><strong>Damping</strong> (default, recommended): drop the pull term.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Δp = (1 − α) · Δp_harmonic                                     (2.4)
+</code></pre></div>
+<p>Mathematically equivalent to a Tikhonov penalty on <code>Δp²</code> (penalize the
+step size rather than the deviation from reference). The fit still
+converges to the harmonic minimum; each step is just shorter in the
+outer region. Preserves the harmonic convergence criterion because
+<code>Δp → 0</code> when <code>amp → 0</code>.</p>
+<p><strong>Solver</strong> (specialized): full form (2.3).</p>
+<p>Steps settle at a static balance point where <code>Δp = 0</code> implies
+<code>amp = −c_p · λ w (p − p_ref)</code> — i.e. the harmonic residual balances
+the reference pull. Breaks the standard <code>|max_amp| &lt; tol</code> convergence
+criterion; requires <code>geometry_convergence=True</code> to terminate cleanly
+(see §2.7).</p>
+<h3 id="24-logistic-ramp-in-sma">2.4 Logistic ramp in SMA</h3>
+<p>The strength <code>λ(sma)</code> varies smoothly from 0 in the inner region to
+<code>strength</code> in the outer region:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>λ(s) = strength / [1 + exp(−(s − onset) / width)]             (2.5)
+</code></pre></div>
+<p>At <code>s = onset</code>, <code>λ = strength/2</code>. At <code>s ≫ onset</code>, <code>λ → strength</code>. The
+width controls the transition sharpness; smaller width = more abrupt
+transition. When not explicitly set, <code>width</code> auto-computes as
+<code>0.4 × onset</code>, which centers the transition in the <code>[0.6 × onset,
+1.4 × onset]</code> SMA range.</p>
+<p>Choice of logistic (vs. step or linear): smooth C^∞, two-parameter with
+intuitive meaning (midpoint + slope), matches the empirically observed
+shape of noise-amplitude growth in HSC edge-case galaxies (see §5).</p>
+<h3 id="25-position-angle-wrap-handling">2.5 Position-angle wrap handling</h3>
+<p>PA is an axis-like angle defined modulo π, so the residual
+<code>δ = pa − pa_ref</code> must be wrapped onto <code>(−π/2, π/2]</code> to avoid spurious
+large values when one of the two wraps through 0/π:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>δ_wrapped = ((δ + π/2) mod π) − π/2                          (2.6)
+</code></pre></div>
+<p>All uses of <code>(pa − pa_ref)</code> in the Tikhonov update and the selector
+penalty apply (2.6) before squaring or linear combination.</p>
+<h3 id="26-reference-geometry-construction">2.6 Reference geometry construction</h3>
+<p>The reference <code>geom_ref = (x₀_ref, y₀_ref, ε_ref, PA_ref)</code> is built
+<strong>once</strong> from the inward isophote sequence (<code>_build_outer_reference</code> in
+<code>isoster/driver.py</code>) before the outward fit begins. Candidate isophotes
+are those with acceptable stop codes and
+<code>sma ≤ sma₀ · outer_reg_ref_sma_factor</code> (default factor = 2.0).</p>
+<p>For <code>x₀, y₀, ε</code>: flux-weighted arithmetic mean, with flux weights
+clamped at <code>max(I, 10⁻⁶)</code> to prevent negative-background rings from
+dominating:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>x₀_ref = Σᵢ wᵢ x₀ᵢ / Σᵢ wᵢ,   wᵢ = max(Iᵢ, 10⁻⁶)             (2.7)
+</code></pre></div>
+<p>For <code>PA</code>: flux-weighted <strong>circular mean on <code>2·PA</code></strong> (axis-like angles),
+to handle the modular ambiguity:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>C = Σᵢ wᵢ cos(2 PAᵢ),   S = Σᵢ wᵢ sin(2 PAᵢ)
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>R = √(C² + S²) / Σᵢ wᵢ                                       (2.8)
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>PA_ref = (½ · atan2(S, C)) mod π    if R ≥ 0.1
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>       = anchor.PA                   otherwise
+</code></pre></div>
+<p>The resultant length <code>R</code> tests whether the inner PA values are coherent
+enough to define a meaningful mean. For random-scatter inputs <code>R → 0</code>
+and the mean is undefined; the fallback to the anchor isophote's PA is
+always safe.</p>
+<h3 id="27-selector-layer">2.7 Selector layer</h3>
+<p>An auxiliary penalty is added to the best-iteration amplitude selector:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>L_selector(iter) = |max_amp(iter)|  +  ∑_p λ(sma) w_p (p(iter) − p_ref)²  (2.9)
+</code></pre></div>
+<p>The selector picks the iteration that minimizes (2.9), producing the
+recorded isophote geometry. Unlike the solver-level term, the selector
+does <strong>not</strong> modify the iteration trajectory — it only influences which
+of the trajectory points is recorded as the output. Note that (2.9) is
+a deliberate heuristic that mixes units: <code>|max_amp|</code> is a harmonic
+amplitude in intensity units while the penalty terms are squared
+geometry offsets (px², rad²), so the relative weighting of the terms
+depends on the image's flux scale.</p>
+<p>The selector penalty composes with either operating mode:
+- With <code>damping</code>: the selector biases the recorded geometry toward
+  <code>geom_ref</code> when multiple candidates are near the harmonic minimum.
+- With <code>solver</code>: the selector over-pulls relative to the balance point
+  from (2.3), yielding results similar to the historical selector-only
+  method.</p>
+<p>In the cleaned interface the selector layer is always active when the
+feature is enabled (no independent toggle).</p>
+<h3 id="28-convergence-criterion-coupling">2.8 Convergence criterion coupling</h3>
+<p>Standard harmonic convergence is declared when</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>|max_amp| &lt; conver · convergence_scale · rms                 (2.10)
+</code></pre></div>
+<p>The Tikhonov shrink and pull prevent this from tripping cleanly:</p>
+<ul>
+<li>In <code>damping</code> mode, per-iteration steps are shrunk by <code>(1 − α)</code>, so
+  residual harmonics decay slowly; many LSB isophotes reach maxit
+  without (2.10) tripping.</li>
+<li>In <code>solver</code> mode, the pull term biases geometry away from the
+  harmonic minimum, so <code>|max_amp|</code> stays above the noise floor by
+  construction; (2.10) never trips in the LSB tail.</li>
+</ul>
+<p>In both cases the <strong>recorded geometry is stable</strong> (identical at maxit
+of 50, 100, 500, or 2000 on every benchmark galaxy), but the
+<code>|max_amp|</code>-based stop code is <code>2</code> (max-iter reached) rather than <code>0</code>
+(converged).</p>
+<p>The remedy is the geometry-stability criterion
+(<code>geometry_convergence=True</code>): stop when geometry changes fall below
+<code>geometry_tolerance</code> for <code>geometry_stable_iters</code> consecutive iterations.
+This is auto-enabled by the config validator whenever
+<code>use_outer_center_regularization=True</code>, with a <code>UserWarning</code> emitted if
+the caller had explicitly disabled it.</p>
+<h2 id="3-algorithm">3. Algorithm</h2>
+<h3 id="31-outward-loop-skeleton">3.1 Outward loop skeleton</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a># One-time setup after the inward loop completes
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>outer_ref = _build_outer_reference(inward_isophotes, anchor_iso, config)
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>for each outward sma:
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    start_geometry = previous_isophote.geometry
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    result = fit_isophote(
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        image, mask, sma, start_geometry, config,
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        previous_geometry=previous_isophote,
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        outer_reference_geom=outer_ref,
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    )
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    append result to outward_isophotes
+</code></pre></div>
+<h3 id="32-per-isophote-fit-damping-mode">3.2 Per-isophote fit (damping mode)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a># Solver-setup hoist, once per isophote
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>if use_outer_center_regularization and outer_reg_mode in (&quot;damping&quot;, &quot;solver&quot;):
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    w_center, w_eps, w_pa = config.outer_reg_weights.{center, eps, pa}
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    onset = config.outer_reg_sma_onset
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    width = config.outer_reg_sma_width or 0.4 * onset
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    λ = config.outer_reg_strength / (1 + exp(-(sma - onset) / width))
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    solver_on = λ &gt;= 1e-6
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    solver_use_pull = (outer_reg_mode == &quot;solver&quot;)
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>else:
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    solver_on = False
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>for iteration i = 1..maxit:
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    sample ellipse, compute harmonic amps A1, B1, A2, B2
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    if mode == &quot;largest&quot;:
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>        pick parameter p with max |amp_p|
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>    else:  # simultaneous
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>        update all four
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>
+<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>    for each parameter p to be updated:
+<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>        # unregularized step
+<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>        Δp_harmonic = c_p(ε, s, g) · amp_p · damping
+<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>
+<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a>        if solver_on and w_p &gt; 0:
+<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a>            α = λ · w_p · c_p² / (1 + λ · w_p · c_p²)
+<a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a>            if solver_use_pull:
+<a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a>                Δp = (1 - α) · Δp_harmonic - α · (p - p_ref)   # solver
+<a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a>            else:
+<a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a>                Δp = (1 - α) · Δp_harmonic                      # damping
+<a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a>
+<a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a>        clip Δp to ±clip_max_p
+<a id="__codelineno-16-31" name="__codelineno-16-31" href="#__codelineno-16-31"></a>        apply Δp to p
+<a id="__codelineno-16-32" name="__codelineno-16-32" href="#__codelineno-16-32"></a>
+<a id="__codelineno-16-33" name="__codelineno-16-33" href="#__codelineno-16-33"></a>    # Record best iteration via selector penalty (2.9)
+<a id="__codelineno-16-34" name="__codelineno-16-34" href="#__codelineno-16-34"></a>    penalty = compute_outer_center_regularization_penalty(...)
+<a id="__codelineno-16-35" name="__codelineno-16-35" href="#__codelineno-16-35"></a>    eff_amp = |max_amp| + central_reg_penalty + penalty
+<a id="__codelineno-16-36" name="__codelineno-16-36" href="#__codelineno-16-36"></a>    if eff_amp &lt; best_eff_amp:
+<a id="__codelineno-16-37" name="__codelineno-16-37" href="#__codelineno-16-37"></a>        record current geometry as best
+<a id="__codelineno-16-38" name="__codelineno-16-38" href="#__codelineno-16-38"></a>
+<a id="__codelineno-16-39" name="__codelineno-16-39" href="#__codelineno-16-39"></a>    # Convergence
+<a id="__codelineno-16-40" name="__codelineno-16-40" href="#__codelineno-16-40"></a>    if |max_amp| &lt; conver · rms:  break         # (2.10)
+<a id="__codelineno-16-41" name="__codelineno-16-41" href="#__codelineno-16-41"></a>    if geometry_convergence:
+<a id="__codelineno-16-42" name="__codelineno-16-42" href="#__codelineno-16-42"></a>        if geometry has been stable for geometry_stable_iters iterations:
+<a id="__codelineno-16-43" name="__codelineno-16-43" href="#__codelineno-16-43"></a>            break
+<a id="__codelineno-16-44" name="__codelineno-16-44" href="#__codelineno-16-44"></a>
+<a id="__codelineno-16-45" name="__codelineno-16-45" href="#__codelineno-16-45"></a>record best geometry for this sma
+</code></pre></div>
+<h3 id="33-relation-to-simultaneous-mode">3.3 Relation to simultaneous mode</h3>
+<p>In <code>geometry_update_mode="simultaneous"</code>, all four parameters are
+updated in the same iteration from their respective harmonic amps
+(rather than picking a single max-amp parameter). The Tikhonov blend is
+applied independently to each of the four updates, using that
+parameter's own <code>c_p</code> and <code>w_p</code>. The mathematics of (2.2)-(2.3) is
+unchanged; only the update schedule differs.</p>
+<p>The 7-parameter ISOFIT joint solver (<code>simultaneous_harmonics=True</code>;
+Ciambur 2015) is <strong>not</strong> wired into the Tikhonov term; its linear system
+includes shape harmonics <code>(A₃, B₃, A₄, B₄)</code> whose Jacobian coefficients
+are not independently expressed. When <code>simultaneous_harmonics=True</code> is
+combined with any outer-reg mode, the solver-level term is skipped and
+only the selector-layer penalty (2.9) applies. A <code>UserWarning</code> is
+emitted at config time.</p>
+<h2 id="4-composition-with-other-mechanisms">4. Composition with other mechanisms</h2>
+<h3 id="41-lsb-auto-lock-lsb_auto_lock">4.1 LSB auto-lock (<code>lsb_auto_lock</code>)</h3>
+<p>Independent mechanism that freezes geometry hard after a configurable
+debounce count of high-gradient-error isophotes in the outward
+sequence. Complementary to outer-reg:</p>
+<ul>
+<li><strong>Outer-reg</strong>: soft pre-lock smoothing throughout the outer region.</li>
+<li><strong>Auto-lock</strong>: hard post-lock freeze once the fit has unambiguously
+  entered the LSB tail.</li>
+</ul>
+<p>The two compose without interference: <code>geometry_convergence</code> is active
+for both phases, and <code>_build_outer_reference</code> is built from the full
+inward sequence regardless of the lock state.</p>
+<h3 id="42-central-regularization-use_central_regularization">4.2 Central regularization (<code>use_central_regularization</code>)</h3>
+<p>Parallel mechanism ramping <strong>inward</strong> from the center (exponential
+decay in SMA, <code>central_reg_sma_threshold</code> sets the scale). Addresses
+the dual failure mode: noisy inner isophotes at sub-pixel SMA. The two
+features decay in opposite directions and do not overlap in SMA.</p>
+<h3 id="43-geometry-clipping-clip_max_">4.3 Geometry clipping (<code>clip_max_*</code>)</h3>
+<p>Safety bounds on per-iteration steps. With damping mode active, typical
+steps are shrunk below the clip limits, so clipping rarely fires in
+practice. Retained as a last-resort guard for pathological noise
+excursions.</p>
+<h3 id="44-fix-flags-fix_center-fix_pa-fix_eps">4.4 Fix flags (<code>fix_center</code>, <code>fix_pa</code>, <code>fix_eps</code>)</h3>
+<p>Hard per-parameter freezes. Incompatible with outer-reg per axis: if
+<code>fix_p = True</code> and <code>outer_reg_weights[p] &gt; 0</code>, a <code>UserWarning</code> is
+emitted because the penalty is inert on a frozen parameter.</p>
+<h3 id="45-forced-photometry">4.5 Forced photometry</h3>
+<p>When a template geometry is provided (<code>fit_image(..., template=...)</code>),
+geometry is prescribed per-isophote and the outer-reg feature is a
+no-op. A <code>UserWarning</code> at runtime flags the useless flag.</p>
+<h2 id="5-configuration-interface">5. Configuration interface</h2>
+<h3 id="51-primary-fields-5">5.1 Primary fields (5)</h3>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>type</th>
+<th>default</th>
+<th>role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_outer_center_regularization</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>master on/off</td>
+</tr>
+<tr>
+<td><code>outer_reg_mode</code></td>
+<td>str</td>
+<td><code>"damping"</code></td>
+<td><code>"damping"</code> (recommended) or <code>"solver"</code> (specialized)</td>
+</tr>
+<tr>
+<td><code>outer_reg_strength</code></td>
+<td>float</td>
+<td><code>2.0</code></td>
+<td>peak value of <code>λ(s)</code> in the outer region</td>
+</tr>
+<tr>
+<td><code>outer_reg_sma_onset</code></td>
+<td>float</td>
+<td><code>50.0</code></td>
+<td>SMA (pixels) at the logistic midpoint</td>
+</tr>
+<tr>
+<td><code>outer_reg_weights</code></td>
+<td>dict</td>
+<td><code>{center: 1, eps: 1, pa: 1}</code></td>
+<td>per-axis weights <code>w_p</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-expert-tuning-2">5.2 Expert tuning (2)</h3>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>type</th>
+<th>default</th>
+<th>role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>outer_reg_sma_width</code></td>
+<td>Optional[float]</td>
+<td><code>None</code></td>
+<td>logistic slope width; auto = <code>0.4 × onset</code> if <code>None</code></td>
+</tr>
+<tr>
+<td><code>outer_reg_ref_sma_factor</code></td>
+<td>float</td>
+<td><code>2.0</code></td>
+<td>inward-candidate SMA cutoff for reference build</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-auto-coupled-fields">5.3 Auto-coupled fields</h3>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>coupling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geometry_convergence</code></td>
+<td>forced to <code>True</code> when outer-reg is active; warn if user explicitly set <code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="54-result-dict-additions">5.4 Result-dict additions</h3>
+<p>On successful fit, the result dictionary carries the frozen reference:</p>
+<ul>
+<li><code>outer_reg_x0_ref</code>, <code>outer_reg_y0_ref</code> (px)</li>
+<li><code>outer_reg_eps_ref</code></li>
+<li><code>outer_reg_pa_ref</code> (rad, <code>[0, π)</code>)</li>
+<li><code>use_outer_center_regularization</code> (echo of the flag)</li>
+</ul>
+<h2 id="6-empirical-validation">6. Empirical validation</h2>
+<h3 id="61-benchmark-set">6.1 Benchmark set</h3>
+<p>Nine galaxies from the isoster distribution:</p>
+<ul>
+<li><strong>6 mock</strong> (<code>example_hsc_edgecases/</code>): synthetic HSC <code>i</code>-band
+  coadd-style images with controlled contaminants — clean case, nearby
+  bright star, nearby large galaxy, blending star, artifact, cluster
+  neighborhood.</li>
+<li><strong>3 real</strong> (<code>example_hsc_edge_real/</code>): real HSC cluster-central BCGs
+  with rich environments (companions, halos, nearby stars).</li>
+</ul>
+<p>All at HSC pixel scale 0.168 arcsec, zeropoint 27.0. Cutouts
+nominally 1200×1200 px with anchor from <code>X_OBJ/Y_OBJ</code> mask-header keys
+(real) or image center (mock).</p>
+<p>Six arms tested:</p>
+<ol>
+<li><code>baseline</code>: no outer-reg</li>
+<li><code>damping_default</code>: mode=damping, defaults (<code>strength=2, onset=50,
+   width=None→20, weights={1,1,1}</code>)</li>
+<li><code>damping_full</code>: same but onset=50, width=20, strength=2</li>
+<li><code>damping_recommended</code>: onset=100, width=20, strength=4</li>
+<li><code>solver_standard</code>: mode=solver, onset=50, width=20, strength=2</li>
+<li><code>solver_strong</code>: mode=solver, onset=50, width=20, strength=8</li>
+</ol>
+<p>Metrics in outer region (<code>sma ≥ sma₀ = 10 px</code>):</p>
+<ul>
+<li><code>pl_comb</code>: max combined center drift (px) relative to anchor</li>
+<li><code>max_|Δpa|</code>: largest single-step PA change (deg)</li>
+<li><code>max_|Δeps|</code>: largest single-step ellipticity change</li>
+<li><code>n_sat_{pa,eps}</code>: count of transitions ≥ 90% of respective clip limit</li>
+<li><code>T(s)</code>: median of 3-run <code>fit_image</code> wall-clock</li>
+</ul>
+<h3 id="62-runtime">6.2 Runtime</h3>
+<p>Median runtime per galaxy × arm (s), warm cache:</p>
+<table>
+<thead>
+<tr>
+<th>ID (kind)</th>
+<th style="text-align: right;">baseline</th>
+<th style="text-align: right;">damp_default</th>
+<th style="text-align: right;">damp_full</th>
+<th style="text-align: right;">damp_recom</th>
+<th style="text-align: right;">solver_std</th>
+<th style="text-align: right;">solver_strong</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10140088 (mock, clear)</td>
+<td style="text-align: right;">0.29</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.27</td>
+</tr>
+<tr>
+<td>10140002 (mock, bright star)</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0.28</td>
+<td style="text-align: right;">0.25</td>
+</tr>
+<tr>
+<td>10140006 (mock, large galaxy)</td>
+<td style="text-align: right;">0.35</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.29</td>
+<td style="text-align: right;">0.23</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.24</td>
+</tr>
+<tr>
+<td>10140009 (mock, blending)</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.23</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.23</td>
+</tr>
+<tr>
+<td>10140056 (mock, artifact)</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.23</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0.23</td>
+</tr>
+<tr>
+<td>10140093 (mock, cluster)</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.23</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.25</td>
+</tr>
+<tr>
+<td>37498869835124888 (real BCG)</td>
+<td style="text-align: right;">0.33</td>
+<td style="text-align: right;">0.39</td>
+<td style="text-align: right;">0.31</td>
+<td style="text-align: right;">0.35</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.33</td>
+</tr>
+<tr>
+<td>42177291811318246 (real BCG)</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.28</td>
+<td style="text-align: right;">0.35</td>
+<td style="text-align: right;">0.31</td>
+<td style="text-align: right;">0.29</td>
+<td style="text-align: right;">0.31</td>
+</tr>
+<tr>
+<td>42310032070569600 (real BCG)</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.27</td>
+<td style="text-align: right;">0.34</td>
+</tr>
+<tr>
+<td><strong>total</strong> (9 galaxies)</td>
+<td style="text-align: right;"><strong>2.56</strong></td>
+<td style="text-align: right;"><strong>2.52</strong></td>
+<td style="text-align: right;"><strong>2.44</strong></td>
+<td style="text-align: right;"><strong>2.43</strong></td>
+<td style="text-align: right;"><strong>2.39</strong></td>
+<td style="text-align: right;"><strong>2.46</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Every arm's total lands within about 7% of baseline (<code>damp_default</code>
+−1.6%, <code>damp_full</code> −4.7%, <code>damp_recom</code> −5.1%, <code>solver_std</code> −6.6%,
+<code>solver_strong</code> −3.9%). All five are <em>faster</em> than baseline, which is
+the giveaway: these are medians of three runs on sub-second fits, so
+the spread is timing noise rather than a systematic saving, and the
+honest reading is that regularization costs nothing measurable at this
+precision — not that it speeds the fit up. An earlier version of this
+sentence claimed ±3%, which its own table does not support. Solver
+modes are equivalent because both rely on the auto-enabled
+<code>geometry_convergence</code>. The Tikhonov arithmetic adds negligible
+per-iteration overhead (≲ 10 FLOP per axis).</p>
+<h3 id="63-smoothness-saturated-step-counts">6.3 Smoothness — saturated-step counts</h3>
+<p>Summed across all 9 galaxies:</p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th style="text-align: right;">n_sat_pa</th>
+<th style="text-align: right;">n_sat_eps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baseline</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>damping_default</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">8</td>
+</tr>
+<tr>
+<td>damping_full</td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+</tr>
+<tr>
+<td>damping_recommended</td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+</tr>
+<tr>
+<td>solver_standard</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>solver_strong</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key result</strong>: <code>damping_full</code> and <code>damping_recommended</code> (both with
+weights <code>{1, 1, 1}</code>) achieve zero saturated clipped steps on every
+galaxy. The <code>damping_default</code> arm uses the historical
+weights-<code>{1, 0, 0}</code> defaults (center-only damping, dropped in the
+current release) and still produces 10 saturated events total,
+confirming that <strong>full-axis weights are necessary</strong>.</p>
+<h3 id="64-smoothness-max-pa-by-galaxy-outer-deg">6.4 Smoothness — max |Δpa| by galaxy (outer, deg)</h3>
+<table>
+<thead>
+<tr>
+<th>galaxy</th>
+<th>kind</th>
+<th style="text-align: right;">baseline</th>
+<th style="text-align: right;">damp_default</th>
+<th style="text-align: right;">damp_full</th>
+<th style="text-align: right;">damp_recom</th>
+<th style="text-align: right;">solver_std</th>
+<th style="text-align: right;">solver_strong</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10140088</td>
+<td>mock</td>
+<td style="text-align: right;">6.05</td>
+<td style="text-align: right;">4.12</td>
+<td style="text-align: right;">2.38</td>
+<td style="text-align: right;">2.24</td>
+<td style="text-align: right;"><strong>14.81</strong></td>
+<td style="text-align: right;"><strong>14.00</strong></td>
+</tr>
+<tr>
+<td>10140002</td>
+<td>mock</td>
+<td style="text-align: right;">6.69</td>
+<td style="text-align: right;"><strong>12.48</strong></td>
+<td style="text-align: right;">1.84</td>
+<td style="text-align: right;">1.91</td>
+<td style="text-align: right;"><strong>11.41</strong></td>
+<td style="text-align: right;">9.80</td>
+</tr>
+<tr>
+<td>10140006</td>
+<td>mock</td>
+<td style="text-align: right;">4.04</td>
+<td style="text-align: right;">3.75</td>
+<td style="text-align: right;">3.06</td>
+<td style="text-align: right;">3.05</td>
+<td style="text-align: right;"><strong>31.46</strong></td>
+<td style="text-align: right;"><strong>42.69</strong></td>
+</tr>
+<tr>
+<td>10140009</td>
+<td>mock</td>
+<td style="text-align: right;">6.59</td>
+<td style="text-align: right;">3.86</td>
+<td style="text-align: right;">2.22</td>
+<td style="text-align: right;">2.65</td>
+<td style="text-align: right;"><strong>12.79</strong></td>
+<td style="text-align: right;"><strong>13.06</strong></td>
+</tr>
+<tr>
+<td>10140056</td>
+<td>mock</td>
+<td style="text-align: right;">4.42</td>
+<td style="text-align: right;">3.78</td>
+<td style="text-align: right;">2.54</td>
+<td style="text-align: right;">2.65</td>
+<td style="text-align: right;"><strong>14.03</strong></td>
+<td style="text-align: right;"><strong>12.85</strong></td>
+</tr>
+<tr>
+<td>10140093</td>
+<td>mock</td>
+<td style="text-align: right;">4.46</td>
+<td style="text-align: right;">6.79</td>
+<td style="text-align: right;">3.08</td>
+<td style="text-align: right;">4.02</td>
+<td style="text-align: right;"><strong>13.97</strong></td>
+<td style="text-align: right;"><strong>11.90</strong></td>
+</tr>
+<tr>
+<td>37498869835124888</td>
+<td>real</td>
+<td style="text-align: right;">6.29</td>
+<td style="text-align: right;"><strong>18.51</strong></td>
+<td style="text-align: right;">2.01</td>
+<td style="text-align: right;">2.50</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr>
+<td>42177291811318246</td>
+<td>real</td>
+<td style="text-align: right;">9.91</td>
+<td style="text-align: right;">7.29</td>
+<td style="text-align: right;">7.66</td>
+<td style="text-align: right;">6.23</td>
+<td style="text-align: right;">6.97</td>
+<td style="text-align: right;">5.50</td>
+</tr>
+<tr>
+<td>42310032070569600</td>
+<td>real</td>
+<td style="text-align: right;"><strong>28.65</strong></td>
+<td style="text-align: right;"><strong>28.65</strong></td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">1.11</td>
+<td style="text-align: right;">11.07</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+</tbody>
+</table>
+<p>Bold: &gt; 10° (large transitions or frozen-to-zero artefacts).</p>
+<p>Observations:</p>
+<ul>
+<li><code>damping_full</code> and <code>damping_recommended</code> are the most consistent
+  performers: ≤ 8° on every galaxy, ≤ 3° on 7 of 9.</li>
+<li><code>solver_standard</code>/<code>solver_strong</code> produce large single transitions to
+  the Tikhonov balance point (11-43°) on most mock galaxies and freeze
+  to zero variation on two real galaxies where the reference happens to
+  match the solver's equilibrium.</li>
+<li><code>damping_default</code> (historical center-only weights) is inferior to
+  full weights on 3/9 galaxies — this confirms that the interface
+  default must be full weights.</li>
+</ul>
+<h3 id="65-center-stability">6.5 Center stability</h3>
+<p>Max combined center drift <code>pl_comb</code> (px) in the outer region:</p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th style="text-align: right;">min</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">max</th>
+<th style="text-align: right;"># galaxies with pl_comb &gt; 10 px</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baseline</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">10.4</td>
+<td style="text-align: right;">91.4</td>
+<td style="text-align: right;">6</td>
+</tr>
+<tr>
+<td>damping_default</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.17</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>damping_full</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.17</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>damping_recommended</td>
+<td style="text-align: right;">0.09</td>
+<td style="text-align: right;">0.28</td>
+<td style="text-align: right;">1.11</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>solver_standard</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.28</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>solver_strong</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>All regularized arms eliminate the baseline's runaway center drift
+(6 of 9 galaxies show baseline <code>pl_comb &gt; 10 px</code>, including 91 px on
+<code>37498869835124888</code>).</p>
+<h2 id="7-limitations">7. Limitations</h2>
+<h3 id="71-over-regularization-in-solver-mode">7.1 Over-regularization in solver mode</h3>
+<p>Solver mode pulls outer geometry toward the inner reference. On
+galaxies with real astrophysical structure (PA twists, outward
+flattening) this suppresses physically meaningful variation. On 5 of 6
+mock galaxies, the solver mode's <code>max_|Δpa|</code> exceeds the baseline's
+— the single large transition to the solver-balance-point is more
+visible than the baseline's noise.</p>
+<p>Damping mode is the recommended choice for general LSB fitting. Solver
+is useful only when the astrophysical expectation is that outer
+geometry <em>should</em> match inner geometry (e.g. contamination-dominated
+fields, deep-survey verification).</p>
+<h3 id="72-anchor-precision-in-the-inward-reference">7.2 Anchor precision in the inward reference</h3>
+<p>The flux-weighted inner reference (§2.6) has sub-pixel precision; the
+accuracy of the center reference depends on the inward isophote fit
+quality in the first few pixels of SMA. When the initial guess
+<code>(x₀, y₀)</code> passed to the fitter has only integer-pixel precision
+(e.g. from a smoothed peak finder), the inner fit adapts during the
+inward loop and converges to sub-pixel accuracy, but the QA plot's
+"center offset" panel (which plots <code>x₀(s) − x₀_config</code>) shows this as
+a constant ~0.3 px offset. This is cosmetic; the outer-reg reference
+correctly captures the sub-pixel center.</p>
+<h3 id="73-isofit-joint-harmonic-mode">7.3 ISOFIT joint harmonic mode</h3>
+<p>Not wired into the solver-level term. When <code>simultaneous_harmonics=True</code>
+is combined with any outer-reg mode, the Tikhonov update is skipped and
+only the selector-layer penalty (2.9) applies. A <code>UserWarning</code> at
+config time makes this explicit.</p>
+<h3 id="74-degenerate-inner-pa-scatter">7.4 Degenerate inner PA scatter</h3>
+<p>When inner PA values are so scattered that the circular-mean resultant
+<code>R &lt; 0.1</code> (eq. 2.8), <code>PA_ref</code> falls back to the anchor isophote's PA.
+This is safe but may produce a less representative reference for
+galaxies where the inner isophotes genuinely lack coherent PA (near
+face-on systems with <code>ε &lt; 0.05</code>). In such cases the PA weight
+<code>w_pa</code> can be set to 0 to disable PA regularization while retaining
+center and ε damping.</p>
+<h2 id="8-usage-guide">8. Usage guide</h2>
+<h3 id="81-minimal-recommended-configuration">8.1 Minimal recommended configuration</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IsosterConfig</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_image</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">x0</span><span class="o">=...</span><span class="p">,</span>  <span class="n">y0</span><span class="o">=...</span><span class="p">,</span>  <span class="n">sma0</span><span class="o">=...</span><span class="p">,</span>  <span class="n">maxsma</span><span class="o">=...</span><span class="p">,</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">use_outer_center_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="c1"># defaults: mode=&quot;damping&quot;, strength=2.0, onset=50.0, weights={1,1,1}</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="p">)</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="n">results</span> <span class="o">=</span> <span class="n">fit_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">variance_map</span><span class="o">=</span><span class="n">variance</span><span class="p">)</span>
+</code></pre></div>
+<p>This is appropriate for general LSB fitting on HSC-grade data.</p>
+<h3 id="82-tuning-outer_reg_sma_onset">8.2 Tuning <code>outer_reg_sma_onset</code></h3>
+<p>The ramp midpoint should sit roughly where the harmonic fit starts to
+degrade. For HSC coadds, this is typically 50-100 px depending on
+galaxy size. Heuristic: <code>onset ≈ 0.5 × R_eff</code> for unresolved edge of
+significant signal.</p>
+<h3 id="83-tuning-outer_reg_strength">8.3 Tuning <code>outer_reg_strength</code></h3>
+<table>
+<thead>
+<tr>
+<th>value</th>
+<th>effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0.5</code></td>
+<td>very soft — useful only on galaxies that are nearly stable without regularization</td>
+</tr>
+<tr>
+<td><code>2.0</code> (default)</td>
+<td>moderate; recommended for most cases</td>
+</tr>
+<tr>
+<td><code>4-8</code></td>
+<td>strong damping, for real LSB galaxies with heavy contamination</td>
+</tr>
+<tr>
+<td><code>≥ 10</code></td>
+<td>may over-regularize; check QA PNGs for frozen profiles</td>
+</tr>
+</tbody>
+</table>
+<h3 id="84-specialist-solver-mode-for-forced-like-anchoring">8.4 Specialist: solver mode for forced-like anchoring</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">use_outer_center_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">outer_reg_mode</span><span class="o">=</span><span class="s2">&quot;solver&quot;</span><span class="p">,</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">outer_reg_strength</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>  <span class="c1"># strong pull</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="p">)</span>
+</code></pre></div>
+<p>Anchors outer isophotes firmly to the inner flux-weighted reference.
+Appropriate when the outer fit would otherwise drift off-source
+(e.g. contamination fields), but flattens any genuine outer
+astrophysical structure. Inspect QA PNGs before committing.</p>
+<h3 id="85-combining-with-auto-lock">8.5 Combining with auto-lock</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="n">use_outer_center_regularization</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># pre-lock smoothing</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="n">lsb_auto_lock</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>                    <span class="c1"># post-lock hard freeze</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="p">)</span>
+</code></pre></div>
+<p>Damping handles the transition region; auto-lock takes over once the
+gradient quality has unambiguously collapsed. <code>geometry_convergence</code> is
+auto-enabled by either feature.</p>
+<h2 id="9-implementation-references">9. Implementation references</h2>
+<table>
+<thead>
+<tr>
+<th>concern</th>
+<th>file / function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config fields + validators</td>
+<td><code>isoster/config.py</code> § "Outer Region Center Regularization"</td>
+</tr>
+<tr>
+<td><code>α</code> blend helper</td>
+<td><code>isoster/fitting.py</code> <code>_tikhonov_alpha</code></td>
+</tr>
+<tr>
+<td>Selector-level penalty</td>
+<td><code>isoster/fitting.py</code> <code>compute_outer_center_regularization_penalty</code></td>
+</tr>
+<tr>
+<td>Per-branch Tikhonov blend</td>
+<td><code>isoster/fitting.py</code> <code>fit_isophote</code> update section</td>
+</tr>
+<tr>
+<td>Reference construction</td>
+<td><code>isoster/driver.py</code> <code>_build_outer_reference</code></td>
+</tr>
+<tr>
+<td>Integration test suite</td>
+<td><code>tests/integration/test_outer_center_regularization.py</code></td>
+</tr>
+<tr>
+<td>Cross-galaxy benchmark</td>
+<td><code>examples/run_cross_galaxy_outer_reg_sweep.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="references">References</h2>
+<ul>
+<li>Jedrzejewski, R. I. 1987, MNRAS, 226, 747 (original isophote fitter).</li>
+<li>Busko, I. 1996, in ASP Conf. Ser. 101, Astronomical Data Analysis
+  Software and Systems V, ed. G. H. Jacoby &amp; J. Barnes, 139
+  (stsdas.analysis.isophote implementation).</li>
+<li>Ciambur, B. C. 2015, ApJ, 810, 120 (ISOFIT joint high-order harmonic
+  solver).</li>
+<li>Bradley, L., et al. 2025 (photutils.isophote reference implementation).</li>
+<li>Tikhonov, A. N. 1963, Soviet Math. Dokl., 4, 1035 (original
+  regularization theory).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

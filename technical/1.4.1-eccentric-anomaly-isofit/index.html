@@ -1,0 +1,1819 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.4.1-eccentric-anomaly-isofit/">
+      
+      
+        <link rel="prev" href="../1.3-why-fast/">
+      
+      
+        <link rel="next" href="../1.4.2-variance-aware-fitting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.4.1 Eccentric Anomaly + ISOFIT - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#141-eccentric-anomaly-sampling-and-isofit-style-joint-harmonics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.4.1 Eccentric Anomaly + ISOFIT
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1411-why-uniform-in-phi-sampling-fails-at-high-ellipticity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.1 Why uniform-in-\(\phi\) sampling fails at high ellipticity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1412-the-eccentric-anomaly-parametrization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.2 The eccentric-anomaly parametrization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1413-isofit-style-joint-harmonics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.3 ISOFIT-style joint harmonics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1414-caveats-and-fallbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.4 Caveats and fallbacks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1415-demonstration-synthetic-edge-on-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.5 Demonstration: synthetic edge-on disk
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1411-why-uniform-in-phi-sampling-fails-at-high-ellipticity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.1 Why uniform-in-\(\phi\) sampling fails at high ellipticity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1412-the-eccentric-anomaly-parametrization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.2 The eccentric-anomaly parametrization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1413-isofit-style-joint-harmonics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.3 ISOFIT-style joint harmonics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1414-caveats-and-fallbacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.4 Caveats and fallbacks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1415-demonstration-synthetic-edge-on-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.1.5 Demonstration: synthetic edge-on disk
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="141-eccentric-anomaly-sampling-and-isofit-style-joint-harmonics">§1.4.1 Eccentric-anomaly sampling and ISOFIT-style joint harmonics</h1>
+<p>The classical Jedrzejewski (1987) algorithm samples the trial
+ellipse uniformly in the image position angle <span class="arithmatex">\(\phi\)</span> and decomposes
+the resulting intensity profile in the same <span class="arithmatex">\(\phi\)</span>-basis. This is a
+natural choice for low-ellipticity isophotes, where uniform-in-<span class="arithmatex">\(\phi\)</span>
+sampling is approximately uniform-in-arclength and the harmonic
+basis is approximately orthogonal with respect to the path on the
+ellipse. It fails — sometimes severely — when the isophotes
+themselves are highly elliptical, as they are in edge-on disks,
+X-shaped / peanut-bulge galaxies, and strongly barred systems where
+the bar component dominates a range of SMAs. ISOSTER provides two
+related features that together extend the classical algorithm into
+this regime: <em>eccentric-anomaly sampling</em> (Ciambur 2015), which
+replaces <span class="arithmatex">\(\phi\)</span> with the eccentric anomaly <span class="arithmatex">\(\psi\)</span> as the angular
+basis; and <em>ISOFIT-style joint harmonics</em>, which fits higher-order
+deviation coefficients jointly with the geometry harmonics inside
+the iteration loop rather than as a post-hoc add-on. Both can be
+used independently; together they recover the Ciambur (2015)
+formulation faithfully within the ISOSTER framework.</p>
+<h2 id="1411-why-uniform-in-phi-sampling-fails-at-high-ellipticity">§1.4.1.1 Why uniform-in-<span class="arithmatex">\(\phi\)</span> sampling fails at high ellipticity</h2>
+<p>Consider an elliptical isophote with semi-major axis <span class="arithmatex">\(a\)</span>,
+ellipticity <span class="arithmatex">\(\varepsilon\)</span>, and semi-minor axis <span class="arithmatex">\(b = a(1 -
+\varepsilon)\)</span>. Parametrize the ellipse by the image position angle
+<span class="arithmatex">\(\phi\)</span> measured from the major axis. The radial distance from the
+ellipse center to the boundary at angle <span class="arithmatex">\(\phi\)</span> is</p>
+<div class="arithmatex">\[
+r(\phi) = \frac{b}{\sqrt{1 - \varepsilon(2 - \varepsilon)\cos^2\phi}},
+\]</div>
+<p>and the arc-length increment per unit <span class="arithmatex">\(\phi\)</span> is</p>
+<div class="arithmatex">\[
+\frac{ds}{d\phi} = \sqrt{r^2(\phi) + \left(\frac{dr}{d\phi}\right)^2}.
+\]</div>
+<p>For <span class="arithmatex">\(\varepsilon \to 0\)</span> (a circle), this is constant and uniform
+<span class="arithmatex">\(\phi\)</span>-sampling is uniform in arc length. For <span class="arithmatex">\(\varepsilon\)</span>
+approaching unity, <span class="arithmatex">\(ds / d\phi\)</span> varies by orders of magnitude over
+the ellipse perimeter: it is large near <span class="arithmatex">\(\phi = 0\)</span> (along the major
+axis, where the path moves quickly outward in image coordinates per
+unit <span class="arithmatex">\(\phi\)</span>) and small near <span class="arithmatex">\(\phi = \pi / 2\)</span> (along the minor axis,
+where the path doubles back tightly). The consequence is that
+uniform-in-<span class="arithmatex">\(\phi\)</span> sampling <em>under-samples</em> the major-axis region —
+exactly the region where edge-on disks and peanut bulges have their
+most distinctive isophotal structure — and <em>over-samples</em> the
+minor-axis region, where the path is shortest and the structural
+information per sample is least.</p>
+<p>It is worth being precise about what this does and does not cause,
+because the intuitive version of the argument is wrong. Non-uniform
+sampling density does <em>not</em> manufacture harmonic content out of
+nothing: a geometrically perfect ellipse has constant intensity
+along its boundary, and a constant is a constant in any angular
+coordinate. Fitting <span class="arithmatex">\(I(\phi) = \mathrm{const}\)</span> in the <span class="arithmatex">\(\phi\)</span>-basis
+returns <span class="arithmatex">\(I_0\)</span> exactly and all harmonic coefficients zero, at any
+ellipticity. There is no "sampling-density artefact" that a perfect
+ellipse acquires and that a change of basis removes.</p>
+<p>The two real problems are different, and both are consequences of
+the same fact: <span class="arithmatex">\(\phi\)</span> and <span class="arithmatex">\(\psi\)</span> are related by a <em>nonlinear</em>
+reparametrization, <span class="arithmatex">\(\tan\phi = (1 - \varepsilon)\tan\psi\)</span>, and a
+nonlinear reparametrization does not preserve which Fourier orders
+are present.</p>
+<p><strong>First, the geometry-update algebra is derived in <span class="arithmatex">\(\psi\)</span>.</strong> This is
+the load-bearing point and it is easy to miss. Consider a trial
+ellipse displaced from the true isophote by a small offset <span class="arithmatex">\(\delta\)</span>
+along its major axis, and parametrize position on the trial ellipse
+by the eccentric anomaly: <span class="arithmatex">\((a\cos\psi,\ b\sin\psi)\)</span> in the ellipse
+frame. The semi-major axis of the <em>isophote</em> passing through that
+sample point is <span class="arithmatex">\(a' \approx a - \delta\cos\psi\)</span>, so the sampled
+intensity is
+<span class="arithmatex">\(I \approx I_0 - (dI/da)\,\delta\cos\psi\)</span> — a pure <span class="arithmatex">\(\cos\psi\)</span> term.
+Repeating the exercise for a minor-axis offset gives a pure
+<span class="arithmatex">\(\sin\psi\)</span> term with an extra factor <span class="arithmatex">\((1-\varepsilon)^{-1}\)</span>; for an
+ellipticity error, a pure <span class="arithmatex">\(\cos 2\psi\)</span> term with coefficient
+<span class="arithmatex">\((dI/da)\,a\,\delta\varepsilon / [2(1-\varepsilon)]\)</span>; for a
+position-angle error, a pure <span class="arithmatex">\(\sin 2\psi\)</span> term. Inverting those four
+relations gives exactly the four update formulas ISOSTER applies —
+including the <span class="arithmatex">\((1-\varepsilon)\)</span>, <span class="arithmatex">\(2(1-\varepsilon)/a\)</span> and
+<span class="arithmatex">\([(1-\varepsilon)^2 - 1]\)</span> factors that would otherwise look
+arbitrary. In other words, the classical geometry corrections are
+<em>already</em> an eccentric-anomaly result. Feeding them coefficients
+measured in <span class="arithmatex">\(\psi\)</span> is exact; feeding them coefficients measured in
+<span class="arithmatex">\(\phi\)</span> is an approximation whose error grows with ellipticity and
+vanishes as <span class="arithmatex">\(\varepsilon \to 0\)</span>, where <span class="arithmatex">\(\phi \to \psi\)</span>.</p>
+<p><strong>Second, orders mix under the reparametrization, and the mixing
+runs downhill into the geometry terms.</strong> Because the map between
+the two angles is nonlinear, a residual that is a pure order-<span class="arithmatex">\(n\)</span>
+harmonic in one basis is <em>not</em> a pure order-<span class="arithmatex">\(n\)</span> harmonic in the
+other. The direction that matters is the one that contaminates the
+geometry update: genuine higher-order isophotal structure, expressed
+in <span class="arithmatex">\(\phi\)</span>, acquires first- and second-order components, and those
+components are indistinguishable from a geometry mismatch. The
+effect is easy to quantify. Take a residual that is exactly
+<span class="arithmatex">\(\cos 3\psi\)</span> — pure third-order shape, no geometry error whatsoever
+— on an isophote of axis ratio <span class="arithmatex">\(b/a = 0.3\)</span>. Fitting the
+five-parameter geometry model in <span class="arithmatex">\(\psi\)</span> returns all four
+geometry coefficients as zero, correctly. Fitting the same data in
+<span class="arithmatex">\(\phi\)</span> returns a first-order cosine coefficient of <span class="arithmatex">\(-0.180\)</span>: an
+<span class="arithmatex">\(18\%\)</span> spurious geometry signal conjured entirely out of real
+third-order structure by the choice of angular coordinate. The
+iteration then "corrects" a geometry error that does not exist.</p>
+<p>Both problems are therefore about <em>interpretation</em> of the
+coefficients rather than about the sampling being visibly sparse
+somewhere, and both are absent for round isophotes and severe for
+flattened ones — which is precisely the regime where edge-on disks
+and peanut bulges live.</p>
+<h2 id="1412-the-eccentric-anomaly-parametrization">§1.4.1.2 The eccentric-anomaly parametrization</h2>
+<p>The eccentric anomaly <span class="arithmatex">\(\psi\)</span> is the angular parameter that runs
+uniformly along the ellipse when the latter is mapped to an
+auxiliary unit circle. In the ellipse's principal coordinate system
+(major axis along <span class="arithmatex">\(x'\)</span>, minor along <span class="arithmatex">\(y'\)</span>), the ellipse is the image
+of the unit circle under the affine map
+<span class="arithmatex">\((x', y') = (a\cos\psi, b\sin\psi)\)</span>. The arc-length increment per
+unit <span class="arithmatex">\(\psi\)</span> is</p>
+<div class="arithmatex">\[
+\frac{ds}{d\psi} = \sqrt{a^2 \sin^2\psi + b^2 \cos^2\psi},
+\]</div>
+<p>which varies between <span class="arithmatex">\(b\)</span> and <span class="arithmatex">\(a\)</span> over a full cycle, so its
+maximum-to-minimum ratio is exactly <span class="arithmatex">\(a / b\)</span>; it never vanishes, and
+it is more uniform than <span class="arithmatex">\(ds / d\phi\)</span> at any fixed ellipticity. At
+<span class="arithmatex">\(b/a = 0.3\)</span>, for instance, <span class="arithmatex">\(ds/d\psi\)</span> spans a factor of <span class="arithmatex">\(3.33\)</span>
+against <span class="arithmatex">\(4.87\)</span> for <span class="arithmatex">\(ds/d\phi\)</span>. The improvement is real but modest,
+and it is not a clean power law: the <span class="arithmatex">\(\phi\)</span>-density ratio has no
+simple closed form and is <em>not</em> <span class="arithmatex">\((a/b)^2\)</span>, as an earlier version of
+this section asserted. The sampling-uniformity argument is worth
+making qualitatively and not worth over-quantifying, because — as
+§1.4.1.1 sets out — it is the weaker of the two reasons to prefer
+<span class="arithmatex">\(\psi\)</span> anyway.</p>
+<p>The relationship between <span class="arithmatex">\(\psi\)</span> and the polar angle <span class="arithmatex">\(\theta\)</span>
+measured from the ellipse center (the true anomaly, not the image
+position angle <span class="arithmatex">\(\phi\)</span> used elsewhere in this section) is</p>
+<div class="arithmatex">\[
+\tan\theta = \frac{b}{a}\tan\psi = (1 - \varepsilon)\tan\psi.
+\]</div>
+<p>ISOSTER computes ellipse-boundary coordinates by stepping uniformly
+through <span class="arithmatex">\(\psi \in [0, 2\pi)\)</span>, evaluating <span class="arithmatex">\((x', y')\)</span> on the principal
+axes via the closed-form mapping, then rotating into image
+coordinates by the position angle PA. The sampling step in
+<code>isoster/sampling.py</code> is the same vectorized
+<code>scipy.ndimage.map_coordinates</code> call described in §1.3.2; only the
+coordinate construction differs. The harmonic fit is then performed
+in the <span class="arithmatex">\(\psi\)</span>-basis: the design matrix becomes</p>
+<div class="arithmatex">\[
+\mathbf{A}_\psi = [\mathbf{1}, \sin\psi, \cos\psi, \sin 2\psi, \cos 2\psi,
+\sin n_1\psi, \cos n_1\psi, \ldots],
+\]</div>
+<p>and the coefficients <span class="arithmatex">\(A_n^\psi\)</span>, <span class="arithmatex">\(B_n^\psi\)</span> are the ones the
+geometry-correction algebra of §1.4.1.1 was written for. For a
+perfect ellipse the higher-order coefficients vanish in <em>either</em>
+basis, as §1.4.1.1 established — that property is not what the
+change of basis buys, and claiming it would contradict the argument
+made there. What the <span class="arithmatex">\(\psi\)</span>-basis buys is that a <em>non-zero</em> shape
+deviation is expressed in the coordinate the correction formulas
+assume, so it stays in the harmonic order it belongs to instead of
+leaking down into orders 1 and 2.</p>
+<p>One subtlety bears emphasizing, because it is easy to describe
+incorrectly. The eccentric anomaly is defined relative to the
+<em>current trial geometry</em> — its definition depends on the trial
+<span class="arithmatex">\(\varepsilon\)</span> and PA — so as the iteration updates the geometry, the
+mapping <span class="arithmatex">\(\psi \to (x_\mathrm{image}, y_\mathrm{image})\)</span> updates with
+it. The natural worry is that feeding <span class="arithmatex">\(\psi\)</span>-basis coefficients into
+a geometry-update rule derived in the <span class="arithmatex">\(\phi\)</span>-basis is a category
+error, and that one should convert the coefficients back to
+<span class="arithmatex">\(\phi\)</span>-space first.</p>
+<p>ISOSTER does not perform that conversion, and neither does ISOFIT.
+The coefficients <span class="arithmatex">\((A_1, B_1, A_2, B_2)\)</span> fitted in <span class="arithmatex">\(\psi\)</span> are fed
+directly to the classical update formulas of §1.1, which map the
+dominant amplitude onto <span class="arithmatex">\((x_0, y_0, \varepsilon, \mathrm{PA})\)</span>
+through the local radial gradient. The polar angle <span class="arithmatex">\(\phi\)</span> is carried
+alongside <span class="arithmatex">\(\psi\)</span> through sampling and sigma-clipping, but only so
+that the angular bookkeeping stays aligned for diagnostics and error
+propagation; it does not enter the update.</p>
+<p>No conversion is needed, because — as §1.4.1.1 sets out — the
+correction formulas were derived in <span class="arithmatex">\(\psi\)</span> in the first place. The
+<span class="arithmatex">\(\psi\)</span>-basis coefficients are exactly the quantities those formulas
+expect, so consuming them directly is the <em>correct</em> operation, not a
+tolerated approximation. It is the default <span class="arithmatex">\(\phi\)</span>-mode that feeds
+the formulas coefficients from the wrong basis, and does so for
+compatibility with IRAF <code>Ellipse</code> and <code>photutils.isophote</code> rather
+than because it is more accurate.</p>
+<p>It is worth resisting a tempting but invalid defence of the
+<span class="arithmatex">\(\phi\)</span>-mode here, since it is the kind of argument that sounds
+right. One might argue that the iteration is driven to a fixed point
+where the residual first- and second-order content vanishes, so the
+two bases must agree on <em>where</em> the mismatch is zero even if they
+disagree about its size mid-iteration. They need not. A nonlinear
+reparametrization does not preserve which orders vanish: the
+<span class="arithmatex">\(\cos 3\psi\)</span> example of §1.4.1.1 has exactly zero first- and
+second-order content in <span class="arithmatex">\(\psi\)</span> and a first-order coefficient of
+<span class="arithmatex">\(-0.180\)</span> in <span class="arithmatex">\(\phi\)</span>, so the two bases place the fixed point in
+different locations. The fixed points coincide only in the limit
+<span class="arithmatex">\(\varepsilon \to 0\)</span>.</p>
+<p>The practical consequences for a user are therefore narrower than
+"the flag only changes the basis". The geometry parameters do retain
+their classical geometric meaning, and the converged
+<span class="arithmatex">\((x_0, y_0, \varepsilon, \mathrm{PA})\)</span> remain directly comparable
+between modes in the sense that they denote the same things. But the
+two modes do not follow the same path, and on a flattened isophote
+with real higher-order structure they need not converge to the same
+place either. Which one to believe is not a matter of taste: the
+<span class="arithmatex">\(\psi\)</span>-mode geometry is the one whose corrections were derived for
+the coefficients being fed to them.</p>
+<h2 id="1413-isofit-style-joint-harmonics">§1.4.1.3 ISOFIT-style joint harmonics</h2>
+<p>The default ISOSTER fit (and the classical Jedrzejewski / photutils
+fit) restricts the inside-loop harmonic basis to orders 1 and 2:</p>
+<div class="arithmatex">\[
+\mathbf{A}_5 = [\mathbf{1}, \sin\theta, \cos\theta, \sin 2\theta, \cos 2\theta],
+\]</div>
+<p>where <span class="arithmatex">\(\theta\)</span> is the angular basis (<span class="arithmatex">\(\phi\)</span> or <span class="arithmatex">\(\psi\)</span> depending on
+the sampling mode). Higher-order coefficients <span class="arithmatex">\((A_n, B_n)\)</span> for
+<span class="arithmatex">\(n \ge 3\)</span> are fitted <em>post-hoc</em> on the converged geometry: each
+order <span class="arithmatex">\(n\)</span> is fit separately with a three-column design matrix
+<span class="arithmatex">\([\mathbf{1}, \sin n\theta, \cos n\theta]\)</span> on the sampled profile
+(the <code>compute_deviations</code> path). This post-hoc approach has two
+advantages: the inside-loop solve is
+cheap (the design matrix has only five columns); and the
+convergence criterion is decoupled from how many higher orders the
+user wants to measure.</p>
+<p>It has one disadvantage. The higher-order coefficients describe
+isophotal shape that is potentially correlated with the geometry
+update: a slight error in the converged geometry can leak into the
+higher-order coefficients through the cross-correlation of the
+basis functions on the sampled intensity profile. For weak
+deviations from ellipticity the leakage is negligible, and the
+post-hoc approach is the right trade-off. For strong deviations —
+X-shaped bulges, peanut bulges, strongly disky / boxy isophotes —
+the leakage can be a significant fraction of the higher-order
+amplitude itself, and the converged geometry can be biased away
+from the geometry that would minimize the <em>full</em> harmonic residual
+including the higher orders.</p>
+<p>ISOFIT (Ciambur 2015) addresses this by performing the joint
+inside-loop fit on an <em>extended</em> design matrix that includes the
+higher-order columns:</p>
+<div class="arithmatex">\[
+\mathbf{A}_\mathrm{ISOFIT} = [\mathbf{1}, \sin\theta, \cos\theta, \sin 2\theta, \cos 2\theta,
+\sin n_1\theta, \cos n_1\theta, \ldots, \sin n_L\theta, \cos n_L\theta],
+\]</div>
+<p>where <span class="arithmatex">\(\{n_1, \ldots, n_L\}\)</span> are the orders specified in
+<code>harmonic_orders</code> (default <span class="arithmatex">\(\{3, 4\}\)</span>, with <span class="arithmatex">\(L = 2\)</span>). The
+linear-system solve is now <span class="arithmatex">\(p = 5 + 2L\)</span> parameters wide rather
+than <span class="arithmatex">\(5\)</span>, and the cross-correlations between geometry harmonics
+and higher-order harmonics are absorbed into the joint covariance
+matrix rather than leaked into the geometry update.</p>
+<p>ISOSTER provides two ISOFIT variants, both gated by
+<code>simultaneous_harmonics = True</code>:</p>
+<ul>
+<li>
+<p><strong><code>isofit_mode = 'in_loop'</code></strong> runs the joint solve on every
+  iteration of every isophote. This is the most aggressive variant:
+  the geometry update at each iteration is computed from the joint
+  solve, so the geometry trajectory through iteration space differs
+  from the post-hoc fit. The cross-correlations are absorbed
+  throughout the iteration, not just at the end.</p>
+</li>
+<li>
+<p><strong><code>isofit_mode = 'original'</code></strong> runs the classical 5-parameter
+  fit inside the loop and, after convergence, fits all requested
+  higher orders jointly in a single post-hoc solve on the
+  converged geometry. The post-hoc design matrix is
+  <span class="arithmatex">\([\mathbf{1}, \sin n_1\theta, \cos n_1\theta, \ldots]\)</span> — it
+  carries the higher-order columns <em>without</em> the geometry columns,
+  so the orders share one solve and their cross-correlations are
+  absorbed into the joint covariance, but the geometry harmonics
+  are not re-fit. This matches the original Ciambur (2015)
+  procedure's intent: the inside-loop trajectory is identical to
+  the default, and only the reported higher-order coefficients
+  (and their uncertainties) differ from the per-order post-hoc
+  path. (The multi-band <code>'simultaneous_original'</code> mode of §1.4.5
+  goes one step further and re-solves the <em>full</em> system — geometry
+  columns included — once post-hoc; the two paths deliberately
+  differ in that respect.)</p>
+</li>
+</ul>
+<p>In both variants, the extended linear system is solved through
+the same NumPy / LAPACK pipeline used in the 5-parameter fit, and
+the dominant-coefficient selector for the geometry update
+continues to operate on indices 1–4 of the coefficient vector
+(corresponding to <span class="arithmatex">\(A_1, B_1, A_2, B_2\)</span>). Coefficient storage in
+the output dictionary follows the convention
+<span class="arithmatex">\([I_0, A_1, B_1, A_2, B_2, A_{n_1}, B_{n_1}, A_{n_2}, B_{n_2}, \ldots]\)</span>,
+with the <span class="arithmatex">\(k\)</span>-th higher order occupying indices <span class="arithmatex">\(5 + 2k\)</span> and <span class="arithmatex">\(5 + 2k + 1\)</span>.</p>
+<h2 id="1414-caveats-and-fallbacks">§1.4.1.4 Caveats and fallbacks</h2>
+<p>Three caveats apply to the ISOFIT path and are worth flagging
+explicitly:</p>
+<p><strong>Sample-count fallback.</strong> The extended design matrix requires at
+least <span class="arithmatex">\(2L + 5\)</span> sample points to be well-posed. At small SMAs where
+<span class="arithmatex">\(N\)</span> is at the floor of <span class="arithmatex">\(\max(64, \lfloor 2\pi a \rfloor) = 64\)</span>, the
+condition holds easily for <span class="arithmatex">\(L = 2\)</span> (<span class="arithmatex">\(2L + 5 = 9\)</span>) but begins to
+strain for <span class="arithmatex">\(L = 4\)</span> or larger when combined with severe masking
+(say, more than 80% of the ellipse masked out by a defect or a
+nearby source). When the available sample count falls below the
+threshold, ISOSTER falls back to the 5-parameter fit for that
+isophote and emits a <code>RuntimeWarning</code> on the first occurrence, so
+the fallback is announced rather than silent.
+The fallback is byte-equivalent to running with
+<code>simultaneous_harmonics = False</code> for that isophote alone; the rest
+of the fit proceeds with the joint solve.</p>
+<p><strong>Compute overhead.</strong> The two features cost very different amounts,
+and quoting one figure for the pair obscures which one to worry
+about. Measured on a whole-galaxy fit (<span class="arithmatex">\(n = 2\)</span> Sérsic,
+<span class="arithmatex">\(R_e = 30\,\mathrm{px}\)</span>, <span class="arithmatex">\(\varepsilon = 0.4\)</span>, 59 isophotes,
+<code>harmonic_orders=[3, 4]</code>) against the same fit in the default
+configuration:</p>
+<table>
+<thead>
+<tr>
+<th>configuration</th>
+<th>wall time</th>
+<th>ratio to default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>default (<span class="arithmatex">\(\phi\)</span>, post-hoc)</td>
+<td>48.9 ms</td>
+<td>1.00</td>
+</tr>
+<tr>
+<td>eccentric anomaly only</td>
+<td>51.0 ms</td>
+<td>1.04</td>
+</tr>
+<tr>
+<td>ISOFIT <code>in_loop</code> only</td>
+<td>62.2 ms</td>
+<td>1.27</td>
+</tr>
+<tr>
+<td>eccentric anomaly + ISOFIT</td>
+<td>63.8 ms</td>
+<td>1.30</td>
+</tr>
+</tbody>
+</table>
+<p>(Absolute times are from one session and are machine- and
+session-dependent; the ratios are the less machine-dependent part, though
+not portable either — hardware, BLAS and library versions shift ratios too. Across eighteen
+sessions the combined ratio has a median of <span class="arithmatex">\(1.34\)</span> and an
+interquartile range of <span class="arithmatex">\(1.32\)</span>–<span class="arithmatex">\(1.36\)</span>. Reproduced by
+<code>benchmarks/draft_timings/run_draft_timings.py</code>; measurement
+protocol in §1.6.5.)</p>
+<p>The eccentric anomaly is nearly free — it changes how the sample
+coordinates are computed, not how much work is done. Essentially
+all of the cost is ISOFIT's wider linear system, at about <span class="arithmatex">\(30\%\)</span>
+for <span class="arithmatex">\(L = 2\)</span> orders, and it will grow with the number of orders and
+vary with the platform's LAPACK.
+For most science use cases the overhead is dwarfed by the cost of
+the image-level outward loop, but it is real and should be
+budgeted when running ISOSTER on large samples.</p>
+<p><strong>Geometry-update path unchanged.</strong> Both the <code>'in_loop'</code> and the
+<code>'original'</code> variant update the geometry through the same
+coordinate-descent rule used by the default fit: the largest of
+<span class="arithmatex">\(|A_1|, |B_1|, |A_2|, |B_2|\)</span> is identified, and the corresponding
+geometry parameter is updated by an amount proportional to the
+amplitude scaled by the local radial gradient. The ISOFIT path does
+<em>not</em> introduce a multi-parameter update step; the geometry
+trajectory through iteration space differs from the default only
+because the harmonic coefficients themselves differ (their values
+absorb cross-correlations with the higher orders). This is
+intentional and matches Ciambur (2015) §4: the joint solve
+clarifies the values, not the update rule.</p>
+<p>A practical point worth mentioning: the combination
+<code>use_eccentric_anomaly = True</code> <em>and</em> <code>simultaneous_harmonics = True</code>
+with <code>isofit_mode = 'in_loop'</code> is the closest faithful
+reimplementation of the Ciambur (2015) IRAF <code>Isofit</code> task within
+the ISOSTER framework. It is the recommended configuration for
+edge-on disks, peanut bulges, and strongly barred galaxies where
+the higher-order harmonic structure carries the science of
+interest, and where the user wants both the sampling-basis
+correction and the cross-correlation absorption.</p>
+<h2 id="1415-demonstration-synthetic-edge-on-disk">§1.4.1.5 Demonstration: synthetic edge-on disk</h2>
+<p>To make the difference visible we use a synthetic edge-on disk
+generated through the MockGal renderer in <code>isophote_test</code> (an
+external companion repository, not part of the ISOSTER source
+tree). The
+recipe is a single-component Sersic profile with
+<span class="arithmatex">\(n_\mathrm{Sersic} = 1.0\)</span> (exponential), effective semi-major axis
+<span class="arithmatex">\(R_e = 60\,\mathrm{px}\)</span>, ellipticity <span class="arithmatex">\(\varepsilon = 0.70\)</span>
+(near-edge-on aspect ratio <span class="arithmatex">\(a / b \approx 3.3\)</span>), position angle
+<span class="arithmatex">\(\mathrm{PA} = 45^\circ\)</span>, and total flux scaled so the central
+surface brightness is well above the sky noise. The image is
+<span class="arithmatex">\(512 \times 512\,\mathrm{px}\)</span> with Gaussian sky noise corresponding
+to <span class="arithmatex">\(\mu_\mathrm{sky} = 26\,\mathrm{mag\,arcsec^{-2}}\)</span> in a fiducial
+band, and the rendered image is convolved with a Gaussian PSF of
+FWHM <span class="arithmatex">\(= 2\,\mathrm{px}\)</span> before noise addition.</p>
+<p><strong>A note on what this demonstration must not be.</strong> An earlier
+version of this subsection proposed a <em>pure</em> elliptical mock and
+predicted that the <span class="arithmatex">\(\phi\)</span>-mode fit would show a spurious rise in
+<span class="arithmatex">\(A_4^\mathrm{norm}\)</span> that the <span class="arithmatex">\(\psi\)</span>-mode fit would not. That
+prediction is wrong, for the reason given in §1.4.1.1: a perfect
+ellipse has constant intensity along its boundary, and a constant
+has zero harmonic content in either angular coordinate. Both modes
+would return <span class="arithmatex">\(A_4^\mathrm{norm} \approx 0\)</span> and the figure would show
+nothing. A demonstration built on a pure ellipse cannot exhibit the
+effect, because there is no effect to exhibit.</p>
+<p>The mock therefore carries a <em>genuine</em> fourth-order deviation. We
+add a disky perturbation to the exponential disk above, of
+normalized amplitude <span class="arithmatex">\(B_4^\mathrm{norm} = 0.03\)</span> applied uniformly
+across the SMA range, on top of the <span class="arithmatex">\(\varepsilon = 0.70\)</span> base
+ellipse. The truth is then non-trivial and known: the correct
+recovered profile is a flat line at <span class="arithmatex">\(0.03\)</span>, and the correct geometry
+is the planted <span class="arithmatex">\((\varepsilon, \mathrm{PA})\)</span> at every radius.</p>
+<p><strong>Which geometry parameter should be affected, and which should
+not.</strong> The perturbation is <em>aligned</em> with the ellipse axes, so it
+enters as a <span class="arithmatex">\(\cos 4\psi\)</span> term. Re-expressed in <span class="arithmatex">\(\phi\)</span> at
+<span class="arithmatex">\(b/a = 0.3\)</span>, that term projects onto the five-parameter geometry
+model with <span class="arithmatex">\(B_2 = -0.538\)</span> per unit amplitude and <span class="arithmatex">\(A_2 = 0.000\)</span> — it
+contaminates the coefficient that drives <em>ellipticity</em> and, by
+symmetry, leaves the position-angle coefficient untouched. (The
+misaligned partner <span class="arithmatex">\(\sin 4\psi\)</span> does the reverse, projecting onto
+<span class="arithmatex">\(A_2\)</span> with the same magnitude.) An earlier version of this
+subsection predicted a bias in both <span class="arithmatex">\(\varepsilon\)</span> and PA from an
+aligned perturbation; that was wrong, and the symmetry makes the
+prediction sharp rather than vague: for this mock the <span class="arithmatex">\(\phi\)</span>-mode
+ellipticity should be biased and the <span class="arithmatex">\(\phi\)</span>-mode PA should not.
+A figure showing a PA bias here would indicate a bug, not the
+effect.</p>
+<p><strong>The comparison must vary one thing at a time.</strong> Contrasting a
+default <span class="arithmatex">\(\phi\)</span>-mode post-hoc fit against an EA+ISOFIT joint fit
+changes the angular basis <em>and</em> the harmonic-fit strategy at once,
+so any difference is unattributable. The demonstration is therefore
+a <span class="arithmatex">\(2 \times 2\)</span>: <span class="arithmatex">\(\{\phi, \psi\} \times \{\)</span>post-hoc, ISOFIT
+in-loop<span class="arithmatex">\(\}\)</span>, four fits on the same image, mask, starting geometry,
+<code>astep</code> and <code>maxsma</code>. The basis effect is then the difference along
+one axis at fixed strategy, and the ISOFIT effect the difference
+along the other.</p>
+<p><strong>[FIG X.4.1 — to be generated. Four fits as above. Panel A: the
+mock image with the <span class="arithmatex">\(\psi\)</span>+ISOFIT isophotes overlaid. Panel B: the
+recovered <span class="arithmatex">\(B_4^\mathrm{norm}(a)\)</span> for all four configurations against
+the planted truth (black dashed at <span class="arithmatex">\(0.03\)</span>). Panel C: the recovered
+<span class="arithmatex">\(\varepsilon(a)\)</span> and <span class="arithmatex">\(\mathrm{PA}(a)\)</span> against the planted constants.
+The questions the panels are to answer: does the <span class="arithmatex">\(\phi\)</span>-basis
+ellipticity depart from truth at fixed harmonic strategy, and by how
+much; is the PA left unbiased as the symmetry argument requires; and
+does the ISOFIT axis change the answer independently of the basis
+axis. Data source: to be generated by the recipe below. </strong>Nothing in
+this figure has been produced or measured<strong>; the ellipticity/PA
+expectations above are consequences of the projection arithmetic,
+not results.]</strong></p>
+<p>Panel C is the load-bearing panel, and it is the one the earlier
+draft omitted: the argument for the eccentric anomaly is about the
+<em>geometry</em> being contaminated by real higher-order structure, not
+about a phantom higher-order signal appearing on a featureless
+ellipse.</p>
+<p>The recipe for the <span class="arithmatex">\(2 \times 2\)</span> is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">product</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_image</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IsosterConfig</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">common</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">sma0</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">maxsma</span><span class="o">=</span><span class="mf">180.0</span><span class="p">,</span> <span class="n">harmonic_orders</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>              <span class="n">x0</span><span class="o">=</span><span class="mf">256.0</span><span class="p">,</span> <span class="n">y0</span><span class="o">=</span><span class="mf">256.0</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">pa</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="k">for</span> <span class="n">basis</span><span class="p">,</span> <span class="n">strategy</span> <span class="ow">in</span> <span class="n">product</span><span class="p">((</span><span class="s2">&quot;phi&quot;</span><span class="p">,</span> <span class="s2">&quot;psi&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;posthoc&quot;</span><span class="p">,</span> <span class="s2">&quot;isofit&quot;</span><span class="p">)):</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="o">**</span><span class="n">common</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="n">use_eccentric_anomaly</span><span class="o">=</span><span class="p">(</span><span class="n">basis</span> <span class="o">==</span> <span class="s2">&quot;psi&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="n">simultaneous_harmonics</span><span class="o">=</span><span class="p">(</span><span class="n">strategy</span> <span class="o">==</span> <span class="s2">&quot;isofit&quot;</span><span class="p">),</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="n">isofit_mode</span><span class="o">=</span><span class="s2">&quot;in_loop&quot;</span> <span class="k">if</span> <span class="n">strategy</span> <span class="o">==</span> <span class="s2">&quot;isofit&quot;</span> <span class="k">else</span> <span class="s2">&quot;original&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="n">compute_deviations</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="p">)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="n">results</span><span class="p">[(</span><span class="n">basis</span><span class="p">,</span> <span class="n">strategy</span><span class="p">)]</span> <span class="o">=</span> <span class="n">fit_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+<p>All four use the same starting geometry
+(<span class="arithmatex">\(x_0 = y_0 = 256\,\mathrm{px}\)</span>, <span class="arithmatex">\(\varepsilon = 0.5\)</span>,
+<span class="arithmatex">\(\mathrm{PA} = 0\)</span>), so the two axes of the comparison are cleanly
+separated. The output dictionaries can be passed to
+<code>isoster.plotting.plot_comparison_qa_figure</code> to build the panels.
+These runs have not been performed; the block above is the intended
+recipe, not a record of an executed experiment.</p>
+<p>A final note on when <em>not</em> to enable this combination. On
+round-ish isophotes (<span class="arithmatex">\(\varepsilon \lesssim 0.2\)</span>) both effects of
+§1.4.1.1 are small — <span class="arithmatex">\(\phi \to \psi\)</span>, so the correction formulas are
+being fed nearly the right coefficients and the order-mixing is
+weak — and the post-hoc higher-harmonic fit is consistent with the
+joint solve. Switching to EA+ISOFIT in that regime adds the ~30%
+compute overhead measured above without producing scientifically
+distinguishable results. The <span class="arithmatex">\(\varepsilon \lesssim 0.2\)</span> boundary is a
+rule of thumb from the scaling of §1.4.1.1 — both effects fall away
+as <span class="arithmatex">\(\phi \to \psi\)</span> — and not a measured threshold; where exactly it
+sits depends on how much genuine higher-order structure the galaxy
+carries, since that is what leaks into the geometry terms. The
+combination is therefore reserved for the regime where the user has
+identified strong elliptical or non-elliptical isophote structure as
+a science target; on a survey pipeline the simplest
+policy is to apply EA+ISOFIT only to galaxies with morphological
+classifications or photometric proxies indicating high-ellipticity
+or peanut-bulge morphology.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

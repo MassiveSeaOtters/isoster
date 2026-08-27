@@ -1,0 +1,3143 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/02-configuration-reference/">
+      
+      
+        <link rel="prev" href="../01-user-guide/">
+      
+      
+        <link rel="next" href="../03-algorithm/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Configuration - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#units-and-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Units and Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-geometry-initialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Geometry Initialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-sma-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. SMA Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fitting-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fitting Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-geometry-update-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Geometry Update Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-quality-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Quality Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-eccentric-anomaly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Eccentric Anomaly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-higher-order-harmonics-isofit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Higher-Order Harmonics / ISOFIT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-central-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Central Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-output-and-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Output and Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-integration-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Integration Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-automatic-lsb-geometry-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Automatic LSB Geometry Lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-outer-region-center-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Outer Region Center Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-first-isophote-robustness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. First Isophote Robustness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variance-map-wls-fitting-via-variance_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variance Map / WLS Fitting (via variance_map)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Variance Map / WLS Fitting (via variance_map)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interaction-with-other-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interaction with other parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forced-photometry-via-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced Photometry (via template)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forced Photometry (via template)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-based-variable-geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-Based Variable Geometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-parameters-silently-dropped-in-forced-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config parameters silently dropped in forced mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#photometry-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Photometry Outputs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Photometry Outputs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#full_photometry-aperture-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        full_photometry -- Aperture Photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_cog-curve-of-growth-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_cog -- Curve-of-Growth Photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use Each
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sub-pixel-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-pixel Interpolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mean-integrator-integratormean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mean Integrator (integrator='mean')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#median-integrator-integratormedian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Median Integrator (integrator='median')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-integrator-integratoradaptive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive Integrator (integrator='adaptive')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-with-photutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with photutils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#units-and-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Units and Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameter-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameter Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-geometry-initialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Geometry Initialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-sma-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. SMA Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fitting-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fitting Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-geometry-update-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Geometry Update Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-quality-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Quality Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-eccentric-anomaly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Eccentric Anomaly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-higher-order-harmonics-isofit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Higher-Order Harmonics / ISOFIT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-central-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Central Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-output-and-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Output and Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-integration-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Integration Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-automatic-lsb-geometry-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Automatic LSB Geometry Lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-outer-region-center-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Outer Region Center Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-first-isophote-robustness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. First Isophote Robustness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variance-map-wls-fitting-via-variance_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variance Map / WLS Fitting (via variance_map)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Variance Map / WLS Fitting (via variance_map)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interaction-with-other-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interaction with other parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forced-photometry-via-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced Photometry (via template)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forced Photometry (via template)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-based-variable-geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-Based Variable Geometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-parameters-silently-dropped-in-forced-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config parameters silently dropped in forced mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#photometry-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Photometry Outputs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Photometry Outputs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#full_photometry-aperture-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        full_photometry -- Aperture Photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_cog-curve-of-growth-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_cog -- Curve-of-Growth Photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use Each
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sub-pixel-interpolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-pixel Interpolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mean-integrator-integratormean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mean Integrator (integrator='mean')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#median-integrator-integratormedian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Median Integrator (integrator='median')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-integrator-integratoradaptive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive Integrator (integrator='adaptive')
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-with-photutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with photutils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="configuration-reference">Configuration Reference</h1>
+<h2 id="overview">Overview</h2>
+<p><code>IsosterConfig</code> is a Pydantic model that defines all tunable parameters for the isophote
+fitting algorithm. It contains 62 parameters organized into the 14 sections below, covering
+geometry initialization, fitting control, quality control, output options, and advanced
+algorithm modes.</p>
+<p>Source: <code>isoster/config.py</code> (<code>IsosterConfig</code>)</p>
+<p>Pydantic validation enforces type constraints, value ranges, and cross-parameter
+consistency (e.g., <code>minit &lt;= maxit</code>, <code>integrator='adaptive'</code> requires <code>lsb_sma_threshold</code>,
+all <code>harmonic_orders &gt;= 3</code>).</p>
+<hr />
+<h2 id="units-and-conventions">Units and Conventions</h2>
+<p>Quantities in result dicts and per-isophote rows use the following units throughout:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Units</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sma</code>, <code>minsma</code>, <code>maxsma</code>, <code>sma0</code></td>
+<td>pixels</td>
+<td>Semi-major axis lengths.</td>
+</tr>
+<tr>
+<td><code>x0</code>, <code>y0</code> (and <code>x0_err</code>, <code>y0_err</code>)</td>
+<td>pixels</td>
+<td>Image center coordinates.</td>
+</tr>
+<tr>
+<td><code>pa</code> (and <code>pa_err</code>)</td>
+<td>radians</td>
+<td><code>0 &lt;= pa &lt; pi</code>; QA figures display PA in degrees.</td>
+</tr>
+<tr>
+<td><code>eps</code> (and <code>eps_err</code>)</td>
+<td>dimensionless</td>
+<td><code>0 &lt;= eps &lt; 1</code>.</td>
+</tr>
+<tr>
+<td><code>intens</code>, <code>intens_err</code>, <code>rms</code></td>
+<td>image flux units</td>
+<td>Same units as the input image pixels.</td>
+</tr>
+<tr>
+<td><code>a{n}</code>, <code>b{n}</code> (and errors)</td>
+<td>dimensionless</td>
+<td>Bender-style fractional-radius perturbations: raw harmonic amplitudes divided by <code>sma * \|gradient\|</code> (see the User Guide output reference for the sign convention).</td>
+</tr>
+<tr>
+<td><code>grad</code>, <code>grad_error</code></td>
+<td>flux per pixel</td>
+<td>Radial intensity gradient <code>dI/da</code>; <code>grad_r_error</code> is dimensionless.</td>
+</tr>
+<tr>
+<td><code>tflux_e</code>, <code>tflux_c</code>, <code>cog</code>, <code>cog_annulus</code></td>
+<td>image flux units</td>
+<td>Integrated fluxes.</td>
+</tr>
+<tr>
+<td><code>npix_e</code>, <code>npix_c</code>, <code>ndata</code>, <code>nflag</code></td>
+<td>counts</td>
+<td>Pixel/point counts.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="parameter-reference">Parameter Reference</h2>
+<h3 id="1-geometry-initialization">1. Geometry Initialization</h3>
+<p>Initial ellipse geometry. When <code>x0</code> or <code>y0</code> is <code>None</code>, the image center is used.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x0</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code></td>
+<td>Initial center x coordinate. <code>None</code> uses <code>image.shape[1] / 2</code>.</td>
+</tr>
+<tr>
+<td><code>y0</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code></td>
+<td>Initial center y coordinate. <code>None</code> uses <code>image.shape[0] / 2</code>.</td>
+</tr>
+<tr>
+<td><code>eps</code></td>
+<td><code>0.2</code></td>
+<td><code>float</code> (0 &lt;= eps &lt; 1)</td>
+<td>Initial ellipticity.</td>
+</tr>
+<tr>
+<td><code>pa</code></td>
+<td><code>0.0</code></td>
+<td><code>float</code></td>
+<td>Initial position angle in radians.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>These values seed the first isophote at <code>sma0</code>. Subsequent isophotes inherit geometry
+  from the previous converged fit.</li>
+<li>Template-based forced photometry uses geometry from the template, overriding these.</li>
+<li>When <code>fix_center=True</code>, <code>x0</code> and <code>y0</code> remain constant throughout the run.
+  Similarly for <code>fix_pa</code> and <code>fix_eps</code>.</li>
+</ul>
+<hr />
+<h3 id="2-sma-control">2. SMA Control</h3>
+<p>Semi-major axis stepping and bounds.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sma0</code></td>
+<td><code>10.0</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Starting semi-major axis length in pixels.</td>
+</tr>
+<tr>
+<td><code>minsma</code></td>
+<td><code>0.0</code></td>
+<td><code>float</code> (&gt;= 0)</td>
+<td>Minimum SMA to fit. Set &gt; 0 to skip central region.</td>
+</tr>
+<tr>
+<td><code>maxsma</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>Maximum SMA. <code>None</code> uses <code>max(image_height, image_width) / 2</code>.</td>
+</tr>
+<tr>
+<td><code>astep</code></td>
+<td><code>0.1</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Step size for SMA growth.</td>
+</tr>
+<tr>
+<td><code>linear_growth</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>If <code>True</code>, <code>sma_next = sma + astep</code>. If <code>False</code>, <code>sma_next = sma * (1 + astep)</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>The driver fits at <code>sma0</code> first, then grows inward from <code>sma0</code> to
+  <code>max(minsma, 0.5)</code>, then outward to <code>maxsma</code>.</li>
+<li>When <code>minsma &lt;= 0.0</code>, a central pixel (SMA=0) result is prepended automatically.</li>
+<li>Geometric growth (default) gives denser sampling near the center and sparser sampling
+  at large radii. Linear growth gives uniform spacing.</li>
+<li>Validated: <code>maxsma &gt; minsma</code> when both are specified.</li>
+</ul>
+<hr />
+<h3 id="3-fitting-control">3. Fitting Control</h3>
+<p>Iteration limits and convergence criteria.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maxit</code></td>
+<td><code>50</code></td>
+<td><code>int</code> (&gt; 0)</td>
+<td>Maximum iterations per isophote.</td>
+</tr>
+<tr>
+<td><code>minit</code></td>
+<td><code>6</code></td>
+<td><code>int</code> (&gt; 0)</td>
+<td>Minimum iterations before convergence check.</td>
+</tr>
+<tr>
+<td><code>conver</code></td>
+<td><code>0.05</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Convergence threshold: <code>max_harmonic_amplitude / rms</code>.</td>
+</tr>
+<tr>
+<td><code>convergence_scaling</code></td>
+<td><code>'sector_area'</code></td>
+<td><code>str</code></td>
+<td>Scale convergence threshold with SMA. Options: <code>'none'</code>, <code>'sector_area'</code>, <code>'sqrt_sma'</code>.</td>
+</tr>
+<tr>
+<td><code>sigma_bg</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>Explicit background noise level (sigma).</td>
+</tr>
+<tr>
+<td><code>use_lazy_gradient</code></td>
+<td><code>True</code></td>
+<td><code>bool</code></td>
+<td>Enable Lazy Gradient Evaluation (Modified Newton Method).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>Convergence is declared when the largest harmonic amplitude drops below
+  <code>conver * rms * scale_factor</code>, where <code>scale_factor</code> depends on <code>convergence_scaling</code>.</li>
+<li>When <code>sigma_bg</code> is provided, it establishes a hard lower bound on the convergence
+  threshold: <code>max(rms, sigma_bg / sqrt(N))</code>. This prevents the solver from chasing
+  vanishing asymmetries in the noise floor where <code>rms</code> might naturally dip below
+  the photon noise limit.</li>
+<li><code>use_corrected_errors=True</code> (default) includes the radial gradient uncertainty term
+  in the geometric error formulas. This correctly inflates error bars in LSB regions
+  where gradient measurement is uncertain, preventing the reported "false confidence"
+  of standard residual-based methods.</li>
+<li><code>'sector_area'</code> (default) matches photutils behavior and eliminates most stop=2
+  failures at outer isophotes. The scale factor grows with SMA.</li>
+<li><code>'none'</code> uses a constant threshold (legacy behavior).</li>
+<li><code>'sqrt_sma'</code> multiplies by <code>sqrt(sma)</code>.</li>
+<li><code>use_lazy_gradient=True</code> (default) calculates the radial gradient only on the first
+  iteration and reuses it for subsequent iterations. This is measured: on the reference fit the lazy path performs <strong>60 gradient evaluations against 414</strong> for the classical path, with a median wall-clock saving of <span class="arithmatex">\(24\%\)</span> (IQR <span class="arithmatex">\(23.0\)</span>–<span class="arithmatex">\(24.1\%\)</span>) across eighteen sessions. See <a href="../technical/1.3-why-fast/"><code>technical/1.3</code></a>; the figures are produced by <code>benchmarks/draft_timings/</code> and checked against its committed archive.
+  The gradient is re-evaluated if convergence stalls for 3 iterations. Note this is a
+  fast <em>approximation</em>, not an exact reformulation: converged geometries differ from
+  the <code>use_lazy_gradient=False</code> reference, negligibly at high S/N but by up to
+  <span class="arithmatex">\(2.6\sigma\)</span> on the worst isophote at <span class="arithmatex">\(S/N = 10\)</span>.</li>
+<li><code>minit</code> iterations always run before the convergence criterion is checked.</li>
+<li>Validated: <code>minit &lt;= maxit</code>.</li>
+</ul>
+<hr />
+<h3 id="4-geometry-update-control">4. Geometry Update Control</h3>
+<p>Controls how geometry corrections are applied during iteration.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geometry_damping</code></td>
+<td><code>0.7</code></td>
+<td><code>float</code> (0 &lt; d &lt;= 1)</td>
+<td>Damping factor for geometry corrections. Each correction is multiplied by this value.</td>
+</tr>
+<tr>
+<td><code>geometry_update_mode</code></td>
+<td><code>'largest'</code></td>
+<td><code>str</code></td>
+<td><code>'largest'</code>: update only the parameter with the largest harmonic amplitude (coordinate descent). <code>'simultaneous'</code>: update all four parameters each iteration.</td>
+</tr>
+<tr>
+<td><code>clip_max_shift</code></td>
+<td><code>5.0</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>Maximum allowed center shift (pixels) per iteration. <code>None</code> to disable.</td>
+</tr>
+<tr>
+<td><code>clip_max_pa</code></td>
+<td><code>0.5</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>Maximum allowed PA change (radians) per iteration. <code>None</code> to disable.</td>
+</tr>
+<tr>
+<td><code>clip_max_eps</code></td>
+<td><code>0.1</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>Maximum allowed ellipticity change per iteration. <code>None</code> to disable.</td>
+</tr>
+<tr>
+<td><code>geometry_convergence</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable secondary convergence based on geometry stability.</td>
+</tr>
+<tr>
+<td><code>geometry_tolerance</code></td>
+<td><code>0.01</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Threshold for geometry convergence metric.</td>
+</tr>
+<tr>
+<td><code>geometry_stable_iters</code></td>
+<td><code>3</code></td>
+<td><code>int</code> (&gt;= 2)</td>
+<td>Consecutive stable iterations required for geometry convergence.</td>
+</tr>
+<tr>
+<td><code>permissive_geometry</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable photutils-style "best effort" geometry updates that continue even from failed fits.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><code>geometry_damping=0.7</code> is validated across 20 Huang2013 galaxies. Use <code>0.5</code> with
+  <code>geometry_update_mode='simultaneous'</code> for stability. Use <code>1.0</code> for undamped legacy
+  behavior.</li>
+<li><strong>Gradient SNR Damping</strong>: <code>isoster</code> dynamically reduces <code>geometry_damping</code> in low surface brightness regions when the radial gradient is noisy (SNR &lt; 3). This stabilizes the solver in the outer disk without affecting performance in high-S/N regions.</li>
+<li><strong>Step Clipping</strong>: <code>clip_max_shift</code>, <code>clip_max_pa</code>, and <code>clip_max_eps</code> provide hard limits on per-iteration geometry changes. This prevents noise-induced "catastrophic jumps" that poison the geometry for all subsequent SMAs. These are safeguards and default values are relaxed enough to not interfere with real structural variations.</li>
+<li><code>'largest'</code> mode (default) matches isofit/photutils coordinate-descent behavior.
+  <code>'simultaneous'</code> updates x0, y0, PA, and eps every iteration, typically converging
+  in fewer iterations but requiring lower damping.</li>
+<li>Geometry convergence declares success when
+  <code>max(|delta_eps|, |delta_pa/pi|, |delta_x0/sma|, |delta_y0/sma|) &lt; geometry_tolerance</code>
+  for <code>geometry_stable_iters</code> consecutive iterations, even if the harmonic criterion is
+  not met. This is a supplementary criterion useful for challenging outer isophotes.</li>
+<li><code>permissive_geometry=True</code> always updates geometry from the latest fit, even when the
+  fit failed. This prevents cascading failures where one bad isophote poisons all
+  subsequent geometry propagation. <code>None</code> gradient errors are treated as acceptable.</li>
+<li>Both <code>geometry_update_mode</code> options respect <code>fix_center</code>, <code>fix_pa</code>, and <code>fix_eps</code>.</li>
+</ul>
+<hr />
+<h3 id="5-quality-control">5. Quality Control</h3>
+<p>Sigma clipping and data quality thresholds.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sclip</code></td>
+<td><code>3.0</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Symmetric sigma clipping threshold.</td>
+</tr>
+<tr>
+<td><code>nclip</code></td>
+<td><code>1</code></td>
+<td><code>int</code> (&gt;= 0)</td>
+<td>Number of sigma clipping iterations. <code>0</code> disables clipping.</td>
+</tr>
+<tr>
+<td><code>sclip_low</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code></td>
+<td>Lower (negative) sigma clipping threshold. Overrides <code>sclip</code> on the low side when set.</td>
+</tr>
+<tr>
+<td><code>sclip_high</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code></td>
+<td>Upper (positive) sigma clipping threshold. Overrides <code>sclip</code> on the high side when set.</td>
+</tr>
+<tr>
+<td><code>fflag</code></td>
+<td><code>0.5</code></td>
+<td><code>float</code> (0-1)</td>
+<td>Maximum fraction of flagged data points (masked + sigma-clipped). Exceeding this triggers stop_code=1.</td>
+</tr>
+<tr>
+<td><code>maxgerr</code></td>
+<td><code>0.5</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Maximum relative error in the local radial gradient. Exceeding this triggers stop_code=-1.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><code>fflag</code> only counts sigma-clipped points as flagged. Mask-excluded points are removed
+  during sampling before the harmonic fit.</li>
+<li>For high-ellipticity galaxies (eps &gt; 0.6), relax <code>maxgerr</code> to 1.0-1.2 to prevent
+  excessive gradient-error failures.</li>
+<li><code>sclip_low</code> and <code>sclip_high</code> enable asymmetric clipping, useful when bright sources
+  contaminate one tail of the intensity distribution.</li>
+<li>Sigma clipping is applied every iteration within <code>fit_isophote</code> and once in forced
+  photometry extraction.</li>
+</ul>
+<hr />
+<h3 id="6-constraints">6. Constraints</h3>
+<p>Fix individual geometry parameters during iterative fitting.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fix_center</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Fix center coordinates (x0, y0) during fitting.</td>
+</tr>
+<tr>
+<td><code>fix_pa</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Fix position angle during fitting.</td>
+</tr>
+<tr>
+<td><code>fix_eps</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Fix ellipticity during fitting.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>Fixed parameters retain their initial values (from <code>x0</code>/<code>y0</code>/<code>eps</code>/<code>pa</code> config or
+  inherited from the previous isophote) throughout all iterations.</li>
+<li>When all three are <code>True</code>, fitting becomes pure photometry extraction with
+  predetermined geometry (still iterates for convergence unless using <code>template</code>).</li>
+<li>Constraints are respected by both <code>'largest'</code> and <code>'simultaneous'</code>
+  <code>geometry_update_mode</code>.</li>
+<li>When <code>compute_cog=True</code>, fixing all three affects crossing detection logic in the
+  curve-of-growth module.</li>
+</ul>
+<hr />
+<h3 id="7-eccentric-anomaly">7. Eccentric Anomaly</h3>
+<p>Sampling mode for high-ellipticity isophotes.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_eccentric_anomaly</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Step the eccentric anomaly (psi) uniformly instead of the position angle, distributing samples more evenly around an elongated ellipse.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>When <code>True</code>, sampling steps psi uniformly. This is <em>more</em> even than stepping phi —
+  the arc length per unit psi varies by a factor of <code>a/b</code> over the ellipse, against a
+  larger variation per unit phi — but it is <strong>not</strong> uniform in arc length. Recommended
+  for eps &gt; 0.3.</li>
+<li>Harmonics are fitted in psi-space and the geometry update consumes those psi-basis
+  coefficients <strong>directly</strong>; there is no conversion back to phi. That is the correct
+  operation rather than an approximation, because the Jedrzejewski corrections are
+  themselves derived from an eccentric-anomaly parametrisation. See
+  <a href="../03-algorithm/"><code>03-algorithm.md</code></a> for the derivation.</li>
+<li>Affects both regular fitting and template-based forced photometry extraction.</li>
+<li><code>build_isoster_model()</code> auto-detects whether eccentric anomaly was used from the
+  isophote dicts (presence of <code>'use_eccentric_anomaly'</code> key). Can be overridden
+  explicitly.</li>
+</ul>
+<hr />
+<h3 id="8-higher-order-harmonics-isofit">8. Higher-Order Harmonics / ISOFIT</h3>
+<p>Controls for simultaneous harmonic fitting following Ciambur (2015).</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>simultaneous_harmonics</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable true ISOFIT simultaneous harmonic fitting.</td>
+</tr>
+<tr>
+<td><code>harmonic_orders</code></td>
+<td><code>[3, 4]</code></td>
+<td><code>List[int]</code></td>
+<td>Harmonic orders to fit. All values must be &gt;= 3.</td>
+</tr>
+<tr>
+<td><code>isofit_mode</code></td>
+<td><code>'in_loop'</code></td>
+<td><code>str</code></td>
+<td>ISOFIT algorithm variant: <code>'in_loop'</code> or <code>'original'</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>When <code>simultaneous_harmonics=False</code> (default), higher-order harmonics (a3, b3, a4, b4,
+  etc.) are fitted post-hoc after geometry convergence. Orders 1-2 are always used
+  internally for geometry updates.</li>
+<li>When <code>simultaneous_harmonics=True</code>, higher-order harmonics are fitted jointly with
+  geometry harmonics inside the iteration loop. This accounts for cross-correlations and
+  yields cleaner RMS estimates.</li>
+<li><code>isofit_mode='in_loop'</code> fits all orders simultaneously inside the loop (more
+  aggressive). <code>isofit_mode='original'</code> matches Ciambur (2015): 5-parameter fit inside
+  the loop for geometry, then simultaneous post-hoc fit for higher orders. <code>isofit_mode</code>
+  is only meaningful when <code>simultaneous_harmonics=True</code>.</li>
+<li>Falls back to 5-parameter fit when the number of sample points is less than
+  <code>2 * len(harmonic_orders) + 5</code> (the minimum for the extended design matrix).
+  A <code>RuntimeWarning</code> is emitted on first fallback per isophote.</li>
+<li>ISOFIT coefficients are stored as <code>[I_0, A_1, B_1, A_2, B_2, A_n1, B_n1, ...]</code> where
+  the k-th higher order occupies indices <code>5+2k</code> and <code>5+2k+1</code>.</li>
+<li>Validated: all entries in <code>harmonic_orders</code> must be &gt;= 3.</li>
+<li>ISOFIT overhead is approximately 25-35% compared to the default path.</li>
+</ul>
+<hr />
+<h3 id="9-central-regularization">9. Central Regularization</h3>
+<p>Geometry regularization for low-S/N central regions.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_central_regularization</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable geometry regularization at low SMA.</td>
+</tr>
+<tr>
+<td><code>central_reg_sma_threshold</code></td>
+<td><code>5.0</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>SMA threshold in pixels. Regularization strength decays as <code>exp(-(sma/threshold)^2)</code>.</td>
+</tr>
+<tr>
+<td><code>central_reg_strength</code></td>
+<td><code>1.0</code></td>
+<td><code>float</code> (&gt;= 0)</td>
+<td>Maximum regularization strength at SMA=0. Range: 0 (none) to 10 (strong).</td>
+</tr>
+<tr>
+<td><code>central_reg_weights</code></td>
+<td><code>{'eps': 1.0, 'pa': 1.0, 'center': 1.0}</code></td>
+<td><code>dict</code></td>
+<td>Relative weights for regularization penalties on ellipticity, PA, and center.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>Regularization penalizes large geometry changes relative to the previous isophote,
+  stabilizing fits in noisy central regions.</li>
+<li>The penalty decays to effectively zero beyond approximately 3x the threshold SMA.</li>
+<li>Per-parameter weights allow selective regularization (e.g., fix center strongly but
+  allow PA to vary by setting <code>{'eps': 1.0, 'pa': 0.1, 'center': 5.0}</code>).</li>
+<li>Requires a previous isophote for comparison; has no effect on the first isophote
+  at <code>sma0</code>.</li>
+</ul>
+<hr />
+<h3 id="10-output-and-features">10. Output and Features</h3>
+<p>Toggle optional output quantities.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>compute_errors</code></td>
+<td><code>True</code></td>
+<td><code>bool</code></td>
+<td>Calculate parameter errors (x0_err, y0_err, eps_err, pa_err).</td>
+</tr>
+<tr>
+<td><code>use_corrected_errors</code></td>
+<td><code>True</code></td>
+<td><code>bool</code></td>
+<td>Include gradient uncertainty term in error propagation.</td>
+</tr>
+<tr>
+<td><code>compute_deviations</code></td>
+<td><code>True</code></td>
+<td><code>bool</code></td>
+<td>Calculate higher-order harmonic deviations (a3, b3, a4, b4, etc.) post-hoc.</td>
+</tr>
+<tr>
+<td><code>full_photometry</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Calculate aperture flux integration metrics (tflux_e, tflux_c, npix_e, npix_c).</td>
+</tr>
+<tr>
+<td><code>compute_cog</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Calculate curve-of-growth photometry (cog, cog_annulus, area_annulus, flag_cross, flag_negative_area).</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Include debug fields (ndata, nflag, grad, grad_error, grad_r_error) and enable verbose output.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><code>compute_deviations</code> controls the post-hoc harmonic deviation calculation. This is
+  independent of <code>simultaneous_harmonics</code>, which controls joint fitting inside the
+  iteration loop.</li>
+<li>When <code>simultaneous_harmonics=True</code>, deviations for the specified <code>harmonic_orders</code> are
+  computed as part of the joint fit. <code>compute_deviations=True</code> additionally computes
+  deviations post-hoc (which may differ slightly from the simultaneous values).</li>
+<li>See the "Photometry Outputs" section below for details on <code>full_photometry</code> vs
+  <code>compute_cog</code>.</li>
+</ul>
+<hr />
+<h3 id="11-integration-mode">11. Integration Mode</h3>
+<p>Controls how the representative intensity is derived from sampled points.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>integrator</code></td>
+<td><code>'mean'</code></td>
+<td><code>str</code></td>
+<td>Integration method: <code>'mean'</code>, <code>'median'</code>, or <code>'adaptive'</code>.</td>
+</tr>
+<tr>
+<td><code>lsb_sma_threshold</code></td>
+<td><code>None</code></td>
+<td><code>Optional[float]</code> (&gt; 0)</td>
+<td>SMA threshold in pixels for switching to median in adaptive mode.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><code>'mean'</code> reports the harmonic-fit DC term (the fitted mean <code>y0_fit</code>, not <code>np.mean</code>).</li>
+<li><code>'median'</code> reports <code>np.median(intens)</code> of the sigma-clipped samples.</li>
+<li><code>'adaptive'</code> uses <code>'mean'</code> for SMA &lt;= threshold, <code>'median'</code> for SMA &gt; threshold.
+  Inner high-S/N regions benefit from harmonic fit precision; outer low-S/N regions
+  benefit from median robustness.</li>
+<li>Validated: <code>lsb_sma_threshold</code> must be provided when <code>integrator='adaptive'</code>.</li>
+<li>See the "Integration Modes" section below for architectural details.</li>
+</ul>
+<hr />
+<h3 id="12-automatic-lsb-geometry-lock">12. Automatic LSB Geometry Lock</h3>
+<p>Single-pass free-then-locked outward growth. Starts in free mode, commits a lock to the last clean isophote once the gradient diagnostics cross the LSB thresholds, then continues outward with fixed center/eps/PA and a robust integrator.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lsb_auto_lock</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable the automatic LSB geometry lock. When <code>False</code>, <code>fit_image</code> behaves exactly as before — zero behavior change for existing users.</td>
+</tr>
+<tr>
+<td><code>lsb_auto_lock_maxgerr</code></td>
+<td><code>0.3</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Trigger threshold on the relative gradient error <code>|grad_error / grad|</code>. More sensitive than <code>maxgerr=0.5</code>, so the lock commits before a <code>stop_code=-1</code> would have.</td>
+</tr>
+<tr>
+<td><code>lsb_auto_lock_debounce</code></td>
+<td><code>2</code></td>
+<td><code>int</code> (1–10)</td>
+<td>Number of consecutive triggered outward isophotes required before the lock commits. Debounces single-isophote noise spikes.</td>
+</tr>
+<tr>
+<td><code>lsb_auto_lock_integrator</code></td>
+<td><code>'median'</code></td>
+<td><code>str</code></td>
+<td>Integrator applied to locked-region isophotes. One of <code>'mean'</code> or <code>'median'</code>. <code>'median'</code> is more robust to the contaminants that typically trigger the lock in the first place.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><strong>Conflict with geometry locks</strong>: <code>lsb_auto_lock=True</code> raises <code>ValidationError</code> when combined with <code>fix_center=True</code>, <code>fix_pa=True</code>, or <code>fix_eps=True</code>. The auto-lock is meaningful only when outward growth starts from free geometry.</li>
+<li><strong><code>debug</code> requirement</strong>: the detector reads <code>grad</code>, <code>grad_error</code>, and <code>grad_r_error</code> off each isophote dict. If the caller leaves <code>debug=False</code>, isoster emits a <code>UserWarning</code> and internally promotes <code>debug=True</code> for the duration of the fit.</li>
+<li><strong>Lock anchor</strong>: the isophote immediately <em>before</em> the trigger streak — not the trigger isophote itself, whose geometry may already have drifted.</li>
+<li><strong>One-way state machine</strong>: once the lock commits, the mode stays locked for the remainder of outward growth. Inward growth and the central pixel are never locked.</li>
+<li><strong>Forced photometry unaffected</strong>: the auto-lock applies only to regular <code>fit_image</code> calls. When combined with template-based forced photometry (<code>template=[...]</code>), <code>fit_image</code> emits a <code>UserWarning</code> and the feature is silently inactive.</li>
+<li><strong>Sampling / harmonic modes</strong>: the auto-lock is agnostic to <code>use_eccentric_anomaly</code>, <code>simultaneous_harmonics</code>, and isofit-style modes — the detector only inspects per-isophote gradient diagnostics.</li>
+</ul>
+<p>Result dict additions when <code>lsb_auto_lock=True</code>:</p>
+<ul>
+<li><code>result["lsb_auto_lock"]</code> (<code>bool</code>): echoes that the auto-lock was used.</li>
+<li><code>result["lsb_auto_lock_sma"]</code> (<code>float</code> or <code>None</code>): SMA at which the lock committed, or <code>None</code> if it never triggered.</li>
+<li><code>result["lsb_auto_lock_anchor_sma"]</code> (<code>float</code> or <code>None</code>): SMA of the true geometry anchor — the last clean isophote before the debounce streak whose geometry the lock froze to (the <code>lsb_auto_lock_anchor</code> per-row marker, in contrast, goes on the committing trigger isophote). <code>None</code> if the lock never committed.</li>
+<li><code>result["lsb_auto_lock_count"]</code> (<code>int</code>): number of outward isophotes fit under locked geometry.</li>
+</ul>
+<p>Per-isophote additions (every isophote when <code>lsb_auto_lock=True</code>; inward isophotes and the central pixel always carry <code>False</code>, keeping the schema uniform for FITS round-trips):</p>
+<ul>
+<li><code>iso["lsb_locked"]</code> (<code>bool</code>): fit under locked geometry.</li>
+<li><code>iso["lsb_auto_lock_anchor"]</code> (<code>bool</code>): <code>True</code> only on the first locked isophote.</li>
+</ul>
+<hr />
+<h3 id="13-outer-region-center-regularization">13. Outer Region Center Regularization</h3>
+<p>Soft damping complement to the automatic LSB lock. A logistic-ramp Tikhonov term damps noisy outward geometry updates against a frozen inner reference, making it harder for contamination or background structure to drive center, ellipticity, or PA walks before the hard lock fires. The default <code>outer_reg_weights={"center": 1.0, "eps": 1.0, "pa": 1.0}</code> damps all geometry axes; set an axis weight to <code>0.0</code> to leave that axis undamped.</p>
+<p>This feature is disabled by default and is still being validated on a broader range of surveys. Turn it on when fitting deep, LSB structure (e.g., HSC-scale edge cases) where contamination is expected to pull the free outward fit away from the real galaxy center. On clean high-S/N galaxies the feature is essentially a no-op at the recommended strengths.</p>
+<p>The regular-mode driver always runs the inward loop before the outward loop. The inward pass is unchanged — only the execution order is swapped — so that this feature can build its reference from inner isophote centers.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_outer_center_regularization</code></td>
+<td><code>False</code></td>
+<td><code>bool</code></td>
+<td>Enable outer-region geometry regularization. The field name is retained for backward compatibility. When <code>False</code>, behavior is unchanged except for the inward-first loop reorder (which preserves all outward semantics).</td>
+</tr>
+<tr>
+<td><code>outer_reg_sma_onset</code></td>
+<td><code>50.0</code></td>
+<td><code>float</code> (&gt; 0)</td>
+<td>Logistic midpoint in pixels. The penalty is near zero for <code>sma &lt;&lt; onset</code> and saturates for <code>sma &gt;&gt; onset</code>. Should be larger than <code>sma0</code>; a <code>UserWarning</code> is emitted if not.</td>
+</tr>
+<tr>
+<td><code>outer_reg_sma_width</code></td>
+<td><code>None</code></td>
+<td><code>float</code> (&gt; 0) or <code>None</code></td>
+<td>Logistic width (growth-step scale). <code>None</code> auto-computes <code>0.4 * outer_reg_sma_onset</code>.</td>
+</tr>
+<tr>
+<td><code>outer_reg_strength</code></td>
+<td><code>2.0</code></td>
+<td><code>float</code> (≥ 0)</td>
+<td>Saturated Tikhonov amplitude. Benchmarked as a reasonable default on HSC edge cases; increase for heavier damping when outskirts are dominated by contamination.</td>
+</tr>
+<tr>
+<td><code>outer_reg_weights</code></td>
+<td><code>{'center': 1.0, 'eps': 1.0, 'pa': 1.0}</code></td>
+<td><code>dict</code></td>
+<td>Per-axis damping weights for center, ellipticity, and PA. Unknown axes are ignored by the fitter but should be avoided; zero disables damping on that axis.</td>
+</tr>
+<tr>
+<td><code>outer_reg_mode</code></td>
+<td><code>'damping'</code></td>
+<td><code>'damping'</code> or <code>'solver'</code></td>
+<td><code>damping</code> shrinks harmonic geometry steps without a reference pull. <code>solver</code> also pulls toward the frozen inner reference and is more biasing.</td>
+</tr>
+<tr>
+<td><code>outer_reg_ref_sma_factor</code></td>
+<td><code>2.0</code></td>
+<td><code>float</code> (&gt; 1)</td>
+<td>Inner reference window: only inward isophotes with <code>sma &lt;= sma0 * factor</code> contribute to the flux-weighted reference mean.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li><strong>Independent from <code>lsb_auto_lock</code></strong>: the two flags compose cleanly. Soft regularization runs pre-lock; after the lock commits, <code>fix_center=True</code> makes the penalty a no-op on the locked tail.</li>
+<li><strong>Damping plus selector</strong>: in default <code>outer_reg_mode='damping'</code>, the Tikhonov term shrinks harmonic geometry steps in the outer region. A selector-level penalty also contributes to <code>effective_amp = abs(max_amp) + reg_penalty + outer_reg_penalty</code> so cumulative drift is bounded when several candidate iterations are available. <code>outer_reg_mode='solver'</code> additionally pulls toward the frozen reference and should be treated as more biasing.</li>
+<li><strong>Inward-first loop order</strong>: the regular-mode driver unconditionally runs the inward pass before the outward pass. The inward pass's outputs are unchanged; consumers that iterate over <code>results['isophotes']</code> by index are unaffected because the result list is still assembled in sma-sorted order.</li>
+<li><strong>Reference construction</strong>: <code>(x0_ref, y0_ref, eps_ref, pa_ref)</code> is a flux-weighted mean over the anchor plus inward isophotes with acceptable stop codes and <code>sma &lt;= sma0 * outer_reg_ref_sma_factor</code>. PA uses a circular mean on <code>2*pa</code>. When no inward isophote qualifies, the reference falls back to the anchor geometry.</li>
+<li><strong><code>outer_reg_sma_onset &lt; sma0</code></strong>: the penalty would fire from the first outward step; a <code>UserWarning</code> is emitted at config time.</li>
+<li><strong><code>minsma &gt;= sma0</code></strong>: no inward isophotes exist, reference falls back to the anchor; a <code>UserWarning</code> is emitted.</li>
+<li><strong>Fixed geometry flags</strong>: a positive weight on a fixed axis is inert because that axis never moves; a <code>UserWarning</code> is emitted at config time for <code>fix_center</code>, <code>fix_pa</code>, or <code>fix_eps</code> when the corresponding <code>outer_reg_weights</code> entry is positive.</li>
+<li><strong>Forced photometry unaffected</strong>: the feature applies only to regular <code>fit_image</code> calls. When combined with template-based forced photometry, <code>fit_image</code> emits a <code>UserWarning</code> and the feature is silently inactive.</li>
+<li><strong>Sampling / harmonic modes</strong>: agnostic to <code>use_eccentric_anomaly</code>, <code>simultaneous_harmonics</code>, and isofit-style modes, because the penalty rides the same <code>effective_amp</code> rail in the best-iteration selector.</li>
+</ul>
+<p>Result dict additions when <code>use_outer_center_regularization=True</code>:</p>
+<ul>
+<li><code>result["use_outer_center_regularization"]</code> (<code>bool</code>): echoes that the feature was used.</li>
+<li><code>result["outer_reg_x0_ref"]</code> (<code>float</code>): frozen inner reference <code>x0</code>.</li>
+<li><code>result["outer_reg_y0_ref"]</code> (<code>float</code>): frozen inner reference <code>y0</code>.</li>
+<li><code>result["outer_reg_eps_ref"]</code> (<code>float</code>): frozen inner reference ellipticity.</li>
+<li><code>result["outer_reg_pa_ref"]</code> (<code>float</code>): frozen inner reference PA.</li>
+</ul>
+<p>No per-isophote fields are added.</p>
+<hr />
+<h3 id="14-first-isophote-robustness">14. First Isophote Robustness</h3>
+<p>Retry and failure detection for the first isophote at <code>sma0</code>. When the first isophote
+fails and cannot be recovered, the fit returns only the central pixel; these options let
+the driver retry with perturbed starting conditions before declaring failure.</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_retry_first_isophote</code></td>
+<td><code>3</code></td>
+<td><code>int</code> (0-20)</td>
+<td>Maximum retry attempts for the first isophote when it fails (stop code not in <code>{0, 1, 2}</code>). Each attempt perturbs <code>sma0</code> and/or the initial geometry (<code>eps</code>, <code>pa</code>). <code>0</code> disables retry.</td>
+</tr>
+<tr>
+<td><code>first_isophote_fail_count</code></td>
+<td><code>3</code></td>
+<td><code>int</code> (1-10)</td>
+<td>Number of consecutive initial isophotes that must all fail before declaring <code>FIRST_FEW_ISOPHOTE_FAILURE</code>. Default 3 means the first isophote at <code>sma0</code> plus the next 2 growth steps must all have unacceptable stop codes.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Interaction notes:</strong></p>
+<ul>
+<li>Retries run only when the first isophote at <code>sma0</code> fails, so the default adds near-zero
+  overhead when it already succeeds. The fixed schedule tries <code>(0.8 * sma0, same
+  geometry)</code>, <code>(1.3 * sma0, same geometry)</code>, <code>(0.6 * sma0, near-circular eps=0.05)</code>,
+  <code>(1.5 * sma0, pa + pi/4)</code>, <code>(0.5 * sma0, eps=0.05, pa + pi/2)</code>, then an extended cycle,
+  stopping at the first acceptable isophote.</li>
+<li>The probe loop runs only when the anchor and all retries failed: the driver tries
+  <code>first_isophote_fail_count - 1</code> further growth steps, and the first acceptable probe
+  becomes the anchor. <code>result["first_isophote_failure"]</code> is set to <code>True</code> (with a
+  <code>FIRST_FEW_ISOPHOTE_FAILURE</code> warning) only when the anchor and every retry/probe
+  attempt failed.</li>
+<li>Each retry attempt is logged in <code>result["first_isophote_retry_log"]</code>.</li>
+</ul>
+<hr />
+<h2 id="variance-map-wls-fitting-via-variance_map">Variance Map / WLS Fitting (via <code>variance_map</code>)</h2>
+<p>Weighted Least Squares fitting is enabled by passing a per-pixel variance map to
+<code>fit_image()</code>. This is a function-level parameter, not an <code>IsosterConfig</code> field.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">results</span> <span class="o">=</span> <span class="n">fit_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span> <span class="n">variance_map</span><span class="o">=</span><span class="n">variance_map</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="input-requirements">Input requirements</h3>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shape must match <code>image</code></td>
+<td><code>ValueError</code> raised on mismatch</td>
+</tr>
+<tr>
+<td><code>NaN</code> / <code>inf</code> values (non-finite)</td>
+<td>Marked invalid; the corresponding sample is dropped during sampling, one warning emitted per call</td>
+</tr>
+<tr>
+<td>Non-positive values (0, negative)</td>
+<td>Marked invalid; the corresponding sample is dropped during sampling, one warning emitted per call</td>
+</tr>
+<tr>
+<td>Caller's array</td>
+<td>Never mutated (copy-on-write)</td>
+</tr>
+</tbody>
+</table>
+<p>A variance entry is only usable if it is finite and strictly positive. Entries that fail
+this test carry no usable noise information, so the sample at that pixel is dropped from
+sampling entirely — the same treatment already given to masked pixels — rather than being
+kept with a substitute value. This guarantees that a ring's reported statistic (intensity,
+gradient) and its reported uncertainty always describe the identical set of samples. An
+earlier version of this feature instead substituted a large sentinel (<code>1e30</code>) for
+non-finite entries and clamped non-positive entries to a tiny value (<code>1e-30</code>); both have
+been retired because they left the flagged pixel in the sample set while distorting its
+weight, which could shrink a reported gradient error by roughly fifteen orders of
+magnitude and silently defeat the <code>maxgerr</code> check, the signal-to-noise damping, and the LSB
+auto-lock. See <code>docs/04-architecture.md</code>, section "Invalid-variance policy", for the full
+account and a measured real-data example.</p>
+<h3 id="interaction-with-other-parameters">Interaction with other parameters</h3>
+<ul>
+<li><code>variance_map=None</code> (default): pure OLS, byte-identical to pre-WLS code.</li>
+<li>Compatible with all geometry constraints: <code>fix_center</code>, <code>fix_pa</code>, <code>fix_eps</code>.</li>
+<li>Compatible with <code>simultaneous_harmonics=True</code> (isofit mode).</li>
+<li>Compatible with <code>template</code> forced photometry mode.</li>
+</ul>
+<hr />
+<h2 id="forced-photometry-via-template">Forced Photometry (via <code>template</code>)</h2>
+<p>Forced photometry is performed by passing the <code>template</code> argument to <code>fit_image()</code>. This
+bypasses the iterative fitting loop and extracts intensity at predetermined geometries.</p>
+<h3 id="template-based-variable-geometry">Template-Based Variable Geometry</h3>
+<p>Uses per-SMA geometry from a previous isoster run. Each isophote in the template
+provides its own x0, y0, eps, and pa, enabling variable geometry along the radial
+profile. This is the IRAF <code>ellipse</code> forced-mode equivalent for multiband analysis.</p>
+<p>The <code>template</code> argument accepts:
+- A results dict (e.g., from a previous <code>fit_image()</code> call)
+- A file path (str/Path) to a FITS file saved by <code>isophote_results_to_fits()</code>
+- A list of isophote dicts containing at least <code>sma</code>, <code>x0</code>, <code>y0</code>, <code>eps</code>, and <code>pa</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Fit reference band</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">results_g</span> <span class="o">=</span> <span class="n">isoster</span><span class="o">.</span><span class="n">fit_image</span><span class="p">(</span><span class="n">image_g</span><span class="p">,</span> <span class="n">mask_g</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Apply g-band geometry to r-band</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">results_r</span> <span class="o">=</span> <span class="n">isoster</span><span class="o">.</span><span class="n">fit_image</span><span class="p">(</span><span class="n">image_r</span><span class="p">,</span> <span class="n">mask_r</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="n">results_g</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="config-parameters-silently-dropped-in-forced-mode">Config parameters silently dropped in forced mode</h3>
+<p>Template-based forced mode bypasses the iterative fitting loop entirely. The following
+config parameters have no effect in forced mode:</p>
+<ul>
+<li><code>maxit</code>, <code>minit</code>, <code>conver</code>, <code>convergence_scaling</code> (no iteration)</li>
+<li><code>geometry_damping</code>, <code>geometry_update_mode</code>, <code>permissive_geometry</code> (no updates)</li>
+<li><code>sclip_low</code>, <code>sclip_high</code> (only symmetric <code>sclip</code> is used)</li>
+<li><code>fflag</code> (no flagging check)</li>
+<li><code>full_photometry</code> (aperture photometry not computed)</li>
+<li><code>compute_errors</code> (all errors set to 0.0)</li>
+<li><code>compute_deviations</code> (all deviations set to 0.0)</li>
+<li><code>compute_cog</code> (curve-of-growth not computed in forced extraction)</li>
+</ul>
+<hr />
+<h2 id="photometry-outputs">Photometry Outputs</h2>
+<h3 id="full_photometry-aperture-photometry"><code>full_photometry</code> -- Aperture Photometry</h3>
+<p>Direct pixel summation from the 2D image within elliptical and circular apertures.
+Computed per-isophote via <code>compute_aperture_photometry()</code> in <code>fitting.py</code>.</p>
+<p>Output fields added to each isophote dict:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tflux_e</code></td>
+<td>Total flux within the elliptical aperture</td>
+</tr>
+<tr>
+<td><code>tflux_c</code></td>
+<td>Total flux within the circular aperture (radius = SMA)</td>
+</tr>
+<tr>
+<td><code>npix_e</code></td>
+<td>Number of valid pixels in the elliptical aperture</td>
+</tr>
+<tr>
+<td><code>npix_c</code></td>
+<td>Number of valid pixels in the circular aperture</td>
+</tr>
+</tbody>
+</table>
+<h3 id="compute_cog-curve-of-growth-photometry"><code>compute_cog</code> -- Curve-of-Growth Photometry</h3>
+<p>Model-based cumulative flux profile derived from the fitted 1D intensity profile using
+trapezoidal annular integration. Computed post-sweep in <code>driver.py</code> via <code>cog.py</code>. This
+method never touches raw pixels; it integrates the analytic annular flux from the fitted
+intensity values and ellipse geometry.</p>
+<p>Output fields added to each isophote dict:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cog</code></td>
+<td>Cumulative flux enclosed within the isophote</td>
+</tr>
+<tr>
+<td><code>cog_annulus</code></td>
+<td>Annular flux contribution from this isophote</td>
+</tr>
+<tr>
+<td><code>area_annulus</code></td>
+<td>Geometric area of the annular region</td>
+</tr>
+<tr>
+<td><code>flag_cross</code></td>
+<td>Boolean flag for isophote crossing detection</td>
+</tr>
+<tr>
+<td><code>flag_negative_area</code></td>
+<td>Boolean flag for negative annular area</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-to-use-each">When to Use Each</h3>
+<ul>
+<li>Use <code>full_photometry=True</code> for ground-truth aperture flux measured directly from the
+  image. Suitable for total magnitude estimation and aperture correction work.</li>
+<li>Use <code>compute_cog=True</code> for model-derived cumulative flux profiles. Suitable for smooth
+  growth curves and enclosed-flux diagnostics where pixel noise should be suppressed.</li>
+</ul>
+<hr />
+<h2 id="integration-modes">Integration Modes</h2>
+<h3 id="sub-pixel-interpolation">Sub-pixel Interpolation</h3>
+<p>All sampling modes use bilinear sub-pixel interpolation internally via
+<code>scipy.ndimage.map_coordinates</code> with <code>order=1</code>. This is not configurable.</p>
+<h3 id="mean-integrator-integratormean">Mean Integrator (<code>integrator='mean'</code>)</h3>
+<p>Reports the harmonic-fit DC term (<code>y0_fit</code>) as the representative intensity. This is the
+fitted mean from the 5-parameter (or extended ISOFIT) least-squares harmonic model, not
+a simple <code>np.mean</code> of the sampled intensities. The harmonic fit naturally downweights
+outliers through the least-squares objective.</p>
+<h3 id="median-integrator-integratormedian">Median Integrator (<code>integrator='median'</code>)</h3>
+<p>Reports <code>np.median(intens)</code> of the sigma-clipped intensity samples. More robust to
+contamination from bright foreground objects or cosmic rays, but discards the harmonic
+model information. Its error bar is the mean's <code>rms/√N</code> scaled by the
+Gaussian-asymptotic median factor <code>√(π/2) ≈ 1.25</code> (the median is a noisier
+estimator than the mean for Gaussian noise). This <code>√(π/2)</code> scaling now applies uniformly to
+<code>intens_err</code> whether or not a <code>variance_map</code> is supplied — an earlier version applied it
+only when no variance map was given, understating the reported intensity error under WLS.</p>
+<p>The reported ring <strong>gradient</strong> does not use this weighted-intensity path at all: it always
+uses an unweighted mean or median of the same two rings, with a matching error formula
+(<code>sum(v_i)/N**2</code> for the mean, and the normal-theory median form
+<code>pi*N/(2*(sum 1/sqrt(v_i))**2)</code>, which reduces to <code>pi*sigma**2/(2N)</code> for uniform variance).
+This is a deliberate difference from the intensity, which under WLS is the
+inverse-variance-weighted harmonic intercept — see <code>docs/04-architecture.md</code>, section
+"Gradient error and ring statistics", for the full formulas and the reasoning behind the
+asymmetry. Without a variance map, the same helper falls back to a scatter-based error
+computed from the sampled intensities; because that scatter includes real galaxy structure
+along the ring, it is an upper bound on the noise rather than a pure noise estimate.</p>
+<h3 id="adaptive-integrator-integratoradaptive">Adaptive Integrator (<code>integrator='adaptive'</code>)</h3>
+<p>Switches between mean and median based on SMA:</p>
+<ul>
+<li>SMA &lt;= <code>lsb_sma_threshold</code>: uses mean (harmonic-fit DC term)</li>
+<li>SMA &gt; <code>lsb_sma_threshold</code>: uses median</li>
+</ul>
+<p>Rationale: inner high-S/N isophotes benefit from the precision of the harmonic fit, while
+outer low-S/N isophotes benefit from the robustness of the median against noise spikes.</p>
+<h3 id="comparison-with-photutils">Comparison with photutils</h3>
+<p>The photutils <code>BILINEAR</code> integrator uses area-weighted sector integration, which is
+architecturally different from isoster's point-sampling path. Both use bilinear
+interpolation at the sub-pixel level, but the integration geometry differs. Isoster
+samples discrete points along the ellipse; photutils integrates over sectors spanning
+the annular width.</p>
+<hr />
+<h2 id="known-limitations">Known Limitations</h2>
+<p>The following limitations are documented based on the current implementation state.
+Cross-references point to <code>future.md</code>, an internal planning document that is not part
+of the public docs tree.</p>
+<ol>
+<li>
+<p><strong>Template-based forced mode drops most output fields.</strong> The <code>template</code> mode
+   produces isophote dicts with zero-valued errors, zero deviations, and no aperture
+   photometry. Only intensity, RMS, and geometry fields are meaningful.
+   (See future.md: "Typed isophote result schema".)</p>
+</li>
+<li>
+<p><strong>No stop-code filtering in model builder.</strong> <code>build_isoster_model()</code> accepts all
+   rows with <code>sma &gt; 0</code> and finite intensity/geometry values regardless of stop code.
+   Rows with non-finite <code>intens</code>, <code>x0</code>, <code>y0</code>, <code>eps</code>, or <code>pa</code> are dropped automatically,
+   but stop codes are not consulted; users should pre-filter isophotes by stop code
+   before model reconstruction for best results.
+   (See future.md: "Model builder robustness against low-quality rows".)</p>
+</li>
+<li>
+<p><strong>CLI exposes only a subset of config.</strong> Advanced options (eccentric anomaly, ISOFIT
+   harmonics, CoG, permissive geometry) are not available via CLI flags. Use the Python
+   API or a YAML config file.
+   (See future.md: "CLI option parity with advanced config features".)</p>
+</li>
+<li>
+<p><strong>Serial template-based execution.</strong> Template-based forced mode processes
+   each SMA sequentially. No parallel execution path exists.
+   (See future.md: "Parallel forced/template execution path".)</p>
+</li>
+<li>
+<p><strong>Central regularization requires previous isophote.</strong> The regularization penalty
+   compares against the previous isophote's geometry. It has no effect on the first
+   isophote at <code>sma0</code>, which may still exhibit instability in low-S/N centers.</p>
+</li>
+<li>
+<p><strong>Gradient estimator is tightly coupled.</strong> The current gradient computation uses a
+   fixed two-radius finite-difference scheme. Alternative estimators are not configurable.
+   (See future.md: "Gradient estimator redesign".)</p>
+</li>
+<li>
+<p><strong>Fixed sampling density formula.</strong> Sampling density follows
+   <code>max(64, int(2 * pi * sma))</code> and does not adapt to ellipticity, S/N, or local
+   curvature.
+   (See future.md: "Adaptive sampling density with error controls".)</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

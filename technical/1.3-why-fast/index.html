@@ -1,0 +1,1868 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.3-why-fast/">
+      
+      
+        <link rel="prev" href="../1.2-implementation-overview/">
+      
+      
+        <link rel="next" href="../1.4.1-eccentric-anomaly-isofit/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.3 Why ISOSTER is Fast - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#13-why-isoster-is-fast" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.3 Why ISOSTER is Fast
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#131-where-python-predecessors-spend-their-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.1 Where Python predecessors spend their time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#132-what-isoster-does-differently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.2 What ISOSTER does differently
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="§1.3.2 What ISOSTER does differently">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vectorized-path-based-sampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vectorized path-based sampling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#numba-accelerated-inner-kernels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numba-accelerated inner kernels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lazy-gradient-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lazy gradient evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-sampling-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared sampling stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#133-algorithmic-complexity-and-where-it-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.3 Algorithmic complexity and where it goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#134-correctness-guarantees-alongside-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.4 Correctness guarantees alongside speed
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#131-where-python-predecessors-spend-their-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.1 Where Python predecessors spend their time
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#132-what-isoster-does-differently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.2 What ISOSTER does differently
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="§1.3.2 What ISOSTER does differently">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vectorized-path-based-sampling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vectorized path-based sampling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#numba-accelerated-inner-kernels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numba-accelerated inner kernels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lazy-gradient-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lazy gradient evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-sampling-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared sampling stack
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#133-algorithmic-complexity-and-where-it-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.3 Algorithmic complexity and where it goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#134-correctness-guarantees-alongside-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.3.4 Correctness guarantees alongside speed
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="13-why-isoster-is-fast">§1.3 Why ISOSTER is fast</h1>
+<p>ISOSTER and its Python predecessors implement the same underlying
+Jedrzejewski (1987) algorithm. Most of the runtime difference between
+them is therefore not a difference in <em>what</em> is being computed but in
+<em>how</em> that computation is organized across Python, C, and JIT-compiled
+code — with one exception, the lazy gradient below, which does change
+the numbers and is treated as such —
+and in how much of it the implementation is willing to amortize across
+iterations and across the callers (regular fitting and forced
+extraction) that need elliptical sampling. This section explains the four algorithmic choices that
+together account for the speed gap. Concrete numerical comparisons
+across image size, sampling density, and configuration combination
+live in the separate benchmark chapters that draw from the Huang2013,
+S4G, and SGA2020 campaigns; here we focus on the <em>reasons</em>.</p>
+<h2 id="131-where-python-predecessors-spend-their-time">§1.3.1 Where Python predecessors spend their time</h2>
+<p>Three patterns dominate the runtime of the existing Python
+elliptical-isophote stack. We name them at the abstraction level of
+"loops vs vectors" rather than by specific function name, since
+implementations evolve and a citation to a function name in a release
+notes section would age out within a release cycle.</p>
+<p><strong>Per-point Python-level sampling.</strong> The classical formulation samples
+intensity at <span class="arithmatex">\(N\)</span> points around each trial ellipse. A direct
+implementation evaluates each point through a Python-callable
+integrator that pulls a small neighborhood of pixels out of the image
+and returns either the bilinear-interpolated central value or a small
+area integral. With <span class="arithmatex">\(N\)</span> on the order of <span class="arithmatex">\(2\pi a\)</span>, an isophote at
+<span class="arithmatex">\(a = 100\,\mathrm{px}\)</span> requires more than six hundred such calls <em>per
+iteration</em>, and there are typically ten to thirty iterations per
+isophote and tens to hundreds of isophotes per image. Each call is
+fast in absolute terms but carries Python interpreter overhead, and
+the cumulative cost is what dominates wall time at the image level.</p>
+<p><strong>Redundant gradient evaluation.</strong> The geometry-update step needs the
+local radial intensity gradient <span class="arithmatex">\(dI / da\)</span>, estimated by a one-sided
+difference: the image is sampled at one SMA offset above the current
+one, and the sample at the current SMA is reused. In the
+classical algorithm this gradient is re-evaluated <em>on every
+iteration</em>, even though the geometry typically changes by a few
+percent per iteration once it has approximately settled. Each
+gradient evaluation costs one additional sampling pass — an
+extra ellipse sampled at <span class="arithmatex">\(N\)</span> points — so the gradient alone
+roughly doubles the sampling cost per iteration in the classical
+formulation.</p>
+<p><strong>Duplicated sampling code paths.</strong> Regular fitting and forced
+photometry extraction both need to sample the image along
+elliptical paths, but for historical reasons each is implemented
+with its own sampling helpers. The same operation — "compute the
+pixel coordinates of <span class="arithmatex">\(N\)</span> points along an ellipse with parameters
+<span class="arithmatex">\((x_0, y_0, a, \varepsilon, \mathrm{PA})\)</span> and look up the image
+intensities at those points" — is written and tested more than
+once. The duplication is not just a code-maintenance liability; it
+also means that an optimization applied to one caller does not
+automatically benefit the other, and that the call sites can drift
+in their conventions (half-pixel offsets, boundary handling, mask
+treatment) until they disagree on what "the same isophote" means.</p>
+<p>These three patterns compound. A fit at moderate image size and SMA
+density is bottlenecked by tens of thousands of Python-level sampling
+calls, each of which is redundantly invoked through one of several
+parallel code paths. None of them is individually fatal, but together
+they set the wall-clock floor.</p>
+<h2 id="132-what-isoster-does-differently">§1.3.2 What ISOSTER does differently</h2>
+<p>ISOSTER replaces these patterns with four choices. Three are
+independently speedups — vectorized sampling, the Numba kernels, and
+the lazy gradient. The fourth, the shared sampling stack, is
+primarily a maintenance-and-correctness design whose performance
+effect is indirect: it lets an optimization written once benefit both
+sampling callers. Together they form the core of the performance
+argument.</p>
+<h3 id="vectorized-path-based-sampling">Vectorized path-based sampling</h3>
+<p>The first and most fundamental change is to replace the per-point
+sampling loop with a single vectorized call into
+<code>scipy.ndimage.map_coordinates</code>. Given an image array and an array of
+<span class="arithmatex">\(N\)</span> fractional pixel coordinates <span class="arithmatex">\((x_j, y_j)\)</span>, <code>map_coordinates</code>
+evaluates a <span class="arithmatex">\(k\)</span>-th order spline interpolation at all <span class="arithmatex">\(N\)</span> points in a
+single C-level pass, returning the intensity vector
+<span class="arithmatex">\(\mathbf{I} \in \mathbb{R}^N\)</span> as a NumPy array. ISOSTER uses
+bilinear interpolation (first-order spline) for the intensity and
+variance samples and nearest-neighbor for the mask, which matches
+the accuracy needs of the isophote fit while collapsing the
+Python loop into one external call. The coordinate array itself is
+computed analytically from the ellipse parameters in a few NumPy
+operations. In the default mode the angle <span class="arithmatex">\(\theta_j = \phi_j\)</span> is
+the image position angle, stepped uniformly, and the radius follows
+the polar equation of the ellipse:</p>
+<div class="arithmatex">\[
+r_j = \frac{a(1-\varepsilon)}
+           {\sqrt{(1-\varepsilon)^2\cos^2\phi_j + \sin^2\phi_j}},
+\]</div>
+<div class="arithmatex">\[
+x_j = x_0 + r_j \cos\phi_j \cos\mathrm{PA} -
+              r_j \sin\phi_j \sin\mathrm{PA},
+$$
+$$
+y_j = y_0 + r_j \cos\phi_j \sin\mathrm{PA} +
+              r_j \sin\phi_j \cos\mathrm{PA},
+\]</div>
+<p>In eccentric-anomaly mode (§1.4.1) the eccentric anomaly <span class="arithmatex">\(\psi\)</span> is
+stepped uniformly instead, with
+<span class="arithmatex">\((x'_j, y'_j) = (a\cos\psi_j,\ a(1-\varepsilon)\sin\psi_j)\)</span> on the
+principal axes before the same rotation by PA.</p>
+<p>so the entire sampling pipeline — coordinates, interpolation, and
+mask application — is a small constant number of NumPy / SciPy calls
+per isophote regardless of <span class="arithmatex">\(N\)</span>. The Python interpreter is involved
+only in launching the call, not in iterating over the <span class="arithmatex">\(N\)</span> points.</p>
+<p>This single change accounts for the largest share of the speed gap
+between ISOSTER and the direct Python predecessor. It is also the
+choice that fixes the loop overhead <em>exactly</em> — there is no "Python
+loop with <span class="arithmatex">\(N\)</span> iterations" left in the sampling layer at all. The
+remaining Python loops in the fit are over iterations of the per-SMA
+solver, which numbers in the tens, not over sample points, which
+number in the hundreds.</p>
+<h3 id="numba-accelerated-inner-kernels">Numba-accelerated inner kernels</h3>
+<p>A small number of operations sit between sampling and convergence
+checking that are awkward to vectorize cleanly in NumPy but are
+trivially expressible as JIT-compiled loops. The chief examples are
+the harmonic design-matrix builder
+<span class="arithmatex">\(\mathbf{A} = [\mathbf{1}, \sin\theta, \cos\theta, \sin 2\theta,
+\cos 2\theta]\)</span> for the five-parameter geometry fit, the
+ellipse-coordinate construction behind the sampling call above, the
+harmonic-model evaluation used to reconstruct the fitted model on a
+ring (for residuals and convergence), and the
+eccentric-anomaly to position-angle conversion of §1.4.1. ISOSTER
+implements these with Numba <code>@njit</code> decorators in
+<code>isoster/numba_kernels.py</code> so that
+each one compiles to a tight loop in machine code at first call, then
+runs at speeds comparable to a hand-written C implementation. (The
+joint multi-band design-matrix builder of §1.4.5 gets the same
+treatment in <code>isoster/multiband/numba_kernels_mb.py</code>; the
+dominant-coefficient selection <span class="arithmatex">\(\max(|A_1|, |B_1|, |A_2|, |B_2|)\)</span> is
+a one-line <code>np.argmax</code> in <code>isoster/fitting.py</code> and is not
+JIT-compiled.)</p>
+<p>Two implementation properties are worth flagging. First, every Numba
+kernel has a byte-equivalent NumPy fallback in the same file: if the
+Numba import fails or the user explicitly disables it, the fallback
+is dispatched transparently and produces identical numerical output.
+This matters for reproducibility on systems where LLVM is unavailable
+and for the configuration where ISOSTER is run on a small number of
+galaxies. The cold-process penalty is real, and §1.6.5 breaks it into
+the three costs it is usually conflated from: importing the stack
+(<span class="arithmatex">\(0.84\,\mathrm{s}\)</span> (IQR <span class="arithmatex">\(0.83\)</span>–<span class="arithmatex">\(0.86\)</span>) on the reference machine),
+reading the compiled kernels back from Numba's on-disk cache on first
+dispatch (<span class="arithmatex">\(0.101\,\mathrm{s}\)</span> (IQR <span class="arithmatex">\(0.099\)</span>–<span class="arithmatex">\(0.103\)</span>)), and genuinely
+compiling them when that cache is empty (a further
+<span class="arithmatex">\(0.36\,\mathrm{s}\)</span> (IQR <span class="arithmatex">\(0.36\)</span>–<span class="arithmatex">\(0.37\)</span>)). Only the last is
+compilation, and it is paid once per <em>compatible cache</em> rather than
+once per installation: a Numba or ISOSTER upgrade invalidates the
+cached objects, and an environment that cannot write the cache
+directory pays it every time. This is why an earlier version of this
+section, which observed the <span class="arithmatex">\(0.1\,\mathrm{s}\)</span> cache load on a machine
+that had already run ISOSTER and called it "JIT compilation",
+understated the cost by about a factor of four.
+Second, the kernels are deliberately <em>small</em>. The Numba-compiled
+region is the design-matrix construction and the coordinate and
+angle arithmetic; the linear solve itself is delegated to NumPy,
+which already wraps LAPACK — <code>numpy.linalg.lstsq</code> on the unweighted
+design matrix in the OLS path, and <code>numpy.linalg.solve</code> on the
+explicitly formed weighted normal equations in the WLS path of
+§1.4.2. We do not attempt to JIT-compile the solver, because doing so
+would require duplicating LAPACK behaviour inside Numba for no
+measurable gain.</p>
+<h3 id="lazy-gradient-evaluation">Lazy gradient evaluation</h3>
+<p>The radial gradient <span class="arithmatex">\(dI / da\)</span> is the single most expensive quantity
+in the per-iteration cost budget, because evaluating it requires one
+additional sampling pass at an SMA offset from the current isophote.
+The classical formulation re-evaluates it every iteration. ISOSTER
+instead computes the gradient on iteration <span class="arithmatex">\(i = 0\)</span>, caches the value,
+and reuses it on every subsequent iteration of the same isophote
+unless one of three conditions forces a re-evaluation: the dominant
+harmonic amplitude <span class="arithmatex">\(|a_\max|\)</span> fails to improve for three consecutive
+iterations; the cached value carries no usable uncertainty; or a
+gradient-quality strike is currently outstanding (§1.4.6). The last
+condition matters more than its size suggests — a cached gradient
+computed before the first strike is exactly the value whose
+reliability the strike is questioning, so reusing it would let a
+stale number decide whether to record a gradient failure.</p>
+<p>The justification for caching at all is that the gradient is a local
+property of the image at the current geometry. Once the iteration is
+reasonably close to the converged isophote, the geometry moves by a
+few percent per iteration and the gradient changes by less, because
+the gradient is itself a slowly varying function of <span class="arithmatex">\(a\)</span> wherever the
+fit is well conditioned. The stall detector is an inexpensive
+safeguard for the case where the cached value is meaningfully wrong —
+for instance when the iteration has wandered into a region of low
+gradient SNR — and restores the classical behaviour there at the cost
+of a few extra sampling passes on the affected isophote.</p>
+<p><strong>What it saves.</strong> On a representative fit — an <span class="arithmatex">\(n = 2\)</span> Sérsic model,
+<span class="arithmatex">\(R_e = 30\,\mathrm{px}\)</span>, <span class="arithmatex">\(\varepsilon = 0.4\)</span>, <span class="arithmatex">\(S/N = 50\)</span>, 59
+isophotes from <span class="arithmatex">\(a_0 = 10\)</span> to <span class="arithmatex">\(a_\max = 120\,\mathrm{px}\)</span> — the lazy
+path performs <strong>60 gradient evaluations against 414</strong> for the
+classical path — a factor of <span class="arithmatex">\(6.9\)</span>, and the one figure here that is
+exactly reproducible, since it is a count rather than a time. The
+wall-clock saving that follows has a <strong>median of <span class="arithmatex">\(24\%\)</span></strong> across
+eighteen sessions, with an interquartile range of <span class="arithmatex">\(23.0\%\)</span> to
+<span class="arithmatex">\(24.1\%\)</span>.</p>
+<p>We quote the median and the interquartile range, and deliberately
+not the extremes, because the extremes are not a stable statistic
+here. In the archived set the individual sessions fall between
+<span class="arithmatex">\(22.2\%\)</span> and <span class="arithmatex">\(24.4\%\)</span>. That looks tight, and within a single archive
+it is; but an earlier eighteen-session archive on the same machine
+contained a session that returned a <em>negative</em> saving, with the
+cached path running slower. We did not diagnose it. The result is
+consistent with external load on the machine during that session,
+which is the usual cause, but we did not instrument the run and
+cannot say so; it stands as an unexplained timing outlier. That is
+the point: the width of the extremes is itself a property of the
+particular run, and quoting it would present as a measured bound
+something that changed by a factor of several between two archives
+taken on one machine. The median and the quartiles reproduce across
+independent sets to within a percentage point; the minimum and
+maximum do not reproduce at all.
+Earlier drafts of this section quoted min-to-max intervals from three
+sessions and had to revise them three times, which is what that
+instability looks like from the inside. The evaluation count remains
+the robust part of the result — what it converts into depends on how
+much of a given fit is sampling, which varies with the galaxy and
+the configuration (reproduced by
+<code>benchmarks/draft_timings/run_draft_timings.py --sessions 18</code>;
+measurement protocol in §1.6.5). Note that the <em>iteration</em> count is essentially
+unchanged (414 against 414 here). The saving is in sampling passes
+per iteration, not in shorter iteration sequences, and describing it
+as "fewer iterations" would misattribute where the time goes.</p>
+<p><strong>What it costs.</strong> This is the only change in §1.3.2 that is not a
+pure software-engineering optimization: it modifies the algorithm.
+Because a cached gradient differs slightly from the freshly evaluated
+one, each geometry update differs slightly, and the differences
+accumulate along the iteration trajectory. The converged output is
+therefore <strong>not</strong> identical to the classical path, and it is worth
+being precise about the size of the difference rather than asserting
+equivalence. Comparing <code>use_lazy_gradient=True</code> against <code>False</code> on
+the fit above, and on the same model at two other noise levels:</p>
+<table>
+<thead>
+<tr>
+<th><span class="arithmatex">\(S/N\)</span></th>
+<th>median <span class="arithmatex">\(\lvert\Delta\rvert / \sigma\)</span></th>
+<th>max <span class="arithmatex">\(\lvert\Delta\rvert / \sigma\)</span></th>
+<th>max <span class="arithmatex">\(\lvert\Delta x_0\rvert\)</span> (px)</th>
+<th>max <span class="arithmatex">\(\lvert\Delta\mathrm{PA}\rvert\)</span> (rad)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200</td>
+<td><span class="arithmatex">\(3 \times 10^{-4}\)</span></td>
+<td>0.22</td>
+<td>0.0036</td>
+<td>0.0031</td>
+</tr>
+<tr>
+<td>50</td>
+<td><span class="arithmatex">\(1 \times 10^{-3}\)</span></td>
+<td>1.6</td>
+<td>0.64</td>
+<td>0.013</td>
+</tr>
+<tr>
+<td>10</td>
+<td><span class="arithmatex">\(4 \times 10^{-3}\)</span></td>
+<td>2.6</td>
+<td>3.0</td>
+<td>0.072</td>
+</tr>
+</tbody>
+</table>
+<p>(<span class="arithmatex">\(\Delta\)</span> is the difference in a geometry parameter between the two
+modes; <span class="arithmatex">\(\sigma\)</span> is that parameter's own reported uncertainty on the
+same isophote. The first two columns aggregate over <span class="arithmatex">\(x_0\)</span>, <span class="arithmatex">\(y_0\)</span>,
+<span class="arithmatex">\(\varepsilon\)</span> and PA. Every entry is a median across eighteen noise
+realisations of the same model — one per session, since the
+difference between two converged fits is fixed once the image is
+fixed, so a single realisation would report a spread of zero rather
+than no spread at all. Run-to-run variation in the tail is
+appreciable: across those realisations the <span class="arithmatex">\(S/N = 50\)</span> maximum has an
+interquartile range of <span class="arithmatex">\(1.2\)</span>–<span class="arithmatex">\(1.9\)</span> and individual realisations range
+from <span class="arithmatex">\(0.81\)</span> to <span class="arithmatex">\(2.6\)</span>. The column to read is therefore the order of
+magnitude, not the digits.)</p>
+<p>The pattern is the honest summary of the trade. For the overwhelming
+majority of isophotes the two modes agree to a small fraction of the
+fitted uncertainty — the median disagreement stays below one percent
+of <span class="arithmatex">\(\sigma\)</span> at every noise level tested. But the <em>tail</em> grows sharply
+as the data get noisier: at <span class="arithmatex">\(S/N = 200\)</span> the worst isophote in the
+sequence moves by about a fifth of its own uncertainty, while at
+<span class="arithmatex">\(S/N = 10\)</span> it moves by more than <span class="arithmatex">\(2\sigma\)</span> and its centre by a few
+pixels. This is the expected behaviour rather than a defect: the
+low-gradient, low-SNR regime is exactly where a cached gradient is
+least representative and where the geometry update is most sensitive
+to it. It does mean that the lazy gradient should be understood as a
+<em>fast approximation</em> rather than an exact reformulation, and that a
+user pursuing per-isophote geometry in the LSB outskirts — the regime
+of §1.4.3 — has a defensible reason to set
+<code>use_lazy_gradient=False</code> and pay the roughly 31% surcharge.</p>
+<h3 id="shared-sampling-stack">Shared sampling stack</h3>
+<p>The fourth change addresses the duplicated-sampling-path pattern of
+the classical Python implementations. ISOSTER has one sampling
+module (<code>isoster/sampling.py</code>) that exposes one entry point
+(<code>extract_isophote_data</code>) and one return type (<code>IsophoteData</code>). Both
+sampling callers route through it:</p>
+<ul>
+<li><strong>Regular fitting</strong> (<code>isoster/fitting.py</code>) calls it on each
+  iteration of each isophote.</li>
+<li><strong>Forced photometry extraction</strong> (<code>extract_forced_photometry</code> in
+  the same module) calls it once per template isophote with the
+  template geometry held fixed.</li>
+</ul>
+<p>2-D model reconstruction (<code>isoster/model.py</code>) is the exception, and
+naming it matters because the earlier version of this section
+claimed it as a third caller. It does not sample along elliptical
+paths at all: it solves the opposite problem. Sampling asks "what is
+the image intensity at these <span class="arithmatex">\(N\)</span> points on this ellipse"; model
+reconstruction asks "what intensity does the fitted model assign to
+every pixel in this grid", which it answers by determining each
+pixel's semi-major-axis coordinate under the locally interpolated
+geometry and evaluating a radial interpolant of the fitted
+intensities there. That is a different operation with a different
+kernel (<code>scipy.interpolate.interp1d</code> over the isophote list, not
+<code>map_coordinates</code> over the image), so it neither shares the sampling
+stack's mask and boundary conventions nor inherits its
+optimizations.</p>
+<p>A bug fix to mask treatment, a change to the boundary-handling
+convention, or an optimization to the coordinate-construction
+arithmetic therefore lands once and benefits both <em>sampling</em>
+callers. The half-pixel offset convention is enforced in one place
+for them. The sampling output schema — what <code>IsophoteData</code> carries —
+is the same wherever sampling happens.</p>
+<p>This is a software-engineering argument, not directly an
+algorithmic-speed argument. Its one concrete performance consequence
+is that optimizations to the shared sampling stack amortize across
+both sampling callers; in particular, the
+vectorized-<code>map_coordinates</code> choice automatically benefits forced
+photometry in addition to regular fitting, which is significant
+because forced photometry is the dominant workflow in multi-band
+survey pipelines. Separately, the multi-band
+extension (§1.4.5) was buildable as a parallel module precisely
+because the single-band sampling stack was self-contained: the
+multi-band path imports the low-level coordinate helpers without
+having to also inherit the sampling callers' historical
+peculiarities.</p>
+<h2 id="133-algorithmic-complexity-and-where-it-goes">§1.3.3 Algorithmic complexity and where it goes</h2>
+<p>The four choices in §1.3.2 do not change the asymptotic complexity
+of the algorithm — they reduce the constant factors. It is worth
+naming the asymptotic structure explicitly so that the speed argument
+can be quantified later without ambiguity.</p>
+<p>Per-isophote cost is dominated by two terms. The sampling step
+performs <span class="arithmatex">\(N = \max(64, \lfloor 2\pi a \rfloor)\)</span> interpolations through
+one <code>map_coordinates</code> call, costing <span class="arithmatex">\(\mathrm{O}(N)\)</span> in image-area
+terms and <span class="arithmatex">\(\mathrm{O}(1)\)</span> in the Python interpreter. The linear-system
+solve is <span class="arithmatex">\(\mathrm{O}(p^2 N)\)</span> where <span class="arithmatex">\(p\)</span> is the number of fit
+parameters (five for the geometry-only fit, <span class="arithmatex">\(5 + 2L\)</span> for an extended
+ISOFIT fit with <span class="arithmatex">\(L\)</span> higher orders, and <span class="arithmatex">\(B + 4 + 2L\)</span> for a multi-band
+joint fit with <span class="arithmatex">\(B\)</span> bands; see §1.4.1 and §1.4.5). Both terms are
+linear in <span class="arithmatex">\(N\)</span>, so per-isophote cost is asymptotically linear in the
+semi-major axis <span class="arithmatex">\(a\)</span> and effectively independent of image area beyond
+what enters through <code>map_coordinates</code>' interpolation kernel.</p>
+<p>Image-level cost is the per-isophote cost summed over the inward and
+outward growth loops. Let <span class="arithmatex">\(K\)</span> be the number of isophotes (typically
+of order 50 in a geometric-stepping fit from <span class="arithmatex">\(a_0 = 10\,\mathrm{px}\)</span>
+to <span class="arithmatex">\(a_\max = 200\,\mathrm{px}\)</span> with <code>astep = 0.1</code>), and let
+<span class="arithmatex">\(\overline{m}\)</span> be the average per-isophote iteration count.
+Worst-case total cost is
+<span class="arithmatex">\(\mathrm{O}(K \cdot \overline{m} \cdot N_\max)\)</span> where <span class="arithmatex">\(N_\max\)</span> is the
+sample count at the largest SMA. In practice <span class="arithmatex">\(\overline{m}\)</span> is well
+below the configured <code>maxit</code> because most isophotes converge in
+under twenty iterations, and the lazy-gradient optimization makes
+<span class="arithmatex">\(\overline{m}\)</span> matter less because each additional iteration costs
+just one sampling pass rather than two.</p>
+<p>The two consequences worth pointing out:</p>
+<ul>
+<li>
+<p><strong>Image area enters only through <code>map_coordinates</code> interpolation
+  cost.</strong> The interpolation kernel reads a small neighborhood
+  (<span class="arithmatex">\(k+1\)</span> pixels per dimension for a <span class="arithmatex">\(k\)</span>-th order spline) around each
+  of the <span class="arithmatex">\(N\)</span> sample points. The total pixel reads per isophote is
+  therefore <span class="arithmatex">\(\mathrm{O}(N \cdot k^2)\)</span> — sublinear in the image area
+  for any modern image size. This is why the fit time scales with
+  the number of isophotes and the typical semi-major axis, not with
+  the image dimensions, in the regime where the galaxy occupies a
+  small-to-moderate fraction of the image.</p>
+</li>
+<li>
+<p><strong>Sampling density and ISOFIT cost.</strong> The user-facing knobs that
+  most strongly affect runtime are <code>astep</code> (geometric SMA step,
+  which sets <span class="arithmatex">\(K\)</span>) and the harmonic-fit configuration (which sets
+  <span class="arithmatex">\(p\)</span>, and therefore the LAPACK solve cost). The ISOFIT path with
+  <code>harmonic_orders=[3, 4]</code> carries <span class="arithmatex">\(p = 9\)</span> rather than <span class="arithmatex">\(p = 5\)</span>,
+  raising the solve cost by a constant factor that the benchmark
+  chapters quantify in absolute terms.</p>
+</li>
+</ul>
+<p>The point of this complexity sketch is not to predict wall time but
+to clarify which knobs in <code>IsosterConfig</code> are the runtime-relevant
+ones. The benchmark chapters then quantify the constants.</p>
+<h2 id="134-correctness-guarantees-alongside-speed">§1.3.4 Correctness guarantees alongside speed</h2>
+<p>The performance argument is only useful if the faster code computes
+the same thing as the slower code where the algorithm overlaps.
+ISOSTER provides three guarantees that together establish this:</p>
+<ol>
+<li>
+<p><strong>Plain OLS path when <code>variance_map = None</code>.</strong> The
+   weighted-least-squares (WLS) machinery introduced in §1.4.2 is
+   only engaged when the user supplies a variance map; in its
+   absence, the linear-system solve is the ordinary unweighted
+   least-squares solve used by every classical implementation
+   (NumPy's SVD-based least-squares driver on the design matrix
+   itself, rather than the explicitly formed normal equations the
+   weighted path uses), so given identical sampled data the fitted
+   coefficients agree to within the floating-point determinism of
+   LAPACK on the host platform. The configuration flag is therefore
+   binary at the algorithm-correctness level: <code>variance_map</code> is
+   either supplied (WLS) or it is not (OLS), and the two paths share
+   no shared mutable state.</p>
+</li>
+<li>
+<p><strong>Round-trip serialization preserves the fit and its
+   configuration.</strong> Saving a fit through
+   <code>isophote_results_to_fits</code> and reading it back through
+   <code>isophote_results_from_fits</code> recovers the per-isophote values and
+   reconstructs an <code>IsosterConfig</code> whose fields match the original;
+   the same holds for the ASDF writer–reader pair, and the <code>META</code>
+   HDU carries the top-level result keys that are neither
+   per-isophote nor configuration fields so that they survive too.
+   Because the <code>CONFIG</code> HDU records the <em>resolved</em> configuration —
+   every field, including those the user left at their default — the
+   settings need never be supplied out of band, and a default that
+   changes between releases cannot silently alter the meaning of an
+   existing file. What we claim is reproducibility of the
+   <em>configuration</em>, not of the fit from the file alone: the file
+   contains neither the image, the mask nor the variance map, and
+   reproducing the numbers additionally depends on the ISOSTER
+   version, the host LAPACK, and whether the Numba kernels were
+   available.</p>
+</li>
+<li>
+<p><strong>Regression-test coverage of the fast paths.</strong> The test suite
+   pins the Numba kernels against their NumPy fallbacks
+   element-by-element — design-matrix construction, ellipse
+   coordinates, harmonic-model evaluation, and the
+   eccentric-anomaly conversion — including the degenerate and
+   high-ellipticity cases where the two implementations would be
+   most likely to diverge. Serialization round-trips, the
+   stop-code contract, and the per-feature behaviour of each
+   configuration flag are covered at the per-SMA dictionary level on
+   synthetic galaxies generated deterministically from seeded
+   factories rather than from stored reference files. The suite runs
+   on every commit.</p>
+</li>
+</ol>
+<p>Two things §1.3.4 deliberately does <em>not</em> claim. It does not claim a
+specific numerical-agreement number with <code>photutils.isophote</code>,
+<code>Isofit</code>, or <code>AutoProf</code>; those are quantitative empirical questions
+that the benchmark chapters answer on representative samples. And it
+does not claim that every fast path is output-identical to its slow
+counterpart. Three of the four choices in §1.3.2 are: vectorized
+sampling, the Numba kernels, and the shared sampling stack all
+compute the same numbers as the implementations they replace. The
+lazy gradient does not, by construction, and §1.3.2 quantifies the
+difference rather than asserting it away.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>
