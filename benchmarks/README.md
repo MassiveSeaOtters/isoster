@@ -5,6 +5,9 @@ This folder contains performance and comparison benchmarks for isoster.
 ## Scope
 
 - `performance/`: runtime and throughput comparisons (including method-vs-method).
+- `timing/`: frozen four-stage Isoster/photutils/AutoProf timing campaign; the
+  completed Stage 4 record is in
+  `docs/publication/three-way-timing-benchmark-reference.md`.
 - `profiling/`: hotspot and profiler-oriented diagnostics.
 - `baselines/`: threshold configs and CI regression gate scripts.
 - `exhausted/`: 39-configuration exhaustive sweep on any galaxy image.

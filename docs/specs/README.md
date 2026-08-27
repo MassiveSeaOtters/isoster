@@ -21,4 +21,4 @@ Do not cite a spec as documentation of current behaviour. See
 
 | File | Branch | Status |
 |---|---|---|
-| `2026-08-22-three-way-benchmark-comparison-design.md` | `benchmarks/three-way-comparison` | Part A complete, archived, gated and revised after review; Part B specified, accuracy contract being redesigned |
+| `2026-08-22-three-way-benchmark-comparison-design.md` | `benchmarks/three-way-comparison` | Part A complete and gated; Part B Stage 4 complete with 9,900 timing-eligible records and a detailed publication reference |

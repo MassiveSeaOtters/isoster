@@ -5,15 +5,19 @@ Branch: `benchmarks/three-way-comparison`
 Location: tracked in `docs/specs/`, excluded from the published site. Moved
 here from the gitignored `docs/agent/` on 2026-08-22 — a design this branch
 depends on should not live only on one machine.
-Status (2026-08-26): **Part A complete, measured, archived and gated**, and
+Status (2026-08-27): **Part A complete, measured, archived and gated**, and
 revised once after review — criterion 2 was withdrawn, and two prose figures
 were corrected against the archives. **Part B Stage 1 is implemented, frozen
 and gated. Part B Stage 2 is complete after a non-destructive recovery restored
 all 1,818 missing AutoProf executions: all 9,900 records executed, achieved
 complete coverage and were measured without a thermal warning or recognized
 competing process. Stage 3 timing parameters and the post-calibration accuracy
-policy are frozen below.** The frozen contract and executable helpers, not
-B1–B5's historical discussion, govern the campaign.
+policy are frozen below. Part B Stage 4 completed all 132 arms on the Mac
+Studio: 9,900 of 9,900 records are timing-eligible.** The detailed process,
+conditions, numerical results and caveats are recorded in
+`docs/publication/three-way-timing-benchmark-reference.md`. The frozen contract
+and executable helpers, not B1–B5's historical discussion, govern the
+campaign.
 
 **Stage 2 AutoProf recovery amendment (2026-08-26).** Recovery is a separate,
 non-destructive run, not a replacement calibration. It selects only records
