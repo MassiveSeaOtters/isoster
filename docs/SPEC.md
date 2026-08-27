@@ -15,6 +15,7 @@ Authority, in order:
 | Configuration parameters | [`02-configuration-reference.md`](02-configuration-reference.md) |
 | Public API, stop codes, usage | [`01-user-guide.md`](01-user-guide.md) |
 | Long-form derivations and measured performance | [`technical/`](technical/1.0-overview.md) |
+| Designs for work not yet implemented | `docs/specs/` (tracked, not published) |
 
 Where two documents disagree, the one named above for that topic wins. Where a
 number is quoted in `technical/`, the archive under

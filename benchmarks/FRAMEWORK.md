@@ -80,38 +80,43 @@ Every benchmark script must:
 
 ## 6. AutoProf Benchmark Notes
 
-`bench_vs_autoprof.py` uses a subprocess-based adapter because AutoProf requires `numpy < 2`,
-which conflicts with isoster's environment. The adapter spawns a separate Python interpreter
-pointed to by the `AUTOPROF_PYTHON` environment variable.
+`bench_vs_autoprof.py` uses a subprocess-based adapter because AutoProf requires
+`numpy < 2` and `photutils <= 1.5`, which conflict with isoster's environment. The
+adapter spawns the interpreter of an isolated virtual environment.
 
-### Setting AUTOPROF_PYTHON
+### Where that interpreter comes from
 
-`AUTOPROF_PYTHON` must point to a Python binary in an environment where AutoProf is installed
-with `numpy < 2`. The compiled-in default is machine-specific and will not exist on your
-system, so set the variable rather than relying on it. For the canonical install recipe —
-including why the venv must not live in `/tmp` — see
-[`benchmarks/exhausted/README.md`](exhausted/README.md); `docs/09-exhausted-benchmark.md` §0
-reproduces it.
+`benchmarks/autoprof_env.py` is the single source of the default and the resolution
+rules, shared by the standalone adapter and the exhausted-campaign fitter. Precedence,
+highest first:
 
-```bash
-# Check what python is currently set (or defaulted to)
-echo ${AUTOPROF_PYTHON:-<machine-specific default; see autoprof_adapter.py>}
+1. an explicit path — `tools.autoprof.venv_python` in a campaign YAML, or the
+   `venv_python` argument to the campaign fitter;
+2. the `AUTOPROF_PYTHON` environment variable;
+3. `~/.venvs/autoprof_venv/bin/python`, the canonical install location.
 
-# Override for your environment
-export AUTOPROF_PYTHON=/path/to/autoprof-env/bin/python3
+`~` is expanded at every step, so a tilde path is safe in all three.
 
-# Quick sanity check
-$AUTOPROF_PYTHON -c "import autoprof; import numpy; print(numpy.__version__)"
-```
-
-To create a compatible AutoProf environment with conda/mamba:
+The default now points at the documented install location, so with the canonical venv
+in place nothing needs to be set. Set `AUTOPROF_PYTHON` only to point somewhere else:
 
 ```bash
-conda create -n autoprof python=3.9 numpy="<2" && conda activate autoprof
-pip install autoprof
+# Inspect what will be used
+uv run python -c "from benchmarks.autoprof_env import resolve_autoprof_python as r; print(r())"
+
+# Point at a different environment for this shell session
+export AUTOPROF_PYTHON=/path/to/other-autoprof-env/bin/python
+
+# Sanity check
+"$AUTOPROF_PYTHON" -c "import autoprof, numpy; print(numpy.__version__)"
 ```
 
-Once set, the benchmark can be verified with:
+For the install recipe — including which Python version to use and why the venv must
+not live in `/tmp` — see [`benchmarks/exhausted/README.md`](exhausted/README.md);
+`docs/09-exhausted-benchmark.md` §0 reproduces it. Use that recipe rather than a
+conda environment: the project standardizes on `uv`.
+
+Once the venv exists, the benchmark can be verified with:
 
 ```bash
 uv run python benchmarks/performance/bench_vs_autoprof.py --quick --plots

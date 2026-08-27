@@ -26,6 +26,11 @@ import numpy as np
 import yaml
 from astropy.io import fits
 
+from benchmarks.autoprof_env import (
+    DEFAULT_AUTOPROF_VENV_PYTHON,
+    autoprof_install_hint,
+    resolve_autoprof_python,
+)
 from isoster import build_isoster_model
 from isoster.plotting import plot_qa_summary
 from isoster.utils import isophote_results_to_fits
@@ -137,7 +142,7 @@ def run_one_arm(
     write_model_fits: bool = True,
     sb_profile_scale: str = "log10",
     sb_asinh_softening: float | None = None,
-    venv_python: str = "/tmp/autoprof_venv/bin/python",
+    venv_python: str = DEFAULT_AUTOPROF_VENV_PYTHON,
     timeout: int = 300,
 ) -> dict[str, Any]:
     """Run one ``(galaxy, autoprof-arm)`` pair. Returns an inventory row."""
@@ -205,7 +210,7 @@ def run_one_arm(
     autoprof_log_path = raw_dir / f"{galaxy_tag}_autoprof.log"
     status_path = raw_dir / f"{galaxy_tag}_status.json"
 
-    venv_python_resolved = str(Path(venv_python).expanduser())
+    venv_python_resolved = resolve_autoprof_python(venv_python)
 
     def _invoke_once() -> tuple[int, str, float]:
         fit_start = time.perf_counter()
@@ -278,10 +283,21 @@ def run_one_arm(
     # 5) Parse AutoProf outputs.
     prof_path = raw_dir / f"{galaxy_tag}.prof"
     aux_path = raw_dir / f"{galaxy_tag}.aux"
+    # The angle basis is chosen at runtime by the same flag that selects the
+    # resampling: with a mask or ``ap_isoclip=True`` AutoProf re-interpolates
+    # onto polar angle from the image x-axis, and otherwise works in the
+    # eccentric anomaly. It decides whether a same-order rotation is even a
+    # meaningful operation, so it is recorded per row rather than assumed.
+    harmonic_basis = (
+        "polar_from_image_x_axis"
+        if bool(options.get("ap_isoclip", AUTOPROF_DEFAULTS["ap_isoclip"]))
+        else "eccentric_anomaly"
+    )
     isophotes, n_raw, n_filtered = _parse_prof_file(
         prof_path,
         pixel_scale_arcsec=bundle.metadata.pixel_scale_arcsec,
         sb_zeropoint=bundle.metadata.sb_zeropoint,
+        harmonic_basis=harmonic_basis,
     )
     aux_info = _parse_aux_file(aux_path)
 
@@ -322,6 +338,8 @@ def run_one_arm(
         "autoprof_aux": aux_info,
         "autoprof_n_raw": n_raw,
         "autoprof_n_filtered": n_filtered,
+        "profile_schema_version": PROFILE_SCHEMA_VERSION,
+        "harmonic_basis": harmonic_basis,
         "small_image_fallback": small_image_fallback,
         "small_image_signature": small_image_signature,
     }
@@ -447,10 +465,12 @@ def _probe_venv(venv_python: str) -> str | None:
     """Return ``None`` if the venv can import autoprof; otherwise a skip reason.
 
     Result cached per ``venv_python`` path so only the first arm on the
-    first galaxy pays the probe cost. ``~`` is expanded via
-    :meth:`Path.expanduser` so YAMLs and CLI args can use ``~/.venvs/...``.
+    first galaxy pays the probe cost. The path goes through
+    :func:`resolve_autoprof_python`, so YAMLs and CLI args may use
+    ``~/.venvs/...`` and an unset value falls back to ``AUTOPROF_PYTHON``
+    and then to the canonical default.
     """
-    venv_path = Path(venv_python).expanduser()
+    venv_path = Path(resolve_autoprof_python(venv_python))
     cache_key = str(venv_path)
     cached = _VENV_PROBE_CACHE.get(cache_key)
     if cached == "OK":
@@ -458,11 +478,7 @@ def _probe_venv(venv_python: str) -> str | None:
     if cached is not None:
         return cached
     if not venv_path.is_file():
-        reason = (
-            f"autoprof venv python not found: {venv_path}. "
-            f"Create it with `python -m venv {venv_path.parents[1]}` "
-            f"and `pip install autoprof`, then re-run."
-        )
+        reason = autoprof_install_hint(venv_path)
         _VENV_PROBE_CACHE[cache_key] = reason
         return reason
     try:
@@ -622,12 +638,81 @@ def _resolve_center_override(
 # .prof / .aux parsing
 # ---------------------------------------------------------------------------
 
+#: Orders AutoProf is asked for, and therefore the ones the schema carries.
+HARMONIC_ORDERS = (3, 4)
+
+#: Bumped because the meaning of an existing column changed. Before this,
+#: ``a3`` in an AutoProf arm held AutoProf's *native* coefficient while ``a3``
+#: in an isoster or photutils arm held a Bender-normalized major-axis one --
+#: two quantities under one name, and no way to tell archived files apart.
+#: Old files are not readable as new ones and must not be silently mixed with
+#: them; see ``docs/09-exhausted-benchmark.md`` for the migration note.
+PROFILE_SCHEMA_VERSION = 2
+
+
+def _harmonic_schema_fields(iso: dict[str, Any], harmonic_basis: str) -> dict[str, Any]:
+    """The A5 columns: native values preserved, converted values only if valid.
+
+    The bare names ``a3``/``b3``/``a4``/``b4`` keep their established meaning
+    across every tool --- Bender-normalized, major-axis frame, comparable with
+    isoster and photutils. For an AutoProf arm they are **NaN**, together with
+    a false validity flag and a stated reason, rather than filled with a
+    plausible number.
+
+    Two things block the conversion here, and only one of them is about the
+    angle basis:
+
+    * **No gradient.** Bender normalization divides by ``sma * |dI/da|`` and
+      AutoProf reports no radial gradient. Part A's Track 2 would reconstruct
+      one by finite-differencing AutoProf's own ``b0`` profile, but that is a
+      measurement Part A has not yet licensed, so nothing here invents it.
+    * **The angle basis, when it is the eccentric-anomaly one.** That is not a
+      rotation of the polar basis but a different one, and changing between
+      them mixes harmonic *orders* --- no same-order two-component transform
+      can express it. Part A measured the cost of pretending otherwise: 12% at
+      eps = 0.3 and 63% at eps = 0.6.
+
+    A NaN here is correct on its own. The reason column is what makes it
+    diagnostic a year later, when "the AutoProf harmonics are NaN" and "they
+    are NaN because AutoProf reports no gradient" are different amounts of
+    information.
+    """
+    if harmonic_basis == "eccentric_anomaly":
+        reason = "eccentric_anomaly_basis_mixes_orders; and no radial gradient reported"
+    else:
+        reason = "no_radial_gradient_reported"
+
+    fields: dict[str, Any] = {
+        "harmonic_basis": harmonic_basis,
+        "harmonic_conversion_valid": False,
+        "harmonic_conversion_reason": reason,
+        # AutoProf's own failure reason for a NaN row. It reports none, so the
+        # column exists and says so rather than being absent for this tool and
+        # present for the others.
+        "harmonic_measurement_status": "not_reported_by_tool",
+    }
+    for order in HARMONIC_ORDERS:
+        # Raw sine/cosine amplitudes are exact from the native pair and b0,
+        # and they are the primary track precisely because they need no
+        # gradient. They stay in the *sky* frame here: rotating them to the
+        # major-axis frame needs a per-ring position angle, which a free fit
+        # supplies but which the rotation's validity depends on the basis for.
+        native_a = iso.get(f"autoprof_a{order}_native", float("nan"))
+        native_b = iso.get(f"autoprof_b{order}_native", float("nan"))
+        scale = 2.0 * abs(iso.get("autoprof_b0", float("nan")))
+        fields[f"s{order}_raw_sky"] = -scale * native_a
+        fields[f"c{order}_raw_sky"] = scale * native_b
+        fields[f"a{order}"] = float("nan")
+        fields[f"b{order}"] = float("nan")
+    return fields
+
 
 def _parse_prof_file(
     prof_path: Path,
     *,
     pixel_scale_arcsec: float,
     sb_zeropoint: float,
+    harmonic_basis: str = "unknown",
 ) -> tuple[list[dict[str, Any]], int, int]:
     """Convert an AutoProf .prof into an isoster-compatible list of dicts."""
     if not prof_path.is_file():
@@ -665,10 +750,25 @@ def _parse_prof_file(
         if "maskedpixels" in data.dtype.names
         else np.zeros(len(data), dtype=np.int32)
     )
+    # A5: native AutoProf coefficients must never share a column name with
+    # Bender-normalized ones. They previously did -- these values went
+    # straight into ``a3``/``b3``/``a4``/``b4``, the same keys the isoster and
+    # photutils fitters fill with Bender-normalized major-axis values. Two
+    # different quantities under one name, indistinguishable once written.
+    #
+    # AutoProf's are ``a_n = -S_n / (2|b0|)``, ``b_n = +C_n / (2|b0|)``,
+    # measured in whatever angle basis the run used. See
+    # ``benchmarks/harmonic_scale/conventions.py``.
     harmonics: dict[str, np.ndarray] = {}
-    for key in ("a3", "b3", "a4", "b4"):
-        if key in data.dtype.names:
-            harmonics[key] = np.asarray(data[key], dtype=np.float64)
+    for order in HARMONIC_ORDERS:
+        for prefix in ("a", "b"):
+            key = f"{prefix}{order}"
+            if key in data.dtype.names:
+                harmonics[f"autoprof_{key}_native"] = np.asarray(data[key], dtype=np.float64)
+    # The DC term, which makes the raw reconstruction exact rather than an
+    # estimate. Without it nothing downstream can undo AutoProf's
+    # normalization.
+    b0 = np.asarray(data["b0"], dtype=np.float64) if "b0" in data.dtype.names else np.full(len(data), np.nan)
 
     rows: list[dict[str, Any]] = []
     for i in range(len(data)):
@@ -701,6 +801,8 @@ def _parse_prof_file(
         }
         for key, arr in harmonics.items():
             iso[key] = float(arr[i])
+        iso["autoprof_b0"] = float(b0[i])
+        iso.update(_harmonic_schema_fields(iso, harmonic_basis))
         rows.append(iso)
     return rows, n_raw, n_filtered
 

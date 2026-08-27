@@ -11,53 +11,70 @@ contributions (new tools, new datasets, new arms).
 
 ## 0. AutoProf setup (one-time, optional)
 
-AutoProf 1.3.4 pins `numpy<2` and `photutils==1.5`, so it cannot share the
+AutoProf 1.3.4 pins `numpy<2` and `photutils<=1.5`, so it cannot share the
 main `uv` environment. Install it in its own venv at a **stable** location —
 not `/tmp`, which macOS prunes periodically and will silently strip individual
 `.py` files mid-campaign:
 
 ```bash
-mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
-~/.venvs/autoprof_venv/bin/pip install --upgrade pip
-~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+uv venv --python 3.10 ~/.venvs/autoprof_venv
+uv pip install --python ~/.venvs/autoprof_venv/bin/python 'autoprof==1.3.4'
 ~/.venvs/autoprof_venv/bin/python -c "from autoprof.Pipeline import Isophote_Pipeline; print('ok')"
 ```
 
-Point the code at it by whichever entry point applies:
+Run these from outside the repository so `uv` does not associate the venv with
+this project. Python 3.10 is the newest interpreter for which photutils 1.5.0
+publishes macOS arm64 wheels; newer versions work but build it from source.
 
-| Consumer | How to point it at the venv |
+That path is the built-in default, so with the venv in this location nothing
+needs to be configured. `benchmarks/autoprof_env.py` holds the default and the
+resolution rules for both benchmark trees. To point somewhere else:
+
+| Consumer | How to point it at a different venv |
 |---|---|
 | Exhausted campaigns (`benchmarks/exhausted/`) | `tools.autoprof.venv_python` in the campaign YAML |
 | `bench_vs_autoprof.py` (`benchmarks/utils/autoprof_adapter.py`) | `AUTOPROF_PYTHON` environment variable |
 
-Both carry machine-specific defaults that will not exist on your system; set
-one of the two above rather than relying on them. When the venv is absent,
-AutoProf arms skip cleanly with a regeneration hint.
+An explicit YAML path wins over `AUTOPROF_PYTHON`, which wins over the default;
+`~` is expanded in all three. When the venv is absent, AutoProf arms skip
+cleanly with a regeneration hint that prints the install commands.
 
-!!! warning "Open question: AutoProf harmonic scale"
+!!! warning "Settled: the AutoProf harmonic scale differs, and Prior 2 is not computable for that tool"
 
-    The cross-tool harmonic score (Prior 2) assumes all three tools report
-    coefficients on the same Bender-normalized scale. That is established for
-    ISOSTER and `photutils`, both of which divide by `sma * |grad|` at fit
-    time. It is **not** established for AutoProf: the adapter copies its
-    `a3`/`b3`/`a4`/`b4` columns through unconverted, which *assumes* they
-    already match, and that assumption has never been tested. There is no
-    measurement pointing the other way either — earlier documentation asserted
-    the scale differed, which was equally untested and has since been
-    corrected. The status is ignorance, not a known mismatch.
+    This was an open question. Part A measured it, and the answer is a real
+    mismatch rather than the ignorance recorded here before.
 
-    Settling it needs an AutoProf run against a planted deviation, compared to
-    the ISOSTER and `photutils` values on the same fixture. Until that is done,
-    **treat Prior 2 scores for the autoprof tool as unverified** and do not
-    publish them. The ISOSTER-vs-`photutils` harmonic comparison is unaffected.
+    AutoProf's native coefficients are `a_n = -S_n / (2|b0|)` and
+    `b_n = +C_n / (2|b0|)` — raw amplitudes divided by twice the ring mean.
+    Bender normalization divides instead by `sma·|dI/da|`. These are different
+    denominators, not different conventions for the same one, so the old
+    adapter behaviour of copying the columns through unconverted was comparing
+    two different quantities under one name. Schema version 2 fixes it: the
+    native values are preserved under `autoprof_*_native` and the Bender
+    columns are NaN with a recorded reason (see §4).
+
+    What Part A *did* establish is that the underlying scales agree, and that
+    the apparent 13–25% AutoProf excess is nearest-pixel sampling rather than
+    scale. The agreement is radius-dependent, not uniform, and the figures are
+    in the design spec where they are bound to the archive. They are not
+    repeated here: an earlier version of this passage stated a 0.1–0.3%
+    three-tool agreement that the archive contradicts, precisely because it was
+    unguarded prose.
+
+    **Consequence for Prior 2, unchanged in practice:** the cross-tool
+    harmonic score still cannot be computed for an AutoProf arm, because the
+    Bender columns it reads are NaN. Do not publish Prior 2 scores for the
+    autoprof tool. The ISOSTER-vs-`photutils` harmonic comparison is
+    unaffected. The route to filling those columns is Track 2, and no ring in
+    this campaign structurally supports it — see §4.
 
 ## 1. Quick Start
 
 ```bash
 # (one-time) set up the AutoProf venv if you want that tool active.
-# See "AutoProf setup" below -- use a stable path, never /tmp.
-mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
-~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+# See section 0 above -- use a stable path, never /tmp.
+uv venv --python 3.10 ~/.venvs/autoprof_venv
+uv pip install --python ~/.venvs/autoprof_venv/bin/python 'autoprof==1.3.4'
 
 # Dry-run the planned fit matrix.
 uv run python -m benchmarks.exhausted.orchestrator.cli dry-run \
@@ -224,6 +241,94 @@ isoster_harmonic_sweeps:
 
 Auxiliary AutoProf artifacts (`.prof`, `.aux`, `*_genmodel.fits`) land
 in `arms/<arm>/raw/` inside the per-arm directory.
+
+### `profile.fits` harmonic columns — schema version 2
+
+**Schema version 2 changes what an existing column means, so files written
+before it and after it are not interchangeable.** Every arm's
+`run_record.json` now carries `profile_schema_version`; a profile without
+that key is version 1 and must not be pooled with version 2 files.
+
+**What was wrong in version 1.** The AutoProf fitter wrote AutoProf's
+*native* coefficients straight into `a3`, `b3`, `a4`, `b4` — the same column
+names the isoster and photutils fitters fill with Bender-normalized,
+major-axis values. Those are different quantities on different scales:
+AutoProf's are `a_n = -S_n / (2|b0|)` and `b_n = +C_n / (2|b0|)`, in
+whatever angle basis the run used, while the others are
+`S_n / (sma·|dI/da|)`. Once written, the two were indistinguishable, and any
+cross-tool comparison of an `a4` column was comparing two different things.
+
+**What version 2 writes.** The bare names keep their established meaning
+across every tool, and the native values get names of their own:
+
+| Column | Meaning |
+|---|---|
+| `autoprof_a3_native`, `autoprof_b3_native`, `autoprof_a4_native`, `autoprof_b4_native` | exactly what AutoProf wrote, untouched |
+| `autoprof_b0` | the DC term of the same vector, which makes the raw reconstruction exact rather than estimated |
+| `s3_raw_sky`, `c3_raw_sky`, `s4_raw_sky`, `c4_raw_sky` | raw sine/cosine amplitudes in image intensity units, **sky frame** |
+| `a3`, `b3`, `a4`, `b4` | Bender-normalized, major-axis — **NaN in an AutoProf arm**, see below |
+| `harmonic_basis` | `polar_from_image_x_axis` or `eccentric_anomaly`, decided at runtime by `ap_isoclip` |
+| `harmonic_conversion_valid` | boolean |
+| `harmonic_conversion_reason` | why, when not valid |
+| `harmonic_measurement_status` | the producing tool's own failure reason for a NaN row |
+
+**Why the Bender columns are NaN for AutoProf.** Bender normalization divides
+by `sma·|dI/da|`, and AutoProf reports no radial gradient. Part A's Track 2
+reconstructs one by finite-differencing AutoProf's own `b0` profile — `b0`,
+not the median `SB` profile, because `b0` is the mean of the exact vector that
+entered the FFT and so is the estimator consistent with the harmonic
+numerator.
+
+**The method is validated, but no row here can use it.** Part A measured the
+reconstruction on two galaxies: the matched secant reproduces isoster's
+gradient far more closely than a point derivative does, by a margin fixed in
+advance. The measured figures live in the design spec, where they are bound to
+the archive by a prose gate; they are deliberately not repeated here, because a
+number quoted in a second place is a number that can drift.
+
+The word "licensed" was withdrawn on 2026-08-23 after review, and the
+distinction now matters here. Validating the *method* is campaign-level.
+Whether a *particular ring pair* supports conversion is a separate, row-level
+question answered from realized provenance — `harmonic_conversion_valid`. This
+campaign fails the second question everywhere, for a structural reason:
+
+> the comparison ring at `sma·(1 + astep)` must be **measured**, not
+> interpolated.
+
+Track 2 differences `b0` between a ring and its partner at `sma·1.1`, and it
+gets both by asking AutoProf for a **fixed aperture** at each radius. This
+campaign's AutoProf arm is a **free fit**: AutoProf chooses its own radii, so
+in general no ring exists at `sma·1.1` to difference against. There is nothing
+to reconstruct from, and interpolating `b0` onto the missing radius is an
+untested step that would put an unmeasured quantity inside the denominator of
+every harmonic.
+
+So conversion is applicable to the **fixed-aperture** comparison only, and
+every Bender column here keeps its NaN with `harmonic_conversion_reason`
+naming the missing comparison ring. Changing that needs one of two pieces of
+work, neither yet done: run the campaign's AutoProf arm with forced paired
+rings, or measure and validate a `b0` interpolation. Until then, nothing
+invents a gradient here. The full result, its regime table and its conditions are in
+`docs/specs/2026-08-22-three-way-benchmark-comparison-design.md`, section
+"A4 Track 2 result".
+
+NaN rather than an omitted column because the output is a fixed-schema FITS
+table, where every row has every column and absence has to be represented by
+a value. NaN rather than `0.0` because it fails loudly in arithmetic.
+
+Where the basis is `eccentric_anomaly` a second reason applies and is
+recorded: that basis is not a rotation of the polar one but a different one,
+and changing between them mixes harmonic *orders*, so no same-order
+two-component transform can express it. Part A measured what pretending
+otherwise costs — 12% at `eps = 0.3` and 63% at `eps = 0.6`. Convert that
+path by resampling the ring signal, or leave it native and labelled; never
+by rotating `a_n` and `b_n` alone.
+
+**Migration.** There is no in-place migration and none is possible: a
+version-1 AutoProf `a3` cannot be converted to a version-2 `a3` without the
+gradient that was never recorded. Re-run the affected arms. To read an old
+file, treat its `a3`/`b3`/`a4`/`b4` as `autoprof_*_native` and note that its
+`b0` was not preserved, so even the raw reconstruction is unavailable.
 
 ## 5. Composite Score
 
@@ -539,7 +644,7 @@ YAML for later reuse via the plain `orchestrator.cli` entry point.
 
 ## 7. AutoProf Setup
 
-AutoProf 1.3.4 requires `numpy < 2` and `photutils == 1.5`, which
+AutoProf 1.3.4 requires `numpy < 2` and `photutils <= 1.5`, which
 cannot coexist in `isoster`'s `uv` environment (numpy 2.x). The
 campaign runs it via subprocess against a dedicated venv.
 
@@ -547,12 +652,12 @@ See §0 for the install recipe. In short: put the venv at a stable path such
 as `~/.venvs/autoprof_venv`, never under `/tmp`, which macOS prunes and which
 will strip individual `.py` files out from under a running campaign.
 
-Point `tools.autoprof.venv_python` at that venv's Python. The compiled-in
-default is `/tmp/autoprof_venv/bin/python`, which is exactly the location this
-document advises against — set the YAML key rather than relying on it. If the
-path is missing or the import
-fails, every autoprof arm is reported as `status="skipped"` with a
-clear regeneration hint — the rest of the campaign continues.
+That canonical path is also the built-in default, defined once in
+`benchmarks/autoprof_env.py`, so a venv installed as §0 describes needs no
+configuration. Set `tools.autoprof.venv_python` only to point at a different
+environment. If the path is missing or the import fails, every autoprof arm is
+reported as `status="skipped"` with a regeneration hint that prints the install
+commands — the rest of the campaign continues.
 
 ## 8. Parallel Execution
 

@@ -70,6 +70,42 @@ template = [
 results = fit_image(image, mask=mask, config=config, template=template)
 ```
 
+#### Higher harmonics in forced mode
+
+With `compute_deviations=True`, forced photometry measures `a_n` / `b_n` on
+each fixed ring, exactly as regular fitting does after convergence. The
+geometry is not fitted, but the harmonic solve and its Bender normalization by
+`sma * |dI/da|` are the same, so forced and regular values are directly
+comparable — identical, in fact, on the same rings when
+`use_lazy_gradient=False`. With the default lazy gradient the regular path may
+reuse a cached gradient, so the two agree closely rather than exactly.
+
+A harmonic is reported only when everything it depends on was measured.
+`NaN` is returned — never `0.0` — whenever:
+
+- the ring falls outside the image, or is fully masked;
+- no comparison ring is available, so the radial gradient could not be
+  measured and a fallback value was substituted;
+- the harmonic solve is singular or has too few samples for its three
+  parameters.
+
+Zero is the correct measured answer for a perfect ellipse, so it is never used
+as a placeholder for a missing one. `NaN` also propagates, instead of quietly
+biasing any average taken along a profile.
+
+`simultaneous_harmonics=True` does not apply in forced mode: the simultaneous
+solve fits the geometry harmonics and the higher orders as one system during
+the iteration, and forced mode imposes the geometry rather than fitting it.
+`fit_image` emits a `UserWarning` and measures the higher orders independently
+per order. Use `compute_deviations=True` to request that explicitly.
+
+!!! note "Fixed before the 1.0.0 release"
+    During development, forced photometry emitted `a_n = b_n = 0.0` for every
+    isophote — the columns were written but the harmonic solve never ran. If
+    you produced forced-mode harmonics from a pre-release checkout, they are
+    fabricated zeros and should be recomputed. See `docs/04-architecture.md`
+    for the exact contract.
+
 ### Automatic LSB Geometry Lock
 
 `fit_image` can be run in a mode that starts with free geometry and automatically switches to fixed geometry once the outward fit enters the low-surface-brightness regime. It combines the strengths of free fitting (true isophotal shapes in the high-S/N region) with fixed-geometry fitting (no centroid drift in the LSB outskirts) in a single pass — no post-hoc stitching.

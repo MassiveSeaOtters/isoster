@@ -11,7 +11,7 @@ Full reference: [`docs/09-exhausted-benchmark.md`](../../docs/09-exhausted-bench
 
 ### 1. (Optional) Install AutoProf in its own venv
 
-AutoProf 1.3.4 pins `numpy<2` and `photutils==1.5` and cannot coexist
+AutoProf 1.3.4 pins `numpy<2` and `photutils<=1.5` and cannot coexist
 with the main `uv` env. The fitter runs it via subprocess. When the
 venv is absent, autoprof arms skip cleanly with a regeneration hint.
 
@@ -19,15 +19,36 @@ Use a stable location (not `/tmp`, which macOS prunes periodically and
 will silently strip individual `.py` files mid-campaign):
 
 ```bash
-mkdir -p ~/.venvs && python -m venv ~/.venvs/autoprof_venv
-~/.venvs/autoprof_venv/bin/pip install --upgrade pip
-~/.venvs/autoprof_venv/bin/pip install 'autoprof==1.3.4'
+uv venv --python 3.10 ~/.venvs/autoprof_venv
+uv pip install --python ~/.venvs/autoprof_venv/bin/python 'autoprof==1.3.4'
 ~/.venvs/autoprof_venv/bin/python -c "from autoprof.Pipeline import Isophote_Pipeline; print('ok')"
 ```
 
-Override the path in the campaign YAML with `tools.autoprof.venv_python`.
-This recipe is the canonical one; `docs/09-exhausted-benchmark.md` §0 and
-`benchmarks/FRAMEWORK.md` §6 both defer to it.
+Run these from outside the repository (for example from `$HOME`) so `uv`
+does not associate the venv with this project.
+
+**Why Python 3.10.** photutils 1.5.0 publishes macOS arm64 wheels only for
+CPython 3.8, 3.9 and 3.10, so 3.10 is the newest interpreter that installs
+entirely from prebuilt wheels. Newer interpreters do work — a 3.12 install
+succeeds with `uv` building photutils 1.5.0 from its sdist — so this is a
+preference for a fast, compiler-free install, not a hard requirement.
+
+Verified resolution on macOS arm64 (2026-08-22): `autoprof 1.3.4`,
+`numpy 1.26.4`, `scipy 1.15.3`, `photutils 1.5.0`, `astropy 5.3.4`,
+`scikit-learn 1.7.2`.
+
+The path is resolved by `benchmarks/autoprof_env.py`, which is the single
+source of the default for both benchmark trees. Precedence, highest first:
+
+1. `tools.autoprof.venv_python` in the campaign YAML (or the `venv_python`
+   argument to the fitter);
+2. the `AUTOPROF_PYTHON` environment variable, which also governs the
+   standalone `benchmarks/utils/autoprof_adapter.py`;
+3. the default above.
+
+`~` is expanded at every step. This recipe is the canonical one;
+`docs/09-exhausted-benchmark.md` §0 and `benchmarks/FRAMEWORK.md` §6 both
+defer to it.
 
 ### 2. Dry-run the fit matrix
 

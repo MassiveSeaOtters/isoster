@@ -17,6 +17,7 @@ Tracked here:
 | `latex/` | AASTeX manuscript sources (`.tex`, `.bib`, class/style files) |
 | `references.bib`, `build-html.py` | Bibliography and the HTML preview builder |
 | `reference/README.md` | What reference papers were consulted |
+| `three-way-timing-benchmark-reference.md` | Detailed Stage 4 process, conditions, results, and caveats supporting the paper's short benchmark description |
 
 Deliberately **not** tracked (see `.gitignore`):
 

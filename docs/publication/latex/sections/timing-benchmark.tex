@@ -1,0 +1,30 @@
+\section{Validation and Benchmarks}\label{sec:validation}
+
+\subsection{Controlled timing benchmark}\label{sec:timing_benchmark}
+
+We compared \isoster, \texttt{photutils.isophote}, and AutoProf on a controlled
+synthetic S\'ersic grid containing 44 matched conditions per tool.  The campaign
+was run on an Apple M2 Ultra Mac Studio with 128~GB of memory and single-thread
+controls, using three independent sessions and 25 repetitions per condition.
+All 132 tool--condition combinations completed, yielding 9900 retained timing
+records and 147225 timed calls.  For the primary fit-plus-harness measurement,
+which includes the work needed to turn the same in-memory image and requested
+configuration into a normalized profile, \isoster\ was faster in every matched
+condition.  The median ratios were 37.3 for
+\texttt{photutils}/\isoster\ and 63.0 for AutoProf/\isoster, with full ranges of
+19.0--97.7 and 20.0--105.4, respectively.  In the fixed-aperture extraction
+experiment the corresponding medians were 29.9 and 341.2.
+
+These ratios characterize the recorded machine and software stack rather than
+universal algorithmic constants.  In particular, AutoProf required a separate
+Python~3.10 process and filesystem-oriented harness, whereas \isoster\ and
+\texttt{photutils} ran in the project Python~3.12 process; no correction was
+applied for that interpreter difference.  The large fixed-aperture AutoProf
+ratio therefore includes required process and file-I/O work and should not be
+read as a comparison of inner numerical kernels.  No thermal warning or
+recognized competing process was recorded, although system load was monitored
+rather than constrained during the timed work.  Finally, this was a small
+synthetic study: accuracy was evaluated separately, and no end-to-end
+configuration passed every frozen accuracy criterion.  The experiment supports
+the computational ordering under the tested conditions, but does not establish
+general scientific equivalence or performance on real galaxies.

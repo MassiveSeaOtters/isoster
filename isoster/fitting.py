@@ -136,6 +136,11 @@ def compute_outer_center_regularization_penalty(current_geom, reference_geom, sm
     return lambda_sma * penalty
 
 
+# Built once: forced photometry is called per isophote, and constructing a
+# Pydantic model in that loop would be wasteful.
+_DEFAULT_GRADIENT_CONFIG = IsosterConfig()
+
+
 def extract_forced_photometry(
     image,
     mask,
@@ -189,14 +194,20 @@ def extract_forced_photometry(
         include_harmonics = True
         harmonic_orders = [3, 4]
 
-    def _build_harmonic_fields(orders):
-        """Build zero-valued harmonic key-value pairs for given orders."""
+    def _unmeasured_harmonic_fields(orders):
+        """Harmonic keys for a ring that could not be measured.
+
+        NaN rather than 0.0 on purpose: zero is also the correct answer for a
+        perfect ellipse, so a zero placeholder is indistinguishable from a
+        genuine null result. NaN also propagates instead of silently biasing
+        any average taken over a profile.
+        """
         fields = {}
         for order in orders:
-            fields[f"a{order}"] = 0.0
-            fields[f"b{order}"] = 0.0
-            fields[f"a{order}_err"] = 0.0
-            fields[f"b{order}_err"] = 0.0
+            fields[f"a{order}"] = np.nan
+            fields[f"b{order}"] = np.nan
+            fields[f"a{order}_err"] = np.nan
+            fields[f"b{order}_err"] = np.nan
         return fields
 
     # Sample along the ellipse
@@ -239,7 +250,7 @@ def extract_forced_photometry(
             "valid": False,
         }
         if include_harmonics:
-            result.update(_build_harmonic_fields(harmonic_orders))
+            result.update(_unmeasured_harmonic_fields(harmonic_orders))
         return result
 
     # Sigma clipping (clip variances in lockstep when present)
@@ -291,8 +302,80 @@ def extract_forced_photometry(
         "niter": 0,
         "valid": True,
     }
+
+    # Higher-order harmonics. The geometry is fixed here, but the harmonic
+    # solve is the same one the free path runs after convergence, and it needs
+    # the same Bender denominator (sma * |dI/da|) -- so the radial gradient has
+    # to be measured even though nothing is being fitted.
+    debug = bool(getattr(config, "debug", False)) if config is not None else False
+    gradient = None
+    gradient_error = None
+    gradient_status = None
+    if include_harmonics or debug:
+        # Build the gradient's configuration from the *effective arguments*,
+        # not from the config object. The current ring was sampled and reduced
+        # according to `integrator` and `use_eccentric_anomaly` as passed; a
+        # comparison ring following different settings would make the Bender
+        # numerator and denominator describe two different ring statistics.
+        # Only the radial-step settings, which have no argument, come from
+        # config.
+        gradient_config = {
+            "astep": getattr(config, "astep", _DEFAULT_GRADIENT_CONFIG.astep),
+            "linear_growth": getattr(config, "linear_growth", _DEFAULT_GRADIENT_CONFIG.linear_growth),
+            "integrator": integrator,
+            "use_eccentric_anomaly": use_eccentric_anomaly,
+        }
+        gradient, gradient_error, gradient_status = compute_gradient(
+            image,
+            mask,
+            {"x0": x0, "y0": y0, "sma": sma, "eps": eps, "pa": pa},
+            gradient_config,
+            # Same shape the free path passes, built from the same
+            # post-clipping arrays the harmonic solve uses.
+            current_data=((phi, intens, variances) if variances is not None else (phi, intens)),
+            variance_map=variance_map,
+            variance_map_prepared=variance_map_prepared,
+            return_status=True,
+        )
+
     if include_harmonics:
-        result.update(_build_harmonic_fields(harmonic_orders))
+        # Only a genuinely measured gradient may serve as the Bender
+        # denominator. The fallbacks return ordinary-looking numbers -- -1.0,
+        # or a scaled previous gradient -- and normalizing by one yields a
+        # plausible, well-scaled, meaningless coefficient that nothing
+        # downstream can detect. Test the status, never the value: -1.0 is
+        # itself a legal gradient.
+        if gradient_status != GRADIENT_MEASURED or not np.isfinite(gradient) or gradient == 0.0:
+            result.update(_unmeasured_harmonic_fields(harmonic_orders))
+        else:
+            for order in harmonic_orders:
+                a_n, b_n, a_err, b_err, deviation_status = compute_deviations(
+                    phi, intens, sma, gradient, order, variances=variances, return_status=True
+                )
+                if deviation_status != DEVIATIONS_MEASURED:
+                    # Singular and underdetermined solves also return zeros,
+                    # and zero is the right answer for a perfect ellipse.
+                    result.update(_unmeasured_harmonic_fields([order]))
+                    continue
+                result[f"a{order}"] = a_n
+                result[f"b{order}"] = b_n
+                result[f"a{order}_err"] = a_err
+                result[f"b{order}_err"] = b_err
+
+    if debug:
+        result.update(
+            {
+                "ndata": len(intens),
+                "nflag": 0,
+                "grad": gradient if gradient is not None else np.nan,
+                "grad_error": gradient_error if gradient_error is not None else np.nan,
+                "grad_r_error": (
+                    abs(gradient_error / gradient)
+                    if (gradient_error is not None and gradient is not None and gradient < 0)
+                    else np.nan
+                ),
+            }
+        )
     return result
 
 
@@ -549,12 +632,26 @@ def compute_parameter_errors(
     # Note: Removed broad 'except Exception' - unexpected errors should be raised for debugging
 
 
-def compute_deviations(phi, intens, sma, gradient, order, variances=None):
+#: ``compute_deviations`` status values, in the same spirit as ``GRADIENT_*``:
+#: the failure paths return zeros, and zero is a legitimate measured amplitude
+#: for a perfect ellipse.
+DEVIATIONS_MEASURED = "measured"
+DEVIATIONS_UNDERDETERMINED = "underdetermined"
+DEVIATIONS_SINGULAR = "singular"
+DEVIATIONS_NO_FACTOR = "zero_normalization_factor"
+
+
+def compute_deviations(phi, intens, sma, gradient, order, variances=None, return_status=False):
     """Compute deviations from perfect ellipticity (higher order harmonics).
 
     Both paths use an explicit design-matrix solve: WLS with the exact
     covariance when variances are provided, otherwise OLS with the inverse
     normal equations scaled by the residual variance.
+
+    With ``return_status=True`` a fifth element names how the result was
+    obtained. The failure paths return zeros, which cannot be told apart from
+    the correct answer for a perfect ellipse; callers that must distinguish
+    "measured, and round" from "not measured" should ask for the status.
     """
     try:
         s_n = np.sin(order * phi)
@@ -581,28 +678,28 @@ def compute_deviations(phi, intens, sma, gradient, order, variances=None):
 
             model = coeffs[0] + coeffs[1] * s_n + coeffs[2] * c_n
             if len(intens) <= len(coeffs):
-                return 0.0, 0.0, 0.0, 0.0
+                return (0.0, 0.0, 0.0, 0.0, DEVIATIONS_UNDERDETERMINED) if return_status else (0.0, 0.0, 0.0, 0.0)
             var_residual = np.var(intens - model, ddof=len(coeffs))
             covariance = ata_inv * var_residual
             errors = np.sqrt(np.diagonal(covariance))
 
         factor = sma * abs(gradient)
         if factor == 0:
-            return 0.0, 0.0, 0.0, 0.0
+            return (0.0, 0.0, 0.0, 0.0, DEVIATIONS_NO_FACTOR) if return_status else (0.0, 0.0, 0.0, 0.0)
 
         a = coeffs[1] / factor
         b = coeffs[2] / factor
         a_err = errors[1] / factor
         b_err = errors[2] / factor
 
-        return a, b, a_err, b_err
+        return (a, b, a_err, b_err, DEVIATIONS_MEASURED) if return_status else (a, b, a_err, b_err)
     except (np.linalg.LinAlgError, ValueError, TypeError) as e:
         warnings.warn(
             f"compute_deviations (order={order}) failed (singular matrix, numerical issue, or degenerate input): {e}. "
             f"Returning zeros.",
             RuntimeWarning,
         )
-        return 0.0, 0.0, 0.0, 0.0
+        return (0.0, 0.0, 0.0, 0.0, DEVIATIONS_SINGULAR) if return_status else (0.0, 0.0, 0.0, 0.0)
 
 
 def build_isofit_design_matrix(angles, orders):
@@ -818,6 +915,15 @@ def fit_higher_harmonics_simultaneous(angles, intens, sma, gradient, orders=None
     return result
 
 
+#: ``compute_gradient`` status values. ``MEASURED`` is the only one that
+#: licenses using the returned value as a Bender denominator; the others mean a
+#: fallback number was substituted so the caller could keep going.
+GRADIENT_MEASURED = "measured"
+GRADIENT_NO_CURRENT_RING = "empty_current_ring"
+GRADIENT_NO_COMPARISON_RING = "empty_comparison_ring"
+GRADIENT_SLOPE_GUARD = "slope_guard_fallback"
+
+
 def compute_gradient(
     image,
     mask,
@@ -827,6 +933,7 @@ def compute_gradient(
     current_data=None,
     variance_map=None,
     variance_map_prepared=False,
+    return_status=False,
 ):
     """Compute the radial intensity gradient.
 
@@ -841,8 +948,18 @@ def compute_gradient(
         variance_map: 2D per-pixel variance array (optional). When provided, gradient
             error uses exact per-sample variance instead of scatter-based estimates.
 
+        return_status: When True, return a third element naming how the value
+            was obtained. Several failure paths substitute a plausible number
+            (``-1.0``, or a scaled previous gradient) so that fitting can
+            continue; those are indistinguishable from a measurement by
+            inspection, and ``-1.0`` is itself a legal gradient. Callers that
+            must not normalize by a fallback should ask for the status rather
+            than test the value.
+
     Returns:
-        (gradient, gradient_error): Tuple of gradient value and its error estimate
+        (gradient, gradient_error), or (gradient, gradient_error, status) when
+        ``return_status=True``. ``status`` is one of the ``GRADIENT_*``
+        constants; only ``GRADIENT_MEASURED`` reflects two real rings.
     """
     # Unpack geometry
     x0, y0, sma, eps, pa = geometry["x0"], geometry["y0"], geometry["sma"], geometry["eps"], geometry["pa"]
@@ -878,7 +995,8 @@ def compute_gradient(
         var_c = data_c.variances
 
     if len(intens_c) == 0:
-        return previous_gradient * 0.8 if previous_gradient else -1.0, None
+        fallback = previous_gradient * 0.8 if previous_gradient else -1.0
+        return (fallback, None, GRADIENT_NO_CURRENT_RING) if return_status else (fallback, None)
 
     mean_c, var_mean_c = _ring_statistic_and_variance(intens_c, var_c, integrator)
 
@@ -904,7 +1022,8 @@ def compute_gradient(
     var_g = data_g.variances
 
     if len(intens_g) == 0:
-        return previous_gradient * 0.8 if previous_gradient else -1.0, None
+        fallback = previous_gradient * 0.8 if previous_gradient else -1.0
+        return (fallback, None, GRADIENT_NO_COMPARISON_RING) if return_status else (fallback, None)
 
     mean_g, var_mean_g = _ring_statistic_and_variance(intens_g, var_g, integrator)
     delta_r = step if linear_growth else sma * step
@@ -967,11 +1086,13 @@ def compute_gradient(
             else:
                 gradient_error = None
 
+    status = GRADIENT_MEASURED
     if gradient >= (previous_gradient / 3.0):
         gradient = previous_gradient * 0.8
         gradient_error = None
+        status = GRADIENT_SLOPE_GUARD
 
-    return gradient, gradient_error
+    return (gradient, gradient_error, status) if return_status else (gradient, gradient_error)
 
 
 def compute_aperture_photometry(image, mask, x0, y0, sma, eps, pa):

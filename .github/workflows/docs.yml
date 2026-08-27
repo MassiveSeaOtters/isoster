@@ -11,6 +11,8 @@ on:
       - "benchmarks/draft_timings/**"
       - "benchmarks/performance/reference_speedup.json"
       - "benchmarks/performance/check_speedup_claims.py"
+      - "benchmarks/harmonic_scale/**"
+      - "benchmarks/timing/**"
       - "README.md"
       - "CITATION.cff"
       - "CLAUDE.md"
@@ -57,6 +59,46 @@ jobs:
         # contract as the check above, for the one headline number that lives
         # outside the technical chapter.
         run: uv run python benchmarks/performance/check_speedup_claims.py
+
+      - name: Check the harmonic-scale archive against its frozen tolerances
+        # reference_harmonic_scale.json backs Part A's cross-tool harmonic
+        # claims. The tolerances it is judged by were frozen from a pilot on a
+        # disjoint seed block and committed before the validation run, so this
+        # gate tests a pre-registration rather than a post-hoc fit. Needs no
+        # AutoProf: it reads the committed JSON and the committed prose.
+        run: uv run python benchmarks/harmonic_scale/check_harmonic_scale.py
+
+      - name: Check the Track 2 gradient-reconstruction archives
+        # A4 Track 2 decides whether an AutoProf arm may report Bender a_n/b_n
+        # at all, so its two archives are gated on the same terms as the one
+        # above: frozen tolerances from a disjoint pilot seed block, and a
+        # licensing verdict recomputed from the archived numbers rather than
+        # read off them. The tolerances additionally carry a fingerprint of the
+        # claim definitions, so changing how a claim is reduced fails here
+        # instead of quietly comparing two different quantities.
+        run: uv run python benchmarks/harmonic_scale/check_gradient_reconstruction.py
+
+      - name: Check the Part B Stage 1 accuracy thresholds
+        # The bars deciding which timings enter a headline ratio are derived by
+        # accuracy_thresholds.py and transcribed into the design spec. A
+        # transcription that drifts still reads as derived, so it is gated on
+        # the same terms as the archived measurements -- before Part B has
+        # produced a single timing.
+        run: |
+          # Exercise the generator itself as well as comparing its result. A
+          # stale human-readable branch once crashed while the JSON checker
+          # remained green.
+          uv run python benchmarks/timing/accuracy_thresholds.py --json > /dev/null
+          uv run python benchmarks/timing/check_accuracy_thresholds.py
+
+      - name: Prove the archive gates can still fail
+        # A gate that has gone quiet is worse than one that fails. Both
+        # harmonic-scale gates carry a self-test that corrupts an archive and
+        # asserts the corruption is caught.
+        run: |
+          uv run python benchmarks/harmonic_scale/check_harmonic_scale.py --self-test
+          uv run python benchmarks/harmonic_scale/check_gradient_reconstruction.py --self-test
+          uv run python benchmarks/timing/check_accuracy_thresholds.py --self-test
 
       - name: Build site (strict)
         run: uv run mkdocs build --strict

@@ -167,6 +167,72 @@ outside the public docs tree.
 
 (`template_isophotes` is supported as a deprecated alias for `template`).
 
+### Forced Photometry Contract
+
+`fitting.extract_forced_photometry` samples the fixed ring, sigma-clips it, and
+reduces it to an intensity exactly as regular mode does; it skips only the
+geometry solve. Two consequences follow from that boundary and are easy to get
+wrong in opposite directions:
+
+- **Harmonics are measured, not skipped.** When `compute_deviations` (or
+  `simultaneous_harmonics`) is on, the function measures the radial gradient
+  via `compute_gradient` and runs `compute_deviations` per order, so `a_n` /
+  `b_n` carry the same Bender normalization as regular mode and are directly
+  comparable with it. On identical rings with `use_lazy_gradient=False` the two
+  paths agree bit-for-bit; under the default lazy gradient the regular path may
+  reuse a cached gradient, so they agree closely instead.
+- **The gradient config is built from the effective arguments.** `integrator`
+  and `use_eccentric_anomaly` come from the call, not from `config`, because
+  the current ring was sampled and reduced by those arguments. Taking them from
+  `config` (or from defaults when `config=None`) would let the comparison ring
+  follow different settings, making the Bender numerator and denominator
+  describe two different ring statistics. Only `astep` / `linear_growth`, which
+  have no arguments, come from `config`.
+- **Unmeasurable rings report `NaN`, decided by status and never by value.**
+
+### Measurement status, and why value tests are not enough
+
+Two helpers return plausible numbers on their failure paths, and both numbers
+are indistinguishable from legitimate results by inspection:
+
+| Helper | Failure output | Why a value test fails |
+|---|---|---|
+| `compute_gradient` | `-1.0`, or `previous_gradient * 0.8` | `-1.0` is a perfectly legal gradient |
+| `compute_deviations` | `0.0, 0.0, 0.0, 0.0` | `0.0` is the correct amplitude for a perfect ellipse |
+
+`compute_gradient` also returns `gradient_error = None` on *some* measured
+paths, so error-is-None does not discriminate either.
+
+Both therefore accept an opt-in `return_status=True` that appends an explicit
+status. Default `False` keeps every existing caller unchanged.
+
+- `GRADIENT_MEASURED` / `GRADIENT_NO_CURRENT_RING` /
+  `GRADIENT_NO_COMPARISON_RING` / `GRADIENT_SLOPE_GUARD`
+- `DEVIATIONS_MEASURED` / `DEVIATIONS_UNDERDETERMINED` / `DEVIATIONS_SINGULAR` /
+  `DEVIATIONS_NO_FACTOR`
+
+Forced photometry writes a harmonic only when the gradient status is
+`GRADIENT_MEASURED` **and** that order's deviation status is
+`DEVIATIONS_MEASURED`; anything else yields `NaN` for that order. The status is
+per order, so one degenerate order does not invalidate the others.
+
+`grad` / `grad_error` / `grad_r_error` are exposed under `debug=True`, matching
+the regular path.
+
+Regression coverage: `tests/unit/test_forced_photometry_harmonics.py`.
+
+**`simultaneous_harmonics` in forced mode.** The simultaneous solve fits the
+geometry harmonics and the higher orders as one system during the iteration.
+Forced mode imposes the geometry, so those semantics have nothing to attach to.
+`fit_image` emits a `UserWarning` and measures the higher orders independently
+per order rather than silently substituting a different strategy.
+
+**Legacy sentinel, not a measurement:** `driver.fit_central_pixel` (the
+`sma = 0` row) writes `0.0` harmonics. There is no ring at zero radius, so the
+value is undefined rather than unmeasured. It is retained for backward
+compatibility and is explicitly excluded from any harmonic calibration; treat
+it as a sentinel, never as a measured coefficient.
+
 ## Regular Fitting Contract
 
 For each SMA in regular mode:
@@ -457,6 +523,72 @@ Manifest compatibility is preserved with additive-only schema evolution:
 - Benchmarks/profiling: `benchmarks/`
 - Reproducible examples: `examples/`
 - Generated artifacts: `outputs/`
+
+### Cross-tool harmonic scale (`benchmarks/harmonic_scale/`)
+
+Settles whether isoster, photutils and AutoProf put `a_n` and `b_n` on the
+same scale, which is what lets a cross-tool harmonic comparison be published.
+Five modules, each with one job:
+
+| Module | Responsibility |
+|---|---|
+| `conventions.py` | The one place that knows what each tool means by `a_n` and `b_n`, and the four ways AutoProf differs |
+| `adapters.py` | One fixed-aperture measurement per tool, on identical imposed rings, with the returned geometry verified rather than trusted |
+| `autoprof_worker.py` | Runs inside the AutoProf venv (it pins `numpy<2`), drives the forced pipeline, and instruments both sampling modes |
+| `run_harmonic_scale.py` | The designed grid, the pilot/validation split, tolerance freezing, and the archive gate |
+| `claims.py` | Reduces a run to the numbers Part A stands behind — shared by the freeze and the check so the two definitions cannot drift |
+
+Two design points that are easy to undo by accident:
+
+- **`ap_iso_interpolate_start` is a grid axis, not a setting.** It selects
+  Lanczos sampling below a radius threshold and nearest-pixel rounding above
+  it, and it is the largest effect in the study by an order of magnitude. The
+  threshold is `ap_iso_interpolate_start * results["psf fwhm"]`, and on the
+  forced pipeline that PSF is **not measured** — the `psf` step is
+  `PSF_Assumed`, which hardcodes 4.0 px. The worker observes AutoProf's own
+  branch anyway, by watching whether the interpolator ran, because the
+  per-ring mode is the measurand and the PSF step is swappable.
+- **Raw amplitudes are the primary track; Bender is secondary and currently
+  unlicensed for AutoProf.** The raw reconstruction is exact from the native
+  pair and `b0`, and needs no gradient. Bender normalization needs one that
+  AutoProf does not report, so those columns are NaN with a stated reason
+  rather than filled. See `docs/09-exhausted-benchmark.md` for the profile
+  schema and its version-2 migration note.
+
+Two campaigns, one per galaxy, each additive and independently frozen:
+`sersic_n2_compact` (n=2, R_e=25, 241 px) and `sersic_n4_extended` (n=4,
+R_e=40, 321 px). Each has its own archive, its own `frozen_tolerances*.json`
+and its own noise-seed blocks; `FIXTURES` in `run_harmonic_scale.py` is the
+registry, and `--fixture` selects one. The first campaign's `extra_cases` is
+empty on purpose — that is what keeps its grid, and therefore the fingerprint
+its committed archive was gated under, from moving.
+
+The second campaign adds an `ap_set_psf` axis. Since AutoProf's `psf` step
+assumes 4.0 px, that option is the only way to move the interpolation switch
+independently of `ap_iso_interpolate_start`, which makes two separate knobs
+onto one mechanism: at a matched threshold the two routes agree exactly.
+
+Both archives are gated in docs CI by `check_harmonic_scale.py`; see
+`docs/05-testing.md` for the rules on changing either.
+
+### Controlled three-way timing (`benchmarks/timing/`)
+
+The Part B timing study keeps scientific accuracy and timing eligibility as
+separate records. `run_stage2_calibration.py` supplies the shared per-session
+measurement path for isoster, photutils and the persistent AutoProf worker.
+`frozen_stage3_parameters.json` binds the measured per-arm batch sizes, three
+sessions, 25 repetitions and the independent campaign seed block with a
+fingerprint checked by `stage3_parameters.py`.
+
+`run_stage4_campaign.py` is the full-campaign entry point. It performs the idle
+preflight, starts fresh monitored session interpreters, records fit-only and
+fit-plus-harness time, and writes a new archive without replacing the
+established two-way benchmark. A record is timing-eligible only when execution,
+coverage and thermal/process conditions pass. Frozen scientific accuracy
+verdicts remain descriptive and are never rewritten to make a timing eligible.
+AutoProf's fixed-aperture, harmonics-off mean intensity is explicitly
+unavailable because AutoProf emits `b0` only when coefficient extraction is
+enabled; its median `I` column is not substituted.
 
 ## Documentation Policy
 
