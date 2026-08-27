@@ -99,10 +99,22 @@ The consolidated result is deliberately outside the repository:
 | Timing-summary arm count | 132 |
 | Accuracy-evaluation exceptions | 0 |
 
-The complete retained directory is about 25 GB because each of the three
-session workspaces preserves AutoProf and other intermediate outputs. Each
-session workspace is about 8.3 GB. It has not been deleted or modified. The
-three session JSON files and the monitoring files are also retained:
+The completed campaign initially occupied about 25 GB because each of three
+8.3 GB session workspaces preserved per-call FITS, `.prof`, `.aux`, log, and
+duplicate profile files. On 2026-08-27, after the benchmark result and this
+reference were accepted, those three intermediate workspaces were permanently
+deleted. They contained 19,581 files and occupied 24.721 GiB. The consolidated
+summary, three session JSON files, baseline, monitoring trace, and six AutoProf
+logs were retained. The external campaign directory is now about 414 MB.
+
+Before deletion, the measured portions of the three session record streams
+were compared with the consolidated summary after excluding the five verdicts
+calculated only during final aggregation: `timing_eligible`, the three accuracy
+statuses, and `headline_eligible`. Both sides contained 9,900 records and 9,900
+profiles and produced the same canonical SHA-256 digest:
+`23a8ebaddc0609c50fb030c94d9da801d1690e94247782752059310e3788708d`.
+
+The retained JSON and monitoring files are:
 
 | File | SHA-256 |
 |---|---|
@@ -112,9 +124,21 @@ three session JSON files and the monitoring files are also retained:
 | `attempt_01/session_01.json` | `1a0afc5c5b8cda92de3d1f6e4a7e84dbe611139d4fb02a771625a2ae92405aa3` |
 | `attempt_01/session_02.json` | `076d75a844cd5b598e5059cf4a5f2e2de42c381749fc6aa2109f08b412ffe726` |
 
-Neither the 213 MB summary nor the 25 GB retained workspace belongs in Git.
-This tracked document contains only reduced numerical results, checksums, and
-the information needed to interpret them.
+The six logs were copied to `attempt_01/preserved_logs/` and verified against
+their sources before deletion:
+
+| Preserved log | SHA-256 |
+|---|---|
+| `session_00_autoprof.log` | `3879821c9d33ea7c41db1ae005c8974d95e6962b9f570c1183d0c3c6eb68c467` |
+| `session_00_worker.stderr.log` | `f2ee753306087e800842ddee6ee6c1a8b189c927d7e91a6ff16d9601b8ae8812` |
+| `session_01_autoprof.log` | `4a66067378734598d57dd15eb58a6d923d1f23ff6d92c937f982ab34e1a37419` |
+| `session_01_worker.stderr.log` | `9b09429978633580ca71641ea9a2ff9ee89a5231f671db92127b08d605888c14` |
+| `session_02_autoprof.log` | `5cd582bdc0c21670396150fd07afe83caafae5d88e97a303e9ee8157bb417af8` |
+| `session_02_worker.stderr.log` | `e38a8b76788681aba9bd46af29e4baf9c41e68b28cb469c7b13c1fbcc168209e` |
+
+None of the remaining external archive belongs in Git. This tracked document
+contains only reduced numerical results, checksums, and the information needed
+to interpret them.
 
 ## How the benchmark reached Stage 4
 
@@ -644,6 +668,12 @@ profiles.
 11. **Local archive durability.** The checksum makes accidental changes
     detectable, but a cache directory is not a backup. Long-term preservation
     requires copying the external archive to a non-Git archival location.
+12. **Per-call native files were removed after validation.** The consolidated
+    summary retains every normalized profile and timing record, and the six
+    AutoProf logs remain available. Inspecting a native per-call FITS, `.prof`,
+    or `.aux` file would now require recreating that deterministic input and
+    rerunning the corresponding tool; the original timed file no longer
+    exists.
 
 ## Safe use in the scientific publication
 
