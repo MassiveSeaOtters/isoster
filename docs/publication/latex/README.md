@@ -7,8 +7,9 @@ AASTeX v7.0.2 distribution released on 2026-06-01:
 - `aasjournalv7.1.bst`: current AAS Journals BibTeX style for AASTeX v7+.
 - `orcid-ID.png`: official ORCID icon asset used by the class.
 - `manuscript.tex`: manuscript entry point with required line numbering.
-- `manuscript.pdf`: compiled review copy of the current manuscript.
+- `outputs/manuscript.pdf`: compiled review copy of the current manuscript.
 - `sections/introduction.tex`: first introduction draft.
+- `sections/timing-benchmark.tex`: compact Stage 4 timing result and caveats.
 - `references.bib`: local manuscript bibliography snapshot.
 
 Official source:

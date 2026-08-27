@@ -91,6 +91,17 @@ The consolidated result is deliberately outside the repository:
 /Users/shuang/.cache/isoster/stage4_campaign_20260826/stage4_timing_summary.json
 ```
 
+The complete retained directory was copied byte-for-byte to durable external
+storage on 2026-08-27:
+
+```text
+/Volumes/galaxy/isophote/isoster/benchmarks/stage4_campaign_20260826
+```
+
+A checksum-aware `rsync` comparison found no differences: both directories
+contain 12 files, occupy about 414 MB, and their consolidated summaries have
+the SHA-256 value recorded below.
+
 | Item | Value |
 |---|---|
 | Size | 213,357,401 bytes (about 203.5 MiB) |
@@ -665,9 +676,11 @@ profiles.
     Stage 4 archive does not embed the project Git SHA or complete project
     package list. This record associates the clean branch head and retained
     environment immediately afterward; future campaigns should embed both.
-11. **Local archive durability.** The checksum makes accidental changes
-    detectable, but a cache directory is not a backup. Long-term preservation
-    requires copying the external archive to a non-Git archival location.
+11. **Archive durability.** The working copy remains in a cache directory, but
+    the complete retained archive was copied and checksum-verified at
+    `/Volumes/galaxy/isophote/isoster/benchmarks/stage4_campaign_20260826` on
+    2026-08-27. The `galaxy` volume is the non-Git archival copy; its own backup
+    policy is outside this benchmark record.
 12. **Per-call native files were removed after validation.** The consolidated
     summary retains every normalized profile and timing record, and the six
     AutoProf logs remain available. Inspecting a native per-call FITS, `.prof`,
