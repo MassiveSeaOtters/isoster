@@ -15,3 +15,7 @@ This file gives coding-agent instructions for working in this repository.
 - Prefer concrete file paths, commands, and expected outputs over abstract process words.
 - Keep the tone direct and professional, but optimize for effortless understanding.
 
+## Publication Validation Data Safety
+
+- Never delete, replace, or modify existing test data or results under `/Volumes/galaxy`.
+- Put every newly generated or downloaded image and every new result in a separate, explicitly named campaign folder.

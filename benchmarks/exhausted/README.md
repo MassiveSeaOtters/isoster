@@ -108,6 +108,10 @@ benchmarks/exhausted/
 - `configs/campaign.smoke_local.yaml` — two local FITS files in `data/`
   exercising all three tools. Used by the integration smoke test and
   for quick iteration.
+- `configs/campaign.publication_concurrency.yaml` — eight size-stratified S4G
+  images and one primary arm per tool for the 1/2/4/8-worker measurement.
+- `configs/campaign.publication_single_band_round1.yaml` — the approved compact
+  publication roster against the new, read-only campaign mock folders.
 
 ## Arm roster reference
 
@@ -116,6 +120,10 @@ benchmarks/exhausted/
 | `configs/isoster_arms.yaml` | isoster | 22 declared + `harm_higher_orders::*` expansion (one arm per entry in `isoster_harmonic_sweeps`) |
 | `configs/photutils_arms.yaml` | photutils | 5 |
 | `configs/autoprof_arms.yaml` | autoprof | 5 (including `fix_center`, which pins the center to the isoster `ref_default` intensity-weighted centroid) |
+
+Set optional `select_arms` on a tool in the campaign YAML to retain an ordered
+subset of its existing roster. Unknown arm names fail while loading the
+campaign.
 
 Arm sentinels resolved at fit time:
 

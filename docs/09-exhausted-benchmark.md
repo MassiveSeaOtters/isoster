@@ -118,6 +118,7 @@ tools:
   isoster:
     enabled: true
     arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms: [ref_default, reg_outer_damp]  # optional ordered subset
   photutils:
     enabled: true
     arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
@@ -127,6 +128,9 @@ tools:
     venv_python: "~/.venvs/autoprof_venv/bin/python"   # stable path; see §0
     timeout: 300        # seconds per arm
 ```
+
+`select_arms` reuses an existing roster without copying arm definitions into a
+second file. Unknown names fail while the campaign loads.
 
 Per-dataset entry:
 

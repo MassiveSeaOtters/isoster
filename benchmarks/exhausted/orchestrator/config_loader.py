@@ -133,8 +133,26 @@ def _load_tools(
         arms = _load_arms(arms_file) if arms_file.is_file() else {}
         if tool_name == "isoster" and arms:
             arms = _expand_harmonic_arms(arms, harmonic_sweeps)
+        selected_arms = tool_cfg.get("select_arms")
+        if selected_arms is not None:
+            if not isinstance(selected_arms, list) or not all(
+                isinstance(arm_id, str) for arm_id in selected_arms
+            ):
+                raise ValueError(
+                    f"{yaml_path}: tools.{tool_name}.select_arms must be a list of strings"
+                )
+            missing = [arm_id for arm_id in selected_arms if arm_id not in arms]
+            if missing:
+                raise ValueError(
+                    f"{yaml_path}: tools.{tool_name}.select_arms contains unknown arm(s) {missing}"
+                )
+            arms = {arm_id: arms[arm_id] for arm_id in selected_arms}
 
-        extra = {k: v for k, v in tool_cfg.items() if k not in {"enabled", "arms_file"}}
+        extra = {
+            k: v
+            for k, v in tool_cfg.items()
+            if k not in {"enabled", "arms_file", "select_arms"}
+        }
         plans[tool_name] = ToolPlan(
             name=tool_name,
             enabled=enabled,

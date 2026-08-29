@@ -1,0 +1,60 @@
+# Throughput calibration for the publication single-band campaign.
+# The eight S4G wide-z010 images span the measured 77--509 pixel size range.
+# Change campaign_name and max_parallel_galaxies together for the 1/2/4/8 runs;
+# each output directory retains its resolved campaign snapshot.
+
+campaign_name: "publication_concurrency_p8"
+output_root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/concurrency"
+
+tools:
+  isoster:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms: [ref_default]
+  photutils:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    select_arms: [baseline_median]
+  autoprof:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
+    select_arms: [baseline]
+    venv_python: "~/.venvs/autoprof_venv/bin/python"
+    timeout: 300
+
+isoster_harmonic_sweeps: []
+
+datasets:
+  s4g:
+    enabled: true
+    adapter: s4g_scenarios
+    root: "/Volumes/galaxy/isophote/s4g_mock"
+    depths: [wide]
+    redshift_tags: ["010"]
+    select:
+      - "IC0750/wide_z010"
+      - "NGC3729/wide_z010"
+      - "IC0051/wide_z010"
+      - "PGC047721/wide_z010"
+      - "NGC5350/wide_z010"
+      - "NGC4274/wide_z010"
+      - "NGC4643/wide_z010"
+      - "NGC4050/wide_z010"
+
+qa:
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
+  summary_grids: false
+  residual_models: true
+
+execution:
+  max_parallel_galaxies: 8
+  skip_existing: false
+  dry_run: false
+  fail_fast: false
+
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: false
+  cross_tool_table: false

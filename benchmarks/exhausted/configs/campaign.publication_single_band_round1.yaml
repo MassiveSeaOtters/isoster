@@ -1,0 +1,55 @@
+# First-round publication mock campaign. Run only after the production mock
+# folders have been generated from a clean isophote_test commit.
+
+campaign_name: "publication_single_band_round1"
+output_root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/fits"
+
+tools:
+  isoster:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms: [ref_default, reg_outer_damp, stack_all]
+  photutils:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    select_arms: [baseline_median, aggressive_clip, fixed_center]
+  autoprof:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
+    select_arms: [baseline, deep, high_regularization, fix_center]
+    venv_python: "~/.venvs/autoprof_venv/bin/python"
+    timeout: 300
+
+isoster_harmonic_sweeps: []
+
+datasets:
+  huang2013:
+    enabled: true
+    adapter: huang2013_scenarios
+    root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/mock_data/huang2013"
+    depths: [noiseless, wide, deep]
+    redshift_tags: ["005", "020", "035", "050"]
+  s4g:
+    enabled: true
+    adapter: s4g_scenarios
+    root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/mock_data/s4g"
+    depths: [noiseless, wide, deep]
+    redshift_tags: ["005", "010"]
+
+qa:
+  per_galaxy_qa: true
+  cross_arm_overlay: true
+  cross_tool_comparison: true
+  summary_grids: false
+  residual_models: true
+
+execution:
+  max_parallel_galaxies: 1
+  skip_existing: true
+  dry_run: false
+  fail_fast: false
+
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: true
+  cross_tool_table: true
