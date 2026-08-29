@@ -37,14 +37,17 @@ datasets:
     redshift_tags: ["005", "010"]
 
 qa:
-  per_galaxy_qa: true
-  cross_arm_overlay: true
-  cross_tool_comparison: true
+  # Keep the broad run compact. Models and figures are reproducible from the
+  # retained source image, profile, configuration, and run record. Generate
+  # visual QA later for representative and failed cases.
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
   summary_grids: false
-  residual_models: true
+  residual_models: false
 
 execution:
-  max_parallel_galaxies: 1
+  max_parallel_galaxies: 8
   skip_existing: true
   dry_run: false
   fail_fast: false
