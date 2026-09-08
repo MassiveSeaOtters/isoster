@@ -122,6 +122,7 @@ tools:
   photutils:
     enabled: true
     arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    timeout: 900        # optional seconds per arm; retained as a failed run
   autoprof:
     enabled: true
     arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
@@ -130,7 +131,10 @@ tools:
 ```
 
 `select_arms` reuses an existing roster without copying arm definitions into a
-second file. Unknown names fail while the campaign loads.
+second file. Unknown names fail while the campaign loads. The optional
+`timeout` applies to photutils and AutoProf arms. A photutils timeout interrupts
+the in-process fit and writes an ordinary failed `run_record.json`; AutoProf
+enforces the same field around its isolated subprocess.
 
 Per-dataset entry:
 

@@ -1,7 +1,7 @@
 # Complete the five Huang2013 records interrupted by the 2026-08-29 reboot.
 # This writes to a new campaign directory and does not modify the partial run.
 
-campaign_name: "publication_single_band_huang_recovery_ngc1209_2026_09_08"
+campaign_name: "publication_single_band_huang_recovery_ngc1209_v2_2026_09_08"
 output_root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/fits"
 
 tools:
@@ -12,6 +12,7 @@ tools:
     enabled: true
     arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
     select_arms: [fixed_center]
+    timeout: 900
   autoprof:
     enabled: true
     arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml

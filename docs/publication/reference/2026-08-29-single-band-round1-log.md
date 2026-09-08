@@ -67,3 +67,11 @@ recovery audit.
 The partial campaign is preserved unchanged. The missing Huang2013 records
 and the full S4G grid are written to separately named recovery campaign
 directories before their results are combined during analysis.
+
+The first NGC1209 recovery attempt on 2026-09-08 exposed a photutils 2.3.0
+outer-radius loop: the fitter repeatedly returned an empty sample at exactly
+204.0236915 pixels without advancing. The attempt was stopped after more than
+five measured minutes and preserved. Publication photutils runs now have a
+900-second wall-clock limit, chosen above the 596.03-second maximum successful
+Huang2013 photutils fit already observed. A timeout is retained as a failed
+numerical-stability outcome; the arm configuration is not altered.

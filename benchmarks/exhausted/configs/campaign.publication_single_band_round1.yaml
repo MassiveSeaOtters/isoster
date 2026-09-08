@@ -13,6 +13,7 @@ tools:
     enabled: true
     arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
     select_arms: [baseline_median, aggressive_clip, fixed_center]
+    timeout: 900
   autoprof:
     enabled: true
     arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml

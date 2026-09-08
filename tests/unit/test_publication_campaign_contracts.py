@@ -1,12 +1,17 @@
+import json
+import signal
 from pathlib import Path
 
+import numpy as np
 import pytest
 import yaml
 from astropy.io import fits
 
+from benchmarks.exhausted.adapters.base import GalaxyBundle, GalaxyMetadata
 from benchmarks.exhausted.adapters.huang2013_scenarios import (
     Huang2013ScenariosAdapter,
 )
+from benchmarks.exhausted.fitters.photutils_fitter import run_one_arm
 from benchmarks.exhausted.orchestrator.config_loader import load_campaign
 
 
@@ -76,7 +81,7 @@ def test_campaign_rejects_unknown_selected_arm(tmp_path: Path) -> None:
     [
         (
             "campaign.publication_huang_recovery_ngc1209.yaml",
-            "publication_single_band_huang_recovery_ngc1209_2026_09_08",
+            "publication_single_band_huang_recovery_ngc1209_v2_2026_09_08",
             "huang2013",
             5,
         ),
@@ -112,3 +117,43 @@ def test_recovery_campaigns_use_new_directories_and_exact_fit_counts(
     assert plan.campaign_name != "publication_single_band_round1"
     assert plan.execution["skip_existing"] is True
     assert len(galaxy_ids) * enabled_arm_count == expected_fits
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="SIGALRM is unavailable")
+def test_photutils_timeout_is_retained_as_a_failed_record(monkeypatch, tmp_path: Path) -> None:
+    from photutils.isophote import Ellipse
+
+    def hang_forever(*_args, **_kwargs):
+        while True:
+            pass
+
+    monkeypatch.setattr(Ellipse, "fit_image", hang_forever)
+    bundle = GalaxyBundle(
+        metadata=GalaxyMetadata(
+            galaxy_id="timeout_case",
+            dataset="test",
+            pixel_scale_arcsec=0.168,
+            sb_zeropoint=27.0,
+            effective_Re_pix=4.0,
+        ),
+        image=np.ones((21, 21)),
+        variance=None,
+        mask=None,
+        initial_geometry={"x0": 10.0, "y0": 10.0, "eps": 0.2, "pa": 0.0, "sma0": 3.0},
+    )
+
+    row = run_one_arm(
+        bundle,
+        "timeout",
+        {},
+        tmp_path,
+        write_qa=False,
+        write_model_fits=False,
+        timeout=0.05,
+    )
+
+    assert row["status"] == "failed"
+    assert row["error_msg"] == "timeout after 0.05s"
+    record = json.loads((tmp_path / "run_record.json").read_text())
+    assert record["status"] == "failed"
+    assert record["error_msg"] == "timeout after 0.05s"

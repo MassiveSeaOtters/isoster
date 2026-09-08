@@ -17,7 +17,9 @@ same inventory-row schema, same per-arm output layout
 
 from __future__ import annotations
 
+import contextlib
 import json
+import signal
 import time
 import warnings
 from pathlib import Path
@@ -38,6 +40,32 @@ from ..analysis.model_evaluation import evaluate_model_v11, profile_summary_for_
 from ..analysis.quality_flags import evaluate_flags
 
 
+class _PhotutilsFitTimeout(TimeoutError):
+    pass
+
+
+@contextlib.contextmanager
+def _fit_timeout(seconds: float | None):
+    if seconds is None:
+        yield
+        return
+    if seconds <= 0:
+        raise ValueError("photutils timeout must be positive")
+    if not hasattr(signal, "SIGALRM"):
+        raise RuntimeError("photutils timeout requires SIGALRM support")
+
+    def _raise_timeout(_signum, _frame):
+        raise _PhotutilsFitTimeout
+
+    previous_handler = signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
 def run_one_arm(
     bundle: GalaxyBundle,
     arm_id: str,
@@ -48,6 +76,7 @@ def run_one_arm(
     write_model_fits: bool = True,
     sb_profile_scale: str = "log10",
     sb_asinh_softening: float | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """Run one ``(galaxy, photutils-arm)`` pair. Returns an inventory row."""
     from photutils.isophote import Ellipse, EllipseGeometry
@@ -88,40 +117,47 @@ def run_one_arm(
     isolist = None
     sma0_used = 0.0
     fit_error: str | None = None
-    for sma0 in ladder:
-        try:
-            photutils_geom = EllipseGeometry(
-                x0=float(geom["x0"]),
-                y0=float(geom["y0"]),
-                sma=sma0,
-                eps=float(geom.get("eps", 0.2)),
-                pa=_pa_for_photutils(float(geom.get("pa", 0.0))),
-            )
-            ellipse = Ellipse(masked_image, geometry=photutils_geom)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                isolist = ellipse.fit_image(
-                    integrmode=resolved["integrmode"],
-                    sclip=resolved["sclip"],
-                    nclip=resolved["nclip"],
-                    linear=resolved["linear"],
-                    step=resolved["step"],
-                    fflag=resolved["fflag"],
-                    conver=resolved["conver"],
-                    minit=resolved["minit"],
-                    maxit=resolved["maxit"],
-                    maxgerr=resolved["maxgerr"],
-                    minsma=resolved["minsma"],
-                    maxsma=maxsma,
-                    fix_center=resolved["fix_center"],
-                )
-            if len(isolist) > 0:
-                sma0_used = sma0
-                break
-        except Exception as exc:  # noqa: BLE001 - try next sma0
-            fit_error = f"sma0={sma0}: {exc}"
-            isolist = None
-            continue
+    try:
+        with _fit_timeout(timeout):
+            for sma0 in ladder:
+                try:
+                    photutils_geom = EllipseGeometry(
+                        x0=float(geom["x0"]),
+                        y0=float(geom["y0"]),
+                        sma=sma0,
+                        eps=float(geom.get("eps", 0.2)),
+                        pa=_pa_for_photutils(float(geom.get("pa", 0.0))),
+                    )
+                    ellipse = Ellipse(masked_image, geometry=photutils_geom)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        isolist = ellipse.fit_image(
+                            integrmode=resolved["integrmode"],
+                            sclip=resolved["sclip"],
+                            nclip=resolved["nclip"],
+                            linear=resolved["linear"],
+                            step=resolved["step"],
+                            fflag=resolved["fflag"],
+                            conver=resolved["conver"],
+                            minit=resolved["minit"],
+                            maxit=resolved["maxit"],
+                            maxgerr=resolved["maxgerr"],
+                            minsma=resolved["minsma"],
+                            maxsma=maxsma,
+                            fix_center=resolved["fix_center"],
+                        )
+                    if len(isolist) > 0:
+                        sma0_used = sma0
+                        break
+                except _PhotutilsFitTimeout:
+                    raise
+                except Exception as exc:  # noqa: BLE001 - try next sma0
+                    fit_error = f"sma0={sma0}: {exc}"
+                    isolist = None
+                    continue
+    except _PhotutilsFitTimeout:
+        fit_error = f"timeout after {timeout:g}s"
+        isolist = None
     wall_fit = time.perf_counter() - fit_start
 
     if isolist is None or len(isolist) == 0:
