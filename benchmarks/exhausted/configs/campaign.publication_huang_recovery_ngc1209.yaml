@@ -1,0 +1,49 @@
+# Complete the five Huang2013 records interrupted by the 2026-08-29 reboot.
+# This writes to a new campaign directory and does not modify the partial run.
+
+campaign_name: "publication_single_band_huang_recovery_ngc1209_2026_09_08"
+output_root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/fits"
+
+tools:
+  isoster:
+    enabled: false
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+  photutils:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    select_arms: [fixed_center]
+  autoprof:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
+    select_arms: [baseline, deep, high_regularization, fix_center]
+    venv_python: "~/.venvs/autoprof_venv/bin/python"
+    timeout: 300
+
+isoster_harmonic_sweeps: []
+
+datasets:
+  huang2013:
+    enabled: true
+    adapter: huang2013_scenarios
+    root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/mock_data/huang2013"
+    depths: [noiseless]
+    redshift_tags: ["005"]
+    select: ["NGC1209/noiseless_z005"]
+
+qa:
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
+  summary_grids: false
+  residual_models: false
+
+execution:
+  max_parallel_galaxies: 1
+  skip_existing: true
+  dry_run: false
+  fail_fast: false
+
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: true
+  cross_tool_table: true

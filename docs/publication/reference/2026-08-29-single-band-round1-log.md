@@ -57,4 +57,13 @@ representative cases will receive visual QA after the numerical review.
 
 ## Status
 
-Broad mock fitting: pending.
+The broad run started on 2026-08-29 and was interrupted by a host reboot. It
+retained 8,358 of 8,370 Huang2013 run records: 8,302 successful profiles and
+56 photutils failures. No recorded Isoster or AutoProf execution failed. Two
+noiseless scenarios stopped partway through, leaving 12 records absent; S4G
+had not started. No malformed run records were found during the 2026-09-08
+recovery audit.
+
+The partial campaign is preserved unchanged. The missing Huang2013 records
+and the full S4G grid are written to separately named recovery campaign
+directories before their results are combined during analysis.
