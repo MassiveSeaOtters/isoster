@@ -92,3 +92,10 @@ Huang2013 outcomes are accounted for: 8,312 successes and 58 photutils
 failures, with no Isoster or AutoProf execution failures. The two regenerated
 Isoster reference profiles are recovery dependencies and are not counted again
 in those totals.
+
+## S4G re-entry gate
+
+After the Huang2013 recovery, a fresh two-galaxy gate ran the primary Isoster,
+photutils, and AutoProf arms on S4G `wide_z010` images. All six fits succeeded
+in 39.04 seconds with two concurrent galaxy workers. This passed the required
+sub-minute gate before the full S4G campaign.
