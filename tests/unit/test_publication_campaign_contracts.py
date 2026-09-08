@@ -103,6 +103,12 @@ def test_campaign_rejects_unknown_selected_arm(tmp_path: Path) -> None:
             "s4g",
             18_000,
         ),
+        (
+            "campaign.publication_s4g_reentry_smoke_2026_09_08.yaml",
+            "publication_single_band_s4g_reentry_smoke_2026_09_08",
+            "s4g",
+            6,
+        ),
     ],
 )
 def test_recovery_campaigns_use_new_directories_and_exact_fit_counts(

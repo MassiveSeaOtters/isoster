@@ -81,3 +81,14 @@ baseline, deep, and high-regularization arms. AutoProf `fix_center` correctly
 skipped because its required Isoster `ref_default` profile was not present in
 the new isolated directory. A separate two-fit follow-up regenerates that
 reference profile and runs only the missing fixed-center AutoProf arm.
+
+The NGC1209 fixed-center follow-up succeeded for both the regenerated Isoster
+reference and AutoProf. In NGC3585, photutils baseline reached the same
+non-terminating state and was retained as a timeout; aggressive clipping and
+fixed-center completed, as did all four AutoProf arms. The twelve interrupted
+Huang2013 executions therefore yielded ten successful profiles and two
+photutils timeouts. Together with the partial campaign, all 8,370 planned
+Huang2013 outcomes are accounted for: 8,312 successes and 58 photutils
+failures, with no Isoster or AutoProf execution failures. The two regenerated
+Isoster reference profiles are recovery dependencies and are not counted again
+in those totals.
