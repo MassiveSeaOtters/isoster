@@ -75,3 +75,9 @@ five measured minutes and preserved. Publication photutils runs now have a
 900-second wall-clock limit, chosen above the 596.03-second maximum successful
 Huang2013 photutils fit already observed. A timeout is retained as a failed
 numerical-stability outcome; the arm configuration is not altered.
+
+The guarded NGC1209 recovery retained that timeout and completed the AutoProf
+baseline, deep, and high-regularization arms. AutoProf `fix_center` correctly
+skipped because its required Isoster `ref_default` profile was not present in
+the new isolated directory. A separate two-fit follow-up regenerates that
+reference profile and runs only the missing fixed-center AutoProf arm.

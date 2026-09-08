@@ -89,7 +89,13 @@ def test_campaign_rejects_unknown_selected_arm(tmp_path: Path) -> None:
             "campaign.publication_huang_recovery_ngc3585.yaml",
             "publication_single_band_huang_recovery_ngc3585_2026_09_08",
             "huang2013",
-            7,
+            8,
+        ),
+        (
+            "campaign.publication_huang_recovery_ngc1209_fix_center.yaml",
+            "publication_single_band_huang_recovery_ngc1209_fix_center_2026_09_08",
+            "huang2013",
+            2,
         ),
         (
             "campaign.publication_s4g_2026_09_08.yaml",
