@@ -102,7 +102,8 @@ Before scientific metric review, run the following seven previously declared
 Isoster arms over the unchanged 837 Huang2013 and 1,800 S4G publication
 images:
 
-- `ols_noweight`: isolate the contribution of variance weighting;
+- `ols_noweight`: isolate the contribution of variance weighting when the
+  adapter supplies a variance map; retain an explicit no-op record otherwise;
 - `int_median`: compare median and default mean integration;
 - `geom_simul`: isolate simultaneous geometry updates;
 - `lsb_autolock`: isolate the low-surface-brightness geometry lock;
@@ -112,12 +113,13 @@ images:
 - `harm_simul_ea`: compare eccentric-anomaly fits with and without
   simultaneous harmonic fitting.
 
-The existing `ref_default`, `geom_simul`, `geom_ea`, and `geom_simul_ea`
-outcomes form a two-by-two comparison of angular basis and geometry-update
-method. Compare `harm_simul_ea` directly with `geom_ea` to isolate simultaneous
-harmonic fitting. The primary three-code comparison remains `ref_default`,
-`baseline_median`, and `baseline`; afterburner arms are Isoster-only
-diagnostics and do not change that comparison.
+Together, the previously completed `ref_default` outcomes and the afterburner
+`geom_simul`, `geom_ea`, and `geom_simul_ea` outcomes form a two-by-two
+comparison of angular basis and geometry-update method. Compare
+`harm_simul_ea` directly with `geom_ea` to isolate simultaneous harmonic
+fitting. The primary three-code comparison remains `ref_default`,
+`baseline_median`, and `baseline`; afterburner arms are Isoster-only diagnostics
+and do not change that comparison.
 
 The component models are symmetric Sérsic profiles with no explicitly planted
 strong Fourier distortion. Their superposition need not be exactly elliptical
@@ -132,8 +134,11 @@ only the seven new Isoster arms; do not repeat either comparison tool or the
 three completed Isoster arms. A fresh sub-minute gate must exercise both mock
 adapters, one noise-free and one noisy image, and elongated input models before
 the two broad runs. The nominal matrices contain 5,859 Huang2013 and 12,600
-S4G outcomes. Join campaigns by dataset, galaxy, scenario, tool, and arm only
-during analysis; never copy results into a completed campaign directory.
+S4G requested records. Both mock adapters supply no variance map, so the
+`ols_noweight` record is expected to be a no-op and `ref_default` already
+represents OLS for these data. Join campaigns by dataset, galaxy, scenario,
+tool, and arm only during analysis; never copy results into a completed
+campaign directory.
 
 ## Parallel execution
 
