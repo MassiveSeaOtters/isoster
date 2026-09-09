@@ -99,3 +99,55 @@ After the Huang2013 recovery, a fresh two-galaxy gate ran the primary Isoster,
 photutils, and AutoProf arms on S4G `wide_z010` images. All six fits succeeded
 in 39.04 seconds with two concurrent galaxy workers. This passed the required
 sub-minute gate before the full S4G campaign.
+
+## Recovered S4G campaign
+
+The separate S4G campaign completed on 2026-09-09 after running from
+2026-09-08 18:57 to 2026-09-09 01:29 local time. It used eight concurrent
+galaxy workers while keeping each fit and each numerical library to one
+thread. The input grid contained 300 galaxies, six scenarios per galaxy, and
+ten retained arms per scenario, for 18,000 requested fits. No cached result
+was reused.
+
+| Tool | Requested | Successful | Failed or errored |
+|---|---:|---:|---:|
+| Isoster | 5,400 | 5,400 | 0 |
+| photutils | 5,400 | 5,086 | 314 |
+| AutoProf | 7,200 | 7,199 | 1 |
+| **Total** | **18,000** | **17,685** | **315** |
+
+All 18,000 run records are present and valid JSON, and every successful run
+has a `profile.fits`. The 314 photutils failures comprise 246 retry-ladder
+failures ending in a NaN-to-integer conversion, 39 guarded 900-second
+timeouts, and 29 empty `IsophoteList` results. Of all 315 unsuccessful fits,
+293 occurred on the deliberately noise-free images; the remaining 22 were
+distributed across the deep and wide noisy scenarios. This concentration is
+consistent with the numerical-stability caveat anticipated for exactly
+noise-free mock images.
+
+The only non-photutils execution error was AutoProf `fix_center` for
+NGC4535 `noiseless_z010`. The fit reached profile extraction but left only
+three points for its optional ellipse-model spline, which requires more than
+three. AutoProf's existing small-image retry produced the same outcome. This
+single failure is retained descriptively rather than changing the arm after
+examining the result.
+
+The campaign wrote 9.5 GiB to the new directory
+`publication_single_band_s4g_2026_09_08`; it did not write into any earlier
+campaign. `/Volumes/galaxy` remained mounted with at least 6.2 TiB free, and
+macOS recorded no thermal or performance warning. Load average was monitored
+but, as pre-registered for this Mac Studio, was not used as an in-campaign
+abort signal because it includes the benchmark's own work. The minute monitor
+ended only after the campaign process exited.
+
+The original interrupted campaign remains unchanged after both recoveries:
+its 8,358 run records still have combined SHA-256
+`3f7358cbaf617f2774e36911e8d180bf9405b52a60fa6395b5ae6eda7125b7af`.
+The S4G campaign log and preserved monitor log are stored under
+`recovery_audit_2026_09_08/`; their SHA-256 values are respectively
+`e6479defd2241952c38ec89f50d087b8b6fc0036a1a338351c84b3fd486dddd9`
+and `141dfc8290ab6ded4543bc2928c18bab3d48133941b6b201688b1f9c2f2433a4`.
+
+Execution of both publication mock grids is now complete. The next step is to
+review the retained scientific metrics and selected images; no broad rerun is
+needed merely to recover execution coverage.
