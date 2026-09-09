@@ -96,6 +96,45 @@ because the later SGA study focuses on Isoster; arm-count equality is not a
 goal. The larger SGA run will retain only configurations shown to be reliable
 and useful in round one.
 
+### Isoster afterburner contract
+
+Before scientific metric review, run the following seven previously declared
+Isoster arms over the unchanged 837 Huang2013 and 1,800 S4G publication
+images:
+
+- `ols_noweight`: isolate the contribution of variance weighting;
+- `int_median`: compare median and default mean integration;
+- `geom_simul`: isolate simultaneous geometry updates;
+- `lsb_autolock`: isolate the low-surface-brightness geometry lock;
+- `geom_ea`: isolate eccentric-anomaly sampling and fitting;
+- `geom_simul_ea`: measure the interaction between eccentric-anomaly sampling
+  and simultaneous geometry updates;
+- `harm_simul_ea`: compare eccentric-anomaly fits with and without
+  simultaneous harmonic fitting.
+
+The existing `ref_default`, `geom_simul`, `geom_ea`, and `geom_simul_ea`
+outcomes form a two-by-two comparison of angular basis and geometry-update
+method. Compare `harm_simul_ea` directly with `geom_ea` to isolate simultaneous
+harmonic fitting. The primary three-code comparison remains `ref_default`,
+`baseline_median`, and `baseline`; afterburner arms are Isoster-only
+diagnostics and do not change that comparison.
+
+The component models are symmetric Sérsic profiles with no explicitly planted
+strong Fourier distortion. Their superposition need not be exactly elliptical
+at every radius when component geometries differ. Therefore, use
+`harm_simul_ea` to evaluate execution stability, geometry interaction, and
+spurious or weak recovered structure, not strong-signal harmonic recovery.
+The controlled planted-harmonic campaign remains authoritative for harmonic
+recovery and normalization.
+
+Write the afterburner to separate Huang2013 and S4G campaign directories. Run
+only the seven new Isoster arms; do not repeat either comparison tool or the
+three completed Isoster arms. A fresh sub-minute gate must exercise both mock
+adapters, one noise-free and one noisy image, and elongated input models before
+the two broad runs. The nominal matrices contain 5,859 Huang2013 and 12,600
+S4G outcomes. Join campaigns by dataset, galaxy, scenario, tool, and arm only
+during analysis; never copy results into a completed campaign directory.
+
 ## Parallel execution
 
 Parallelism is across independent galaxies or disjoint campaign batches.

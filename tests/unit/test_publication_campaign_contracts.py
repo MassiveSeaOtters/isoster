@@ -109,26 +109,47 @@ def test_campaign_rejects_unknown_selected_arm(tmp_path: Path) -> None:
             "s4g",
             6,
         ),
+        (
+            "campaign.publication_isoster_afterburner_gate_2026_09_09.yaml",
+            "publication_single_band_isoster_afterburner_gate_2026_09_09",
+            None,
+            14,
+        ),
+        (
+            "campaign.publication_isoster_afterburner_huang_2026_09_09.yaml",
+            "publication_single_band_isoster_afterburner_huang_2026_09_09",
+            "huang2013",
+            5_859,
+        ),
+        (
+            "campaign.publication_isoster_afterburner_s4g_2026_09_09.yaml",
+            "publication_single_band_isoster_afterburner_s4g_2026_09_09",
+            "s4g",
+            12_600,
+        ),
     ],
 )
 def test_recovery_campaigns_use_new_directories_and_exact_fit_counts(
     config_name: str,
     campaign_name: str,
-    dataset_name: str,
+    dataset_name: str | None,
     expected_fits: int,
 ) -> None:
     config_path = Path("benchmarks/exhausted/configs") / config_name
     plan = load_campaign(config_path)
-    dataset = plan.datasets[dataset_name]
     enabled_arm_count = sum(len(tool.arms) for tool in plan.tools.values() if tool.enabled)
-    galaxy_ids = dataset.adapter.list_galaxies()
-    if dataset.select:
-        galaxy_ids = [galaxy_id for galaxy_id in galaxy_ids if galaxy_id in set(dataset.select)]
+    datasets = plan.datasets.values() if dataset_name is None else [plan.datasets[dataset_name]]
+    fit_count = 0
+    for dataset in datasets:
+        galaxy_ids = dataset.adapter.list_galaxies()
+        if dataset.select:
+            galaxy_ids = [galaxy_id for galaxy_id in galaxy_ids if galaxy_id in set(dataset.select)]
+        fit_count += len(galaxy_ids) * enabled_arm_count
 
     assert plan.campaign_name == campaign_name
     assert plan.campaign_name != "publication_single_band_round1"
     assert plan.execution["skip_existing"] is True
-    assert len(galaxy_ids) * enabled_arm_count == expected_fits
+    assert fit_count == expected_fits
 
 
 @pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="SIGALRM is unavailable")
