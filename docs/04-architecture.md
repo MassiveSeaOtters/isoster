@@ -592,6 +592,14 @@ enabled; its median `I` column is not substituted.
 
 ## Documentation Policy
 
+The exploratory Huang2013 publication collector lives in
+`benchmarks/exhausted/analysis/publication_huang.py`. It reads immutable
+campaign profiles and writes a new external analysis directory, with explicit
+recovery joins, regenerated-truth verification and before/after source hashes.
+Its full scientific use is paused at the diagnostic gate because of the
+AutoProf input-PA issue documented in
+`docs/publication/reference/2026-09-10-huang2013-analysis-gate.md`.
+
 - Stable docs live in `docs/` root.
 - Internal planning and review notes are kept under `docs/agent/`, which is untracked and excluded from the published site; retired dated reports are tracked under `docs/archive/` but also excluded from the site. References to either in these pages are pointers for developers working in a checkout, not links a site reader can follow.
 - Use lowercase kebab-case markdown filenames.

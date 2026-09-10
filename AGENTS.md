@@ -19,3 +19,7 @@ This file gives coding-agent instructions for working in this repository.
 
 - Never delete, replace, or modify existing test data or results under `/Volumes/galaxy`.
 - Put every newly generated or downloaded image and every new result in a separate, explicitly named campaign folder.
+
+## Publication Analysis Figures
+
+- Study and reuse the existing plotting code, formats, and style before creating new figures. Align new plotting scripts with the existing QA conventions.
