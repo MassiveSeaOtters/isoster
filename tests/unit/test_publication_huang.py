@@ -1,9 +1,10 @@
 """Small deterministic checks for publication measurement conventions."""
 
 import numpy as np
+import pytest
 from astropy.table import Table
 
-from benchmarks.exhausted.analysis.publication_huang import pixel_metrics, ring_truth
+from benchmarks.exhausted.analysis.publication_huang import pixel_metrics, replace_autoprof_records, ring_truth
 
 
 def test_missing_support_and_noise_are_not_success_scores():
@@ -25,3 +26,19 @@ def test_ring_coordinate_bases_and_statistics():
     assert phi["ring_relative_rms"] > 0.2
     outside = ring_truth(table, truth, True, True, 30)
     assert outside["ring_n"] == 0 and np.isnan(outside["ring_relative_rms"])
+
+
+def test_correction_retains_failures_and_requires_complete_unique_roster():
+    key = ("galaxy", "wide_z005", "autoprof", "baseline")
+    original = dict(zip(("galaxy", "scenario", "tool", "arm"), key)) | {"status": "ok"}
+    corrected = original | {"status": "failed"}
+    reference_key = ("galaxy", "wide_z005", "isoster", "ref_default")
+    selected = {key: original, reference_key: {"status": "ok"}}
+    result, excluded = replace_autoprof_records(selected, [corrected])
+    assert result[key]["status"] == "failed"
+    assert selected[key]["status"] == "ok"
+    assert len(excluded) == 1 and result[reference_key] == {"status": "ok"}
+    with pytest.raises(ValueError, match="incomplete"):
+        replace_autoprof_records(selected, [])
+    with pytest.raises(ValueError, match="Duplicate"):
+        replace_autoprof_records(selected, [corrected, corrected])

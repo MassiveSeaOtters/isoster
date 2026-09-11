@@ -81,7 +81,9 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def join_records(root: Path, galaxies: list[str] | None = None) -> tuple[list[dict], list[dict]]:
+def join_records(
+    root: Path, galaxies: list[str] | None = None, autoprof_campaign: Path | None = None
+) -> tuple[list[dict], list[dict]]:
     """Resolve only the documented recovery overlaps; reject unexpected duplicates."""
     selected, excluded = {}, []
     for campaign in CAMPAIGNS:
@@ -120,7 +122,61 @@ def join_records(root: Path, galaxies: list[str] | None = None) -> tuple[list[di
     expected = {(g, s, t, a) for g in names for s in SCENARIOS for t, arms in ARMS.items() for a in arms}
     if set(selected) != expected:
         raise ValueError(f"Incomplete join: {sorted(expected - set(selected))}")
+    if autoprof_campaign is not None:
+        audit = autoprof_campaign / "correction_audit"
+        completion = json.loads((audit / "completion.json").read_text())
+        if not completion.get("all_source_hashes_unchanged") or not completion.get("all_saved_pa_correct"):
+            raise ValueError("Corrected AutoProf campaign has not passed its audit")
+        corrected = []
+        for entry in json.loads((audit / "accepted_records.json").read_text()):
+            if entry["dataset"] != "huang2013":
+                continue
+            galaxy, scenario = entry["galaxy"].split("/")
+            if galaxy not in names:
+                continue
+            path = Path(entry["record_path"])
+            expected_path = (
+                autoprof_campaign
+                / "huang2013"
+                / f"{galaxy}__{scenario}"
+                / "autoprof"
+                / "arms"
+                / entry["arm"]
+                / "run_record.json"
+            )
+            if path.resolve() != expected_path.resolve():
+                raise ValueError("Corrected record has an unexpected source path")
+            if json.loads(path.read_text())["status"] != entry["status"]:
+                raise ValueError("Corrected status differs from the accepted audit")
+            corrected.append(
+                dict(
+                    galaxy=galaxy,
+                    scenario=scenario,
+                    tool="autoprof",
+                    arm=entry["arm"],
+                    status=entry["status"],
+                    record_path=str(path),
+                    campaign=autoprof_campaign.name,
+                )
+            )
+        selected, superseded = replace_autoprof_records(selected, corrected)
+        excluded.extend(superseded)
     return list(selected.values()), excluded
+
+
+def replace_autoprof_records(selected: dict, corrected: list[dict]) -> tuple[dict, list[dict]]:
+    """Replace the complete requested AutoProf roster, including failures, never best-of."""
+    replacements = {}
+    for row in corrected:
+        key = row["galaxy"], row["scenario"], row["tool"], row["arm"]
+        if key in replacements or row["tool"] != "autoprof":
+            raise ValueError("Duplicate or non-AutoProf correction record")
+        replacements[key] = row
+    expected = {key for key in selected if key[2] == "autoprof"}
+    if set(replacements) != expected:
+        raise ValueError("Corrected AutoProf roster is incomplete or has unexpected records")
+    superseded = [dict(selected[key], reason="superseded by audited PA-corrected campaign") for key in sorted(expected)]
+    return selected | replacements, superseded
 
 
 def load_profile(path: Path) -> Table:
@@ -435,11 +491,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mock-source", type=Path, required=True)
     parser.add_argument("--profit-cli", type=Path, required=True)
+    parser.add_argument("--galaxies", nargs="+", help="Optional diagnostic subset")
     parser.add_argument(
-        "--galaxies",
-        nargs="+",
-        required=True,
-        help="Diagnostic subset only until the AutoProf PA correction is accepted",
+        "--autoprof-campaign", type=Path, help="Audited PA-corrected campaign; required for full analysis"
     )
     parser.add_argument("--workers", type=int, default=1)
     args = parser.parse_args()
@@ -452,8 +506,12 @@ def main() -> None:
         raise ValueError("Use 1--8 workers")
     if args.output.resolve().parent != (args.root / "analysis").resolve():
         raise ValueError("Output must be a new child of campaign/analysis")
-    rows, excluded = join_records(args.root, args.galaxies)
+    if not args.galaxies and args.autoprof_campaign is None:
+        parser.error("Full analysis requires an audited --autoprof-campaign")
+    rows, excluded = join_records(args.root, args.galaxies, args.autoprof_campaign)
     names = sorted({r["galaxy"] for r in rows})
+    if not args.galaxies and len(names) != 93:
+        raise ValueError("Full Huang2013 analysis requires all 93 galaxies")
     args.output.mkdir(parents=True, exist_ok=False)
     pd.DataFrame(rows).to_csv(args.output / "manifest.csv", index=False)
     pd.DataFrame(excluded).to_csv(args.output / "excluded_records.csv", index=False)

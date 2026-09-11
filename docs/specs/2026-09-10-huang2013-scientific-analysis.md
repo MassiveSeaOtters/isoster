@@ -2,12 +2,15 @@
 
 Approved 2026-09-10; execution branch `analysis/huang2013-publication`.
 
-Status: small analysis gate passed, but full scientific comparison is paused.
+Status: small analysis gate passed; corrected AutoProf fitting was approved
+2026-09-11 and is in progress. Full scientific comparison awaits its audit.
 The gate exposed an AutoProf initial-position-angle convention error in the
 campaign wrapper. See
 `docs/publication/reference/2026-09-10-huang2013-analysis-gate.md`.
-Do not treat retained AutoProf accuracy outcomes as publication-ready until
-the configuration error and corrective rerun have been addressed.
+Pass the explicitly audited `--autoprof-campaign` to select its entire
+corrected roster, including failures. Original AutoProf records remain
+excluded with a supersession reason; reference dependencies are not imported
+as additional scientific Isoster outcomes.
 
 ## Inputs and products
 
@@ -60,6 +63,9 @@ products live in a new dated directory under the publication campaign's
   Bender conversion invalid. Do not infer a valid cross-tool conversion from
   the fixed-aperture harmonic experiment. Compare EA/non-EA harmonic amplitudes
   as basis-dependent quantities; isolate simultaneous harmonics within EA.
+  Centered symmetric components need not sum to perfectly elliptical
+  isophotes: even-order harmonics can be genuine when component shapes/PAs
+  differ. Do not assume every nonzero coefficient is numerical error.
 - Paired Isoster contrasts use identical scenarios and finite values on both
   sides. Report median, p16/p84, improved/equal/degraded fractions and sample
   counts. Pooled confidence intervals resample galaxies with all scenarios

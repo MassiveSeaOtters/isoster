@@ -70,3 +70,17 @@ warning was reported immediately after the gate.
 External documentation merge `003ed6e` is pushed to `isophote_test/main`.
 The corrected gate is accepted for full Huang2013 execution; full scientific
 interpretation remains pending production fitting and audit.
+
+## Production start
+
+The complete read-only S4G audit confirmed all 7,200 old saved PA options
+are offset by 90 degrees; no options were missing. Huang2013 production uses
+frozen fitter/driver commit `24d8930`. All 837 regenerated references
+completed successfully before the center-verification stage. Progress logs
+are retained under `outputs/benchmark_exhausted/pa_correction_2026_09_11/`
+and will be copied into the new external audit folders at completion.
+
+Analysis replacement selection now requires the corrected campaign's
+completion audit and a complete unique AutoProf roster. It explicitly
+retains corrected failures even when an old outcome succeeded. It does not
+import reference-only dependencies as scientific Isoster outcomes.
