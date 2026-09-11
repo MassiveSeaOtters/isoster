@@ -2,8 +2,9 @@
 
 Approved 2026-09-10; execution branch `analysis/huang2013-publication`.
 
-Status: small analysis gate passed; corrected AutoProf fitting was approved
-2026-09-11 and is in progress. Full scientific comparison awaits its audit.
+Status: corrected AutoProf fitting and both campaign audits completed
+2026-09-11. The corrected two-galaxy analysis gate (`_gate_v2`) passed exact
+pixel-reproduction and seed-export checks. Full scientific analysis is ready.
 The gate exposed an AutoProf initial-position-angle convention error in the
 campaign wrapper. See
 `docs/publication/reference/2026-09-10-huang2013-analysis-gate.md`.

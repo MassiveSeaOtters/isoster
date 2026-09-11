@@ -127,3 +127,83 @@ seeds from the frozen generator. Seed export now uses decimal text; the first
 gate is preserved and a fresh gate will verify the corrected record. This
 small analysis check used two workers during S4G reference preparation;
 S4G production durations must not be treated as isolated timing measurements.
+
+The fresh `_gate_v2` export passed all eighteen exact-seed comparisons and
+float32 reconstruction checks, retaining the same 306 scientific records.
+Its 72 AutoProf rows all select the corrected campaign; 74 excluded rows
+account for superseded AutoProf results and the two dependency duplicates
+in this selected subset. This is the accepted analysis gate. Isoster commit
+`bdc4d04` contains the seed-export correction. S4G completed all 1,800
+reference dependencies and verified their centers before starting AutoProf.
+
+At 19:07 local, a process snapshot during S4G fitting showed eight AutoProf
+workers plus macOS background work: `CGPDFService` at 85.2% CPU,
+`mds_stores` at 68.9%, and `mediaanalysisd` at 68.7% (per-process CPU values,
+where 100% is one core). These are observations, not assigned causes of
+individual fit durations. No system services were stopped or reconfigured.
+The monitor recorded load 16.49 at 19:06:50, with zero swap and no thermal
+or performance warning. This further limits interpretation of production
+wall times; it does not invalidate the fitted science profiles by itself.
+
+Three S4G production diagnostics were exported and visually inspected at
+19:15 local in `analysis/autoprof_pa_s4g_2026_09_11_production_checks`:
+NGC0275/noiseless_z005, NGC2780/wide_z010 and NGC1357/deep_z005. All show
+the corrected orientation following the light, without the old prominent
+perpendicular residual. Common-aperture data residual RMS changed from
+0.585808 to 0.117212, 0.575999 to 0.057093 and 0.258165 to 0.020043,
+respectively. Exact values and support counts are in the diagnostic JSON.
+These are spot checks, not population accuracy claims. Their single-process
+plot generation also briefly overlapped S4G fitting.
+
+## S4G completion and final review
+
+S4G completed on 2026-09-11 at 20:25 local. All 7,200 AutoProf outcomes
+succeeded (1,800 per arm), with no failures, skipped arms or reused records.
+All 1,800 reference dependencies succeeded with exactly matching resolved
+centers. The minimum successful profile has 36 finite rows. Every saved PA
+and fixed-center option passed; all 28,800 consumed-source hashes are
+unchanged. Recorded source revision: `e055a41` (the PA fitter and driver are
+unchanged from the Huang run). Measured reference/fitting/audit elapsed time
+was 6,849.725027334 seconds, excluding the preliminary inventory. The final
+driver log was copied and byte-compared into `correction_audit/driver.log`.
+
+Condition records (one-minute load; samples taken approximately every 30 s):
+
+| Campaign | Samples | Recorded window, local | Load min / median / max |
+|---|---:|---|---|
+| Huang2013 | 114 | 17:31:43–18:28:39 | 6.266 / 12.144 / 13.517 |
+| S4G | 224 | 18:30:48–20:24:55 | 4.013 / 12.872 / 18.761 |
+
+Every recorded sample reported zero swap and no thermal/performance warning.
+Huang's monitor starts during AutoProf fitting, not at reference preparation;
+S4G's includes reference preparation. These windows, background processes,
+brief diagnostic/test activity, and stochastic fitting prevent interpreting
+the durations as a new controlled timing comparison. Stage 4 is unchanged.
+
+Final regression check: 48 focused tests passed in 1.72 seconds. Earlier,
+33 shared comparison-QA tests passed in 8.78 seconds. All reviewed figures
+reuse the established QA style and are retained as PNG/PDF outside Git.
+
+The corrected campaigns are accepted for scientific analysis. Each
+`correction_audit/accepted_records.json` is the complete replacement roster;
+`completion.json` records audit completion. Do not import regenerated
+reference dependencies as replacement Isoster scientific results. The
+accepted corrected Huang analysis gate is
+`analysis/huang2013_scientific_analysis_pa_corrected_2026_09_11_gate_v2`.
+The full 93-galaxy measurements, population figures and scientific narrative
+remain the next separate analysis task; this corrective run does not claim
+to have completed them. No original data, results or system services changed.
+
+External documentation closeout was merged and pushed to
+`isophote_test/main` at `229644f` (documentation commit `1dc8644`). Unrelated
+untracked files were preserved. Gate and both analysis-gate logs were also
+copied and byte-compared into their respective new output directories.
+
+The complete corrected Huang selection was exported separately to
+`analysis/huang2013_pa_corrected_selection_2026_09_11`: 14,229 unique logical
+records across 93 galaxies, with 13,334 successes, 58 retained failures and
+837 intentional skips. All AutoProf rows select the corrected campaign.
+The 3,351 excluded records comprise 3,348 superseded AutoProf outcomes and
+three reference-dependency duplicates. `manifest.csv`, `excluded_records.csv`
+and `selection_summary.json` are retained there; this selection export does
+not perform or claim full-sample scientific measurements.
