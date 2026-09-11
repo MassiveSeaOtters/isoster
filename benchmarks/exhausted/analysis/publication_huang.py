@@ -309,7 +309,7 @@ def analyze_galaxy(rows: list[dict], output: str) -> dict:
                 galaxy=name,
                 scenario=scenario,
                 exact_float32_match=equal,
-                seed=values["noise_seed"],
+                seed=str(values["noise_seed"]) if values["noise_seed"] is not None else "",
                 max_abs_difference=float(np.max(abs(predicted - image))),
             )
         )

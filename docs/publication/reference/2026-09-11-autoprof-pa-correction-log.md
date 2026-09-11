@@ -114,3 +114,16 @@ or thermal/performance warning was observed during monitoring. The three
 production diagnostics above and complete record audit support proceeding
 to S4G without changing settings. S4G was started after this review, with
 eight workers, 1,800 reference dependencies and 7,200 AutoProf outcomes.
+
+## Analysis revalidation
+
+The two-galaxy corrected analysis gate finished with 306 records: 285
+successful, three retained Photutils failures and eighteen intentional OLS
+skips. All 72 AutoProf rows came from the audited replacement. All eighteen
+truth/noise reconstructions matched the original float32 pixels exactly.
+Inspection found that pandas exported mixed integer/missing seeds as floats,
+losing integer precision in the CSV only. Computation used the exact integer
+seeds from the frozen generator. Seed export now uses decimal text; the first
+gate is preserved and a fresh gate will verify the corrected record. This
+small analysis check used two workers during S4G reference preparation;
+S4G production durations must not be treated as isolated timing measurements.
