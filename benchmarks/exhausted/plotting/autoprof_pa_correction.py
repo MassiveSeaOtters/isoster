@@ -71,10 +71,7 @@ def plot_case(galaxy_dir: Path, old_record: Path, output: Path):
             sb_profile_scale="asinh",
             sb_asinh_softening=max(sigma, 1e-10),
         )
-        pa = normalize_pa_degrees(np.degrees(data["pa"]))
-        # Align the wrapped branch to the intended initial orientation.
-        center_pa = np.degrees(geometry["pa"])
-        pa = (pa - center_pa + 90) % 180 - 90 + center_pa
+        pa = normalize_pa_degrees(np.degrees(data["pa"]), anchor=np.degrees(geometry["pa"]))
         values = [sb, np.asarray(data["eps"]), pa, np.hypot(data["x0"] - geometry["x0"], data["y0"] - geometry["y0"])]
         for axis, y, collected in zip(axes, values, values_for_limits):
             axis.scatter(sma**0.25, y, color=color, marker=marker, s=12, alpha=0.8, label=name)
@@ -97,7 +94,7 @@ def plot_case(galaxy_dir: Path, old_record: Path, output: Path):
             )
         shown = panels[index + 1].imshow(residuals[name], origin="lower", cmap="RdBu_r", vmin=-limit, vmax=limit)
         rms[name] = float(np.sqrt(np.mean(residuals[name][support] ** 2))) if support.any() else None
-        panels[index + 1].set_title(name + ": data minus common renderer", fontsize=10)
+        panels[index + 1].set_title(name + " residual", fontsize=10)
         fig.colorbar(shown, ax=panels[index + 1], label="Intensity / pixel", fraction=0.035)
     for axis, vals in zip(axes, values_for_limits):
         if vals:

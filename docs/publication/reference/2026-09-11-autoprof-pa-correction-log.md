@@ -49,7 +49,8 @@ centers. Every saved PA option passed, every successful profile had finite
 rows, and all consumed-source SHA-256 checks remained unchanged.
 
 Four before/after PNG/PDF diagnostics were inspected in
-`analysis/autoprof_pa_gate_2026_09_11`. They reuse the shared QA style and
+`analysis/autoprof_pa_gate_2026_09_11_unwrapped` (the final reviewed export;
+the first export is also preserved). They reuse the shared QA style and
 fourth-root radius axes, with all PA values included. The old perpendicular
 fits are visible; corrected orientations follow the galaxy light. Shared
 finite-aperture, no-harmonic-renderer data residual RMS changed as follows
