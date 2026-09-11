@@ -80,6 +80,24 @@ def test_campaign_rejects_unknown_selected_arm(tmp_path: Path) -> None:
     ("config_name", "campaign_name", "dataset_name", "expected_fits"),
     [
         (
+            "campaign.publication_autoprof_pa_gate_2026_09_11.yaml",
+            "publication_autoprof_pa_gate_2026_09_11",
+            None,
+            20,
+        ),
+        (
+            "campaign.publication_autoprof_pa_huang_2026_09_11.yaml",
+            "publication_autoprof_pa_huang_2026_09_11",
+            "huang2013",
+            4_185,
+        ),
+        (
+            "campaign.publication_autoprof_pa_s4g_2026_09_11.yaml",
+            "publication_autoprof_pa_s4g_2026_09_11",
+            "s4g",
+            9_000,
+        ),
+        (
             "campaign.publication_huang_recovery_ngc1209.yaml",
             "publication_single_band_huang_recovery_ngc1209_v2_2026_09_08",
             "huang2013",

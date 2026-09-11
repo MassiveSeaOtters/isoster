@@ -592,6 +592,13 @@ enabled; its median `I` column is not substituted.
 
 ## Documentation Policy
 
+The exhausted-campaign AutoProf adapter uses the shared
+`isoster_pa_to_autoprof_init` conversion for input astronomical PA; output
+profiles are converted back independently. Publication PA-correction runs
+use `benchmarks/exhausted/campaigns/run_autoprof_pa_correction.py` to verify
+reference-only dependencies before AutoProf, then audit every saved option
+and source hash. Existing campaign directories are rejected.
+
 The exploratory Huang2013 publication collector lives in
 `benchmarks/exhausted/analysis/publication_huang.py`. It reads immutable
 campaign profiles and writes a new external analysis directory, with explicit

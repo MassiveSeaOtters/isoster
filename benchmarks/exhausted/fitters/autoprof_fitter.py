@@ -31,6 +31,7 @@ from benchmarks.autoprof_env import (
     autoprof_install_hint,
     resolve_autoprof_python,
 )
+from benchmarks.utils.autoprof_adapter import isoster_pa_to_autoprof_init
 from isoster import build_isoster_model
 from isoster.plotting import plot_qa_summary
 from isoster.utils import isophote_results_to_fits
@@ -566,8 +567,8 @@ def _build_options(
             "x": float(center_override["x"]),
             "y": float(center_override["y"]),
         }
-    # Optional PA / ellipticity seeds from the adapter.
-    options["ap_isoinit_pa_set"] = float(np.degrees(geom.get("pa", 0.0)))
+    # AutoProf overrides its global PA with this astronomical-convention angle.
+    options["ap_isoinit_pa_set"] = isoster_pa_to_autoprof_init(float(geom.get("pa", 0.0)))
     options["ap_isoinit_ellip_set"] = float(geom.get("eps", 0.2))
     return options
 
