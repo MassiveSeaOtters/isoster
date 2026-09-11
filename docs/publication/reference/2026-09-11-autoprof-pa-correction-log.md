@@ -40,5 +40,33 @@ request 837/1,800 references and 3,348/7,200 AutoProf outcomes, with eight
 workers and single-thread numerical libraries. Native stochastic behavior
 and numerical failures are retained. No old/new best-score selection.
 
-Status: code/options validation passed; actual-fit gate is next. Full
-scientific interpretation remains pending corrected fitting and audit.
+## Gate result
+
+Frozen fitter/driver commit: `d7cace2`. The four-image gate completed in
+70.084 seconds with sixteen successful AutoProf fits, zero failures/skips,
+four successful reference dependencies and exactly unchanged reference
+centers. Every saved PA option passed, every successful profile had finite
+rows, and all consumed-source SHA-256 checks remained unchanged.
+
+Four before/after PNG/PDF diagnostics were inspected in
+`analysis/autoprof_pa_gate_2026_09_11`. They reuse the shared QA style and
+fourth-root radius axes, with all PA values included. The old perpendicular
+fits are visible; corrected orientations follow the galaxy light. Shared
+finite-aperture, no-harmonic-renderer data residual RMS changed as follows
+(intensity per pixel; diagnostic only, not a publication ranking):
+
+| Case | Old AutoProf | Corrected AutoProf |
+|---|---:|---:|
+| IC2597 wide_z005 | 0.290390 | 0.052162 |
+| NGC1209 noiseless_z005 | 1.251859 | 0.043704 |
+| NGC0275 noiseless_z005 | 0.585518 | 0.112923 |
+| NGC2780 wide_z010 | 0.578501 | 0.057105 |
+
+NGC0275's nearly round outskirts still have method-dependent PA/ellipticity;
+this is not the systematic 90-degree input error. The gate preserves those
+differences rather than imposing agreement. No swap or thermal/performance
+warning was reported immediately after the gate.
+
+External documentation merge `003ed6e` is pushed to `isophote_test/main`.
+The corrected gate is accepted for full Huang2013 execution; full scientific
+interpretation remains pending production fitting and audit.
