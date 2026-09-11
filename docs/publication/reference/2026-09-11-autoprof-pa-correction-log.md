@@ -85,3 +85,32 @@ Analysis replacement selection now requires the corrected campaign's
 completion audit and a complete unique AutoProf roster. It explicitly
 retains corrected failures even when an old outcome succeeded. It does not
 import reference-only dependencies as scientific Isoster outcomes.
+
+Three completed production cases were inspected before the full run finished:
+IC2597/deep_z050, NGC1209/noiseless_z005 and NGC2986/deep_z020. PNG/PDF
+diagnostics and exact residual measurements are retained in
+`analysis/autoprof_pa_huang_2026_09_11_production_checks`. The corrected
+orientations follow the light and the prominent perpendicular residuals
+are removed. Inner-PSF and outer low-signal method differences remain visible.
+This is a spot check, not evidence that every production fit is scientifically
+accurate. The first diagnostic command named NGC2974, which is absent from
+the selected campaign; its input check stopped before creating output. The
+replacement case NGC2986 was resolved from the actual completed roster.
+
+## Huang2013 completion
+
+Completed 2026-09-11 at 18:28 local. All 3,348 AutoProf outcomes succeeded
+(837 in each arm), with no failures, skipped arms or reused records. All 837
+reference dependencies succeeded and their resolved centers matched the
+archived references exactly. The smallest successful profile contains 23
+finite rows. All 13,396 consumed-source hashes are unchanged, and every
+saved PA and fixed-center option passed. Measured reference/fitting/audit
+elapsed time: 3,662.95086575 seconds; preliminary inventory time is excluded.
+This is production duration, not a controlled timing benchmark.
+
+The completed driver log was copied byte-for-byte into the new campaign's
+`correction_audit/driver.log`; the monitor is retained alongside it. No swap
+or thermal/performance warning was observed during monitoring. The three
+production diagnostics above and complete record audit support proceeding
+to S4G without changing settings. S4G was started after this review, with
+eight workers, 1,800 reference dependencies and 7,200 AutoProf outcomes.
