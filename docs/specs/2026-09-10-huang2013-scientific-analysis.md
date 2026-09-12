@@ -2,9 +2,13 @@
 
 Approved 2026-09-10; execution branch `analysis/huang2013-publication`.
 
-Status: corrected AutoProf fitting and both campaign audits completed
-2026-09-11. The corrected two-galaxy analysis gate (`_gate_v2`) passed exact
-pixel-reproduction and seed-export checks. Full scientific analysis is ready.
+Status: full corrected scientific measurements completed 2026-09-12 on
+`analysis/huang2013-corrected-science`: 14,229 records, 837 exact input
+reproductions, 372 truth images and 30,913 unchanged source files. Summary
+figures, selected cases and interpretation are recorded in
+`docs/publication/reference/2026-09-12-huang2013-scientific-analysis.md`.
+Corrected AutoProf fitting and both campaign audits completed 2026-09-11;
+the corrected two-galaxy gate (`_gate_v2`) passed exact pixel/seed checks.
 The gate exposed an AutoProf initial-position-angle convention error in the
 campaign wrapper. See
 `docs/publication/reference/2026-09-10-huang2013-analysis-gate.md`.
