@@ -1,5 +1,9 @@
 # Huang2013 scientific analysis: corrected selection
 
+Historical estimated-background result. The primary prepared-image comparison
+is now the [2026-09-21 zero-background reanalysis](2026-09-21-autoprof-zero-background.md).
+Retain the numbers below as a record, not the current manuscript selection.
+
 ## Status and interpretation
 
 The full corrected Huang2013 selection was measured on 2026-09-12 on branch

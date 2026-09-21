@@ -36,3 +36,11 @@
   ring occurs before that test. The previous comment overstated the retry's
   protection. Zero sky exposes some failures despite the unchanged retry;
   correcting the comment does not authorize changing the fitting recipe.
+- Exact input-noise seeds do not imply deterministic fitting. Installed
+  AutoProf reseeds its optimizer inside `Process_Image` using process/time
+  information. Preserve this distinction in old/new comparisons; do not
+  claim that every change is causally isolated to the fixed background.
+- The shared comparison plotter's `mask` argument overlays the data panel;
+  it does not mask residual maps. For publication atlas residuals on the
+  quantitative common aperture, explicitly mask the displayed models with
+  NaNs outside that aperture. Keep native radial profiles unchanged.

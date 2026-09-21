@@ -318,7 +318,7 @@ def render_case(frame, measurements, case, output):
         assert values["npix"] == row.npix_all
         assert np.isclose(values["truth_relative_rms"], row.truth_relative_rms_all, rtol=1e-9, atol=1e-12)
         name = key[0] if not case.contrast else key[1]
-        use_profiles[name], use_models[name] = profiles[key], models[key]
+        use_profiles[name], use_models[name] = profiles[key], np.where(support, models[key], np.nan)
         styles[name] = dict(METHOD_STYLES[TOOLS[index]], label=key[0] if not case.contrast else key[1])
         checks.append(dict(tool=key[0], arm=key[1], **values))
     stem = f"{case.galaxy}__{case.scenario}__{case.contrast or 'primary'}"
