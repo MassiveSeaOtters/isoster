@@ -262,11 +262,11 @@ def select_cases(frame, pairs):
         "smallest resolved reference radius at deep_z050",
     )
     add(reference, "common_support_fraction", False, "smallest common finite support")
-    failed = frame[frame.primary & frame.status.eq("failed")].sort_values(["galaxy", "scenario", "tool"])
-    if len(failed):
-        row = failed.iloc[0]
+    failed = frame[frame.primary & ~frame.status.isin(["ok", "skipped"])].sort_values(["galaxy", "scenario", "tool"])
+    for tool, group in failed.groupby("tool"):
+        row = group.iloc[0]
         selected.append(
-            dict(galaxy=row.galaxy, scenario=row.scenario, reason="first retained primary failure", contrast="")
+            dict(galaxy=row.galaxy, scenario=row.scenario, reason=f"first retained {tool} primary failure", contrast="")
         )
     primary = matched_primary(frame, "truth_relative_rms_all").reset_index()
     primary["difference"] = abs(primary.autoprof - primary.isoster)
