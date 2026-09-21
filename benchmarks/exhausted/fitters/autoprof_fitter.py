@@ -551,6 +551,11 @@ def _build_options(
     }
     if cfg["ap_isoclip"]:
         options["ap_isoclip_nsigma"] = float(cfg["ap_isoclip_nsigma"])
+    if "ap_set_background" in cfg:
+        background = float(cfg["ap_set_background"])
+        if not np.isfinite(background):
+            raise ValueError("ap_set_background must be finite")
+        options["ap_set_background"] = background
     if mask_path is not None:
         options["ap_mask_file"] = str(mask_path)
         options["ap_mask_hdu"] = 0

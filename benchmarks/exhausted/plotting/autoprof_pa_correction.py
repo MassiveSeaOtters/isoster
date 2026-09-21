@@ -18,14 +18,21 @@ from isoster.model import build_isoster_model
 from isoster.plotting import METHOD_STYLES, configure_qa_plot_style, normalize_pa_degrees, transform_sb_profile
 
 
-def plot_case(galaxy_dir: Path, old_record: Path, output: Path):
+def plot_case(
+    galaxy_dir: Path,
+    old_record: Path,
+    output: Path,
+    *,
+    labels=("AutoProf old PA", "AutoProf corrected PA"),
+    diagnostic="PA correction",
+):
     """Use shared-domain no-harmonic models; this is not the final science score."""
     manifest = json.loads((galaxy_dir / "MANIFEST.json").read_text())
     image = fits.getdata(manifest["extra"]["fits_path"]).astype(float)
     paths = {
         "Isoster reference": galaxy_dir / "isoster/arms/ref_default/profile.fits",
-        "AutoProf old PA": old_record.parent / "profile.fits",
-        "AutoProf corrected PA": galaxy_dir / "autoprof/arms/baseline/profile.fits",
+        labels[0]: old_record.parent / "profile.fits",
+        labels[1]: galaxy_dir / "autoprof/arms/baseline/profile.fits",
     }
     profiles = {name: load_profile(path) for name, path in paths.items() if path.is_file()}
     models = {
@@ -116,7 +123,7 @@ def plot_case(galaxy_dir: Path, old_record: Path, output: Path):
     for panel in panels:
         panel.set_xticks([])
         panel.set_yticks([])
-    fig.suptitle(manifest["galaxy_id"] + " — PA correction diagnostic (no-harmonic renderer)", fontsize=15)
+    fig.suptitle(manifest["galaxy_id"] + f" — {diagnostic} diagnostic (no-harmonic renderer)", fontsize=15)
     for extension in ("png", "pdf"):
         fig.savefig(output.with_suffix("." + extension), dpi=180)
     plt.close(fig)

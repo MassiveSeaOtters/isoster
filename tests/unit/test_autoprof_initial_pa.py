@@ -36,6 +36,26 @@ def test_campaign_pa_round_trip_and_unchanged_options(degrees, tmp_path):
     assert options["ap_set_center"] == {"x": 9.8, "y": 10.2}
     assert options["ap_fit_limit"] == 1.0
     assert options["ap_isoclip"] is True
+    assert "ap_set_background" not in options
+    fixed_options = _build_options(
+        bundle=bundle,
+        arm_delta={"ap_set_background": 0.0, "ap_fit_limit": 1.0},
+        image_path=Path("input.fits"),
+        mask_path=None,
+        save_dir=str(tmp_path),
+        galaxy_tag="test",
+        center_override={"x": 9.8, "y": 10.2},
+    )
+    assert fixed_options == options | {"ap_set_background": 0.0}
+    with pytest.raises(ValueError, match="finite"):
+        _build_options(
+            bundle=bundle,
+            arm_delta={"ap_set_background": np.nan},
+            image_path=Path("input.fits"),
+            mask_path=None,
+            save_dir=str(tmp_path),
+            galaxy_tag="test",
+        )
 
 
 def test_native_output_pa_is_still_converted_once(tmp_path):

@@ -12,6 +12,7 @@ import copy
 import importlib.metadata
 import json
 import platform
+import shutil
 import subprocess
 import sys
 import time
@@ -72,12 +73,28 @@ def center_for(galaxy_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", type=Path)
+    parser.add_argument(
+        "--zero-background", action="store_true", help="Fix sky to zero and copy reference dependencies"
+    )
+    parser.add_argument("--source-campaign", type=Path, help="Previously audited PA-corrected AutoProf campaign")
     args = parser.parse_args()
     plan = load_campaign(args.config)
     root = plan.output_root.parent
     target = plan.output_root / plan.campaign_name
-    if not plan.campaign_name.startswith("publication_autoprof_pa_") or plan.output_root.name != "fits":
+    prefix = "publication_autoprof_zero_" if args.zero_background else "publication_autoprof_pa_"
+    if not plan.campaign_name.startswith(prefix) or plan.output_root.name != "fits":
         raise ValueError("Only separately named publication PA campaigns are accepted")
+    if args.zero_background:
+        if args.source_campaign is None:
+            parser.error("--zero-background requires --source-campaign")
+        previous = json.loads((args.source_campaign / "correction_audit/completion.json").read_text())
+        if not previous.get("all_source_hashes_unchanged") or not previous.get("all_saved_pa_correct"):
+            raise ValueError("Source campaign has not passed its PA/source audit")
+        for arm in plan.tools["autoprof"].arms.values():
+            arm["ap_set_background"] = 0.0
+        plan.raw["correction"] = dict(
+            background=0.0, reference_mode="copied", source_campaign=str(args.source_campaign)
+        )
     if set(plan.tools["autoprof"].arms) != ARMS or set(plan.tools["isoster"].arms) != {"ref_default"}:
         raise ValueError("Unexpected corrective arm roster")
     if plan.tools["photutils"].enabled or not 1 <= plan.execution["max_parallel_galaxies"] <= 8:
@@ -97,6 +114,12 @@ def main():
     if not selected:
         raise ValueError("Empty campaign")
     sources = archived_sources(root, {d for d, _ in selected})
+    if args.zero_background:
+        for dataset, galaxy in selected:
+            for arm in ARMS:
+                sources[dataset, galaxy, "autoprof", arm] = (
+                    args.source_campaign / dataset / safe_galaxy_id(galaxy) / "autoprof/arms" / arm / "run_record.json"
+                )
     files, old_options = {args.config.resolve()}, []
     for dataset, galaxy in selected:
         for tool, arms in (("isoster", ["ref_default"]), ("autoprof", sorted(ARMS))):
@@ -112,6 +135,8 @@ def main():
                     options_path = next((path.parent / "tmp").glob("*_options.json"))
                     files.add(options_path)
                     options = json.loads(options_path.read_text())
+                    if args.zero_background and "ap_set_background" in options:
+                        raise ValueError("Expected estimated-background source campaign")
                     intended = json.loads(manifest.read_text())["initial_geometry"]["pa"]
                     difference = (options["ap_isoinit_pa_set"] - isoster_pa_to_autoprof_init(intended) + 90) % 180 - 90
                     old_options.append(dict(dataset=dataset, galaxy=galaxy, arm=arm, pa_error_deg=difference))
@@ -122,6 +147,7 @@ def main():
     (control / "source_hashes_before.json").write_text(json.dumps(before, indent=2) + "\n")
     (control / "old_options_audit.json").write_text(json.dumps(old_options, indent=2) + "\n")
     (control / "requested_config.yaml").write_text(yaml.safe_dump(plan.raw, sort_keys=False))
+    (control / "resolved_autoprof_arms.json").write_text(json.dumps(plan.tools["autoprof"].arms, indent=2) + "\n")
     metadata = dict(
         started=time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         python=sys.version,
@@ -145,11 +171,20 @@ def main():
     )
     (control / "provenance.json").write_text(json.dumps(metadata, indent=2) + "\n")
     started = time.monotonic()
-    print(f"[pa-correction] {len(selected)} images; generating reference dependencies", flush=True)
-    references = run_campaign(phase_plan(plan, "isoster"))
-    (control / "reference_summary.json").write_text(json.dumps(asdict(references), indent=2) + "\n")
-    if references.total_ok != len(selected):
-        raise RuntimeError("Reference dependency failed; AutoProf not started")
+    if args.zero_background:
+        print(f"[correction] {len(selected)} images; copying reference profiles without fitting", flush=True)
+        for dataset, galaxy in selected:
+            destination = target / dataset / safe_galaxy_id(galaxy) / "isoster/arms/ref_default"
+            destination.mkdir(parents=True, exist_ok=False)
+            shutil.copy2(
+                sources[dataset, galaxy, "isoster", "ref_default"].parent / "profile.fits", destination / "profile.fits"
+            )
+    else:
+        print(f"[pa-correction] {len(selected)} images; generating reference dependencies", flush=True)
+        references = run_campaign(phase_plan(plan, "isoster"))
+        (control / "reference_summary.json").write_text(json.dumps(asdict(references), indent=2) + "\n")
+        if references.total_ok != len(selected):
+            raise RuntimeError("Reference dependency failed; AutoProf not started")
     center_checks = []
     for dataset, galaxy in selected:
         new_dir = target / dataset / safe_galaxy_id(galaxy)
@@ -169,6 +204,19 @@ def main():
             folder = galaxy_dir / "autoprof/arms" / arm
             record = json.loads((folder / "run_record.json").read_text())
             options = json.loads(next((folder / "tmp").glob("*_options.json")).read_text())
+            if args.zero_background:
+                previous_options = json.loads(
+                    next((sources[dataset, galaxy, "autoprof", arm].parent / "tmp").glob("*_options.json")).read_text()
+                )
+                ignored = {"ap_image_file", "ap_mask_file", "ap_saveto", "ap_plotpath", "ap_set_background"}
+                if {k: v for k, v in options.items() if k not in ignored} != {
+                    k: v for k, v in previous_options.items() if k not in ignored
+                }:
+                    raise RuntimeError(f"Non-background fitting options changed: {folder}")
+                if options.get("ap_set_background") != 0.0:
+                    raise RuntimeError(f"Incorrect fixed background: {folder}")
+                if record["status"] == "ok" and record.get("autoprof_aux", {}).get("background") != 0.0:
+                    raise RuntimeError(f"Reported background is not zero: {folder}")
             error = (options["ap_isoinit_pa_set"] - isoster_pa_to_autoprof_init(geometry["pa"]) + 90) % 180 - 90
             if not abs(error) < 1e-10:
                 raise RuntimeError(f"Incorrect saved PA: {folder}")
@@ -208,6 +256,8 @@ def main():
         outcomes=dict(Counter(row["status"] for row in audit)),
         all_source_hashes_unchanged=True,
         all_saved_pa_correct=True,
+        background_policy="fixed_zero" if args.zero_background else "estimated",
+        all_saved_backgrounds_zero=True if args.zero_background else None,
     )
     (control / "completion.json").write_text(json.dumps(completion, indent=2) + "\n")
     print(f"[pa-correction] complete {completion}", flush=True)

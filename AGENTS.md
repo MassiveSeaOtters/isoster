@@ -23,3 +23,10 @@ This file gives coding-agent instructions for working in this repository.
 ## Publication Analysis Figures
 
 - Study and reuse the existing plotting code, formats, and style before creating new figures. Align new plotting scripts with the existing QA conventions.
+
+## Prepared-background mock comparisons
+
+- For the new Huang2013 and subsequent S4G AutoProf publication campaigns,
+  fix the background level to zero; background subtraction is input preparation,
+  not part of the intended 1-D algorithm comparison. Treat noise estimation
+  separately and preserve earlier campaigns as superseded provenance.

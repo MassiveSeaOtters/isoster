@@ -127,6 +127,8 @@ def join_records(
         completion = json.loads((audit / "completion.json").read_text())
         if not completion.get("all_source_hashes_unchanged") or not completion.get("all_saved_pa_correct"):
             raise ValueError("Corrected AutoProf campaign has not passed its audit")
+        if completion.get("background_policy") == "fixed_zero" and not completion.get("all_saved_backgrounds_zero"):
+            raise ValueError("Fixed-background campaign has not passed its background audit")
         corrected = []
         for entry in json.loads((audit / "accepted_records.json").read_text()):
             if entry["dataset"] != "huang2013":
@@ -175,7 +177,10 @@ def replace_autoprof_records(selected: dict, corrected: list[dict]) -> tuple[dic
     expected = {key for key in selected if key[2] == "autoprof"}
     if set(replacements) != expected:
         raise ValueError("Corrected AutoProf roster is incomplete or has unexpected records")
-    superseded = [dict(selected[key], reason="superseded by audited PA-corrected campaign") for key in sorted(expected)]
+    superseded = [
+        dict(selected[key], reason="superseded by explicitly selected audited AutoProf campaign")
+        for key in sorted(expected)
+    ]
     return selected | replacements, superseded
 
 
