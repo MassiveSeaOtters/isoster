@@ -21,7 +21,7 @@ retry policy. No Isoster or Photutils fit was repeated. The accepted
 14,229-outcome selection contains 13,283 successful fits, 58 Photutils
 failures, 51 AutoProf errors and 837 intentional Isoster no-weight skips,
 because the inputs supply no variance map. All nine executable Isoster
-arms completed all 837 conditions. AutoProf completed 3,297 of 3,348 fits
+arms completed all 837 conditions. AutoProf succeeded in 3,297 of 3,348 fits
 across four arms; 48 errors involve empty outer-ring extraction and three
 involve ellipse initialization. Photutils' primary completed all noisy
 cases but 67 of 93 noiseless cases. Failures are retained separately rather
@@ -59,7 +59,7 @@ clearly separated pooled median RMS improvement. These remain configuration
 trade-offs, not a combined accuracy score or a new-default recommendation.
 
 Limitations include smooth centered models, one noise draw per condition,
-finite support, an unseeded AutoProf optimizer realization, and differing
+finite support, unrecorded AutoProf optimizer seeds, and differing
 native sampling/extraction estimators. Noiseless AutoProf fits retain its
 internal nonzero noise-scale fallback, not added image noise. AutoProf's
 auxiliary centers are rounded to 0.01 pixel and placeholder stop codes are
