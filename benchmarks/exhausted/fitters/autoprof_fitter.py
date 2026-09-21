@@ -68,14 +68,15 @@ _VENV_PROBE_CACHE: dict[str, str] = {}
 #
 # The fallback here is narrow on purpose: it fires only after the first
 # attempt fails with one of the two signatures above, and it injects the
-# smallest knob set that keeps AutoProf within the image:
+# existing conservative knob set that can recover some such failures:
 #
 #   * ``ap_centeringring`` = safe ring count from image half-extent / PSF,
 #     so no centering ring extends beyond the frame.
-#   * ``ap_truncate_evaluation = True`` — documented AutoProf stop condition
-#     that terminates profile extraction once the ellipse escapes the image.
-#   * ``ap_extractfull = False`` — belt-and-braces: never extract past the
-#     fit limit.
+#   * ``ap_truncate_evaluation = True`` — stops after two non-positive
+#     intensity samples, not at the image boundary. With known zero sky,
+#     an empty ring can still fail before this condition is evaluated.
+#   * ``ap_extractfull = False`` — do not request full-image extraction.
+#     This is not an explicit image-boundary guard either.
 #
 # Anything else (the arm delta, isoclip knobs, center override) is left
 # untouched, so we preserve the arm semantics as far as possible.

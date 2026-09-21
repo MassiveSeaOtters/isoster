@@ -30,3 +30,9 @@
   triggers. Validate each recorded fallback against its image-size rule and
   first-attempt failure log before removing those keys for recipe comparison.
   Never ignore arbitrary differences or refit successful data to repair an audit.
+- Check installed AutoProf semantics, not wrapper comments. In AutoProf 1.3.4,
+  `ap_truncate_evaluation` stops after two non-positive intensity samples;
+  it does not test the image boundary. Harmonic interpolation of an empty
+  ring occurs before that test. The previous comment overstated the retry's
+  protection. Zero sky exposes some failures despite the unchanged retry;
+  correcting the comment does not authorize changing the fitting recipe.

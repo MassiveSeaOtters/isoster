@@ -76,6 +76,14 @@ Early full-run failures in IC2311 are real AutoProf extraction failures:
 an outer ellipse has no unmasked image samples and interpolation raises
 `array of sample points is empty`, including after its existing retry.
 They are retained as failures, not replaced by another arm or tuned rerun.
+Inspection of installed AutoProf 1.3.4 explains why the retry is not a full
+remedy: `ap_truncate_evaluation` stops after two non-positive intensity
+samples, not when an ellipse leaves the image, and harmonic interpolation
+of an empty ring happens before that test. With zero adopted sky, positive
+galaxy wings need not encounter that stop condition. We corrected the
+wrapper's misleading comment but did not change the retry or disable
+harmonic extraction. This is an extraction-boundary failure, not evidence
+that subtracting a positive sky is scientifically appropriate.
 
 ## Gate results
 
