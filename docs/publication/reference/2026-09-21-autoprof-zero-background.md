@@ -19,9 +19,12 @@ copies of the accepted Isoster reference profiles.
 
 The campaign retains the previous 93 galaxies, nine scenarios, four AutoProf
 arms (`baseline`, `deep`, `high_regularization`, `fix_center`) and corrected
-PA conversion: 837 images and 3,348 requested fits. All saved fitting options
+PA conversion: 837 images and 3,348 requested fits. Requested fitting options
 other than background and filesystem paths must equal their PA-corrected
-predecessors. The noise-estimation algorithm is unchanged; its measured
+predecessors. The pre-existing conditional retry is verified separately:
+its image-size-dependent values and first-attempt failure signature must
+match the recorded retry. A changed sky can change which cases trigger it.
+The noise-estimation algorithm is unchanged; its measured
 output is not required to equal the old estimate.
 
 Code is isolated from Dropbox in
@@ -58,6 +61,21 @@ The runner rejects an existing destination. Its `correction_audit` directory
 records resolved options, source hashes, dependency centers, environments,
 accepted outcomes and completion verdicts. Scientific failures are retained;
 no best-of-run selection is allowed.
+
+The first full-run audit implementation incorrectly compared final retry
+options as if retry triggers had to remain identical. This was caught during
+monitoring: IC2311/wide_z020/fix_center activated the unchanged retry in the
+zero-sky run only. The corrected audit checks the requested recipe and retry
+policy separately. The already-running fitting process is unchanged and
+will finish with its original strict audit error; then `--audit-only` on the
+same command verifies all retained records without refitting. It rejects an
+already completed audit, a changed configuration or a changed source roster.
+In audit-only mode, elapsed fitting time is left null rather than fabricated.
+
+Early full-run failures in IC2311 are real AutoProf extraction failures:
+an outer ellipse has no unmasked image samples and interpolation raises
+`array of sample points is empty`, including after its existing retry.
+They are retained as failures, not replaced by another arm or tuned rerun.
 
 ## Gate results
 

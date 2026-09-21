@@ -76,3 +76,23 @@ def test_reference_phase_does_not_mutate_full_campaign():
     assert not reference.tools["autoprof"].enabled
     assert not reference.raw["tools"]["autoprof"]["enabled"]
     assert plan.tools["autoprof"].enabled and plan.raw["tools"]["autoprof"]["enabled"]
+
+
+def test_background_audit_distinguishes_retry_trigger_from_policy():
+    from benchmarks.exhausted.campaigns.run_autoprof_pa_correction import requested_options
+    from benchmarks.exhausted.fitters.autoprof_fitter import _small_image_fallback_delta
+
+    original = {"ap_fit_limit": 2.0, "ap_set_background": 0.0}
+    fallback = _small_image_fallback_delta((107, 107))
+    record = dict(
+        small_image_fallback=fallback, small_image_signature="_Generate_Profile::array of sample points is empty"
+    )
+    log = "_Generate_Profile: array of sample points is empty"
+    assert requested_options(original, {}, (107, 107), "") == original
+    assert requested_options(original | fallback, record, (107, 107), log) == original
+    with pytest.raises(ValueError, match="Unverified"):
+        requested_options(original | fallback, record, (107, 107), "unrelated failure")
+    with pytest.raises(ValueError, match="Saved options"):
+        requested_options(original | fallback | {"ap_extractfull": True}, record, (107, 107), log)
+    with pytest.raises(ValueError, match="Unverified"):
+        requested_options(original | fallback, record, (33, 33), log)

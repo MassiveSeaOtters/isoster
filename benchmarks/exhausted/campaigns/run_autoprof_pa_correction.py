@@ -25,7 +25,11 @@ import yaml
 
 from benchmarks.exhausted.adapters.base import safe_galaxy_id
 from benchmarks.exhausted.analysis.publication_huang import digest, join_records, load_profile
-from benchmarks.exhausted.fitters.autoprof_fitter import _resolve_center_override
+from benchmarks.exhausted.fitters.autoprof_fitter import (
+    _detect_small_image_failure,
+    _resolve_center_override,
+    _small_image_fallback_delta,
+)
 from benchmarks.exhausted.orchestrator.config_loader import load_campaign
 from benchmarks.exhausted.orchestrator.runner import run_campaign
 from benchmarks.utils.autoprof_adapter import isoster_pa_to_autoprof_init
@@ -70,6 +74,21 @@ def center_for(galaxy_dir):
     return np.array([center["x"], center["y"]])
 
 
+def requested_options(options, record, image_shape, first_log):
+    """Remove only a verified execution of the pre-existing one-retry policy."""
+    requested = dict(options)
+    fallback = record.get("small_image_fallback")
+    if fallback:
+        expected = _small_image_fallback_delta(image_shape)
+        signature = _detect_small_image_failure("", first_log)
+        if fallback != expected or not signature or signature != record.get("small_image_signature"):
+            raise ValueError("Unverified AutoProf fallback")
+        for key, value in fallback.items():
+            if requested.pop(key, None) != value:
+                raise ValueError("Saved options differ from recorded fallback")
+    return requested
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", type=Path)
@@ -77,6 +96,9 @@ def main():
         "--zero-background", action="store_true", help="Fix sky to zero and copy reference dependencies"
     )
     parser.add_argument("--source-campaign", type=Path, help="Previously audited PA-corrected AutoProf campaign")
+    parser.add_argument(
+        "--audit-only", action="store_true", help="Audit a complete zero-background run without fitting"
+    )
     args = parser.parse_args()
     plan = load_campaign(args.config)
     root = plan.output_root.parent
@@ -99,7 +121,9 @@ def main():
         raise ValueError("Unexpected corrective arm roster")
     if plan.tools["photutils"].enabled or not 1 <= plan.execution["max_parallel_galaxies"] <= 8:
         raise ValueError("Unexpected tools or concurrency")
-    if target.exists():
+    if args.audit_only and (not args.zero_background or not target.is_dir()):
+        raise ValueError("Audit-only requires an existing zero-background campaign")
+    if target.exists() and not args.audit_only:
         raise FileExistsError(f"Refusing existing campaign: {target}")
     selected = []
     for dataset in plan.datasets.values():
@@ -140,6 +164,15 @@ def main():
                     intended = json.loads(manifest.read_text())["initial_geometry"]["pa"]
                     difference = (options["ap_isoinit_pa_set"] - isoster_pa_to_autoprof_init(intended) + 90) % 180 - 90
                     old_options.append(dict(dataset=dataset, galaxy=galaxy, arm=arm, pa_error_deg=difference))
+    if args.audit_only:
+        control = target / "correction_audit"
+        before = json.loads((control / "source_hashes_before.json").read_text())
+        if set(before) != {str(path) for path in files}:
+            raise ValueError("Audit-only source roster differs from the original run")
+        if yaml.safe_load((control / "requested_config.yaml").read_text()) != plan.raw:
+            raise ValueError("Audit-only configuration differs from the original run")
+        audit_results(args, target, sources, selected, before)
+        return
     target.mkdir(parents=True, exist_ok=False)
     control = target / "correction_audit"
     control.mkdir()
@@ -196,10 +229,26 @@ def main():
     (control / "reference_centers.json").write_text(json.dumps(center_checks, indent=2) + "\n")
     print("[pa-correction] reference centers verified; starting AutoProf", flush=True)
     results = run_campaign(phase_plan(plan, "autoprof"))
+    audit_results(args, target, sources, selected, before, results, started)
+
+
+def audit_results(args, target, sources, selected, before, results=None, started=None):
+    """Finalize complete records without refitting or replacing existing audit results."""
+    control = target / "correction_audit"
+    if (control / "completion.json").exists():
+        raise FileExistsError("Campaign already has a completion audit")
     audit = []
     for dataset, galaxy in selected:
         galaxy_dir = target / dataset / safe_galaxy_id(galaxy)
-        geometry = json.loads((galaxy_dir / "MANIFEST.json").read_text())["initial_geometry"]
+        manifest = json.loads((galaxy_dir / "MANIFEST.json").read_text())
+        geometry = manifest["initial_geometry"]
+        if not np.allclose(
+            center_for(galaxy_dir),
+            center_for(sources[dataset, galaxy, "isoster", "ref_default"].parents[3]),
+            rtol=0,
+            atol=1e-8,
+        ):
+            raise RuntimeError(f"Copied reference center differs: {galaxy_dir}")
         for arm in sorted(ARMS):
             folder = galaxy_dir / "autoprof/arms" / arm
             record = json.loads((folder / "run_record.json").read_text())
@@ -208,9 +257,19 @@ def main():
                 previous_options = json.loads(
                     next((sources[dataset, galaxy, "autoprof", arm].parent / "tmp").glob("*_options.json")).read_text()
                 )
+                previous_folder = sources[dataset, galaxy, "autoprof", arm].parent
+                previous_record = json.loads((previous_folder / "run_record.json").read_text())
+                normalized = []
+                for saved, saved_record, saved_folder in (
+                    (options, record, folder),
+                    (previous_options, previous_record, previous_folder),
+                ):
+                    log_path = saved_folder / "raw" / f"{safe_galaxy_id(galaxy)}_autoprof.log.attempt1"
+                    first_log = log_path.read_text() if saved_record.get("small_image_fallback") else ""
+                    normalized.append(requested_options(saved, saved_record, manifest["image_shape"], first_log))
                 ignored = {"ap_image_file", "ap_mask_file", "ap_saveto", "ap_plotpath", "ap_set_background"}
-                if {k: v for k, v in options.items() if k not in ignored} != {
-                    k: v for k, v in previous_options.items() if k not in ignored
+                if {k: v for k, v in normalized[0].items() if k not in ignored} != {
+                    k: v for k, v in normalized[1].items() if k not in ignored
                 }:
                     raise RuntimeError(f"Non-background fitting options changed: {folder}")
                 if options.get("ap_set_background") != 0.0:
@@ -243,6 +302,10 @@ def main():
                     finite_rows=count,
                     error_msg=record.get("error_msg", ""),
                     record_path=str(folder / "run_record.json"),
+                    fallback_used=bool(record.get("small_image_fallback")),
+                    previous_fallback_used=bool(previous_record.get("small_image_fallback"))
+                    if args.zero_background
+                    else None,
                 )
             )
     after = {path: digest(Path(path)) for path in before}
@@ -250,14 +313,28 @@ def main():
     if before != after:
         raise RuntimeError("Source bytes changed during campaign")
     (control / "accepted_records.json").write_text(json.dumps(audit, indent=2) + "\n")
+    outcomes = Counter(row["status"] for row in audit)
     completion = dict(
-        elapsed_seconds=time.monotonic() - started,
-        summary=asdict(results),
+        elapsed_seconds=time.monotonic() - started if started is not None else None,
+        summary=asdict(results)
+        if results is not None
+        else dict(
+            total_requested=len(audit),
+            total_ran=len(audit),
+            total_skipped_existing=0,
+            total_skipped_arm=0,
+            total_failed=len(audit) - outcomes["ok"],
+            total_ok=outcomes["ok"],
+        ),
         outcomes=dict(Counter(row["status"] for row in audit)),
         all_source_hashes_unchanged=True,
         all_saved_pa_correct=True,
         background_policy="fixed_zero" if args.zero_background else "estimated",
         all_saved_backgrounds_zero=True if args.zero_background else None,
+        all_requested_options_unchanged=True if args.zero_background else None,
+        fallback_policy_unchanged=True if args.zero_background else None,
+        audit_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        audited_at=time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     )
     (control / "completion.json").write_text(json.dumps(completion, indent=2) + "\n")
     print(f"[pa-correction] complete {completion}", flush=True)

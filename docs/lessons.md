@@ -23,3 +23,10 @@
 - Separate startup/source-audit time from fitting-phase time. The 12-fit
   gate's recorded phase took 55.564 seconds, but the full command also had
   source-selection startup. Parallel campaign time is not controlled timing.
+- Audit the requested recipe and the verified conditional-retry policy
+  separately. Fixing the background can change which inputs trigger the
+  existing retry, so final saved options need not be identical. The initial
+  zero-background audit incorrectly equated unchanged policy with unchanged
+  triggers. Validate each recorded fallback against its image-size rule and
+  first-attempt failure log before removing those keys for recipe comparison.
+  Never ignore arbitrary differences or refit successful data to repair an audit.

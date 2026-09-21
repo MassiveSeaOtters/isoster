@@ -14,6 +14,11 @@ Isoster reference profiles for the fixed-center dependency without fitting
 Isoster again. Record dependency sources and hashes. Read previous AutoProf
 records from the audited PA-corrected campaign, not the original PA-bugged run.
 Keep the corrected PA conversion and all other arm options unchanged.
+The existing conditional retry policy is unchanged, but its triggers may
+differ. Verify the saved fallback values and first-attempt signature before
+comparing requested options. Audit-only finalization may repair an audit
+implementation error after all fits finish; it must not refit or overwrite a
+completed audit, and must verify the original configuration and source roster.
 
 Forward the explicit finite background value in the shared AutoProf wrapper;
 absence of that setting preserves the existing behavior. Do not change noise
