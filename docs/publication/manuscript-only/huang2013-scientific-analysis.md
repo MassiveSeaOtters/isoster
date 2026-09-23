@@ -1,9 +1,12 @@
 # Huang2013 mock-galaxy validation: manuscript draft
 
-Updated 2026-09-21 using the audited zero-background AutoProf selection.
-This supersedes the estimated-background draft; see the
-[detailed reference](../reference/2026-09-21-autoprof-zero-background.md)
-for complete conditions, definitions, outcomes and caveats.
+Updated 2026-09-23 using the audited zero-background AutoProf selection,
+the fixed two-pixel inner evaluation cut and the complete four-mode saved-fit
+reconstruction analysis. See the
+[final detailed reference](../reference/2026-09-23-huang-final-analysis.md)
+for the audited statistics, QA, coverage and caveats; the
+[original-support baseline reference](../reference/2026-09-23-two-pixel-analysis.md)
+remains preserved. No refitting accompanied this analysis.
 
 We evaluated single-band isophotal fitting on 93 multi-component Sersic
 models based on the Huang2013 sample. Each galaxy was rendered in nine
@@ -29,41 +32,75 @@ than replaced with successful diagnostic arms or earlier campaigns.
 
 Using a common elliptical-profile renderer without higher-order harmonics,
 we measured residuals against truth over the intersection of successful
-arms' finite support, outside one PSF FWHM. On matched successful primary
-samples, median RMS residual divided by truth RMS was 0.858%, 0.871% and
-0.622% for Isoster, Photutils and AutoProf at wide z=0.05 (91 galaxies).
-At wide z=0.50 the values were 5.079%, 5.181% and 4.638% (92 galaxies);
-at deep z=0.50, 2.688%, 3.006% and 2.830% (88 galaxies). AutoProf has the
-smaller all-aperture median in eight of nine conditions, but this is not
-a universal ordering: execution coverage, radial-zone errors and individual
-outliers differ. Isoster's robust execution and arm-specific behavior should
-be reported alongside these successful-fit comparisons.
+arms' finite support, at elliptical radius at least two pixels. On matched
+successful primary samples, median RMS residual divided by truth RMS was
+1.346%, 1.396% and 1.454% for Isoster, Photutils and AutoProf at wide z=0.05
+(91 galaxies). At wide z=0.50 the values were 4.858%, 4.845% and 8.367%
+(92 galaxies); at deep z=0.50, 3.878%, 4.021% and 7.967% (88 galaxies).
+Across 794 matched galaxy/scenario inputs, Isoster had the smallest
+full-aperture RMS in 402 cases, Photutils in 184 and AutoProf in 208.
+AutoProf instead had the smallest absolute aperture-flux bias in 630 cases.
+These repeated conditions are not independent galaxies. Execution coverage,
+radial-zone errors and reconstruction sensitivity preclude a single ranking.
 
-AutoProf's wide z=0.05 median signed aperture-flux bias is +0.399%, compared
-with -3.311% in the earlier estimated-background run on the same successful
-galaxies. This supports using the known prepared sky for the primary
-comparison, but is not an isolated deterministic measure of sky subtraction:
-AutoProf internally reseeds its optimizer, its noise estimates and retry
-triggers can change, and the common support fraction changes in 542 of 837
-images. Its median increases from 0.7133 to 0.7846. Metrics for unchanged
-Isoster/Photutils fits were therefore also recomputed.
+The earlier fixed-sky versus estimated-sky comparison remains documented
+under its historical PSF-cut aperture. It is not an isolated deterministic
+measure of background subtraction: AutoProf internally reseeds its optimizer,
+noise estimates and retry triggers can change, and the shared finite support
+can change. No refitting accompanied the new two-pixel evaluation.
 
-Within Isoster, eccentric-anomaly geometry reduces pooled median
-truth-relative RMS by 7.48e-5 in absolute fractional units (95% galaxy-block
-bootstrap interval: reductions of 4.06e-5 to 1.48e-4), with smaller RMS in
-63.9% of 837 pairs. Median absolute aperture-flux error instead increases
-by 1.08e-4. Simultaneous harmonic fitting within EA gives a pooled RMS
-change consistent with zero, although individual cases respond. Outer
-regularization reduces centroid drift and profile roughness without a
-clearly separated pooled median RMS improvement. These remain configuration
-trade-offs, not a combined accuracy score or a new-default recommendation.
+On the original-support harmonic-off baseline, `geom_ea` and `geom_simul_ea`
+give smaller full-aperture RMS
+in 51.02% and 53.05% of 837 pairs against the default. Their median absolute
+RMS differences have 95% galaxy-block bootstrap intervals spanning zero;
+absolute flux-bias wins occur in only 40.50% and 40.98% of pairs. The
+stronger RMS advantage under the previous PSF cut does not persist across
+all nine scenario groups. These are configuration and aperture trade-offs,
+not a combined accuracy score or a new-default recommendation.
 
 Limitations include smooth centered models, one noise draw per condition,
 finite support, unrecorded AutoProf optimizer seeds, and differing
 native sampling/extraction estimators. Noiseless AutoProf fits retain its
 internal nonzero noise-scale fallback, not added image noise. AutoProf's
 auxiliary centers are rounded to 0.01 pixel and placeholder stop codes are
-not convergence evidence. Higher-order coefficients remain basis-dependent
-diagnostics; the common renderer does not test harmonic reconstruction.
+not convergence evidence.
+
+The comprehensive reconstruction analysis retained all 17 arms across four modes,
+producing 56,916 arm/mode outcomes, 227,664 radial measurement rows and 8,370
+individual QA page pairs. All 53,132 original baseline zone measurements were
+reproduced, and 36,153 current plus 30,862 historical source hashes were verified.
+Shared linear harmonic-off, shared spline harmonic-off, shared spline raw-polar
+n=3,4 harmonic-on, and native reconstruction were evaluated on one recorded
+intersection of available model support for each input. Its median size is
+96.826% of the original aperture; inner and middle support are unchanged where
+nonempty. Unsupported bases, missing coefficients, failed fits and empty inner
+zones remain unavailable rather than being replaced by zeros or alternate arms.
+
+On this matched support, shared-linear full-aperture RMS wins are 402/184/208
+for Isoster/Photutils/AutoProf among 794 primary triples. Changing only the common
+off renderer to the Photutils spline/rasterizer changes these counts to
+38/18/738. Shared raw-polar harmonics give 61/38/673 among 772 triples; 22 additional
+noiseless primary comparisons lack supported harmonic inputs. Adding harmonics
+to the identical shared-spline control increases median full RMS by 0.06546,
+0.08075 and 0.54654 percentage points within Isoster, Photutils and AutoProf,
+respectively. Renderer sensitivity is therefore larger than this shared harmonic
+effect, and the same saved fitting profiles do not support a renderer-independent
+ranking.
+
+Native results give 637/2/133 full-RMS wins among 772 triples, while AutoProf
+has the smallest absolute flux bias in 670/772. Native AutoProf is a verified
+saved zero-background ellipse model, without the measured intensity harmonics;
+this comparison is not a common harmonic-on experiment. Native Isoster's radial
+harmonic correction lowers full RMS in 723/837 paired inputs and has a negative
+median change in 90/93 galaxies, but lowers outer RMS in only 160/837 inputs.
+Native EA reconstruction was validated against the real stored angular basis;
+`geom_ea` and `geom_simul_ea` outperform the native default in only 291/837 and
+300/837 full-RMS pairs. Large unfavorable simultaneous-EA reconstructions remain
+in the results. Shared polar harmonic-on reconstruction explicitly excludes the
+2,511 EA arm outcomes; it never rotates them as if their basis were polar.
+
+These results are descriptive. Conditions for a galaxy are correlated;
+per-scenario and per-galaxy consistency tables are provided, without treating
+all 837 conditions as independent observations or claiming new significance.
 No extrapolated total-flux or real-galaxy claim follows from these tests.
 Controlled Stage 4 timing results remain separate and unchanged.

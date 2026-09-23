@@ -4,7 +4,25 @@ import numpy as np
 import pytest
 from astropy.table import Table
 
+from benchmarks.exhausted.analysis.model_evaluation import evaluate_model_v11
 from benchmarks.exhausted.analysis.publication_huang import pixel_metrics, replace_autoprof_records, ring_truth
+from benchmarks.exhausted.analysis.residual_zones import evaluation_aperture
+
+
+def test_fixed_two_pixel_evaluation_cut_and_invalid_override():
+    radius = np.array([0.0, 1.999, 2.0, 3.0, 4.0, 5.0])
+    np.testing.assert_array_equal(evaluation_aperture(radius, 4), [False, False, True, True, True, False])
+    for cut in (-1, np.nan, np.inf):
+        with pytest.raises(ValueError, match="finite and non-negative"):
+            evaluation_aperture(radius, 4, cut)
+    image = np.ones((21, 21))
+    model = image.copy()
+    model[10, 10] = 1000
+    result = evaluate_model_v11(
+        image=image, model=model, mask=None, x0=10, y0=10, eps=0, pa_rad=0, R_ref_pix=10, maxsma_pix=10
+    )
+    assert result["r_inner_floor_pix"] == 2
+    assert result["resid_rms_inner"] == 0
 
 
 def test_missing_support_and_noise_are_not_success_scores():

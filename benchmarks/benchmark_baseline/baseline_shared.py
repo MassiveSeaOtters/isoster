@@ -490,6 +490,9 @@ def build_isoster_model_image(
 def build_photutils_model_image(
     image_shape: tuple[int, int],
     isophotes: list[dict],
+    *,
+    high_harmonics: bool = True,
+    fill: float = 0.0,
 ) -> np.ndarray | None:
     """Build 2D model using photutils' native build_ellipse_model."""
     if not isophotes:
@@ -501,7 +504,9 @@ def build_photutils_model_image(
         return None
 
     # Build the adapter (duck-typed isolist for photutils model builder)
-    required = ["sma", "intens", "eps", "pa", "x0", "y0", "grad"]
+    required = ["sma", "intens", "eps", "pa", "x0", "y0"]
+    if high_harmonics:
+        required.append("grad")
     harmonic_keys = ["a3", "b3", "a4", "b4"]
 
     # Filter to valid rows
@@ -535,6 +540,8 @@ def build_photutils_model_image(
         columns[key] = np.array(
             [r.get(key, 0.0) for r in unique_rows], dtype=float
         )
+    columns.setdefault("grad", np.zeros(len(unique_rows)))
+    columns["pa"] = np.unwrap(columns["pa"], period=np.pi)
 
     class _SmaNode:
         def __init__(self, sma_value):
@@ -555,8 +562,8 @@ def build_photutils_model_image(
     try:
         adapter = _IsolistAdapter(columns)
         return build_ellipse_model(
-            image_shape, adapter, fill=0.0,
-            high_harmonics=True, sma_interval=0.1,
+            image_shape, adapter, fill=fill,
+            high_harmonics=high_harmonics, sma_interval=0.1,
         )
     except Exception as exc:
         print(f"    photutils model build failed: {exc}")

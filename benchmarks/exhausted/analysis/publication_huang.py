@@ -24,7 +24,12 @@ from astropy.table import Table
 from scipy.ndimage import map_coordinates
 
 from benchmarks.exhausted.analysis.profile_io import read_eps, read_pa_in_radians
-from benchmarks.exhausted.analysis.residual_zones import compute_elliptical_radius_grid, zone_masks
+from benchmarks.exhausted.analysis.residual_zones import (
+    DEFAULT_INNER_CUT_PIX,
+    compute_elliptical_radius_grid,
+    evaluation_aperture,
+    zone_masks,
+)
 from benchmarks.exhausted.analysis.scenario_summary import compute_prior_metrics, load_galaxy_manifest
 from isoster.model import build_isoster_model
 
@@ -59,6 +64,9 @@ CONTRASTS += [("geom_simul_ea", "geom_ea"), ("geom_simul_ea", "geom_simul"), ("h
 METRICS = [
     "truth_relative_rms_all",
     "flux_bias_abs_all",
+    "flux_bias_abs_inner",
+    "flux_bias_abs_mid",
+    "flux_bias_abs_outer",
     "center_median_pix",
     "reach_ref",
     "truth_relative_rms_inner",
@@ -264,7 +272,7 @@ def initialize_mock(source: str, executable: str) -> None:
     profit_executable = executable
 
 
-def analyze_galaxy(rows: list[dict], output: str) -> dict:
+def analyze_galaxy(rows: list[dict], output: str, inner_cut_pix: float = DEFAULT_INNER_CUT_PIX) -> dict:
     """Verify truth and measure all scenarios of one galaxy in a worker."""
     import pandas as pd
 
@@ -330,7 +338,7 @@ def analyze_galaxy(rows: list[dict], output: str) -> dict:
         )
         reference = float(manifest["effective_Re_pix"])
         psf = prior_manifest.psf_fwhm_pix
-        eligible = (radius >= psf) & (radius <= geometry["maxsma"])
+        eligible = evaluation_aperture(radius, geometry["maxsma"], inner_cut_pix)
         common = eligible.copy()
         profiles, models = {}, {}
         for row in subset:
@@ -356,6 +364,8 @@ def analyze_galaxy(rows: list[dict], output: str) -> dict:
                 depth=scenario.split("_")[0],
                 reference_pix=reference,
                 psf_pix=psf,
+                inner_cut_pix=inner_cut_pix,
+                reconstruction="isoster_linear_no_harmonics",
                 reference_psf=reference / psf,
                 initial_eps=geometry["eps"],
                 n_components=len(components),
@@ -393,13 +403,13 @@ def analyze_galaxy(rows: list[dict], output: str) -> dict:
             result["stop0_comparable"] = row["tool"] != "autoprof"
             if len(finite):
                 result["reach_ref"] = float(np.max(finite["sma"]) / reference)
-                outside_psf = finite[finite["sma"] >= psf]
-                drift = np.hypot(outside_psf["x0"] - geometry["x0"], outside_psf["y0"] - geometry["y0"])
+                outside_cut = finite[finite["sma"] >= inner_cut_pix]
+                drift = np.hypot(outside_cut["x0"] - geometry["x0"], outside_cut["y0"] - geometry["y0"])
                 result["center_median_pix"] = float(np.median(drift)) if len(drift) else np.nan
             result.update(compute_prior_metrics(finite, prior_manifest))
             use_ea = row["tool"] == "autoprof" or record.get("config_snapshot", {}).get("use_eccentric_anomaly", False)
             median = row["tool"] != "isoster" or record.get("config_snapshot", {}).get("integrator") == "median"
-            result.update(ring_truth(finite, truth, use_ea, median, psf))
+            result.update(ring_truth(finite, truth, use_ea, median, inner_cut_pix))
             result.update(angular_basis="psi" if use_ea else "phi", ring_statistic="median" if median else "mean")
             for zone, mask in masks.items():
                 result.update(
@@ -501,7 +511,14 @@ def main() -> None:
         "--autoprof-campaign", type=Path, help="Audited PA-corrected campaign; required for full analysis"
     )
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument(
+        "--inner-cut-pix",
+        type=float,
+        default=DEFAULT_INNER_CUT_PIX,
+        help="Evaluation inner radius in pixels (default: 2; independent of PSF)",
+    )
     args = parser.parse_args()
+    evaluation_aperture(np.array([0.0]), 1.0, args.inner_cut_pix)
     if (
         subprocess.check_output(["git", "-C", str(args.mock_source), "rev-parse", "HEAD"], text=True).strip()
         != FROZEN_MOCK_COMMIT
@@ -535,7 +552,9 @@ def main() -> None:
         max_workers=args.workers, initializer=initialize_mock, initargs=(str(args.mock_source), str(args.profit_cli))
     ) as executor:
         futures = [
-            executor.submit(analyze_galaxy, [r for r in rows if r["galaxy"] == name], str(args.output))
+            executor.submit(
+                analyze_galaxy, [r for r in rows if r["galaxy"] == name], str(args.output), args.inner_cut_pix
+            )
             for name in names
         ]
         for index, future in enumerate(as_completed(futures), 1):

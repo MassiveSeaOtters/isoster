@@ -23,9 +23,10 @@ from benchmarks.exhausted.analysis.publication_huang import (
     pixel_metrics,
     profile_dicts,
 )
-from benchmarks.exhausted.analysis.residual_zones import compute_elliptical_radius_grid
+from benchmarks.exhausted.analysis.residual_zones import compute_elliptical_radius_grid, evaluation_aperture
+from benchmarks.exhausted.plotting.individual_qa_demo import cross_arm, cross_tool
 from isoster.model import build_isoster_model
-from isoster.plotting import METHOD_STYLES, build_method_profile, configure_qa_plot_style, plot_comparison_qa_figure
+from isoster.plotting import METHOD_STYLES, build_method_profile, configure_qa_plot_style
 
 TOOLS = list(PRIMARY)
 MARKERS = dict(zip(TOOLS, ["o", "s", "^"]))
@@ -293,54 +294,53 @@ def render_case(frame, measurements, case, output):
     radius = compute_elliptical_radius_grid(
         image.shape, geometry["x0"], geometry["y0"], geometry["eps"], geometry["pa"]
     )
-    support = (radius >= subset.iloc[0].psf_pix) & (radius <= geometry["maxsma"])
+    support = evaluation_aperture(radius, geometry["maxsma"], subset.iloc[0].inner_cut_pix)
     models, profiles = {}, {}
     for row in subset[subset.status.eq("ok")].itertuples():
         table = load_profile(Path(row.record_path).parent / "profile.fits")
         key = row.tool, row.arm
         profiles[key] = build_method_profile(profile_dicts(table))
+        if "cog" in table.colnames:
+            profiles[key]["cog"] = np.asarray(table["cog"], float)
         if row.tool == "autoprof":
             profiles[key].pop("stop_codes", None)
         models[key] = build_isoster_model(image.shape, profile_dicts(table), fill=np.nan, use_harmonics=False)
         support &= np.isfinite(models[key])
-    if case.contrast == "geom_ea":
-        chosen = [("isoster", "ref_default"), ("isoster", "geom_ea")]
-    elif case.contrast == "harm_simul_ea":
-        chosen = [("isoster", "geom_simul_ea"), ("isoster", "harm_simul_ea")]
-    else:
-        chosen = list(PRIMARY.items())
-    use_profiles, use_models, styles, checks = {}, {}, {}, []
-    for index, key in enumerate(chosen):
+    chosen = [key for key in models if key[0] == "isoster"] if case.contrast else list(PRIMARY.items())
+    checks = []
+    for key in chosen:
         if key not in models:
             continue
         row = subset[subset.tool.eq(key[0]) & subset.arm.eq(key[1])].iloc[0]
         values = pixel_metrics(models[key], truth, image, support, row.injected_sigma)
         assert values["npix"] == row.npix_all
         assert np.isclose(values["truth_relative_rms"], row.truth_relative_rms_all, rtol=1e-9, atol=1e-12)
-        name = key[0] if not case.contrast else key[1]
-        use_profiles[name], use_models[name] = profiles[key], np.where(support, models[key], np.nan)
-        styles[name] = dict(METHOD_STYLES[TOOLS[index]], label=key[0] if not case.contrast else key[1])
+        assert np.isclose(values["flux_bias"], row.flux_bias_all, rtol=1e-9, atol=1e-12)
         checks.append(dict(tool=key[0], arm=key[1], **values))
     stem = f"{case.galaxy}__{case.scenario}__{case.contrast or 'primary'}"
     failures = ", ".join(f"{r.tool}/{r.arm}" for r in subset[subset.primary & subset.status.ne("ok")].itertuples())
     title = f"{case.galaxy} / {case.scenario} — common no-harmonic renderer"
     if failures:
         title = f"{case.galaxy} / {case.scenario} — unavailable: {failures}"
+    fig = (
+        cross_arm(subset[subset.tool.eq("isoster")], profiles, manifest, "isoster", models, image, support)
+        if case.contrast
+        else cross_tool(subset, profiles, models, image, support, manifest)
+    )
     for extension in ("png", "pdf"):
-        plot_comparison_qa_figure(
-            image,
-            use_profiles,
-            title=title,
-            output_path=output / f"{stem}.{extension}",
-            models=use_models,
-            mask=~support,
-            method_styles=styles,
-            sb_zeropoint=manifest["sb_zeropoint"],
-            pixel_scale_arcsec=manifest["pixel_scale_arcsec"],
-            sb_profile_scale="asinh",
-            sb_asinh_softening=max(float(manifest["image_sigma"]["image_sigma_adu"]), 1e-10),
-            dpi=300,
-        )
+        fig.savefig(output / f"{stem}.{extension}", dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    (output / f"{stem}.caption.txt").write_text(
+        f"{title}. Selected because: {case.reason}.\nInner radial cut: {subset.iloc[0].inner_cut_pix} pixels. "
+        "Common no-harmonic reconstruction; residual = data minus model. Cross-tool maps show full finite model coverage; "
+        "cross-arm thumbnails retain common-support masking. Cross-tool metric columns use ALL/INNER/MIDDLE/OUTER order "
+        "on the common evaluation aperture, independently of the full residual display. "
+        "Fit times are from a parallel campaign, not controlled timing. Truth RMS and flux bias use model minus truth. "
+        "Matrix colors: red for lower time/RMS/absolute bias or greater reach; blue for the opposite. "
+        "Printed bias remains signed. Grey means unavailable. Column scales are independent; residual scales are shared.\n"
+        + "\n".join(f"{r.tool}/{r.arm}: {r.status}; flags: {r.flags}" for r in subset.itertuples())
+        + "\n"
+    )
     return dict(stem=stem, reason=case.reason, checks=checks)
 
 
@@ -351,6 +351,8 @@ def main():
     parser.add_argument("--atlas-limit", type=int, help="Small export gate only")
     args = parser.parse_args()
     frame = pd.read_csv(args.measurements / "fit_metrics.csv")
+    if "inner_cut_pix" not in frame or not np.isfinite(frame.inner_cut_pix).all():
+        raise ValueError("Measurements must record inner_cut_pix; rerun historical analysis before plotting")
     pairs = pd.read_csv(args.measurements / "paired_deltas.csv")
     summary = pd.read_csv(args.measurements / "paired_summary.csv")
     args.output.mkdir(parents=True, exist_ok=False)

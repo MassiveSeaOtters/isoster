@@ -36,8 +36,8 @@ half-light radius, R_e):
     mid:   0.5  R_ref    <= r < 1.5 * R_ref
     outer: 1.5  R_ref    <= r < min(maxsma, 3 * R_ref)
 
-``r_inner_floor`` should be ``max(min_sma_pix)`` across every
-analysis tool you intend to compare; defaults to 0.0 (no floor).
+``r_inner_floor`` defaults to a fixed 2 pixels for all tools and all zones,
+independent of physical PSF FWHM and fitted radial sampling.
 ``maxsma`` caps the outer zone so the metric does not extend into
 pure-sky territory.
 
@@ -57,6 +57,8 @@ from typing import Any
 
 import numpy as np
 from astropy.io import fits
+
+from .residual_zones import DEFAULT_INNER_CUT_PIX
 
 
 def _elliptical_radius(
@@ -98,7 +100,7 @@ def metrics_from_residual(
     pa_rad: float,
     R_ref_pix: float | None,
     maxsma_pix: float,
-    r_inner_floor_pix: float = 0.0,
+    r_inner_floor_pix: float = DEFAULT_INNER_CUT_PIX,
 ) -> dict[str, Any]:
     """Compute the per-zone amplitude metrics.
 
@@ -124,10 +126,8 @@ def metrics_from_residual(
         Largest fitted sma. Caps the outer zone at
         ``min(maxsma_pix, 3 * R_ref_pix)``.
     r_inner_floor_pix
-        Inner-zone floor in pixels. Excludes pixels inside any tool's
-        first fitted isophote. Recommended:
-        ``max(min_sma_pix across the comparison group)``. Defaults to
-        0.0 (no floor).
+        Fixed evaluation floor in pixels, default 2. Independent of PSF
+        and fitting radii. Applies to every zone.
 
     Returns
     -------
@@ -172,7 +172,7 @@ def metrics_from_model_array(
     pa_rad: float,
     R_ref_pix: float | None,
     maxsma_pix: float,
-    r_inner_floor_pix: float = 0.0,
+    r_inner_floor_pix: float = DEFAULT_INNER_CUT_PIX,
 ) -> dict[str, Any]:
     """Compute the per-zone amplitude metrics from an in-memory model.
 
@@ -216,8 +216,8 @@ def metrics_from_model_array(
 
     zones = {
         "inner": (r >= inner_floor) & (r < inner_max),
-        "mid": (r >= inner_max) & (r < mid_max),
-        "outer": (r >= mid_max) & (r < outer_max),
+        "mid": (r >= max(inner_floor, inner_max)) & (r < mid_max),
+        "outer": (r >= max(inner_floor, mid_max)) & (r < outer_max),
     }
 
     finite_resid = np.isfinite(residual)

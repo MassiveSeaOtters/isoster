@@ -241,7 +241,6 @@ def run_one_arm(
         pa_rad=float(geom.get("pa", 0.0)),
         R_ref_pix=bundle.metadata.effective_Re_pix,
         maxsma_pix=maxsma,
-        r_inner_floor_pix=float(metrics.get("min_sma_pix", 0.0) or 0.0),
     )
 
     row.update(

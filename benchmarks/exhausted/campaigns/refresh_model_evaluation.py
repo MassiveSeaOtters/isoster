@@ -203,7 +203,6 @@ def refresh_arm(
         pa_rad=geometry["pa_rad"],
         R_ref_pix=_safe_float(manifest.get("effective_Re_pix"), None),
         maxsma_pix=geometry["maxsma_pix"],
-        r_inner_floor_pix=float(profile_metrics.get("min_sma_pix", 0.0) or 0.0),
     )
 
     old_metrics = record.get("metrics") or {}

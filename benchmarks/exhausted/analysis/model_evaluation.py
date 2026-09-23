@@ -9,6 +9,7 @@ import numpy as np
 from .azimuthal_metrics import azimuthal_metrics
 from .profile_io import profile_summary
 from .residual_metrics import metrics_from_model_array
+from .residual_zones import DEFAULT_INNER_CUT_PIX
 
 
 def evaluate_model_v11(
@@ -22,7 +23,7 @@ def evaluate_model_v11(
     pa_rad: float,
     R_ref_pix: float | None,
     maxsma_pix: float,
-    r_inner_floor_pix: float = 0.0,
+    r_inner_floor_pix: float = DEFAULT_INNER_CUT_PIX,
 ) -> dict[str, Any]:
     """Return the combined v1.1 amplitude and azimuthal metric contract."""
     residual_metrics = metrics_from_model_array(

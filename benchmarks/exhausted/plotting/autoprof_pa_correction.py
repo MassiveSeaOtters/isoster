@@ -12,7 +12,11 @@ from astropy.io import fits
 from matplotlib.patches import Ellipse
 
 from benchmarks.exhausted.analysis.publication_huang import load_profile, profile_dicts
-from benchmarks.exhausted.analysis.residual_zones import compute_elliptical_radius_grid
+from benchmarks.exhausted.analysis.residual_zones import (
+    DEFAULT_INNER_CUT_PIX,
+    compute_elliptical_radius_grid,
+    evaluation_aperture,
+)
 from benchmarks.exhausted.campaigns.run_autoprof_pa_correction import archived_sources
 from isoster.model import build_isoster_model
 from isoster.plotting import METHOD_STYLES, configure_qa_plot_style, normalize_pa_degrees, transform_sb_profile
@@ -43,8 +47,8 @@ def plot_case(
     radius = compute_elliptical_radius_grid(
         image.shape, geometry["x0"], geometry["y0"], geometry["eps"], geometry["pa"]
     )
-    floor = manifest["extra"]["psf_fwhm_arcsec"] / manifest["pixel_scale_arcsec"]
-    support = (radius >= floor) & (radius <= geometry["maxsma"])
+    floor = DEFAULT_INNER_CUT_PIX
+    support = evaluation_aperture(radius, geometry["maxsma"])
     for model in models.values():
         support &= np.isfinite(model)
     residuals = {name: np.where(support, image - model, np.nan) for name, model in models.items()}

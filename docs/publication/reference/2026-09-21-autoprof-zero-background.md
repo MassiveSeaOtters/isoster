@@ -421,3 +421,9 @@ The feature branch is not merged. S4G has not been run: its next campaign
 can reuse the fixed-zero mode, but should explicitly account for the exposed
 image-boundary and initialization failures. No new default arm or public
 release decision is made, and the separate Stage 4 timing results are unchanged.
+# Historical aperture notice
+
+The fitting/background audit below remains valid. Its PSF-cut accuracy
+tables are historical: the author adopted a fixed two-pixel inner evaluation
+cut on 2026-09-23. Use the [new analysis](2026-09-23-two-pixel-analysis.md)
+for current accuracy values; no old fitting data were replaced.

@@ -614,5 +614,27 @@ the measured pixel counts and truth RMS. See
 results, immutable product paths and interpretation limits.
 
 - Stable docs live in `docs/` root.
+- Publication cross-tool QA separates display coverage from metric support:
+  residual maps show all finite model pixels, while the compact four-zone
+  table retains common-aperture measurements. Comparison SB limits are driven
+  only by finite profile values, without an I=0 guide.
+- `benchmarks/exhausted/analysis/harmonic_demo.py` reads immutable Huang2013
+  measurements and profiles, verifies original baseline scores, and writes a new
+  bounded reconstruction comparison. It reuses the calibrated raw-polar adapter
+  and approved individual QA, keeping native models and matched spline on/off
+  controls explicitly separate. It does not change fitting or analysis defaults.
 - Internal planning and review notes are kept under `docs/agent/`, which is untracked and excluded from the published site; retired dated reports are tracked under `docs/archive/` but also excluded from the site. References to either in these pages are pointers for developers working in a checkout, not links a site reader can follow.
 - Use lowercase kebab-case markdown filenames.
+
+### Retained Huang2013 reconstruction products
+
+`benchmarks.exhausted.analysis.huang_final` consumes the accepted two-pixel
+`fit_metrics.csv` roster without joining or fitting again. Each input keeps all
+17 arms across four reconstruction modes, audits the original-support baseline,
+then measures all available models on a separately recorded common intersection.
+Unsupported harmonics, failed fits and empty zones remain explicit records.
+`huang_final_summary` checks product/source hashes, table values and the retained
+roster before creating descriptive, matched-primary and paired-change summaries.
+Per-input completion manifests support restart; changed code/input policies require
+fresh output directories. Model arrays stay in memory; hashed source profiles,
+matched-support FITS and exported display tables reproduce every figure.

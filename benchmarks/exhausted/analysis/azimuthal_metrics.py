@@ -37,6 +37,8 @@ from typing import Any
 
 import numpy as np
 
+from .residual_zones import DEFAULT_INNER_CUT_PIX
+
 # ---------------------------------------------------------------------------
 # Geometry helpers
 # ---------------------------------------------------------------------------
@@ -213,7 +215,7 @@ def azimuthal_metrics(
     pa_rad: float,
     R_ref_pix: float,
     maxsma_pix: float,
-    r_inner_floor_pix: float = 0.0,
+    r_inner_floor_pix: float = DEFAULT_INNER_CUT_PIX,
     n_phi: int = 36,
     m_max: int = 4,
     return_timing: bool = False,
@@ -244,8 +246,8 @@ def azimuthal_metrics(
     outer_max = min(float(maxsma_pix), 3.0 * R_ref_pix)
     zones = {
         "inner": (r_ell >= inner_floor) & (r_ell < inner_max),
-        "mid": (r_ell >= inner_max) & (r_ell < mid_max),
-        "outer": (r_ell >= mid_max) & (r_ell < outer_max),
+        "mid": (r_ell >= max(inner_floor, inner_max)) & (r_ell < mid_max),
+        "outer": (r_ell >= max(inner_floor, mid_max)) & (r_ell < outer_max),
     }
 
     out: dict[str, Any] = {}

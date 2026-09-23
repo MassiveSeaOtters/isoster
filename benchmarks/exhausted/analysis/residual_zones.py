@@ -26,6 +26,16 @@ from typing import Any
 import numpy as np
 
 ZoneStats = dict[str, Any]
+DEFAULT_INNER_CUT_PIX = 2.0
+
+
+def evaluation_aperture(
+    radius: np.ndarray, outer_radius: float, inner_cut_pix: float = DEFAULT_INNER_CUT_PIX
+) -> np.ndarray:
+    """Fixed evaluation cut, independent of physical PSF and fitting radii."""
+    if not np.isfinite(inner_cut_pix) or inner_cut_pix < 0:
+        raise ValueError("Inner radial cut must be finite and non-negative")
+    return (radius >= inner_cut_pix) & (radius <= outer_radius)
 
 
 def compute_elliptical_radius_grid(
@@ -54,9 +64,7 @@ def compute_elliptical_radius_grid(
     return np.sqrt(x_rot**2 + (y_rot / axis_ratio) ** 2)
 
 
-def zone_masks(
-    r_ell: np.ndarray, R_ref: float
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def zone_masks(r_ell: np.ndarray, R_ref: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ``(inner, mid, outer)`` boolean masks for the given reference length."""
     inner = r_ell < 0.5 * R_ref
     outer = r_ell >= 2.0 * R_ref
@@ -128,7 +136,7 @@ def residual_zone_stats(
     r_ell = compute_elliptical_radius_grid(image.shape, x0, y0, eps, pa)
     inner, mid, outer = zone_masks(r_ell, actual_R_ref)
 
-    valid = np.isfinite(residual)
+    valid = np.isfinite(residual) & (r_ell >= DEFAULT_INNER_CUT_PIX)
     if mask is not None:
         valid &= ~np.asarray(mask, dtype=bool)
 
@@ -145,6 +153,7 @@ def residual_zone_stats(
         "resid_median_outer": outer_stats["median"],
         "frac_above_3sigma_outer": outer_stats["frac_above_3sigma"],
         "R_ref_pix": actual_R_ref,
+        "inner_cut_pix": DEFAULT_INNER_CUT_PIX,
         "zone_npix_inner": int(np.sum(inner & valid)),
         "zone_npix_mid": int(np.sum(mid & valid)),
         "zone_npix_outer": int(np.sum(outer & valid)),

@@ -193,3 +193,14 @@ of comparisons.
 - < 0.5 Re (effective radius)
 - 0.5-4 Re
 - 4-8 Re
+# Publication evaluation aperture (2026-09-23)
+
+All future publication benchmark evaluation and QA use a fixed elliptical
+inner radial cut of **2 pixels**, independent of PSF FWHM. This applies to
+Huang2013, S4G and real-galaxy comparisons. It does not change fitting radii,
+input PSFs, or the radial-zone boundaries. Record `inner_cut_pix` in scientific
+measurements (`r_inner_floor_pix` in native model-evaluation records).
+Keep old outputs as historical; recalculate metrics in a new output folder.
+QA must use the cut recorded with its scores, never silently relabel them.
+The accepted individual QA layout is in
+`benchmarks/exhausted/plotting/individual_qa_demo.py` (historical module name).

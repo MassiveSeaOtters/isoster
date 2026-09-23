@@ -1,11 +1,19 @@
 # Publication workspace
 
+Current Huang2013 evaluation: [fixed two-pixel analysis and reconstruction
+diagnostic](reference/2026-09-23-two-pixel-analysis.md). This supersedes the
+PSF-cut accuracy scores, not the archived fitting campaigns or timing results.
+
 Source documents for the ISOSTER method paper. **These files are tracked in
 git** as of 2026-08-21 — they feed the manuscript and the technical chapter,
 and keeping them untracked once cost a fully corrected draft that existed on
 one machine only.
 
 Tracked here:
+
+The bounded harmonic reconstruction demonstration is documented in
+[`reference/2026-09-23-harmonic-demonstration.md`](reference/2026-09-23-harmonic-demonstration.md).
+It supplements, and does not replace, the full-sample harmonic-off baseline.
 
 | Path | What |
 |---|---|
@@ -33,3 +41,10 @@ None of this is published on the documentation site: `mkdocs.yml` excludes
 The chapter itself is **not** here. It lives in `docs/technical/`, tracked and
 served by mkdocs, with its numbers checked against
 `benchmarks/draft_timings/reference_timings.json` in CI.
+
+## Final Huang2013 reconstruction analysis — 2026-09-23
+
+[Detailed results and audited coverage](reference/2026-09-23-huang-final-analysis.md)
+cover all 837 accepted inputs, four reconstruction modes and 8,370 QA page pairs.
+[Browse QA and statistics](../../outputs/huang2013_final_statistics_20260923/index.html).
+The original harmonic-off baseline is preserved; native AutoProf remains ellipse-only.
