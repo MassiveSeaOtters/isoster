@@ -165,3 +165,19 @@ The first bulk attempt and every gate remain preserved. Shared polar EA-on remai
 unsupported by design; native EA is validated and included. Rankings depend on
 renderer and zone; native Isoster full-RMS improvement does not imply outer-zone
 improvement, and native AutoProf is not intensity-harmonic-on.
+
+## Branch closure and next investigation — 2026-09-23
+
+- [x] Commit all inherited/final analysis changes as `4622ace`.
+- [x] Merge 27 accumulated commits into main with merge commit `97e9f8c` and push.
+- [x] Delete merged `feature/huang-final-analysis-20260923`; preserve other branches.
+- [x] Recheck 665 unit tests (18.67 s, 10 warnings), targeted Ruff and whitespace.
+- [x] Append the development snapshot to Obsidian before journal/handover.
+- [x] Create `analysis/autoprof-comparison-20260923` for the next investigation.
+- [ ] Execute `docs/specs/2026-09-23-autoprof-comparison.md`: center, radial extent,
+      algorithm differences, rendering/flux bias and measured improvement options.
+- [ ] Reassess S4G readiness after explaining Huang2013 differences.
+
+Review: main's merge tree exactly matches the tested `4622ace` tree. No historical
+results were changed and no fits rerun. Earlier no-merge/no-push entries describe
+the historical analysis run; the user explicitly authorized this later closure.
