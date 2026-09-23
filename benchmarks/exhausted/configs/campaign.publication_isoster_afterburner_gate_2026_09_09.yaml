@@ -1,0 +1,48 @@
+# Sub-minute gate for the seven-arm Isoster publication afterburner. The two
+# cases exercise both mock adapters, noise-free and noisy data, and elongated
+# input components without selecting on fit outcomes.
+
+campaign_name: "publication_single_band_isoster_afterburner_gate_2026_09_09"
+output_root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/preflight"
+
+tools:
+  isoster:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms: [ols_noweight, int_median, geom_simul, lsb_autolock, geom_ea, geom_simul_ea, harm_simul_ea]
+
+isoster_harmonic_sweeps: []
+
+datasets:
+  huang2013:
+    enabled: true
+    adapter: huang2013_scenarios
+    root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/mock_data/huang2013"
+    depths: [noiseless]
+    redshift_tags: ["005"]
+    select: ["ESO221-G026/noiseless_z005"]
+  s4g:
+    enabled: true
+    adapter: s4g_scenarios
+    root: "/Volumes/galaxy/isophote/publication_single_band_round1_2026_08_28/mock_data/s4g"
+    depths: [wide]
+    redshift_tags: ["010"]
+    select: ["NGC2780/wide_z010"]
+
+qa:
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
+  summary_grids: false
+  residual_models: false
+
+execution:
+  max_parallel_galaxies: 2
+  skip_existing: true
+  dry_run: false
+  fail_fast: false
+
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: true
+  cross_tool_table: false

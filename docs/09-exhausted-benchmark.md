@@ -118,15 +118,23 @@ tools:
   isoster:
     enabled: true
     arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms: [ref_default, reg_outer_damp]  # optional ordered subset
   photutils:
     enabled: true
     arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    timeout: 900        # optional seconds per arm; retained as a failed run
   autoprof:
     enabled: true
     arms_file: benchmarks/exhausted/configs/autoprof_arms.yaml
     venv_python: "~/.venvs/autoprof_venv/bin/python"   # stable path; see §0
     timeout: 300        # seconds per arm
 ```
+
+`select_arms` reuses an existing roster without copying arm definitions into a
+second file. Unknown names fail while the campaign loads. The optional
+`timeout` applies to photutils and AutoProf arms. A photutils timeout interrupts
+the in-process fit and writes an ordinary failed `run_record.json`; AutoProf
+enforces the same field around its isolated subprocess.
 
 Per-dataset entry:
 
@@ -701,3 +709,18 @@ The one-galaxy × two-arm integration smoke at
 `tests/integration/test_exhausted_smoke.py` is a self-contained
 executable example and should be kept passing as part of the regular
 test suite.
+# Evaluation update — 2026-09-23
+
+The default inner evaluation radius is now **2 pixels**, not PSF FWHM or
+the first fitted radius. This applies to future mock and real-image tests.
+It is an elliptical radius defined by the fixed reference geometry. Existing
+fit records retain their historical native metrics; new scientific analyses
+record `inner_cut_pix` and regenerate residual metrics and QA in new folders.
+Do not change physical PSF metadata or fitting configurations to implement it.
+
+The Huang2013 common-renderer baseline explicitly disables harmonics to
+isolate elliptical-profile fidelity. The public `build_isoster_model` default
+remains `use_harmonics=True`. Native AutoProf coefficients are not Bender
+coefficients: enabling that flag on its standardized profile does not convert
+them. A separate calibrated raw-intensity reconstruction diagnostic is required
+before making harmonic-inclusive accuracy claims. Missing harmonics are not zero.

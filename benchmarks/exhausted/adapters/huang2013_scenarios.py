@@ -4,7 +4,7 @@ Expected on-disk layout (configurable via the campaign YAML ``root``)::
 
     <root>/
       <galaxy_name>/
-        <galaxy_name>_clean_z005.fits
+        <galaxy_name>_noiseless_z005.fits
         <galaxy_name>_wide_z005.fits
         <galaxy_name>_wide_z020.fits
         <galaxy_name>_wide_z035.fits
@@ -17,8 +17,8 @@ Expected on-disk layout (configurable via the campaign YAML ``root``)::
 ``galaxy_id`` is emitted as ``<galaxy>/<depth>_z<zzz>`` so
 :func:`safe_galaxy_id` yields one flat output directory per scenario
 (e.g. ``IC1459__wide_z020``). The generator does not ship every
-depth x redshift combination (``clean`` typically only exists at
-``z005``); the adapter walks the disk to enumerate what is actually
+depth x redshift combination (``clean`` and ``noiseless`` typically only
+exist at ``z005``); the adapter walks the disk to enumerate what is actually
 present.
 
 The generator (``isophote_test/scripts/generate_mocks.py``, libprofit
@@ -42,7 +42,7 @@ from astropy.io import fits
 from .base import DatasetAdapter, GalaxyBundle, GalaxyMetadata
 from .huang2013 import Huang2013Adapter, _maybe_float
 
-SCENARIO_DEPTHS = ("clean", "wide", "deep")
+SCENARIO_DEPTHS = ("clean", "noiseless", "wide", "deep")
 # Superset of redshift tags emitted by the mockgal generator across the
 # Huang2013 and S4G-like campaigns. huang2013 uses {005, 020, 035, 050};
 # newer S4G-like regens use {005, 010}. Each adapter's ``list_galaxies``

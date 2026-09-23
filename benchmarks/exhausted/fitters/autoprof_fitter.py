@@ -31,6 +31,7 @@ from benchmarks.autoprof_env import (
     autoprof_install_hint,
     resolve_autoprof_python,
 )
+from benchmarks.utils.autoprof_adapter import isoster_pa_to_autoprof_init
 from isoster import build_isoster_model
 from isoster.plotting import plot_qa_summary
 from isoster.utils import isophote_results_to_fits
@@ -67,14 +68,15 @@ _VENV_PROBE_CACHE: dict[str, str] = {}
 #
 # The fallback here is narrow on purpose: it fires only after the first
 # attempt fails with one of the two signatures above, and it injects the
-# smallest knob set that keeps AutoProf within the image:
+# existing conservative knob set that can recover some such failures:
 #
 #   * ``ap_centeringring`` = safe ring count from image half-extent / PSF,
 #     so no centering ring extends beyond the frame.
-#   * ``ap_truncate_evaluation = True`` — documented AutoProf stop condition
-#     that terminates profile extraction once the ellipse escapes the image.
-#   * ``ap_extractfull = False`` — belt-and-braces: never extract past the
-#     fit limit.
+#   * ``ap_truncate_evaluation = True`` — stops after two non-positive
+#     intensity samples, not at the image boundary. With known zero sky,
+#     an empty ring can still fail before this condition is evaluated.
+#   * ``ap_extractfull = False`` — do not request full-image extraction.
+#     This is not an explicit image-boundary guard either.
 #
 # Anything else (the arm delta, isoclip knobs, center override) is left
 # untouched, so we preserve the arm semantics as far as possible.
@@ -414,7 +416,6 @@ def run_one_arm(
         pa_rad=float(geom.get("pa", 0.0)),
         R_ref_pix=bundle.metadata.effective_Re_pix,
         maxsma_pix=float(geom.get("maxsma", min(image.shape) // 2)),
-        r_inner_floor_pix=float(metrics.get("min_sma_pix", 0.0) or 0.0),
     )
 
     row.update(
@@ -550,6 +551,11 @@ def _build_options(
     }
     if cfg["ap_isoclip"]:
         options["ap_isoclip_nsigma"] = float(cfg["ap_isoclip_nsigma"])
+    if "ap_set_background" in cfg:
+        background = float(cfg["ap_set_background"])
+        if not np.isfinite(background):
+            raise ValueError("ap_set_background must be finite")
+        options["ap_set_background"] = background
     if mask_path is not None:
         options["ap_mask_file"] = str(mask_path)
         options["ap_mask_hdu"] = 0
@@ -566,8 +572,8 @@ def _build_options(
             "x": float(center_override["x"]),
             "y": float(center_override["y"]),
         }
-    # Optional PA / ellipticity seeds from the adapter.
-    options["ap_isoinit_pa_set"] = float(np.degrees(geom.get("pa", 0.0)))
+    # AutoProf overrides its global PA with this astronomical-convention angle.
+    options["ap_isoinit_pa_set"] = isoster_pa_to_autoprof_init(float(geom.get("pa", 0.0)))
     options["ap_isoinit_ellip_set"] = float(geom.get("eps", 0.2))
     return options
 

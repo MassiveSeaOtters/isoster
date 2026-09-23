@@ -449,9 +449,9 @@ def _run_tool_on_galaxy(
         }
         if plan.qa.get("sb_asinh_softening") is not None:
             extra_kwargs["sb_asinh_softening"] = float(plan.qa["sb_asinh_softening"])
-        if tool_plan.name == "autoprof":
+        if tool_plan.name in {"photutils", "autoprof"}:
             extra = tool_plan.extra or {}
-            if "venv_python" in extra:
+            if tool_plan.name == "autoprof" and "venv_python" in extra:
                 extra_kwargs["venv_python"] = str(extra["venv_python"])
             if "timeout" in extra:
                 extra_kwargs["timeout"] = int(extra["timeout"])

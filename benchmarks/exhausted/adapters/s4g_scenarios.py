@@ -12,7 +12,7 @@ Expected on-disk layout (configurable via the campaign YAML ``root``)::
 
     <root>/
       <galaxy_name>/
-        <galaxy_name>_{clean|wide|deep}_z{005|020|035|050}.fits
+        <galaxy_name>_{clean|noiseless|wide|deep}_z{005|020|035|050}.fits
 """
 
 from __future__ import annotations

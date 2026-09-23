@@ -165,11 +165,11 @@ harmonic fit:
 flowchart LR
     subgraph phi["use_eccentric_anomaly = False  (default)"]
       P1[Sample uniform in φ<br/>position angle] --> P2[Harmonic basis: φ]
-      P2 --> P3[Geometry update in φ]
+      P2 --> P3[Geometry corrections use<br/>φ-basis coefficients]
     end
     subgraph ea["use_eccentric_anomaly = True"]
       E1[Sample uniform in ψ<br/>eccentric anomaly] --> E2[Harmonic basis: ψ]
-      E2 --> E3[Geometry update<br/>still in φ-space]
+      E2 --> E3[Geometry corrections use<br/>ψ-basis coefficients directly]
     end
 ```
 
@@ -183,9 +183,9 @@ themselves derived in ψ.*
 !!! info "When to switch on EA mode"
     Recommended for ellipticity above ~0.3 and required for edge-on
     disks and X-shaped / peanut bulges where uniform-in-φ sampling
-    under-samples along the major axis. Geometry updates are still
-    computed in φ-space so that `x0`, `y0`, `eps`, `pa` retain
-    their usual geometric meaning.
+    under-samples along the major axis. The update consumes the fitted
+    ψ-basis coefficients directly; `x0`, `y0`, `eps`, and `pa` retain
+    their usual geometric meanings.
 
 ## 5. Solver — OLS vs WLS
 

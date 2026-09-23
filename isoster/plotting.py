@@ -2181,7 +2181,8 @@ def plot_comparison_qa_figure(
     sb_profile_scale: str = "log10",
     sb_asinh_softening: float | None = None,
     dpi: int = 150,
-) -> None:
+    return_figure: bool = False,
+) -> plt.Figure | None:
     """Multi-method comparison QA figure with 2D images and 1D profiles.
 
     Automatically selects one of three layout modes based on the number
@@ -2231,6 +2232,8 @@ def plot_comparison_qa_figure(
         Positive softening scale for ``sb_profile_scale="asinh"``.
     dpi : int
         Figure resolution.
+    return_figure : bool
+        Return the open figure without saving; caller must save and close it.
     """
     _validate_sb_inputs(sb_zeropoint, pixel_scale_arcsec)
     configure_qa_plot_style()
@@ -2432,6 +2435,8 @@ def plot_comparison_qa_figure(
 
     # --- Right column: 1D profiles ---
     if not available:
+        if return_figure:
+            return fig
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
@@ -2503,15 +2508,6 @@ def plot_comparison_qa_figure(
 
     ax_sb.set_ylabel(sb_ylabel)
     ax_sb.grid(alpha=0.25)
-    if zero_intensity_y is not None:
-        ax_sb.axhline(
-            zero_intensity_y,
-            color="0.25",
-            linestyle="--",
-            linewidth=0.9,
-            alpha=0.75,
-            label="I=0",
-        )
     ax_sb.legend(loc="upper right", fontsize=10)
     ax_sb.tick_params(labelbottom=False)
     set_x_limits_with_right_margin(ax_sb, all_x)
@@ -2531,8 +2527,6 @@ def plot_comparison_qa_figure(
             all_sb_vals.append(y_vals[v])
     if all_sb_vals:
         all_sb = np.concatenate(all_sb_vals)
-        if zero_intensity_y is not None and np.isfinite(zero_intensity_y):
-            all_sb = np.concatenate([all_sb, [zero_intensity_y]])
         set_axis_limits_from_finite_values(ax_sb, all_sb, invert=invert_sb_axis)
 
     # Runtime annotation in bottom-left of SB panel
@@ -2906,6 +2900,8 @@ def plot_comparison_qa_figure(
             lower_clip=0.0,
         )
 
+    if return_figure:
+        return fig
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
