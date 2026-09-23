@@ -1,0 +1,2087 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.6-limitations-roadmap/">
+      
+      
+        <link rel="prev" href="../1.5-comparison/">
+      
+      
+        <link rel="next" href="../../reference/algorithm-walkthrough/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.6 Limitations and Roadmap - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#16-limitations-and-roadmap" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.6 Limitations and Roadmap
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#161-algorithm-level-scope-what-isoster-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.1 Algorithm-level scope: what ISOSTER is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-features-whose-defaults-are-still-being-calibrated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.2 Features whose defaults are still being calibrated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#163-mask-and-variance-map-quality-dependence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.3 Mask and variance-map quality dependence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#164-scattered-light-and-extended-psf-regimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.4 Scattered light and extended-PSF regimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#165-computational-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.5 Computational considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#166-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.6 Roadmap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#167-closing-remarks-on-the-technical-chapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.7 Closing remarks on the technical chapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#161-algorithm-level-scope-what-isoster-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.1 Algorithm-level scope: what ISOSTER is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-features-whose-defaults-are-still-being-calibrated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.2 Features whose defaults are still being calibrated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#163-mask-and-variance-map-quality-dependence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.3 Mask and variance-map quality dependence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#164-scattered-light-and-extended-psf-regimes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.4 Scattered light and extended-PSF regimes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#165-computational-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.5 Computational considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#166-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.6 Roadmap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#167-closing-remarks-on-the-technical-chapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.6.7 Closing remarks on the technical chapter
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="16-limitations-and-roadmap">§1.6 Limitations and roadmap</h1>
+<p>The technical chapter closes with an honest accounting of where
+ISOSTER currently falls short and where the development effort is
+heading. The limitations described below are not failures relative
+to a putative ideal tool; they are the boundaries of what ISOSTER
+covers in the version this paper documents. Some are intrinsic to
+the algorithmic scope (2-D images, non-parametric isophote
+analysis); some are operational (compute cost on cold starts,
+calibration of LSB-regime defaults); some are deferred (GPU
+kernels, IFU cube support). The roadmap items at the end of the
+subsection name the development directions we anticipate
+addressing in subsequent releases, without committing to a release
+schedule.</p>
+<p>The honest-accounting framing matters for the same reason the
+per-feature demonstration sections in §1.4 were cherry-picked but
+honest: a tool that overstates its scope produces application
+failures downstream, and a tool that understates its scope is
+under-used. The aim of this subsection is to leave the reader with
+an accurate map of what ISOSTER will and will not do on a given
+problem.</p>
+<h2 id="161-algorithm-level-scope-what-isoster-is-not">§1.6.1 Algorithm-level scope: what ISOSTER is not</h2>
+<p>ISOSTER is a non-parametric elliptical-isophote fitter for 2-D
+images. Three classes of analysis are out of scope by design and
+will remain so:</p>
+<ul>
+<li><strong>Parametric model fitting</strong> — Sérsic, double-Sérsic, exponential</li>
+<li>
+<p>bulge, multi-component fits, GALFIT-style <span class="arithmatex">\(\chi^2\)</span> minimization
+  over component parameters. ISOSTER's output is a non-parametric
+  description of the isophotal structure; users who need
+  parametric decomposition should pair ISOSTER with a dedicated
+  tool (<code>GALFIT</code>, <code>imfit</code>, <code>pysersic</code>, <code>astropy.modeling</code>). The
+  output schemas are not incompatible — ISOSTER's results
+  dictionary contains enough information to seed a parametric
+  fit at the initial-guess level — but the parametric fit itself
+  is a separate analysis.</p>
+</li>
+<li>
+<p><strong>PSF deconvolution and PSF-aware fitting.</strong> The harmonic fit
+  operates on the observed image without modeling the PSF. The
+  consequences are well-known: in the regime where the galaxy is
+  small relative to the PSF FWHM, the fitted geometry is biased
+  by the PSF convolution; in the regime where the galaxy is large
+  but the PSF wings extend across many isophotes, the outer
+  isophotes inherit a small wing-contribution bias. ISOSTER
+  reports the geometry of the <em>observed</em> isophotes; converting to
+  intrinsic geometries requires an external PSF model. For nearby
+  galaxies with extended PSF wings (very nearby NGC objects, the
+  inner halos of bright ellipticals, the wings of saturated stars
+  near the target), this is the dominant scientific limitation.</p>
+</li>
+<li>
+<p><strong>3-D spectral cubes and multi-wavelength model fitting.</strong> The
+  multi-band joint free fit of §1.4.5 operates on co-aligned 2-D
+  images, one per band. A spectroscopic IFU cube (MaNGA, SAMI,
+  Mauve, the LSST 4MOST follow-up cubes) is <em>not</em> a 2-D image
+  with extra bands; it is a <span class="arithmatex">\((x, y, \lambda)\)</span> data structure
+  whose isophote analysis would generalize the per-isophote loop
+  along the wavelength axis. The single-band sampling stack
+  generalizes naturally, but the corresponding driver, fitting
+  loop, and output schema do not yet exist. IFU support is on the
+  roadmap (§1.6.6) but is not in the current release.</p>
+</li>
+</ul>
+<p>A fourth out-of-scope class is <em>time-domain photometry</em> on
+variable sources — supernova light-curve fitting, AGN
+variability monitoring, transient followup. ISOSTER is not the
+right tool for any of these.</p>
+<h2 id="162-features-whose-defaults-are-still-being-calibrated">§1.6.2 Features whose defaults are still being calibrated</h2>
+<p>Several §1.4 features are in active use but with default
+parameter values that we describe as <em>heuristic recommendations</em>
+rather than survey-tested defaults. The list:</p>
+<ul>
+<li>
+<p><strong>Outer-region center regularization (§1.4.3.1)</strong> —
+  <code>outer_reg_strength</code>, <code>outer_reg_sma_onset</code>, and
+  <code>outer_reg_sma_width</code> were initially calibrated on HSC-SSP edge
+  cases for deep-LSB disk-galaxy fits. The recommended ranges
+  documented in the configuration reference apply to HSC-scale
+  imaging; DECaLS / BASS / MzLS, with different seeing and sky
+  brightness, may require different ranges. The form of the
+  logistic ramp is robust to these differences (the function
+  itself is well-behaved across surveys), but the recommended
+  values are not yet survey-blind.</p>
+</li>
+<li>
+<p><strong>Automatic LSB lock trigger threshold (§1.4.3.2)</strong> — the
+  <code>lsb_auto_lock_maxgerr = 0.30</code> default was chosen to fire
+  before the gradient-acceptability check at <code>maxgerr = 0.50</code>
+  would have produced a stop code <span class="arithmatex">\(-1\)</span>, with a debounce count of
+  <span class="arithmatex">\(2\)</span>. On bright galaxies in clean fields the lock essentially
+  never fires (its purpose is to handle LSB regimes the
+  bright-galaxy fit doesn't enter). On the deep LSB regime the
+  defaults are tuned for HSC-scale imaging; the trigger threshold
+  may need adjustment for surveys with substantially different
+  per-pixel photon noise characteristics.</p>
+</li>
+<li>
+<p><strong>Multi-band loose-validity participation thresholds (§1.4.5.4)</strong> —
+  <code>loose_validity_min_per_band_count</code> and
+  <code>loose_validity_min_per_band_frac</code> set the participation cuts
+  below which a band is dropped from the joint fit on a given
+  isophote. The defaults are lenient (a band is dropped only when
+  it keeps fewer than 6 samples or under 20% of the rectangular
+  sample count) but the
+  optimal values depend on the typical per-band mask asymmetry of
+  the input data. Surveys with consistently good per-band masking
+  may want tighter cuts; surveys with
+  patchy per-band masking may need to relax the cuts.</p>
+</li>
+<li>
+<p><strong>Lazy-gradient stall detector (§1.3.2)</strong> — the three-iteration
+  stall threshold at which the gradient is re-evaluated is a
+  heuristic. It is set tight enough that the gradient is
+  refreshed on essentially any case where the iteration is
+  meaningfully slowing, and loose enough that ordinary
+  convergence does not trigger a redundant re-evaluation. The
+  default works well across the validated samples but is not
+  individually configurable; users with pathological iteration
+  trajectories may benefit from a future configurable threshold.</p>
+</li>
+</ul>
+<p>This entry is a calibration item, but the underlying feature is
+  also a genuine accuracy limitation and belongs on the list as
+  such. As §1.3.2 quantifies, the lazy gradient is a fast
+  approximation, not an exact reformulation: converged geometries
+  differ from the <code>use_lazy_gradient=False</code> reference by a median of
+  well under one percent of the fitted uncertainty, but with a tail
+  that grows as the data get noisier — reaching <span class="arithmatex">\(2.6\sigma\)</span> on the
+  worst isophote of a <span class="arithmatex">\(S/N = 10\)</span> test sequence. The regime where the
+  approximation is loosest is the LSB outskirt regime of §1.4.3,
+  which is also where several of ISOSTER's science cases live. Users
+  measuring per-isophote geometry in that regime should consider
+  paying the roughly 31% surcharge for the exact path. A better
+  resolution — refreshing the gradient adaptively on a gradient-SNR
+  criterion rather than on a fixed stall count, so the approximation
+  tightens automatically where it is weakest — is on the roadmap.</p>
+<ul>
+<li>
+<p><strong>Outer-region regularization does not compose with ISOFIT
+  (§1.4.3.3)</strong> — the Tikhonov shrinkage is applied where a
+  five-parameter harmonic solve becomes a geometry step, and was
+  never wired into the wider ISOFIT joint solver. Requesting
+  <code>use_outer_center_regularization=True</code> together with
+  <code>simultaneous_harmonics=True</code> therefore retains only the
+  selector-level penalty and silently loses the per-iteration step
+  damping. ISOSTER warns at configuration time, so the gap is
+  announced rather than hidden, but it is the one place in §1.4
+  where two features do not give the union of their effects. Closing
+  it means threading the per-axis Jacobian through the wider solve;
+  it is a bounded piece of work that has simply not been done.</p>
+</li>
+<li>
+<p><strong>Per-axis regularization weights are effectively binary
+  (§1.4.3.1)</strong> — measured on a BCG test case, the Tikhonov blend
+  factor saturates above <span class="arithmatex">\(99.99\%\)</span> for any per-axis weight in the
+  range a user would plausibly type, because the harmonic-to-geometry
+  Jacobian grows without bound as the radial gradient approaches
+  zero. Intermediate weights such as <span class="arithmatex">\(\{1, 0.5, 0.5\}\)</span> therefore
+  behave like <span class="arithmatex">\(\{1, 1, 1\}\)</span>, and the honest "partial damping" regime
+  would require weights around <span class="arithmatex">\(10^{-4}\)</span>. The field is documented as
+  a binary switch, but the fact that a continuous-looking parameter
+  is not in fact continuous over its useful range is a design wart
+  rather than a feature.</p>
+</li>
+</ul>
+<p>The calibration status is documented in
+<code>docs/02-configuration-reference.md</code> for each of these fields. The
+parameters are user-configurable, and the recommended values are
+the <em>current</em> recommendations — they may be revised in subsequent
+releases as the validation samples grow.</p>
+<h2 id="163-mask-and-variance-map-quality-dependence">§1.6.3 Mask and variance-map quality dependence</h2>
+<p>ISOSTER inherits a substantial amount of upstream-pipeline state
+through its <code>mask</code> and <code>variance_map</code> arguments. The fit's
+<em>algorithmic</em> correctness does not depend on these inputs; an
+unmasked image with no variance map produces a correct
+five-parameter harmonic fit by definition. The <em>quality</em> of the
+fit on real survey data depends on them substantially.</p>
+<p><strong>Mask quality.</strong> A mask that misses bad pixels (defects, cosmic
+rays, hot pixels, secondary sources) produces a harmonic fit
+contaminated by those pixels. The variance-aware fit (§1.4.2)
+provides automatic down-weighting of high-variance pixels, but it
+does not provide masking — a survival weight of <span class="arithmatex">\(10^{-6}\)</span> from a
+bad pixel with <span class="arithmatex">\(\sigma^2 = 10^{6}\)</span> is small but not zero, and a
+band of bad pixels across an early isophote can swing the
+harmonic amplitude by an amount that survives the WLS weighting.
+The user is responsible for providing a mask that covers known
+bad pixels; ISOSTER does not derive a mask from the image.</p>
+<p><strong>Variance-map quality.</strong> The WLS path of §1.4.2 weights each
+sample by the user-supplied <span class="arithmatex">\(1 / \sigma_i^2\)</span>. If the
+variance map underestimates the true photon noise — typical of
+coadded imaging where pixel-to-pixel noise is correlated and the
+naive per-pixel variance does not reflect the effective noise per
+resolution element — WLS produces over-confident error bars.
+ISOSTER cannot diagnose this from the variance map alone; the
+caller is responsible for upstream correction (a noise-rescaling
+factor estimated from blank sky, a covariance-matrix model of the
+coaddition). On survey data where the variance map is the
+pipeline default, this is a known systematic that the benchmark
+chapters discuss in detail.</p>
+<p><strong>Background model quality.</strong> The <code>sigma_bg</code> field (§1.4.4.6)
+sets the photon-noise floor on the convergence criterion. A
+poorly characterized background — under-subtracted sky, residual
+gradients across the image, scattered light — biases the fit's
+LSB-regime behaviour even when the variance map is correct.
+ISOSTER provides no background subtraction; the user supplies the
+sky-subtracted image and the documented <code>sigma_bg</code> value.</p>
+<p>In all three cases the limitation is upstream from ISOSTER's
+algorithm and ISOSTER cannot resolve it on its own. A survey
+pipeline that consumes ISOSTER's output should therefore treat
+mask quality, variance-map accuracy, and background subtraction
+as <em>prerequisites</em> rather than as outputs of the ISOSTER fit.</p>
+<h2 id="164-scattered-light-and-extended-psf-regimes">§1.6.4 Scattered light and extended-PSF regimes</h2>
+<p>A specific failure mode worth flagging separately is the regime
+where the <em>extended PSF wings</em> of a bright source dominate the
+outskirt isophotes of a faint nearby target. This includes:</p>
+<ul>
+<li><strong>Very nearby NGC galaxies</strong> observed with HSC, DECam, or
+  similar wide-field instruments where the PSF wings carry
+  measurable flux out to <span class="arithmatex">\(10\)</span>–<span class="arithmatex">\(20\,\mathrm{arcmin}\)</span>.</li>
+<li><strong>The inner halos of bright ellipticals</strong> in galaxy clusters,
+  where the BCG's PSF wings contribute to the apparent isophote
+  structure of nearby cluster members.</li>
+<li><strong>Saturated foreground stars</strong> whose diffraction spikes
+  intersect the target's outer isophotes; the binary mask removes
+  the spike core but the wing structure is harder to characterize.</li>
+</ul>
+<p>For these cases the LSB outskirt strategy of §1.4.3 reduces the
+geometry drift but does not address the underlying scattered-light
+contamination of the intensity profile. The fitted geometry under
+the soft + hard composition may converge to a sensible value
+while the intensity profile in the outer SMAs carries a
+scattered-light bias that biases color gradients, mass-to-light
+profile estimates, and intracluster-light measurements.</p>
+<p>The proper resolution is upstream: a scattered-light model
+appropriate to the instrument and exposure that is subtracted
+from the image before ISOSTER is called. ISOSTER does not provide
+such a model — there is no general-purpose scattered-light model
+that works across instruments — and integrates with whichever
+external scattered-light pipeline the survey provides.</p>
+<p>Users analyzing nearby galaxies in crowded fields or BCGs in
+cluster environments should consider this regime carefully when
+interpreting outer-isophote intensities; the geometry may be
+robust to the contamination while the intensity is not.</p>
+<h2 id="165-computational-considerations">§1.6.5 Computational considerations</h2>
+<p>Three computational considerations affect when ISOSTER is the
+right tool to deploy.</p>
+<p><strong>Cold-start cost.</strong> Three separate costs are routinely conflated as
+"the JIT cost", and they call for different responses. Measured on
+the reference machine: importing the stack (Numba included) costs
+<span class="arithmatex">\(0.84\,\mathrm{s}\)</span> (IQR <span class="arithmatex">\(0.83\)</span>–<span class="arithmatex">\(0.86\)</span>); the first fit against a
+<em>populated</em> Numba cache costs <span class="arithmatex">\(0.101\,\mathrm{s}\)</span> (IQR
+<span class="arithmatex">\(0.099\)</span>–<span class="arithmatex">\(0.103\)</span>) more than a subsequent fit, which is the cache being
+read from disk rather than anything being compiled; and the first fit
+against an <em>empty</em> cache costs a further <span class="arithmatex">\(0.36\,\mathrm{s}\)</span> (IQR
+<span class="arithmatex">\(0.36\)</span>–<span class="arithmatex">\(0.37\)</span>), which is the genuine compilation. Each is an
+across-session median over the archived run's empty-cache /
+populated-cache pairs — the measurement cannot be batched, since
+every observation costs an interpreter start — quoted to the
+precision its own spread supports. What matters is the ordering and
+the proportions.</p>
+<p>The compilation cost is paid once per <em>compatible cache</em>, not once
+per installation. Upgrading Numba or ISOSTER invalidates the cached
+objects, and an environment that cannot write the cache directory
+pays it on every process. The everyday cold-start penalty a user
+meets — a fresh process on a machine whose cache is already
+populated — is the import plus the cache load, a little under a
+second in total, of which none is compilation. On a survey pipeline
+processing thousands of
+galaxies the cost is amortized to negligibility; on a one-galaxy
+analysis it is added to every cold-process run.</p>
+<p>The pure-NumPy fallback (forced with <code>NUMBA_DISABLE_JIT=1</code>) avoids
+the compilation cost at the price of a slowdown on the hot kernels,
+so which is cheaper depends on how many fits a process performs. On
+the same small fixture as above the fallback is about <span class="arithmatex">\(1.23\times\)</span>
+slower per fit in steady state. What it avoids is the compiled path's
+<em>whole</em> excess over its own steady state on a cache-less run — the
+compilation and the cache load together, not the compilation term
+alone, since a fallback process performs neither — and dividing the
+two puts the break-even at about 50 fits per process (IQR 47–52
+across the archived sessions). A user fitting one galaxy in a fresh
+process is therefore genuinely better off with the fallback, and a
+pipeline fitting hundreds is not — the recommendation this paragraph
+used to make on intuition, now with the crossing point attached.</p>
+<p>Two things bound that number. The quartiles are tight but the upper
+tail is not: sessions ranged from 45 to 76 fits, so the crossing
+point is a few tens of fits rather than precisely fifty. And it is
+one fixture on one machine, with both terms sensitive to the
+workload — the per-fit penalty depends on what fraction of a fit is
+spent inside the compiled kernels, which varies with image size and
+ring count, and the start-up cost varies with how much of the
+library a given configuration touches. The ordering of the
+recommendation is robust; the threshold should be re-measured on any
+workload it is being applied to.</p>
+<p><strong>Multi-band cost scaling.</strong> The joint multi-band fit of §1.4.5 is
+<em>not</em> linear in the number of bands, and the earlier claim that it
+costs <span class="arithmatex">\(\mathrm{O}(B)\)</span> per iteration was wrong. The design-matrix
+construction and the WLS row scaling are indeed <span class="arithmatex">\(\mathrm{O}(BN)\)</span>,
+but the solve forms dense normal equations on a
+<span class="arithmatex">\((BN) \times (B+4)\)</span> matrix, whose cost carries additional factors of
+<span class="arithmatex">\(B\)</span>. Measured on one joint solve with <span class="arithmatex">\(N = 700\)</span> samples per band,
+for the <strong>geometry-parameterised</strong> solver that is the supported
+default (§1.4.5.2):</p>
+<table>
+<thead>
+<tr>
+<th><span class="arithmatex">\(B\)</span></th>
+<th>OLS</th>
+<th>ratio to previous</th>
+<th>WLS</th>
+<th>ratio to previous</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>0.196 ms</td>
+<td>—</td>
+<td>0.158 ms</td>
+<td>—</td>
+</tr>
+<tr>
+<td>6</td>
+<td>0.333 ms</td>
+<td>1.7×</td>
+<td>0.351 ms</td>
+<td>2.2×</td>
+</tr>
+<tr>
+<td>12</td>
+<td>0.605 ms</td>
+<td>1.8×</td>
+<td>0.663 ms</td>
+<td>1.9×</td>
+</tr>
+<tr>
+<td>24</td>
+<td>2.49 ms</td>
+<td>4.1×</td>
+<td>2.60 ms</td>
+<td>3.9×</td>
+</tr>
+</tbody>
+</table>
+<p>The scaling is close to linear through <span class="arithmatex">\(B \approx 12\)</span> and departs
+beyond it. Three caveats on reading this. First, the final ratio is
+the least stable number in this chapter: over eighteen sessions its
+median is <span class="arithmatex">\(4.4\)</span> with an interquartile range of
+<span class="arithmatex">\(4.2\)</span>–<span class="arithmatex">\(4.5\)</span>, and it is the one aggregate whose median still shifts
+appreciably between independent sets. It supports "several times, not twice" and no
+finer statement. Second, the departure is milder for the supported
+geometry form than for the legacy shared-amplitude form, which the
+harness also times: the latter runs about <span class="arithmatex">\(6.0\times\)</span> from
+<span class="arithmatex">\(B = 12\)</span> to <span class="arithmatex">\(24\)</span>.
+Benchmarking the amplitude form and presenting it as the multi-band
+cost — as an earlier version of this section did — overstates the
+high-<span class="arithmatex">\(B\)</span> penalty, because after an isophote's first iteration the
+default takes the geometry path. Third, we report the departure but
+do not diagnose it: attributing it to the cubic term in the
+normal-equations solve, to memory-hierarchy effects, or to a
+threading threshold in the host BLAS would require profiling we have
+not done.
+The <span class="arithmatex">\(B = 24\)</span> entry is the least stable of the four across runs and
+machines, so read it as "several times, not twice". For typical
+survey-scale
+<span class="arithmatex">\(B \in \{3, 4, 5, 6\}\)</span> the cost is therefore a small multiple of the
+single-band cost, as the linear intuition suggests; for
+<span class="arithmatex">\(B \in \{10, 20, \ldots\}\)</span> (eventual narrowband-survey applications:
+J-PAS, J-PLUS, PAU) it becomes a significant pipeline item faster
+than a linear extrapolation would predict.
+The configuration alternative for the high-<span class="arithmatex">\(B\)</span> regime is to fit
+reduced band subsets jointly, with forced photometry between
+subsets. Loose validity is <em>not</em> an alternative here, and an earlier
+version of this section suggested it was: the jagged path solves a
+<span class="arithmatex">\((\sum_b N_b) \times (B + 4)\)</span> system, so it leaves the <span class="arithmatex">\(B\)</span>-dependent
+column count untouched and commonly carries <em>more</em> rows than shared
+validity, since it stops discarding samples that only one band
+failed. It is a masking-policy choice with its own merits
+(§1.4.5.4), not a performance lever.</p>
+<p><strong>Wall-time on large images.</strong> The per-isophote cost is
+asymptotically sublinear in image area through <code>map_coordinates</code>
+interpolation (§1.3.3), so the dependence of fit time on image
+size is mild. However, the <em>total</em> fit time depends on the SMA
+range, which depends on image size when the target is well
+resolved — but two quantities scale differently here and conflating
+them is what produced the <span class="arithmatex">\(4\times\)</span> claim in an earlier version of
+this section. Under the default <em>geometric</em> SMA stepping the ring
+<em>count</em> grows only logarithmically: doubling <span class="arithmatex">\(a_\mathrm{max}\)</span> adds
+<span class="arithmatex">\(\log 2 / \log(1 + \mathtt{astep})\)</span> rings, about seven at the default
+<code>astep = 0.1</code>. But each ring carries
+<span class="arithmatex">\(N = \max(64, \lfloor 2\pi a \rfloor)\)</span> samples, so the <em>aggregate
+sampling work</em> still grows roughly linearly in <span class="arithmatex">\(a_\mathrm{max}\)</span>.
+Measured on a galaxy chosen so that <em>every</em> ring converges out to
+400 px — which matters more than it sounds, and is discussed below
+the table:</p>
+<table>
+<thead>
+<tr>
+<th><span class="arithmatex">\(a_\mathrm{max}\)</span></th>
+<th>rings</th>
+<th>sampling calls</th>
+<th>points sampled</th>
+<th>wall time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100 px</td>
+<td>56</td>
+<td>460</td>
+<td>66 600</td>
+<td>47.4 ms</td>
+</tr>
+<tr>
+<td>200 px</td>
+<td>63</td>
+<td>516</td>
+<td>118 886</td>
+<td>58.8 ms</td>
+</tr>
+<tr>
+<td>400 px</td>
+<td>70</td>
+<td>574</td>
+<td>225 744</td>
+<td>78.4 ms</td>
+</tr>
+</tbody>
+</table>
+<p>All rings return stop code 0 at all three limits, with a median of
+seven iterations, so the three fits are doing comparable work per
+ring and the comparison is about the ring sequence rather than about
+convergence behaviour. The sampling columns are <em>instrumented</em> —
+counted from the actual calls, which include every iteration and the
+extra passes for gradient evaluation — not inferred from one nominal
+pass per output ring, which undercounts by roughly an order of
+magnitude.</p>
+<p>Two trends, stated separately because the measurement does not
+connect them. Ring count grows logarithmically (56 → 63 → 70), as
+geometric stepping requires. Points sampled grows almost exactly
+linearly (factors of 1.79 then 1.90 per doubling). Wall time lands
+between the two, rising by about <span class="arithmatex">\(1.3\times\)</span> per doubling.</p>
+<p>Two things this does <em>not</em> establish. The first is a general scaling
+law for the wall-time growth. Over eighteen sessions the two step
+ratios are <span class="arithmatex">\(1.25\)</span> (IQR <span class="arithmatex">\(1.23\)</span>–<span class="arithmatex">\(1.27\)</span>) for <span class="arithmatex">\(100 \to 200\,\mathrm{px}\)</span>
+and <span class="arithmatex">\(1.32\)</span> (IQR <span class="arithmatex">\(1.30\)</span>–<span class="arithmatex">\(1.34\)</span>) for <span class="arithmatex">\(200 \to 400\,\mathrm{px}\)</span>. The
+gap between them is real on this fixture, as the paired comparison
+below shows; what the benchmark cannot do is generalise it, because
+<strong>it was not designed to test acceleration</strong> and varies neither the
+galaxy nor the SMA grid.</p>
+<p>It is worth being exact about what the comparison supports, since the
+temptation is to compare the two intervals by eye. Comparing marginal
+spreads would be the wrong test anyway — the two ratios are measured
+on the <em>same</em> sessions, so they are paired, and the paired difference
+is the quantity with any power. That difference is positive in 18 of
+18 sessions with a median of <span class="arithmatex">\(+0.07\)</span>, the smallest of them <span class="arithmatex">\(+0.04\)</span>.
+That is evidence of mild acceleration for this fixture on this
+machine; an unbroken sweep is not something to wave away. What it
+does not establish is a general scaling law across galaxies,
+configurations or hardware — one galaxy and one SMA grid cannot
+separate a property of the algorithm from a property of the fixture,
+and this benchmark varies neither. (Those figures are archived
+alongside the rest, so they are checked rather than transcribed.)
+Establishing the general claim would need an experiment built for it:
+several fixtures, a pre-registered paired criterion, and enough
+sessions for the outliers to stop dominating.
+(An earlier version of this paragraph asserted that the medians
+differ by less than either spread. They do not — the difference,
+<span class="arithmatex">\(0.077\)</span>, exceeds both IQR widths, <span class="arithmatex">\(0.037\)</span> and <span class="arithmatex">\(0.038\)</span> — and the
+comparison was the wrong one to make regardless.) And it does not attribute the growth to
+the sampling term, because the benchmark measures totals only — it
+does not partition runtime into sampling, solving and per-iteration
+overhead. A component profile would settle both questions and has not
+been run. What the table does establish is the distinction the
+<span class="arithmatex">\(4\times\)</span> claim missed: rings and sampled points scale differently,
+and only the latter is proportional to <span class="arithmatex">\(a_\mathrm{max}\)</span>. That
+<span class="arithmatex">\(4\times\)</span> figure would be right under <em>linear</em> SMA stepping, where
+the ring count itself grows in proportion.</p>
+<p>A caution about this measurement, because getting it wrong is easy
+and we did. An earlier version used a compact fixture on which six of
+the seven rings beyond 200 px failed with stop code <span class="arithmatex">\(-1\)</span> after two or
+three iterations. Those rings are cheap precisely <em>because</em> they
+fail, and the resulting <span class="arithmatex">\(1.16\times\)</span> was an artefact of early
+termination rather than evidence about sampling cost. Any scaling
+measurement of this kind has to report its stop codes.</p>
+<p>We do not quote a per-galaxy runtime floor or a survey-scale
+extrapolation here. Both depend on image size, SMA grid, galaxy
+extent and configuration in ways a single number would misrepresent,
+and the benchmark chapters measure them on the actual campaign
+samples.</p>
+<p><strong>Measurement protocol.</strong> Every timing in this chapter — the
+lazy-gradient comparison of §1.3.2, the eccentric-anomaly and ISOFIT
+table of §1.4.1.4, the cold-start figures above and the two tables
+above — is produced by
+<code>benchmarks/draft_timings/run_draft_timings.py</code>, committed alongside
+the source, as are the two measurements there that are not timings:
+the lazy-gradient accuracy table of §1.3.2 and the NumPy-fallback
+break-even above. Six properties of that harness are what make the
+numbers worth quoting:</p>
+<ul>
+<li><strong>Batching.</strong> Sub-millisecond operations are repeated to a floor
+  duration before the clock is read, because timing such a call
+  individually measures the timer as much as the work.</li>
+<li><strong>Interleaving with a shuffled order.</strong> Repetitions of the arms
+  being compared are interleaved rather than run in blocks. The order
+  within each repetition is reshuffled from a recorded seed, because
+  a fixed visiting order leaves whichever arm always runs last
+  absorbing any within-repetition drift — which is precisely the
+  high-band solve. Adding the shuffle measurably tightened the
+  lazy-gradient ratio.</li>
+<li><strong>Spread, not just a median.</strong> Every raw repetition is retained and
+  an interquartile range is reported beside each median. Some of
+  these ratios are noisy enough that a single median would invite
+  false precision, and the draft says so where that is the case.</li>
+<li><strong>Sessions in separate processes.</strong> A single session shares its
+  Python imports, module state, warmed allocators and arm ordering, so
+  repeating blocks within one understates the variability.
+  <code>--sessions N</code> fans out N interpreters, each with its own
+  arm-ordering seed, and archives every one. The chapter's aggregates
+  come from an eighteen-session run, and they are reported as a
+  <strong>median with an interquartile range</strong> rather than as a minimum and
+  a maximum. That choice is empirical: across independent sets the
+  medians and quartiles reproduce to within about a percentage point,
+  while the extremes do not reproduce at all — one session in eighteen
+  returned a negative lazy-gradient saving, an outlier we did not
+  diagnose. An earlier version of this
+  harness repeated passes inside one process and quoted min-to-max
+  from three of them, which made its intervals look far tighter than
+  they were and required revising them three times.
+  Process isolation has limits worth naming: the operating system's
+  filesystem page cache is machine-wide, and so is the machine's
+  thermal and load state, so what separate sessions vary is process
+  state, not the environment the process runs in.</li>
+<li><strong>Two exemptions, stated.</strong> Two blocks run in child processes
+  because what they measure is fixed at interpreter start, so neither
+  can be batched: cold start (three independent
+  empty-cache/populated-cache pairs, quoted to one significant figure)
+  and the NumPy-fallback comparison, which selects the fallback from
+  the environment. The accuracy sweep behind the §1.3.2 table is the
+  other kind of exemption: it measures a difference between two
+  converged fits rather than a duration, so batching and interleaving
+  have nothing to act on, and the quantity is fixed once the image is.
+  What varies there is the <em>noise realisation</em>, so each session draws
+  its own and the reported spread is a spread over realisations. Every
+  other block follows the points above.</li>
+<li><strong>Two fixtures.</strong> A compact seeded Sérsic (<span class="arithmatex">\(n = 2\)</span>,
+  <span class="arithmatex">\(R_e = 30\,\mathrm{px}\)</span>, <span class="arithmatex">\(\varepsilon = 0.4\)</span>, <span class="arithmatex">\(S/N = 50\)</span>) for the
+  whole-fit comparisons, and a wider, higher-<span class="arithmatex">\(S/N\)</span> one for the
+  <code>maxsma</code> block, which needs every ring out to 400 px to converge.
+  The accuracy sweep reuses the compact fixture with its noise level
+  varied, so its middle row and the lazy-gradient timing describe the
+  same galaxy.</li>
+</ul>
+<p>The environment (Python, NumPy, Numba, BLAS) is recorded with the
+results. Absolute times are machine-specific and should not be
+compared across hardware — an independent reviewer reproduced the
+band-scaling <em>ratios</em> on different hardware while the absolute times
+differed by about a factor of two. The ratios are what the arguments
+in this chapter rest on.</p>
+<p>Every harness-derived timing quoted in this chapter comes from one
+archived run, committed as
+<code>benchmarks/draft_timings/reference_timings.json</code>, so those figures
+have a fixed provenance rather than depending on whichever invocation
+last overwrote the scratch output.
+A companion script, <code>check_draft_numbers.py</code>, rebuilds each quoted
+table row and summary clause from that archive and asserts the prose
+contains it verbatim, so a table that drifts out of step fails
+loudly instead of silently looking measured.</p>
+<p>To be precise about the scope: what the checker guards is everything
+the harness produces — the tables and their summary clauses in
+§1.3.2, §1.4.1.4 and §1.6.5, including the lazy-gradient accuracy
+table and the restatement of its worst case in the limitations list
+above. Other numbers in this chapter come from elsewhere
+(configuration values, cross-references, and results from the
+benchmark campaigns) and the checker does not speak for them; its
+<code>--self-test</code> mode lists them so the boundary is visible rather than
+assumed.</p>
+<p>Within that scope the checker matches whole rows and whole clauses
+rather than fragments, and <code>--self-test</code> perturbs each quoted number
+<em>individually</em>, requiring at least one check to fail for every one.
+Both properties exist because earlier versions lacked them. The
+original checker validated an interquartile range by searching for
+the bare substrings <code>23</code> and <code>25</code>, which occur throughout the prose,
+and so passed against a draft whose figures had been deliberately
+altered; its successor mutated all digits simultaneously, which
+demonstrates only that each implemented check is sensitive to
+something, not that a claim has a check at all. A verification script
+that has never been shown to fail is not evidence.</p>
+<h2 id="166-roadmap">§1.6.6 Roadmap</h2>
+<p>The development directions we anticipate addressing in subsequent
+releases, in approximate order of priority:</p>
+<p><strong>GPU acceleration of hot kernels.</strong> The §1.3.2 inner kernels —
+design-matrix construction (single-band and joint multi-band),
+ellipse-coordinate construction, harmonic-model evaluation — are
+natural candidates
+for GPU acceleration through CuPy, JAX, or a vectorized PyTorch
+backend. The vectorized sampling step (<code>scipy.ndimage.map_coordinates</code>)
+has analogous GPU implementations available. We have not
+prototyped this and offer no speedup estimate: the achievable gain
+depends on whether the per-SMA loop can be restructured to give the
+device enough work per launch, which is the open design question
+rather than a detail. The kernels themselves are small, and a naive
+port that keeps the current one-isophote-at-a-time control flow
+would be dominated by launch overhead; the interesting version fuses
+the invocations across SMAs and across galaxies in a batch.</p>
+<p>The motivation for the GPU roadmap is <em>survey scale</em>. LSST-class
+photometric surveys with <span class="arithmatex">\(\mathrm{O}(10^6)\)</span> resolved galaxies per
+visit deliver more data than CPU-bound ISOSTER can comfortably
+process in real time. The GPU path makes the per-galaxy cost low
+enough that survey-pipeline integration is mechanical rather than
+performance-engineering.</p>
+<p><strong>Spectral / IFU cube support.</strong> The per-isophote loop generalizes
+naturally to a per-(isophote, wavelength) loop on a 3-D
+<span class="arithmatex">\((x, y, \lambda)\)</span> cube. The wavelength axis enters through the
+sampling stack (sampling needs to interpolate along <span class="arithmatex">\(\lambda\)</span> in
+addition to <span class="arithmatex">\((x, y)\)</span>) and through the output schema (the
+results dictionary needs a wavelength dimension). The
+single-band sampling stack already encapsulates the
+implementation that the cube extension would build on, so the
+extension is a generalization rather than a rewrite. We
+anticipate IFU support landing in a paper-II release alongside
+applications to MaNGA, SAMI, and Mauve cubes.</p>
+<p><strong>Tighter PSF-aware modes.</strong> A PSF-aware fitting mode would
+deconvolve the PSF from the image before isophote sampling, or
+equivalently convolve the harmonic-fit model with the PSF before
+comparison to the observed isophote. The former requires
+deconvolution machinery; the latter requires a forward-model
+generalization of the harmonic decomposition. The forward-model
+approach is more numerically stable and is the direction we
+anticipate pursuing. Initial development targets the small-galaxy
+regime where the PSF FWHM is a non-trivial fraction of the
+galaxy's effective radius; the large-galaxy regime with extended
+PSF wings remains an upstream-pipeline problem.</p>
+<p><strong>Cross-tool QA comparison plumbing.</strong> The AutoProf-coefficient-scale
+porting gap mentioned in §1.4.6.2 and §1.5.3 is a known item in
+the cross-tool comparison plumbing. The first step is not a fix but a
+measurement: run AutoProf against a planted deviation and compare its
+reported coefficients with the ISOSTER and <code>photutils</code> values on the
+same fixture. That determines whether any conversion is needed at all —
+the benchmark adapter currently passes AutoProf's columns through
+unconverted, which presumes none is. If a conversion turns out to be
+required, an explicit factor in the QA plotting code is the planned
+approach; either way the §1.5 matrix's "unverified" entries for AutoProf
+can then be resolved.</p>
+<p><strong>Survey-blind LSB defaults.</strong> The §1.6.2 calibration items will
+be tightened as the validation sample grows. The aim is a single
+recommended default for each LSB-regime parameter that works
+acceptably across HSC, DECaLS, BASS / MzLS, DES, and the
+eventual LSST main survey, with documented deviations only for
+genuinely exceptional surveys.</p>
+<p>A handful of smaller items — better error reporting on
+configuration mistakes, an interactive Jupyter QA panel,
+finer-grained logging — are also on the roadmap but are
+operational improvements rather than algorithmic ones; we do not
+itemize them here.</p>
+<h2 id="167-closing-remarks-on-the-technical-chapter">§1.6.7 Closing remarks on the technical chapter</h2>
+<p>The technical chapter began with a three-goal framing — speed,
+flexibility, scientific power — and traversed §1.1 through §1.6
+demonstrating how ISOSTER meets each. The algorithmic-speed
+argument of §1.3 establishes the first goal at the level of
+operation counts and code-path organization. The configurability
+surface of §1.2 and the six feature subsections of §1.4
+establish the second goal by exposing each algorithmic feature as a
+flag on a validated configuration object — <code>IsosterConfig</code> for
+single-band work and the deliberately separate <code>IsosterConfigMB</code> for
+the multi-band path.
+The scientific-power argument runs through the same six §1.4
+subsections, each of which demonstrates one new capability the
+classical Python predecessors do not jointly provide:
+eccentric-anomaly sampling and joint ISOFIT harmonic fitting
+faithfully reproduced from Ciambur 2015; variance-aware
+fitting with gradient errors propagated from the supplied noise
+model rather than from residual scatter; a soft + hard composition
+for the LSB outskirt regime; operations-grade batch robustness
+primitives; joint multi-band free fitting that offers an alternative
+to forced photometry for colour-gradient science, with a measured
+precision advantage at low signal-to-noise; and a
+QA / reproducibility infrastructure that ties the fit outputs to
+the configuration that produced them through round-trip
+serialization.</p>
+<p>The aggregate is a tool calibrated for the next generation of
+deep, wide-field, multi-band imaging surveys — HSC-SSP, the
+late-stage DECaLS / BASS / MzLS samples, DES, the eventual LSST
+main survey — and structured so that the surveys' principal
+challenges (LSB outskirts, multi-band joint fitting, throughput
+at sample scale, reproducibility across pipeline runs) are
+directly addressed at the algorithmic level. The benchmark
+chapters that follow this technical chapter quantify the actual
+performance on the Huang2013, S4G, and SGA-2020 campaigns and
+provide the empirical evidence behind the §1.3 and §1.5
+qualitative claims.</p>
+<p>The closing observation is that ISOSTER is <em>not finished</em> — the
+§1.6 roadmap names several substantial development directions
+that the next release cycles will address — but the version
+documented in this chapter is <em>operational</em> in the sense that all
+six §1.4 features ship with regression-test coverage, all
+configurations are validated at construction, and the two on-disk
+serialization paths of §1.4.6.3 round-trip the isophote table, the
+resolved configuration and the run metadata. (The third path, the
+Astropy-Table conversion, deliberately returns the isophote table
+alone and is an in-memory convenience rather than an archival
+format.) Users can deploy the current version on
+their survey pipelines today; the roadmap items are improvements
+to that operational baseline, not blockers to it.</p>
+<p>The technical chapter ends here. The benchmark chapters that
+follow apply the framework of §1.4.6.4 to the three campaign
+datasets and report the quantitative cross-tool comparisons that
+this chapter has carefully avoided.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

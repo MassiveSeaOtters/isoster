@@ -1,0 +1,1921 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.4.2-variance-aware-fitting/">
+      
+      
+        <link rel="prev" href="../1.4.1-eccentric-anomaly-isofit/">
+      
+      
+        <link rel="next" href="../1.4.3-lsb-outskirts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.4.2 Variance-Aware Fitting - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#142-variance-aware-fitting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.4.2 Variance-Aware Fitting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1421-ols-vs-wls-at-the-algorithm-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.1 OLS vs WLS at the algorithm level
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1422-per-pixel-gradient-error-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.2 Per-pixel gradient error propagation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1423-input-handling-and-safeguards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.3 Input handling and safeguards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1424-caveats-and-composability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.4 Caveats and composability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1425-demonstration-legacysurvey-galaxy-with-inverse-variance-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.5 Demonstration: LegacySurvey galaxy with inverse-variance map
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1421-ols-vs-wls-at-the-algorithm-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.1 OLS vs WLS at the algorithm level
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1422-per-pixel-gradient-error-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.2 Per-pixel gradient error propagation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1423-input-handling-and-safeguards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.3 Input handling and safeguards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1424-caveats-and-composability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.4 Caveats and composability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1425-demonstration-legacysurvey-galaxy-with-inverse-variance-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.2.5 Demonstration: LegacySurvey galaxy with inverse-variance map
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="142-variance-aware-fitting">§1.4.2 Variance-aware fitting</h1>
+<p>The Jedrzejewski (1987) algorithm and the Python predecessors that
+implement it fit harmonics by ordinary least squares with uniform
+weights. Modern wide-field surveys — HSC-SSP, DECaLS / BASS / MzLS,
+DES, eventually LSST — deliver a per-pixel inverse-variance map
+alongside the science image, but the classical algorithm has no
+mechanism for consuming it. The information is therefore thrown
+away, with two consequences: outlier pixels (cosmic rays, hot
+pixels, masked-bad pixels that survived the bad-pixel map) carry
+the same weight in the harmonic fit as good pixels; and parameter
+uncertainties are estimated from the <em>scatter on the ellipse</em> —
+which conflates per-pixel photon noise with the intrinsic
+azimuthal scatter from galaxy structure (spiral arms, dust lanes,
+bars, faint companions) — rather than from the photon noise the
+variance map already encodes.</p>
+<p>ISOSTER closes this gap by accepting a <code>variance_map</code> argument to
+<code>fit_image</code> and routing all harmonic fits through a weighted
+least-squares (WLS) path when one is supplied. The path is
+algorithmically separate from the OLS path: every WLS branch is
+gated on a variance map having actually been supplied, so when
+<code>variance_map = None</code> not one weighted operation executes and the
+output is bit-for-bit what the same code produced before the WLS path
+existed. When a variance map is supplied, every
+harmonic fit on every isophote — geometry fit, ISOFIT extended fit,
+post-hoc higher-order fit, forced-extraction fit, multi-band joint
+fit — switches to WLS uniformly. There is no half-WLS configuration
+in which some harmonic fits use weights and others do not.</p>
+<h2 id="1421-ols-vs-wls-at-the-algorithm-level">§1.4.2.1 OLS vs WLS at the algorithm level</h2>
+<p>The OLS normal equations for the design matrix <span class="arithmatex">\(\mathbf{A}\)</span> and the
+sampled intensities <span class="arithmatex">\(\mathbf{y}\)</span> are</p>
+<div class="arithmatex">\[
+\mathbf{A}^\mathsf{T}\mathbf{A}\,\mathbf{x} = \mathbf{A}^\mathsf{T}\mathbf{y},
+\]</div>
+<p>with parameter covariance</p>
+<div class="arithmatex">\[
+\mathrm{Cov}(\hat{\mathbf{x}})_\mathrm{OLS}
+= (\mathbf{A}^\mathsf{T}\mathbf{A})^{-1}\,\hat\sigma_\mathrm{res}^2,
+\]</div>
+<p>where <span class="arithmatex">\(\hat\sigma_\mathrm{res}^2\)</span> is the <em>residual variance</em>
+estimated empirically from the fit residuals,</p>
+<div class="arithmatex">\[
+\hat\sigma_\mathrm{res}^2
+= \frac{1}{N - P}\sum_{i=1}^{N}
+  \left(y_i - [\mathbf{A}\hat{\mathbf{x}}]_i\right)^2,
+\]</div>
+<p>with <span class="arithmatex">\(P\)</span> the number of parameters the fit actually carried. The
+residual-variance rescaling is necessary precisely because OLS has no
+external scale for the noise — the matrix
+<span class="arithmatex">\((\mathbf{A}^\mathsf{T}\mathbf{A})^{-1}\)</span> alone has the wrong units,
+and the only available scale is what the residuals themselves
+provide.</p>
+<p>Two details of that rescaling matter enough to state. First, it is
+computed <strong>once per isophote</strong>, from the exact fitted model — the
+five-parameter model, or the wider ISOFIT model when higher orders
+were fit inside the loop — evaluated at the angular coordinate the
+coefficients were fitted in. That single value scales both the
+geometry block and the higher-order harmonic errors, so one fit
+yields one error scale; the optional background floor
+<span class="arithmatex">\(\hat\sigma_\mathrm{res}^2 \ge \sigma_\mathrm{bg}^2\)</span> is applied at the
+same point, once, rather than on individual consumers. Evaluating a
+<em>truncated</em> model to rescale a wider fit would charge genuine fitted
+structure to the noise, and would leave two parts of the same
+isophote reporting errors on different scales. Second, when the fit
+is exactly determined — as many samples as parameters, which is
+precisely where ISOFIT switches on — the model passes through every
+point and the data carry no information about the noise level. The
+residual variance is then reported as zero, meaning "not measurable",
+which is a different statement from "not supplied".</p>
+<p>The WLS normal equations replace <span class="arithmatex">\(\mathbf{A}^\mathsf{T}\mathbf{A}\)</span>
+and <span class="arithmatex">\(\mathbf{A}^\mathsf{T}\mathbf{y}\)</span> with their weighted analogues,
+using the diagonal weight matrix <span class="arithmatex">\(\mathbf{W} = \mathrm{diag}(1 /
+\sigma_i^2)\)</span> where <span class="arithmatex">\(\sigma_i^2\)</span> is the per-pixel variance at the
+<span class="arithmatex">\(i\)</span>-th sample point along the ellipse:</p>
+<div class="arithmatex">\[
+\mathbf{A}^\mathsf{T}\mathbf{W}\mathbf{A}\,\mathbf{x}
+= \mathbf{A}^\mathsf{T}\mathbf{W}\mathbf{y},
+\]</div>
+<p>with parameter covariance</p>
+<div class="arithmatex">\[
+\mathrm{Cov}(\hat{\mathbf{x}})_\mathrm{WLS}
+= (\mathbf{A}^\mathsf{T}\mathbf{W}\mathbf{A})^{-1}.
+\]</div>
+<p>The WLS covariance requires no residual-variance rescaling. The
+inverse-variance weights have units of <span class="arithmatex">\(1/\mathrm{intensity}^2\)</span>, so
+the dimensional argument that forced the OLS rescaling does not
+apply here: <span class="arithmatex">\((\mathbf{A}^\mathsf{T}\mathbf{W}\mathbf{A})^{-1}\)</span>
+already has units of <span class="arithmatex">\(\mathrm{intensity}^2\)</span> on the parameter axes
+that are themselves in intensity units.</p>
+<p>Calling it <em>exact</em> would overstate the case, and the conditions
+under which it is a calibrated uncertainty are worth naming, since
+both are routinely violated by survey data. The first is that the
+variance map correctly describes the per-pixel noise; correlated
+noise from coaddition, underestimated sky variance, or a zeropoint
+calibration error all propagate straight through into
+over-confident error bars, and §1.4.2.4 returns to this. The
+second is subtler and is a property of ISOSTER's own sampling
+rather than of the input: the samples along a ring are produced by
+bilinear interpolation from the underlying pixel grid, so
+neighbouring samples share source pixels and are <em>not</em>
+statistically independent, while <span class="arithmatex">\(\mathbf{W}\)</span> is diagonal and the
+covariance expression assumes they are. At the default sampling
+density of roughly one sample per pixel of perimeter the
+correlation is modest, but it grows as the sampling density rises
+relative to the pixel scale, and it biases the reported
+uncertainties low. The WLS covariance is therefore best described
+as free of the OLS estimator's structural bias, and calibrated to
+the extent that the variance map is calibrated and the ring samples
+can be treated as independent.</p>
+<p>The two practical consequences of switching from OLS to WLS are
+worth naming explicitly. <em>Outlier down-weighting</em>: a single
+hot-pixel sample with <span class="arithmatex">\(\sigma_i^2 = 10^{6}\)</span> relative to the
+<span class="arithmatex">\(\sigma^2 \sim 1\)</span> of the neighbouring sky-noise pixels carries a
+weight <span class="arithmatex">\(10^{-6}\)</span> times smaller than its neighbours in the harmonic
+fit. The classical OLS path would weight that pixel equally and let
+a single outlier swing the dominant harmonic amplitude;
+WLS effectively masks it without the caller having to identify the
+pixel ahead of time. <em>Error-bar decoupling</em>: the two estimators
+answer different questions, and it is worth being careful about
+what does and does not follow from that.</p>
+<p>Under the textbook model the residual-scatter estimator is not
+deficient at all. If the samples are independent with a common
+variance, then <span class="arithmatex">\(\hat\sigma_\mathrm{res}^2\)</span> is an unbiased estimate
+of that variance and the OLS covariance is a correct — indeed
+optimal — description of the photon noise. In that case OLS and WLS
+have the <em>same</em> expected covariance, and neither is systematically
+larger. Any claim that the scatter estimator is "bounded below by
+the photon noise it fails to capture" is simply false in this
+regime, and an earlier version of this section made it.</p>
+<p>What separates the two in practice is the failure of the textbook
+model's two assumptions. When the variance is <em>not</em> common across
+the ring, the weighted estimator uses information the unweighted one
+discards, and the two diverge in a direction that depends on where
+the low-variance samples sit relative to the structure being fitted
+— it is not one-signed. When the residual contains real azimuthal
+structure the five-parameter model does not absorb — spiral arms,
+dust lanes, orders <span class="arithmatex">\(n \ge 3\)</span> — the scatter estimator counts that
+structure as noise and is inflated relative to pure photon noise;
+this is the regime where OLS error bars are <em>larger</em>, not smaller.
+And <span class="arithmatex">\(\hat\sigma_\mathrm{res}^2\)</span> carries its own sampling error of
+order <span class="arithmatex">\(\sqrt{2/(N-P)}\)</span>, so on a single ring it can land either side
+of the truth.</p>
+<p>How far apart the two estimators fall on real survey data, and in
+which direction, is what the demonstration of §1.4.2.5 is for. That
+galaxy has not yet been selected and the comparison has not been
+run, so no ratio is quoted here; an earlier version of this section
+gave one, but it described an experiment that had not been
+performed. The durable argument for WLS does not depend on the
+answer: it is that WLS returns error bars traceable to a stated
+noise model, which can be checked against the survey's own variance
+map, rather than to a residual scatter that mixes photon noise with
+whatever the model failed to fit.</p>
+<h2 id="1422-per-pixel-gradient-error-propagation">§1.4.2.2 Per-pixel gradient error propagation</h2>
+<p>The error bar on the mean intensity <span class="arithmatex">\(I_0\)</span> propagates
+straightforwardly from the variance map. In the free fit, <span class="arithmatex">\(I_0\)</span> is
+the intercept of the harmonic fit, so its variance is the
+intercept element of the WLS parameter covariance,</p>
+<div class="arithmatex">\[
+\mathrm{Var}(I_0)_\mathrm{WLS}
+= \left[(\mathbf{A}^\mathsf{T}\mathbf{W}\mathbf{A})^{-1}\right]_{0,0},
+\]</div>
+<p>and ISOSTER reports <span class="arithmatex">\(\sqrt{\mathrm{Var}(I_0)}\)</span> as <code>intens_err</code> in
+the WLS path. Two qualifications. When the fit covariance is
+unavailable, the fallback is the variance of an inverse-variance-
+weighted mean, <span class="arithmatex">\(\left(\sum_i \sigma_i^{-2}\right)^{-1}\)</span> — the right
+form there, because template-based forced photometry reports a plain
+weighted mean rather than a fitted intercept. And under the <code>'median'</code>
+integrator the reported intensity is not the fitted intercept at all,
+so <code>intens_err</code> comes from the median's own variance instead; see the
+paragraph on the deliberate mean/median asymmetry below. The OLS
+analogue is <span class="arithmatex">\(\mathrm{rms} / \sqrt{N}\)</span> (with the <span class="arithmatex">\(\sqrt{\pi/2}\)</span> median
+penalty where applicable), which inherits the
+photon-noise-vs-azimuthal-scatter conflation discussed above.</p>
+<p>The more interesting propagation is the <em>radial gradient</em> error,
+because that is the quantity that drives the convergence criterion
+and the gradient-SNR damping (§1.1, §1.3) and because its OLS
+estimate is structurally biased in a way the intensity-error
+estimate is not. The radial gradient <span class="arithmatex">\(dI / da\)</span> is computed in
+ISOSTER from two samples at offset SMAs: a central sample at the
+current <span class="arithmatex">\(a\)</span> and an offset sample at <span class="arithmatex">\(a + \Delta a\)</span> (or
+<span class="arithmatex">\(a (1 + \Delta a)\)</span> for multiplicative SMA stepping). The two
+samples produce two mean intensities <span class="arithmatex">\(\bar I_c\)</span> and <span class="arithmatex">\(\bar I_g\)</span>
+(plain unweighted means, or medians under the <code>'median'</code>
+integrator), and the gradient is</p>
+<div class="arithmatex">\[
+\widehat{dI/da}
+= \frac{\bar I_g - \bar I_c}{\Delta r},
+\]</div>
+<p>with <span class="arithmatex">\(\Delta r\)</span> equal to the radial separation between the two
+samples (either <span class="arithmatex">\(\Delta a\)</span> in linear-stepping mode or <span class="arithmatex">\(a \cdot
+\Delta a\)</span> in multiplicative-stepping mode). Assuming the two
+samples are statistically independent — they sample different
+elliptical paths through the image and the per-pixel photon noise
+is uncorrelated between distinct pixels — the variance of the
+gradient is</p>
+<div class="arithmatex">\[
+\mathrm{Var}\!\left(\widehat{dI/da}\right)
+= \frac{\mathrm{Var}(\bar I_c) + \mathrm{Var}(\bar I_g)}{(\Delta r)^2},
+\]</div>
+<p>and the WLS gradient error is</p>
+<div class="arithmatex">\[
+\sigma_{dI/da}^\mathrm{WLS}
+= \frac{\sqrt{\mathrm{Var}(\bar I_c) + \mathrm{Var}(\bar I_g)}}{\Delta r}.
+\]</div>
+<p>The per-ring variance on the right-hand side must be the variance of
+<em>the estimator that was actually used to locate the ring</em>, and this is
+the point at which a plausible-looking shortcut goes wrong. The two
+ring locations are an unweighted mean or an unweighted median; the
+variance of an inverse-variance-<em>weighted</em> mean,
+<span class="arithmatex">\(\left(\sum_i \sigma_i^{-2}\right)^{-1}\)</span>, belongs to a different
+estimator and understates the uncertainty of an unweighted mean
+whenever the variances differ around the ring. ISOSTER therefore
+computes location and variance together in one helper
+(<code>_ring_statistic_and_variance</code> in <code>isoster/_shared.py</code>), so the
+reported gradient and its error can never come from two different
+estimators on two different sample sets. For a ring of <span class="arithmatex">\(N\)</span> surviving
+samples with per-sample variances <span class="arithmatex">\(\sigma_i^2\)</span> the two forms are</p>
+<div class="arithmatex">\[
+\mathrm{Var}(\bar I)_\mathrm{mean}
+= \frac{1}{N^2}\sum_{i=1}^{N} \sigma_i^2,
+\qquad
+\mathrm{Var}(\bar I)_\mathrm{median}
+= \frac{\pi N}{2 \left(\sum_{i=1}^{N} \sigma_i^{-1}\right)^{2}}.
+\]</div>
+<p>The first is the ordinary variance of a mean of independent,
+non-identically-distributed measurements. The second is a
+normal-theory asymptotic result which, for uniform variance
+<span class="arithmatex">\(\sigma_i^2 = \sigma^2\)</span>, reduces to <span class="arithmatex">\(\pi\sigma^2 / (2N)\)</span> — the mean's
+<span class="arithmatex">\(\sigma^2/N\)</span> inflated by the familiar factor <span class="arithmatex">\(\pi/2 \approx 1.571\)</span>
+that makes the median the less efficient estimator under Gaussian
+noise. The median form is an approximation rather than an exact
+result: its derivation assumes independent, identically distributed
+Gaussian samples, whereas a real ring carries genuine azimuthal
+structure and neighbouring samples are correlated through the
+bilinear interpolation that produced them. Monte Carlo tests agree
+with the closed forms to about <span class="arithmatex">\(0.08\%\)</span> for uniform per-sample
+variance and <span class="arithmatex">\(1.4\%\)</span> for spatially varying variance — accurate enough
+to trust as an error estimate, but not exact in the way a
+first-principles derivation on independent samples would be.</p>
+<p>Either way the expression is <em>pure photon noise</em>: the only quantities
+on the right-hand side are the per-pixel variances at the two sampled
+ellipses and the geometric separation <span class="arithmatex">\(\Delta r\)</span>. Galaxy-structure
+scatter does not appear, because the harmonic-fit residuals are not
+used.</p>
+<p><strong>A deliberate asymmetry between the reported intensity and the
+gradient.</strong> Under WLS with the default mean integrator, the ring
+intensity ISOSTER reports is <em>not</em> the unweighted mean that enters the
+gradient: it is the inverse-variance-weighted intercept of the
+harmonic fit, whose error is the exact covariance element of
+equation §1.4.2.2 above. The gradient, by contrast, always uses the
+unweighted ring statistic on both rings. The two quantities are
+computed for different purposes and the difference is intentional.
+The intensity is a per-isophote photometric measurement, where
+down-weighting noisier pixels is exactly what one wants; the gradient
+is a <em>comparison</em> between two rings, where using the same simple
+estimator on both sides is what keeps the comparison honest. Under
+the median integrator the reported intensity is an unweighted median
+even when a variance map is supplied, so <code>intens_err</code> comes from the
+median's own variance above rather than from the weighted intercept.
+Rescaling the weighted intercept's error by <span class="arithmatex">\(\sqrt{\pi/2}\)</span> to
+manufacture a median error is correct only for uniform variance:
+once the noise varies with angle, the intercept of a five-parameter
+fit becomes correlated with the sine and cosine terms and its variance
+is no longer the median's by any constant factor. Measured across
+several spatial variance patterns, the rescaled value ranged from
+<span class="arithmatex">\(0.75\times\)</span> to <span class="arithmatex">\(3.21\times\)</span> the correct median error, so the
+shortcut can understate as well as overstate the uncertainty.</p>
+<p>The OLS analogue, by contrast, replaces both <span class="arithmatex">\(\mathrm{Var}(\bar
+I_c)\)</span> and <span class="arithmatex">\(\mathrm{Var}(\bar I_g)\)</span> with scatter-based estimates of
+the form <span class="arithmatex">\(s_c^2 / N_c\)</span> and <span class="arithmatex">\(s_g^2 / N_g\)</span>, where <span class="arithmatex">\(s_c^2\)</span> and <span class="arithmatex">\(s_g^2\)</span>
+are the plain sample variances of the intensities around the two
+ellipses (with the same <span class="arithmatex">\(\pi/2\)</span> penalty applied under the median
+integrator). This substitution looks innocent — both quantities
+have units of <span class="arithmatex">\(\mathrm{intensity}^2\)</span> — but it conflates two
+different sources of variance. The scatter <span class="arithmatex">\(s_c^2\)</span> at a single
+ellipse contains both the per-pixel photon noise <em>and</em> the intrinsic
+azimuthal variation of the galaxy structure at that radius. The
+latter is precisely what the harmonic decomposition is trying to
+<em>measure</em>. Subtracting the fitted harmonic contribution would help,
+and would be the natural refinement, but even the residual after the
+five-parameter fit still carries azimuthal structure from orders
+<span class="arithmatex">\(n \ge 3\)</span> that the geometry fit does not absorb. The scatter-based
+gradient error should therefore be read as an <em>upper bound</em> on the
+photon noise rather than an estimate of it, and the size of the
+excess depends on the morphological complexity of the galaxy in a
+way that is difficult to characterize a priori.</p>
+<p>The bias matters because <span class="arithmatex">\(\sigma_{dI/da}\)</span> does not merely decorate
+the output: it feeds the convergence criterion through the
+gradient-SNR damping (§1.3.2), where a gradient SNR below 3 reduces
+the geometry-update damping factor to prevent overfitting the noise
+floor, and it feeds the <code>maxgerr</code> gate that decides when the outward
+sweep has run out of usable gradient. It also decides, through the
+relative error <span class="arithmatex">\(|\sigma_{dI/da} / (dI/da)|\)</span>, whether ISOSTER pays for
+a second, wider-baseline gradient sample at <span class="arithmatex">\(a + 2\Delta a\)</span> before
+accepting the value. Overestimating <span class="arithmatex">\(\sigma_{dI/da}\)</span> — the typical
+scatter-estimator failure mode on a galaxy with prominent spiral
+structure — therefore damps the geometry update <em>more aggressively
+than the data warrants</em>, spends sampling effort on a second baseline
+that was not needed, and can stop the outward sweep early on a
+gradient that was in fact well measured. WLS removes the bias by
+replacing the scatter estimate with the variance-map propagation, and
+the gradient-SNR criterion then reflects the actual photon noise. When
+either ring's variance is not finite, ISOSTER reports the gradient
+error as <em>unavailable</em> rather than as an enormous number, so a
+degenerate ring cannot masquerade as a merely uncertain one.</p>
+<p>A practical observation. The WLS gradient error formula above is
+algebraically equivalent to the standard photon-noise propagation
+for the difference of two means; nothing in it is novel. What is
+novel is that the classical isophote-fit literature <em>predates</em> the
+routine availability of per-pixel inverse-variance maps, and
+implementations written in that era reasonably estimated gradient
+errors from residual scatter because that was the only available
+estimate. The WLS path in ISOSTER simply uses the better estimate
+when the user supplies the data for it.</p>
+<h2 id="1423-input-handling-and-safeguards">§1.4.2.3 Input handling and safeguards</h2>
+<p>The <code>variance_map</code> argument is an array of the same shape as the
+science image (a <code>ValueError</code> is raised at the top of <code>fit_image</code>
+otherwise) carrying the per-pixel variance <span class="arithmatex">\(\sigma_i^2\)</span>. The
+following sanitization rules are applied in order:</p>
+<ul>
+<li>
+<p><strong>Shape and dtype check.</strong> The variance map is coerced to a
+  float-64 NumPy array; integer or float-32 inputs are converted
+  with a copy. The caller's array is never mutated.</p>
+</li>
+<li>
+<p><strong>Invalid entries are marked, then dropped.</strong> A per-pixel variance
+  carries usable information only if it is finite and strictly
+  positive. Every entry that is not — <code>NaN</code>, <span class="arithmatex">\(\pm\infty\)</span>, zero, or
+  negative — is marked <code>NaN</code> internally, and the sampler then
+  <em>excludes the affected samples outright</em>, exactly the way it
+  already excludes masked pixels. One <code>RuntimeWarning</code> is emitted
+  per category (non-finite, non-positive) reporting how many entries
+  were affected. The marking is performed on a copy; the caller's
+  <code>variance_map</code> remains as supplied.</p>
+</li>
+<li>
+<p><strong>Copy-on-write.</strong> The internal sanitized array is held in a
+  buffer separate from the caller's <code>variance_map</code>. A caller can
+  pass the same <code>variance_map</code> to multiple <code>fit_image</code> calls
+  (typical of survey pipelines that fit the same galaxy at
+  multiple bands or with multiple <code>IsosterConfig</code> variants)
+  without worrying about cumulative side effects.</p>
+</li>
+</ul>
+<p>The governing principle is that <strong>a ring statistic and its
+uncertainty must always describe the identical set of samples</strong>.
+Dropping is the only policy that satisfies it. Two earlier
+mechanisms, both now retired, substituted a placeholder value
+instead: non-finite entries became a large sentinel (<span class="arithmatex">\(10^{30}\)</span>),
+intended to give the pixel a negligible weight, and non-positive
+entries were clamped to a small positive value (<span class="arithmatex">\(10^{-30}\)</span>),
+intended to bound the weight instead of dividing by zero. Both
+kept the flagged pixel <em>inside</em> the ring while distorting how much
+it counted. The sentinel is finite and strictly positive, so the
+validity rule kept it despite the intent; the clamp was worse, giving
+a single unusable pixel a near-infinite weight that could collapse
+an inverse-variance-weighted error by fourteen orders of magnitude.
+Neither failure announced itself in the output, which is the reason
+to state the policy explicitly rather than leave it to a docstring.</p>
+<p><strong>Checking the sampled value alone is not sufficient.</strong> Variances are
+read with bilinear interpolation, which blends each sample from the
+four surrounding image pixels. A <code>NaN</code> or an infinity propagates
+through that blend on its own and always reaches the validity check.
+Zero and negative entries do not: an isolated zero-variance pixel
+averaged with three positive neighbours yields a positive
+interpolated variance that the check accepts, leaving an unusable
+sample in the ring with an understated variance. Measured on a flat
+test map with a true variance of <span class="arithmatex">\(4.0\)</span>, one zero-variance source
+pixel produced an interpolated variance of <span class="arithmatex">\(1.95\)</span>, and one negative
+pixel produced <span class="arithmatex">\(1.44\)</span>. ISOSTER therefore also validates the four
+source pixels feeding each sample. Because <code>fit_image</code> has already
+marked every unusable entry before any sampling happens, the source
+check is redundant on that path and is skipped there; it costs at
+most about <span class="arithmatex">\(0.11\,\mathrm{ms}\)</span> per ring on a direct call to the
+lower-level fitting functions, which are public and may legitimately
+be handed a raw, unvalidated map. Instrumenting a 62-isophote fit of
+a <span class="arithmatex">\(1133 \times 1133\)</span> image confirms the check runs <em>zero</em> times
+inside <code>fit_image</code>, so the normal pipeline carries no extra cost.</p>
+<p>The canonical inverse-variance-to-variance conversion is therefore:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">variance_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invvar</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">invvar</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+</code></pre></div>
+<p>This states the <code>invvar = 0</code> masked-out convention explicitly at the
+call site, which is clearer than relying on ISOSTER's internal
+marking, though the two give the same result. Callers who prefer to
+be explicit about exclusion may equivalently fold those pixels into
+the <code>mask</code> argument; ISOSTER treats the two routes identically.</p>
+<p>The multi-band path (§1.4.5) applies the same rule to each band's
+map. It differs in one structural detail: every multi-band entry point
+that accepts a raw variance map routes through a single resolver, so
+the arrays handed to the sampler are always pre-marked and the
+source-pixel check has nothing left to catch. There is consequently no
+multi-band equivalent of the "already prepared" flag, because there is
+no unprepared path.</p>
+<h2 id="1424-caveats-and-composability">§1.4.2.4 Caveats and composability</h2>
+<p>Three caveats apply to the WLS path:</p>
+<p><strong>Variance maps do not replace masking.</strong> The drop policy of
+§1.4.2.3 applies only to variances that are <em>invalid</em> — non-finite or
+non-positive. A pixel that is merely very noisy is valid data: with
+<span class="arithmatex">\(\sigma_i^2 = 10^{6}\)</span> it still contributes a weight of <span class="arithmatex">\(10^{-6}\)</span> to
+the harmonic fit, not zero. For a single bad pixel on an
+isophote with <span class="arithmatex">\(N \sim 1000\)</span> samples this is negligible; for
+pathological cases where a large fraction of the ellipse is
+covered by high-variance pixels (a defect that spans an arc of the
+ellipse, a bright companion's diffraction spike crossing the
+isophote) the residual weight can still bias the fit. The
+recommended practice is to combine <code>variance_map</code> with a binary
+<code>mask</code> array that excludes pixels the caller knows to be unusable;
+WLS then operates on the remaining pixels with weights derived
+from their physical photon noise.</p>
+<p><strong>Variance maps inherit upstream systematics.</strong> If the survey
+inverse-variance map underestimates the true noise — typically the
+case for coadded imaging where pixel-to-pixel noise is correlated
+and the naive per-pixel variance does not reflect the effective
+noise per resolution element — WLS produces over-confident error
+bars on the harmonic-fit parameters and on the gradient. ISOSTER
+cannot diagnose this from the variance map alone; the caller is
+responsible for correcting the variance map upstream, typically
+through a noise-rescaling factor estimated from blank-sky regions
+or from a covariance-matrix model of the coaddition.</p>
+<p><strong>Uniform-variance equivalence.</strong> What makes WLS and OLS coincide
+on the <em>fitted values</em> is the variance being nearly uniform around
+the ellipse — not the signal-to-noise being high. The two are
+easily confused because they often occur together, but they are
+independent conditions, and it is the first that matters: WLS
+differs from OLS only through the relative weights it assigns to
+samples, so a ring whose per-pixel variances are all equal produces
+the same normal equations either way, at any signal level. Where the
+variances <em>do</em> vary around the ring — a coadd depth gradient, a
+dither-pattern seam, a masked region's soft edge — the weights are
+non-uniform, and the fitted geometry, harmonic coefficients and
+curve-of-growth differ between the two paths regardless of how
+bright the galaxy is. In the uniform case the fitted values agree to
+within LAPACK floating-point determinism and only the error bars
+differ, WLS using the variance-map propagation and OLS the residual
+scatter. Users who
+do not have a variance map should not invent one to enable WLS
+"just in case"; the OLS path produces correct geometry estimates
+on its own, and a fabricated variance map only contaminates the
+error bars.</p>
+<p>The WLS path composes cleanly with every other ISOSTER feature.
+All sampling modes (φ-uniform and ψ-uniform), all harmonic-fit
+modes (post-hoc, <code>'in_loop'</code> ISOFIT, <code>'original'</code> ISOFIT), all
+constraint flags (<code>fix_center</code>, <code>fix_pa</code>, <code>fix_eps</code>), the LSB
+outskirt features (§1.4.3), the batch-robustness primitives
+(§1.4.4), and the multi-band joint free fit (§1.4.5) all carry the
+WLS weights through unchanged. (The multi-band case adds a wrinkle
+worth naming here rather than leaving entirely to §1.4.5.2: the joint
+solve composes the per-pixel inverse-variance weights with a per-band
+factor derived from that band's radial gradient, so the <em>effective</em>
+weight on the shared geometry is not <span class="arithmatex">\(1/\sigma_i^2\)</span> alone. The
+per-pixel weights enter unchanged; what changes is what they are
+multiplied by.) The composability is a property of
+the implementation: the weight matrix enters as a single row-wise
+prescaling of <span class="arithmatex">\(\mathbf{A}\)</span> before the normal equations are formed,
+<span class="arithmatex">\(\mathbf{A}_W = \mathbf{W}\mathbf{A}\)</span>, after which
+<span class="arithmatex">\(\mathbf{A}_W^\mathsf{T}\mathbf{A}\)</span> and
+<span class="arithmatex">\(\mathbf{A}_W^\mathsf{T}\mathbf{y}\)</span> are solved directly. (The OLS
+branch instead calls NumPy's least-squares driver on the unweighted
+<span class="arithmatex">\(\mathbf{A}\)</span>; the two branches are deliberately separate so that the
+OLS path is untouched by the existence of the WLS one, which is what
+makes the byte-identity claim of §1.4.2.1 checkable rather than
+merely asserted.) Every harmonic fit in the package — the
+five-parameter geometry solve, the wider ISOFIT solves, the
+higher-order post-hoc fits — goes through this same pair of
+branches. Adding a new feature that affects the harmonic fit does
+not require a parallel WLS implementation; it inherits the
+weighted solve automatically.</p>
+<h2 id="1425-demonstration-legacysurvey-galaxy-with-inverse-variance-map">§1.4.2.5 Demonstration: LegacySurvey galaxy with inverse-variance map</h2>
+<p>To make the OLS / WLS difference visible we use a LegacySurvey
+(DECaLS) galaxy from the SGA-2020 sample, drawn from the curated
+demonstration subset in <code>sga_isoster/data/demo/</code> (an external
+companion repository, not part of the ISOSTER source tree). The galaxy is a
+moderately bright disk-dominated late-type system at intermediate
+inclination, large enough that the outward fit pushes well into
+the LSB regime where the OLS / WLS distinction becomes
+quantitatively significant. The science image is the <span class="arithmatex">\(r\)</span>-band
+coadded frame in nanomaggies, and the variance map is constructed
+from the LegacySurvey per-pixel inverse-variance (<span class="arithmatex">\(\mathtt{invvar}\)</span>)
+extension by</p>
+<div class="arithmatex">\[
+\sigma^2(x, y) = \begin{cases}
+1 / \mathtt{invvar}(x, y) &amp; \mathtt{invvar} &gt; 0,\\
+\mathrm{NaN} &amp; \mathtt{invvar} = 0,
+\end{cases}
+\]</div>
+<p>following the canonical recipe of §1.4.2.3, so that pixels the
+survey excluded from its own inverse-variance calculation are
+excluded from the isophote fit as well rather than being assigned a
+weight.</p>
+<p><strong>[FIG X.4.2 — to be generated. Two-panel figure. Panel A: the LegacySurvey <span class="arithmatex">\(r\)</span>-band
+image with the WLS-fitted isophotes overlaid in cyan. Panel B: the
+surface-brightness profiles <span class="arithmatex">\(\mu(a)\)</span> in <span class="arithmatex">\(\mathrm{mag\,arcsec^{-2}}\)</span>
+from the <em>two separate fits</em> of the recipe below — OLS (red) and WLS
+(blue) — each drawn with its own central curve and its own error
+envelope. The two fits share a configuration and an image but not a
+result: the weights enter the solve, so the fitted geometry and
+intensities can differ as well as the error bars, and drawing one
+shared central curve would hide that. Whether the two central curves
+in fact lie close together is a property of the galaxy's variance map
+that the figure should <em>report</em>, not assume: it holds to the extent
+that the LegacySurvey inverse-variance map is uniform across each
+ring, which we have not verified for any particular object. Two ways
+to make this honest are open — select the galaxy on a stated
+ring-uniformity criterion and say so, or select on other grounds and
+show the ring-variance profile alongside — and the figure should
+adopt one of them explicitly. Whether the error envelopes converge in
+the inner <span class="arithmatex">\(\mu \lesssim 25\,\mathrm{mag\,arcsec^{-2}}\)</span> region is
+governed by the same unverified condition, so it too is something the
+panel would show rather than something we can state in advance. How they compare
+in the LSB outskirts
+(<span class="arithmatex">\(\mu \gtrsim 26.5\,\mathrm{mag\,arcsec^{-2}}\)</span>) — by how much, and
+in which direction — is the question the panel exists to answer;
+§1.4.2.1 explains why it cannot be predicted in advance.
+Data source:
+<code>sga_isoster/data/demo/</code> (external companion repository); the
+specific galaxy has not yet been selected, so no envelope ratio is
+quoted here — the figure and its numbers are pending.]</strong></p>
+<p>The comparison this figure is meant to draw is between two <em>error
+models</em>, not between a right answer and a wrong one. In the LSB
+outskirts — the regime where the photometric science cases are most
+demanding: disk-truncation edges, intracluster light, stellar-halo
+profiles — the two estimators are answering different questions, and
+the figure's job is to show how far apart their answers fall on real
+survey data and in which direction. As §1.4.2.1 sets out, that
+direction is not determined a priori: the scatter estimator is
+inflated where the model leaves real azimuthal structure in the
+residual and can fall either side of the truth on any single ring.
+Whichever way the envelopes separate, the argument for WLS is that
+its envelope is traceable to a stated noise model that can be
+checked independently.</p>
+<p>The inner region is the intended control, and it is a control only
+if a condition holds that we have not yet checked. The two solves
+coincide when the weights are near-constant around a ring — a
+<em>variance-uniformity</em> condition, not a signal-to-noise one. Whether
+the LegacySurvey inverse-variance map satisfies it for the galaxy
+eventually chosen is exactly the thing the figure should report,
+either by stating the ring-uniformity criterion the object was
+selected on or by showing the ring-variance profile alongside. If it
+does not hold, the inner envelopes will separate too, and that would
+be a finding rather than a failure of the figure.</p>
+<p>The reproducibility recipe is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">astropy.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">fits</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_image</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isoster.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">IsosterConfig</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">image</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">getdata</span><span class="p">(</span><span class="s2">&quot;galaxy-r.fits.fz&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">invvar</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">getdata</span><span class="p">(</span><span class="s2">&quot;galaxy-invvar-r.fits.fz&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">variance_map</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">invvar</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">invvar</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">config</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span><span class="n">sma0</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">maxsma</span><span class="o">=</span><span class="mf">200.0</span><span class="p">,</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>                       <span class="n">full_photometry</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># OLS baseline (no variance map)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">results_ols</span> <span class="o">=</span> <span class="n">fit_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># WLS fit (same config, variance map supplied)</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">results_wls</span> <span class="o">=</span> <span class="n">fit_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>                        <span class="n">variance_map</span><span class="o">=</span><span class="n">variance_map</span><span class="p">)</span>
+</code></pre></div>
+<p>The two <code>results</code> dictionaries are two independent fits, and how far
+they differ outside the <code>*_err</code> fields depends on the variance map.
+Where the weights are nearly constant along each ellipse — the
+uniform-variance condition of §1.4.2.4, not a high-<span class="arithmatex">\(S/N\)</span> condition —
+the fitted geometry, the harmonic coefficients and the
+curve-of-growth fields agree to within LAPACK floating-point
+determinism. Where the map varies on the scale of a ring, the
+weights change the solve itself and the fitted values move too. The
+plotting recipe accordingly reads both dictionaries and draws
+<em>each fit's own</em> <span class="arithmatex">\(\mu(a)\)</span> curve with its own envelope. Collapsing
+them onto one shared central curve would silently assert the
+uniform-variance case rather than displaying it.</p>
+<p>A final practical point. The structural cost of WLS is small: the
+weighted solve is the same size as the unweighted one, the weights
+enter as a single elementwise row scaling, and the wider design
+matrix that makes the ISOFIT path of §1.4.1 expensive has no
+counterpart here. The one genuine addition is sampling the variance
+map alongside the image on every ring, which is a second
+<code>map_coordinates</code> call per sampling pass. We have not isolated the
+resulting overhead in a controlled benchmark, so we quote no
+number for it; the expectation from the operation count is that it
+is small relative to a fit's total cost, and confirming that belongs
+with the other timing measurements in the benchmark chapters. For
+survey pipelines processing
+thousands of galaxies with already-computed inverse-variance maps,
+turning on WLS is the obvious default.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Rounded square clip -->
+    <clipPath id="squircle-clip">
+      <rect x="0" y="0" width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+    
+    <!-- Background gradient: deep space -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0E1A"/>
+      <stop offset="50%" stop-color="#111631"/>
+      <stop offset="100%" stop-color="#0D1025"/>
+    </linearGradient>
+    
+    <!-- Isophote ellipse gradients -->
+    <linearGradient id="iso-outer" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="iso-mid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="iso-inner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.65"/>
+    </linearGradient>
+    
+    <!-- Core glow -->
+    <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F0ABFC" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#C084FC" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Bright core -->
+    <radialGradient id="core-bright" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="30%" stop-color="#F5D0FE" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#D8B4FE" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Stroke gradient for isophote lines -->
+    <linearGradient id="stroke-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#C084FC"/>
+    </linearGradient>
+    <linearGradient id="stroke-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="50%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#E879F9"/>
+    </linearGradient>
+    <linearGradient id="stroke-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="50%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#F0ABFC"/>
+    </linearGradient>
+    
+    <!-- Speed lines gradient -->
+    <linearGradient id="speed-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#38BDF8" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0"/>
+    </linearGradient>
+    
+    <!-- Subtle star field filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12"/>
+    </filter>
+  </defs>
+  
+  <!-- Background: rounded square -->
+  <g clip-path="url(#squircle-clip)">
+    <rect x="0" y="0" width="512" height="512" fill="url(#bg-grad)"/>
+    
+    <!-- Subtle background texture: faint grid -->
+    <g opacity="0.03">
+      <line x1="128" y1="0" x2="128" y2="512" stroke="#818CF8" stroke-width="0.5"/>
+      <line x1="256" y1="0" x2="256" y2="512" stroke="#818CF8" stroke-width="0.5"/>
+      <line x1="384" y1="0" x2="384" y2="512" stroke="#818CF8" stroke-width="0.5"/>
+      <line x1="0" y1="128" x2="512" y2="128" stroke="#818CF8" stroke-width="0.5"/>
+      <line x1="0" y1="256" x2="512" y2="256" stroke="#818CF8" stroke-width="0.5"/>
+      <line x1="0" y1="384" x2="512" y2="384" stroke="#818CF8" stroke-width="0.5"/>
+    </g>
+    
+    <!-- Ambient glow behind the galaxy -->
+    <ellipse cx="256" cy="256" rx="180" ry="120" fill="#4338CA" opacity="0.08" filter="url(#soft-glow)"/>
+    
+    <!-- Concentric isophote ellipses (the core concept) -->
+    <!-- Each ellipse is slightly rotated to show the fitting algorithm at work -->
+    <g transform="translate(256, 256)">
+      
+      <!-- Outermost isophote - largest, faintest -->
+      <ellipse cx="0" cy="0" rx="175" ry="108" 
+               fill="none" stroke="url(#stroke-grad-1)" stroke-width="1.2" 
+               opacity="0.35" transform="rotate(-12)"/>
+      
+      <!-- Second isophote -->
+      <ellipse cx="0" cy="0" rx="148" ry="92" 
+               fill="none" stroke="url(#stroke-grad-1)" stroke-width="1.4" 
+               opacity="0.45" transform="rotate(-10)"/>
+      
+      <!-- Third isophote -->
+      <ellipse cx="0" cy="0" rx="122" ry="78" 
+               fill="url(#iso-outer)" stroke="url(#stroke-grad-2)" stroke-width="1.6" 
+               opacity="0.55" transform="rotate(-7)"/>
+      
+      <!-- Fourth isophote -->
+      <ellipse cx="0" cy="0" rx="96" ry="63" 
+               fill="url(#iso-mid)" stroke="url(#stroke-grad-2)" stroke-width="1.8" 
+               opacity="0.65" transform="rotate(-4)"/>
+      
+      <!-- Fifth isophote -->
+      <ellipse cx="0" cy="0" rx="70" ry="48" 
+               fill="url(#iso-inner)" stroke="url(#stroke-grad-3)" stroke-width="2.0" 
+               opacity="0.75" transform="rotate(-2)"/>
+      
+      <!-- Sixth isophote - innermost ring -->
+      <ellipse cx="0" cy="0" rx="44" ry="32" 
+               fill="url(#iso-inner)" stroke="url(#stroke-grad-3)" stroke-width="2.2" 
+               opacity="0.85" transform="rotate(0)"/>
+      
+      <!-- Core glow (galaxy nucleus) -->
+      <ellipse cx="0" cy="0" rx="50" ry="35" fill="url(#core-glow)" opacity="0.7"/>
+      <ellipse cx="0" cy="0" rx="22" ry="16" fill="url(#core-bright)" opacity="0.9"/>
+      <ellipse cx="0" cy="0" rx="8" ry="6" fill="#FFFFFF" opacity="0.95"/>
+    </g>
+    
+    <!-- Speed/efficiency motif: dynamic streaks on the right side -->
+    <!-- These suggest rapid computation - "on steroids" -->
+    <g opacity="0.5">
+      <line x1="340" y1="190" x2="430" y2="190" stroke="url(#speed-grad)" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="360" y1="210" x2="455" y2="210" stroke="url(#speed-grad)" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="350" y1="230" x2="440" y2="230" stroke="url(#speed-grad)" stroke-width="1.0" stroke-linecap="round"/>
+    </g>
+    
+    <!-- Matching speed streaks on the lower right, subtler -->
+    <g opacity="0.3">
+      <line x1="345" y1="290" x2="435" y2="290" stroke="url(#speed-grad)" stroke-width="1.0" stroke-linecap="round"/>
+      <line x1="355" y1="310" x2="450" y2="310" stroke="url(#speed-grad)" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="335" y1="330" x2="425" y2="330" stroke="url(#speed-grad)" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+    
+    <!-- Tiny accent dots: scattered stars -->
+    <g filter="url(#glow)">
+      <circle cx="100" cy="120" r="1.5" fill="#93C5FD" opacity="0.6"/>
+      <circle cx="400" cy="140" r="1" fill="#C4B5FD" opacity="0.5"/>
+      <circle cx="130" cy="380" r="1.2" fill="#818CF8" opacity="0.4"/>
+      <circle cx="420" cy="400" r="1" fill="#A5B4FC" opacity="0.5"/>
+      <circle cx="80" cy="250" r="0.8" fill="#DDD6FE" opacity="0.3"/>
+      <circle cx="440" cy="260" r="0.8" fill="#DDD6FE" opacity="0.3"/>
+    </g>
+    
+    <!-- Subtle corner vignette -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+      <stop offset="60%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+    </radialGradient>
+    <rect x="0" y="0" width="512" height="512" fill="url(#vignette)"/>
+  </g>
+  
+  <!-- Rounded square border -->
+  <rect x="2" y="2" width="508" height="508" rx="94" ry="94" 
+        fill="none" stroke="#1E1B4B" stroke-width="3" opacity="0.5"/>
+</svg>
