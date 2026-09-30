@@ -1,0 +1,2610 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/07-lsb-features/">
+      
+      
+        <link rel="prev" href="../06-qa-functions/">
+      
+      
+        <link rel="next" href="../08-outer-regularization/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>LSB Features - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lsb-regime-features-design-and-implementation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              LSB Features
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Motivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-not-fix_centertrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not fix_center=True?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-not-just-the-auto-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not just the auto-lock?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-algorithmic-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithmic considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Algorithmic considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-automatic-lsb-geometry-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Automatic LSB Geometry Lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-outer-region-center-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Outer Region Center Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-inward-first-loop-ordering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Inward-first loop ordering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-solver-level-tikhonov-modes-damping-and-solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Solver-level Tikhonov modes (damping and solver)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Composition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-guards-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Guards and limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Guards and limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forced-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fix_centertrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fix_center=True
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sampling-and-harmonic-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sampling and harmonic modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-empirical-validation-hsc-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Empirical validation (HSC edge cases)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Empirical validation (HSC edge cases)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-lock-combined-drift-pixels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-lock combined drift (pixels)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-seconds-per-galaxy-total-over-6-galaxies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime (seconds per galaxy, total over 6 galaxies)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#51-two-mode-tikhonov-validation-hsc-edge-real-bcg-37498869835124888" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Two-mode Tikhonov validation — HSC edge-real BCG 37498869835124888
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-implementation-file-by-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Implementation, file by file
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Implementation, file by file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#isosterconfigpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/config.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#isosterdriverpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/driver.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#isosterfittingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/fitting.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testsintegrationtest_lsb_auto_lockpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tests/integration/test_lsb_auto_lock.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Future work
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-motivation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Motivation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Motivation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-not-fix_centertrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not fix_center=True?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-not-just-the-auto-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not just the auto-lock?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-algorithmic-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithmic considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Algorithmic considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-automatic-lsb-geometry-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Automatic LSB Geometry Lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-outer-region-center-regularization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Outer Region Center Regularization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-inward-first-loop-ordering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Inward-first loop ordering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-solver-level-tikhonov-modes-damping-and-solver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Solver-level Tikhonov modes (damping and solver)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Composition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-guards-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Guards and limitations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Guards and limitations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#forced-photometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced photometry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fix_centertrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fix_center=True
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sampling-and-harmonic-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sampling and harmonic modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-empirical-validation-hsc-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Empirical validation (HSC edge cases)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Empirical validation (HSC edge cases)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-lock-combined-drift-pixels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-lock combined drift (pixels)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-seconds-per-galaxy-total-over-6-galaxies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime (seconds per galaxy, total over 6 galaxies)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#51-two-mode-tikhonov-validation-hsc-edge-real-bcg-37498869835124888" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Two-mode Tikhonov validation — HSC edge-real BCG 37498869835124888
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-implementation-file-by-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Implementation, file by file
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Implementation, file by file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#isosterconfigpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/config.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#isosterdriverpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/driver.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#isosterfittingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        isoster/fitting.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testsintegrationtest_lsb_auto_lockpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tests/integration/test_lsb_auto_lock.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Future work
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lsb-regime-features-design-and-implementation">LSB Regime Features: Design and Implementation</h1>
+<p>This document describes the two complementary features that stabilize
+isoster isophote fits in the deep low-surface-brightness (LSB) regime:</p>
+<ol>
+<li><strong>Automatic LSB Geometry Lock</strong> (<code>lsb_auto_lock</code>) — a hard post-lock that
+   freezes geometry once the outward fit crosses a gradient-quality
+   threshold.</li>
+<li><strong>Outer Region Center Regularization</strong> (<code>use_outer_center_regularization</code>)
+   — a soft pre-lock that nudges the centroid toward a flux-weighted inner
+   reference while the fit is still free.</li>
+</ol>
+<p>Both features target the same failure mode — outward isophotes drifting
+away from the galaxy center once the radial gradient collapses into
+background — but they attack it at different stages and compose cleanly.</p>
+<p>For usage, see <code>docs/01-user-guide.md</code> ("Automatic LSB Geometry Lock" and
+"Outer Region Center Regularization"). For parameter names and defaults,
+see <code>docs/02-configuration-reference.md</code> sections 12 and 13. <strong>For the
+full mathematical derivation, algorithm pseudocode, benchmark tables,
+and publication-grade reference on the outer-region Tikhonov mechanism,
+see <code>docs/08-outer-regularization.md</code>.</strong> This document (07) explains
+<em>why</em> the features exist, <em>how</em> the algorithms were chosen, and
+<em>where</em> the implementation lives file by file.</p>
+<h2 id="1-motivation">1. Motivation</h2>
+<p>Photutils/isofit-style elliptical isophote fitting iterates on the largest
+absolute harmonic amplitude to update one geometry parameter per iteration
+(the traditional coordinate descent). Convergence is signalled when the
+largest amplitude drops below a tolerance. In the high-S/N regime this
+works well; in the LSB regime it fails in two distinct ways:</p>
+<ul>
+<li><strong>Noise-driven amplitude updates</strong>: once the local gradient collapses to
+  zero, the harmonic amplitudes are dominated by noise. Each iteration's
+  "largest" amplitude is random, so the geometry does a random walk outward
+  rather than converging.</li>
+<li><strong>Contamination-driven amplitude updates</strong>: masked bright neighbours, PSF
+  wings, unresolved blends and detector artifacts add slowly varying
+  harmonics that bias the amplitude selector. The fit walks toward the
+  contaminant instead of staying on the galaxy centroid.</li>
+</ul>
+<p>Both manifest in the HSC edge-case galaxies in
+<code>examples/example_hsc_edgecases/</code>. Free fits on the 6-galaxy set show
+pre-lock outward centroid drifts from ~1.7 px (clean case) to ~8 px
+(blending bright star); <code>pl_rms</code> of the centroid trajectory runs
+0.4-1.4 px, far above the sub-pixel noise floor of the inner region.</p>
+<h3 id="why-not-fix_centertrue">Why not <code>fix_center=True</code>?</h3>
+<p><code>fix_center=True</code> is the hard solution: freeze x0/y0 for the entire fit.
+It works, but it is <em>too blunt</em>:</p>
+<ul>
+<li>It throws away the inner fit's own information. If the user does not
+  supply an accurate <code>(x0, y0)</code>, the frozen center is worse than whatever
+  the inner isophotes would have converged to.</li>
+<li>It hides centering errors. A drifting fit is a diagnostic signal; a
+  fix_center fit silently bakes in whatever initial guess was used.</li>
+<li>It is incompatible with forced photometry in any useful way (the template
+  already fixes geometry).</li>
+</ul>
+<p>The two LSB features are softer and data-driven: they derive the reference
+center from the inward isophotes, and they only <em>freeze</em> geometry once the
+fit itself signals that it has entered the LSB regime.</p>
+<h3 id="why-not-just-the-auto-lock">Why not just the auto-lock?</h3>
+<p>An auto-lock post-hoc is a hard freeze, but it only fires once the outward
+fit has <em>already</em> accumulated drift in the pre-lock region. On noisy or
+contaminated galaxies the pre-lock drift can reach several pixels before
+the gradient quality check trips, and the locked tail is anchored to the
+last pre-lock isophote's centroid — which may already be displaced.</p>
+<p>Outer center regularization fills this gap: it damps pre-lock drift as the
+fit walks outward, so the eventual anchor that the auto-lock commits to is
+itself closer to the true centroid. The composition is the key design
+point — soft pre-lock + hard post-lock — and is validated empirically in
+§5.</p>
+<h2 id="2-algorithmic-considerations">2. Algorithmic considerations</h2>
+<h3 id="21-automatic-lsb-geometry-lock">2.1 Automatic LSB Geometry Lock</h3>
+<p>The detector and the lock mechanism are deliberately simple.</p>
+<p><strong>Detector.</strong> An outward isophote is classified as "LSB-regime" when any
+of the following hold:</p>
+<ul>
+<li>Its <code>stop_code == -1</code> (isophote failed to converge).</li>
+<li><code>grad &gt;= 0</code> (positive or flat radial gradient — not a galaxy profile).</li>
+<li><code>|grad_error / grad| &gt; lsb_auto_lock_maxgerr</code> (gradient relative error
+  exceeds the threshold, default 0.3).</li>
+</ul>
+<p>See <code>isoster/driver.py</code> → <code>_is_lsb_isophote(iso, maxgerr_thresh)</code>.</p>
+<p>The earlier session used a second threshold
+<code>lsb_auto_lock_grad_snr</code> (<code>|grad / grad_error| &lt; 3.0</code>); it was dropped in
+this branch because it tested the same ratio as <code>maxgerr</code> — two knobs
+that are in fact one.</p>
+<p><strong>Debounce.</strong> A single isophote crossing the threshold is not enough: the
+detector counts consecutive trips (<code>lsb_auto_lock_debounce</code>, default 2).
+Transient numerical glitches (non-finite gradients, single noisy samples)
+therefore cannot commit the lock.</p>
+<p><strong>Lock commit.</strong> When the debounce counter reaches its threshold, the
+driver:</p>
+<ol>
+<li>Walks back <code>debounce</code> isophotes to select the <em>anchor</em> — the last clean
+   outward isophote before the LSB tail started.</li>
+<li>Builds a locked <code>IsosterConfig</code> clone (<code>_build_locked_cfg</code>) with
+   <code>fix_center/fix_eps/fix_pa=True</code> at the anchor geometry, and swaps the
+   integrator to <code>lsb_auto_lock_integrator</code> (default <code>"median"</code>, more
+   robust against contamination).</li>
+<li>Re-runs the remaining outward schedule under the locked clone.</li>
+<li>Marks each locked isophote with <code>lsb_locked=True</code>, and the
+   <em>committing trigger</em> isophote — the last of the debounce streak,
+   which was itself fit free — with <code>lsb_auto_lock_anchor=True</code>. The
+   geometry anchor selected in step 1 is not marked.</li>
+</ol>
+<p>All four clone flags collectively disable geometry solvers for the locked
+tail, so the remaining isophotes are effectively forced-photometry slices
+on a single frozen ellipse. The median integrator avoids one additional
+failure mode: a bright pixel inside the locked ellipse dragging the mean
+intensity upward.</p>
+<h3 id="22-outer-region-center-regularization">2.2 Outer Region Center Regularization</h3>
+<p>The soft pre-lock is a regularization penalty added to the isophote
+fitting loop. There are two decisions worth calling out.</p>
+<p><strong>Penalize the selector, not the solver.</strong> isoster's per-iteration loop
+picks the "best" iteration by minimum
+<code>abs(max_harmonic_amp)</code> (the effective amplitude). The penalty adds</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>λ(sma) × ((x0 − x0_ref)² + (y0 − y0_ref)²)
+</code></pre></div>
+<p>to that selector, not to the geometry update equations. The geometry math
+is untouched: each iteration walks in the direction the harmonic solver
+says, but the selector prefers iterations that stay close to the reference
+centroid.</p>
+<p>This matters because it <em>cannot inject bias into the fit</em>. The iteration
+sequence is identical with or without the penalty — only which iteration
+gets recorded as "best" changes. In the clean case, where the free fit's
+own best iteration already sits near the reference, the penalty adds
+~0 and is a no-op. In the drifting case, it prefers iterations that
+return toward the reference rather than the one with the nominally
+smallest harmonic. The experimentally observed 30-50× drift reduction on
+the HSC edge cases (§5) comes from this selector bias alone.</p>
+<p>Implementing the penalty inside the geometry update equations — as a
+Tikhonov-style term on <code>(Δx, Δy)</code> — was considered and rejected. It would
+require changing every solver branch (5-param, ISOFIT 7-param, EA mode)
+and would couple the center regularization to the iteration math, making
+it harder to reason about convergence and harder to disable cleanly.</p>
+<p><strong>Logistic ramp in sma.</strong> The penalty is zero at small sma and saturates
+at <code>outer_reg_strength</code> at large sma:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>λ(sma) = outer_reg_strength / (1 + exp(−(sma − onset) / width))
+</code></pre></div>
+<p>The inner region is therefore untouched (the logistic is ~0 well inside
+<code>onset</code>), the transition is smooth (<code>width</code> ≈ a few astep growth steps),
+and the outer region gets the full strength. The logistic was picked over
+a step or a linear ramp because it has a well-defined "center" and width,
+is easy to tune from two parameters, and matches the empirically observed
+shape of the transition — the drift starts ramping up near the half-light
+radius and saturates a few scale lengths further out.</p>
+<p><strong>Where does the reference geometry come from?</strong> From a flux-weighted
+mean of the <em>inward</em> isophote geometry, plus the anchor isophote at
+<code>sma0</code> folded in unconditionally. See <code>_build_outer_reference</code> in
+<code>isoster/driver.py</code>:</p>
+<ul>
+<li>Candidates: all inward isophotes with acceptable stop codes and
+  <code>sma ≤ anchor.sma × outer_reg_ref_sma_factor</code>.</li>
+<li>Weights: <code>max(intens, 1e-6)</code>, so the brightest inner isophotes dominate
+  and negative-background rings cannot flip the sign.</li>
+<li><code>x0_ref</code>, <code>y0_ref</code>, <code>eps_ref</code>: flux-weighted arithmetic mean.</li>
+<li><code>pa_ref</code>: flux-weighted <strong>circular mean on <code>2·pa</code></strong> — pa is defined
+  mod π (axis-like), so a naive arithmetic mean of pa=0 and pa≈π lands
+  at π/2 (orthogonal to both). If the resultant length on the unit
+  circle is &lt; 0.1 (inner pa values too scattered for a useful mean),
+  pa_ref falls back to the anchor's pa.</li>
+<li>Fallback: if no inward isophote qualifies (<code>minsma ≥ sma0</code>, for
+  example), the reference is just the anchor's geometry and a
+  <code>UserWarning</code> is emitted at config time.</li>
+</ul>
+<p>The flux-weighted mean (as opposed to picking a single inner isophote)
+is robust to individual bad inner isophotes, and is the standard trick
+for collapsing a noisy inner trajectory into a single well-defined
+reference.</p>
+<p>The reference is built <em>once</em> per fit, before the outward loop runs,
+and is frozen for the remainder of the fit. Letting it update per
+iteration would recreate the drift problem the feature is meant to
+solve.</p>
+<p><strong>Selector asymmetry and the <code>outer_reg_weights</code> extension.</strong> The
+penalty as originally written was <strong>center-only</strong>: <code>λ(sma) · ((x0 −
+x0_ref)² + (y0 − y0_ref)²)</code>. In empirical use on real HSC BCG data the
+center-only form was found to introduce a selector asymmetry: in the
+LSB outer regime, harmonic amplitudes in all four modes (x0, y0, eps,
+pa) are noise-dominated and comparable in magnitude; the best-iteration
+selector therefore systematically prefers iterations where eps or pa
+was just updated, because those iterations leave <code>(x0, y0)</code> unmoved
+and so carry zero center-penalty. The clipped per-iteration steps
+(<code>clip_max_eps=0.1</code>, <code>clip_max_pa=0.5 rad</code>) then show up as saturated
+jumps in the 1-D eps(sma) and PA(sma) profiles. The feature was
+<em>redirecting</em> the outer random walk from <code>(x0, y0)</code> into <code>(eps, pa)</code>
+rather than damping it.</p>
+<p>The fix is the <code>outer_reg_weights</code> config dict, which mirrors the
+existing <code>central_reg_weights</code> pattern:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">outer_reg_weights</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;center&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;eps&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;pa&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>   <span class="c1"># default</span>
+</code></pre></div>
+<p>With all three weights positive the penalty becomes</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>λ(sma) · [ w_c · ((x0 − x0_ref)² + (y0 − y0_ref)²)
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>         + w_e · (eps − eps_ref)²
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>         + w_p · (pa_wrap − pa_ref)² ]
+</code></pre></div>
+<p>where <code>pa_wrap</code> folds the PA residual onto <code>(−π/2, π/2]</code>. The current
+default weights <code>{center: 1, eps: 1, pa: 1}</code> close the selector
+asymmetry by damping all geometry axes together. Set <code>eps</code> or <code>pa</code> to
+<code>0.0</code> only when the fit should intentionally leave those axes undamped.
+See §5 for empirical validation on the <code>37498869835124888</code> HSC BCG.</p>
+<h3 id="23-inward-first-loop-ordering">2.3 Inward-first loop ordering</h3>
+<p>The driver runs the <em>inward</em> loop before the outward loop. This is
+unconditional in this branch and is not gated on the outer-reg flag,
+because:</p>
+<ul>
+<li>The inner reference must exist before any outward isophote is fit with
+  the penalty active.</li>
+<li>No existing test depends on the outward-first order; the only test that
+  previously cared — a growth-path monkeypatch — was updated to filter by
+  role not position.</li>
+</ul>
+<p>See the note in <code>docs/04-architecture.md</code> ("Inward-first loop order").</p>
+<h3 id="24-solver-level-tikhonov-modes-damping-and-solver">2.4 Solver-level Tikhonov modes (damping and solver)</h3>
+<p>The selector-only form described in §2.2 was found empirically on real
+HSC BCGs to suffer a different failure: in the noise-dominated outer
+regime, the harmonic solver's per-iteration candidates are effectively
+<strong>quantized</strong> by the clip limits (<code>clip_max_eps</code>, <code>clip_max_pa</code>). The
+selector penalty picks among candidates but cannot produce a sub-clip
+answer — so it is forced to choose between "no update" and "saturated
+clipped step", producing visible 0.1-eps and 0.5-rad PA jumps in the
+1-D profiles even when the center is anchored. This is a structural
+limit of any selector-only mechanism.</p>
+<p>The fix is to put the penalty <strong>inside</strong> the per-iteration harmonic
+update (Tikhonov-style), so each iteration's candidate step is itself
+penalty-aware and no longer fixed to the clip magnitude. The
+<code>outer_reg_mode</code> config field picks one of two solver-level variants:</p>
+<p><strong><code>damping</code> (default).</strong> Per-iteration step shrink only — no reference
+pull. Each parameter's update equation becomes</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Δparam  =  (1 − α) · Δparam_harmonic
+</code></pre></div>
+<p>with <code>α = λ(sma) · w · coeff² / (1 + λ(sma) · w · coeff²)</code> where
+<code>coeff</code> is the harmonic-to-parameter Jacobian the existing solver
+already computes. The fit still walks to its data-preferred geometry;
+only the <strong>step magnitude</strong> is shrunk in the outer region, so
+saturated clipped updates cannot occur. This mode preserves the real
+astrophysical walks of eps(sma) and PA(sma) that the baseline free fit
+captures (up to ~80-90 px on 37498869835124888), while suppressing the
+clip-saturated jumps in the LSB regime. Harmonic convergence works
+correctly: once the step is small enough, the <code>|max_amp|</code> criterion
+trips normally.</p>
+<p><strong><code>solver</code>.</strong> Full Tikhonov term — step shrink <em>plus</em> a pull toward
+the frozen reference:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Δparam  =  (1 − α) · Δparam_harmonic  −  α · (param − param_ref)
+</code></pre></div>
+<p>The geometry settles at a static balance point where the harmonic
+drive equals the Tikhonov pull. This point depends on α (i.e. on
+<code>λ</code>, <code>w</code>, and the local gradient); it is neither the data-preferred
+geometry nor <code>param_ref</code>. Use <code>solver</code> when you want the outer
+isophotes anchored to the inner flux-weighted reference (for example,
+when the outer fit would otherwise drift off-source due to heavy
+contamination). The mode flattens genuine outer PA/eps structure by
+design.</p>
+<p><strong>Selector layer (always on).</strong> Orthogonal to <code>outer_reg_mode</code>. The
+selector-level penalty described in §2.2 is always applied on top of
+the chosen solver-level mode whenever
+<code>use_outer_center_regularization=True</code>; there is no independent
+toggle for it. It acts as a cumulative anchor that the selector uses
+to score candidate iterations.</p>
+<p><strong><code>geometry_convergence</code> auto-enable.</strong> Both solver-level modes cause
+<code>|max_amp|</code> to stay somewhat above the harmonic convergence threshold
+— in <code>damping</code> because the shrunk step leaves residual harmonics that
+decay slowly, in <code>solver</code> because the ref-pull intentionally biases
+away from the harmonic minimum. Without a geometry-stability
+convergence check, many outer isophotes run to <code>maxit</code> with zero
+change to the recorded geometry (wasted cost). The config validator
+therefore auto-enables <code>geometry_convergence=True</code> whenever
+<code>use_outer_center_regularization=True</code>, with a <code>UserWarning</code> if the
+user had explicitly set it <code>False</code>. With auto-enable on, runtime is
+within a few percent of the no-regularization baseline.</p>
+<p><strong>Removed: <code>outer_reg_mode='selector'</code>.</strong> The original selector-only
+mode was dropped from the valid values in the same change that
+introduced damping/solver. The selector-level penalty still exists as
+an always-on layer on top of any <code>outer_reg_mode</code>. Users whose old
+configs set <code>outer_reg_mode="selector"</code>
+will see a pydantic <code>ValidationError</code> at config time listing the
+accepted values.</p>
+<h2 id="3-composition">3. Composition</h2>
+<p>The two features are designed to compose without interaction side effects:</p>
+<ul>
+<li><strong>Pre-lock region</strong> (<code>sma &lt; transition_sma</code>): outer-reg is active (when
+  enabled), auto-lock is idle. The selector-level penalty damps drift.</li>
+<li><strong>Lock commit</strong> (one isophote): auto-lock walks back to the anchor, which
+  may or may not be the last pre-lock isophote. The outer-reg feature does
+  not touch the lock mechanism.</li>
+<li><strong>Locked tail</strong> (<code>sma ≥ transition_sma</code>): geometry is frozen by the
+  <code>_build_locked_cfg</code> clone. The outer-reg penalty is still <em>evaluated</em>
+  per iteration but has no effect because <code>fix_center=True</code> means the
+  solver never moves <code>x0, y0</code> anyway.</li>
+</ul>
+<p>In practice this means enabling both flags is always safe: outer-reg is
+silently inert in the locked tail, and auto-lock is silently inert before
+its debounce trips. Neither feature is aware of the other.</p>
+<p>The auto-lock hard freeze also has a subtle interaction with the
+reference: because the anchor the lock commits to is <em>less drifted</em> when
+outer-reg is on, the locked tail's fixed centroid is itself more accurate.
+This is the composition win that the HSC edge-case benchmarks show (§5).</p>
+<h2 id="4-guards-and-limitations">4. Guards and limitations</h2>
+<h3 id="forced-photometry">Forced photometry</h3>
+<p>Both features are wired into the regular-mode driver only. In template
+forced-photometry mode (<code>_fit_image_template_forced</code>), geometry is
+prescribed by the template and the features are no-ops.</p>
+<p>To avoid silent no-ops, the forced-photo driver emits a <code>UserWarning</code> at
+runtime if either <code>lsb_auto_lock=True</code> or
+<code>use_outer_center_regularization=True</code> is set together with a template.
+This is intentional: a user who flips the flag in a config and later
+reuses that config in forced-photo mode should see a clear message.</p>
+<h3 id="fix_centertrue"><code>fix_center=True</code></h3>
+<p>The outer-reg penalty operates on <code>(x0, y0)</code>; if those are already fixed,
+it has nothing to do. The config validator emits a <code>UserWarning</code> when
+<code>use_outer_center_regularization=True</code> is combined with <code>fix_center=True</code>
+so the user knows the feature is inert.</p>
+<p>The auto-lock is also inert under <code>fix_center=True</code> in the sense that
+there is no drift to lock away — but the detector still fires and commits
+a "lock" that simply re-freezes what was already frozen. No warning is
+needed there.</p>
+<h3 id="sampling-and-harmonic-modes">Sampling and harmonic modes</h3>
+<p>Neither feature touches the sampling path (<code>sampling.py</code>) or the harmonic
+solvers (<code>fitting.py</code>'s coefficient math). Both are mode-agnostic by
+construction:</p>
+<ul>
+<li><code>use_eccentric_anomaly=True</code> (more even sampling around elongated isophotes, recommended
+  for high ε) — the gradient diagnostics that drive the detector are
+  computed the same way; the selector penalty is unchanged.</li>
+<li><code>simultaneous_harmonics=True</code> (ISOFIT mode, Ciambur 2015 joint fit) —
+  the harmonic amplitudes come out of a larger solver but the "largest
+  amplitude" selector is the same, so the penalty slot is unchanged.</li>
+</ul>
+<p>This is validated empirically in §5.</p>
+<h3 id="output-keys">Output keys</h3>
+<p>Both features only <em>add</em> new result-dict keys. They never modify the
+per-isophote schema shape, so downstream consumers that don't know about
+them keep working. New keys:</p>
+<ul>
+<li><code>results["lsb_auto_lock"]</code> — bool, whether the detector fired.</li>
+<li><code>results["lsb_auto_lock_sma"]</code> — commit sma, or None.</li>
+<li><code>results["lsb_auto_lock_anchor_sma"]</code> — sma of the true geometry
+  anchor (the last clean isophote before the debounce streak, whose
+  geometry the lock froze to), or None. The per-row
+  <code>lsb_auto_lock_anchor</code> marker goes on the committing trigger instead.</li>
+<li><code>results["lsb_auto_lock_count"]</code> — locked tail length.</li>
+<li><code>results["outer_reg_x0_ref"], ["outer_reg_y0_ref"],
+  ["outer_reg_eps_ref"], ["outer_reg_pa_ref"]</code> — frozen reference
+  geometry (only when <code>use_outer_center_regularization=True</code>).
+  eps/pa keys were added alongside the <code>outer_reg_weights</code> extension;
+  they are always populated for downstream QA even when the user
+  leaves <code>weights["eps"] = weights["pa"] = 0</code>.</li>
+<li>Per-isophote: <code>iso["lsb_locked"]</code> and <code>iso["lsb_auto_lock_anchor"]</code>.</li>
+</ul>
+<h2 id="5-empirical-validation-hsc-edge-cases">5. Empirical validation (HSC edge cases)</h2>
+<p>The full benchmark is
+<code>examples/example_hsc_edgecases/run_lsb_mode_sweep.py</code>, summarized into
+<code>outputs/example_hsc_edgecases/lsb_mode_sweep/_summary.md</code>. It crosses
+three feature arms — <code>baseline</code> (free fit), <code>A</code> (<code>lsb_auto_lock=True</code>),
+<code>B</code> (A + <code>use_outer_center_regularization=True</code> at strength 2.0) — with
+three sampling/harmonic modes — <code>std</code>, <code>ea</code>, <code>isofit</code> — over 6 HSC
+edge-case galaxies.</p>
+<h3 id="pre-lock-combined-drift-pixels">Pre-lock combined drift (pixels)</h3>
+<table>
+<thead>
+<tr>
+<th>galaxy</th>
+<th style="text-align: right;">baseline</th>
+<th style="text-align: right;">A_std</th>
+<th style="text-align: right;">A_ea</th>
+<th style="text-align: right;">A_isofit</th>
+<th style="text-align: right;">B_std</th>
+<th style="text-align: right;">B_ea</th>
+<th style="text-align: right;">B_isofit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10140088</td>
+<td style="text-align: right;">2.53</td>
+<td style="text-align: right;">2.53</td>
+<td style="text-align: right;">3.69</td>
+<td style="text-align: right;">3.18</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.09</td>
+</tr>
+<tr>
+<td>10140002</td>
+<td style="text-align: right;">5.52</td>
+<td style="text-align: right;">5.52</td>
+<td style="text-align: right;">6.72</td>
+<td style="text-align: right;">15.23</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.10</td>
+</tr>
+<tr>
+<td>10140006</td>
+<td style="text-align: right;">7.62</td>
+<td style="text-align: right;">7.62</td>
+<td style="text-align: right;">6.36</td>
+<td style="text-align: right;">4.41</td>
+<td style="text-align: right;">0.11</td>
+<td style="text-align: right;">0.11</td>
+<td style="text-align: right;">0.11</td>
+</tr>
+<tr>
+<td>10140009</td>
+<td style="text-align: right;">8.13</td>
+<td style="text-align: right;">7.78</td>
+<td style="text-align: right;">7.66</td>
+<td style="text-align: right;">5.24</td>
+<td style="text-align: right;">0.12</td>
+<td style="text-align: right;">0.14</td>
+<td style="text-align: right;">0.12</td>
+</tr>
+<tr>
+<td>10140056</td>
+<td style="text-align: right;">1.71</td>
+<td style="text-align: right;">1.71</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">1.49</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">0.20</td>
+<td style="text-align: right;">0.13</td>
+</tr>
+<tr>
+<td>10140093</td>
+<td style="text-align: right;">4.96</td>
+<td style="text-align: right;">2.04</td>
+<td style="text-align: right;">1.74</td>
+<td style="text-align: right;">4.35</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">0.16</td>
+</tr>
+</tbody>
+</table>
+<p>Observations:</p>
+<ul>
+<li><strong>A alone does not meaningfully reduce pre-lock drift</strong> — that's expected,
+  because A is a hard post-lock and the pre-lock region is still free.</li>
+<li><strong>B reduces pre-lock drift to 0.07-0.20 px on every galaxy and every
+  mode</strong> — a 30-50× reduction. The reduction ratio is consistent across
+  std/EA/ISOFIT, confirming the feature is mode-agnostic.</li>
+<li><code>A_isofit</code> on <code>10140002</code> is the dramatic regression case: pre-lock drift
+  <em>triples</em> (5.52 → 15.23 px) when ISOFIT's higher-order solvers amplify
+  noisy geometry updates in the LSB regime. <code>B_isofit</code> on the same galaxy
+  is 0.10 px. The outer-reg penalty successfully contains what would
+  otherwise be a runaway regression.</li>
+</ul>
+<h3 id="runtime-seconds-per-galaxy-total-over-6-galaxies">Runtime (seconds per galaxy, total over 6 galaxies)</h3>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th style="text-align: right;">total (s)</th>
+<th style="text-align: right;">per galaxy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baseline_std</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">0.33</td>
+</tr>
+<tr>
+<td>A_std</td>
+<td style="text-align: right;">2.1</td>
+<td style="text-align: right;">0.35</td>
+</tr>
+<tr>
+<td>A_ea</td>
+<td style="text-align: right;">2.2</td>
+<td style="text-align: right;">0.37</td>
+</tr>
+<tr>
+<td>A_isofit</td>
+<td style="text-align: right;">2.3</td>
+<td style="text-align: right;">0.38</td>
+</tr>
+<tr>
+<td>B_std</td>
+<td style="text-align: right;">2.1</td>
+<td style="text-align: right;">0.35</td>
+</tr>
+<tr>
+<td>B_ea</td>
+<td style="text-align: right;">2.2</td>
+<td style="text-align: right;">0.37</td>
+</tr>
+<tr>
+<td>B_isofit</td>
+<td style="text-align: right;">2.4</td>
+<td style="text-align: right;">0.40</td>
+</tr>
+</tbody>
+</table>
+<p>Observations:</p>
+<ul>
+<li><code>lsb_auto_lock</code> itself adds ~5% runtime (B vs A is ~0%).</li>
+<li><code>use_eccentric_anomaly=True</code> adds ~5-10%.</li>
+<li><code>simultaneous_harmonics=True</code> adds ~10-20%.</li>
+<li>Combining all features adds ~20% over the baseline free fit — acceptable
+  for the drift-reduction benefit.</li>
+</ul>
+<h3 id="51-two-mode-tikhonov-validation-hsc-edge-real-bcg-37498869835124888">5.1 Two-mode Tikhonov validation — HSC edge-real BCG <code>37498869835124888</code></h3>
+<p>Outer-region metrics (sma ≥ 30 px) on the <code>37498869835124888</code> cluster
+BCG. <code>pl_comb</code> is the pre-anchor combined center drift (max over x and
+y); sat_Δ counts single-iteration transitions at ≥ 90% of their clip
+limit (<code>clip_max_eps=0.1</code>, <code>clip_max_pa=0.5 rad ≈ 28.6°</code>).</p>
+<table>
+<thead>
+<tr>
+<th>config</th>
+<th style="text-align: right;">med (s)</th>
+<th style="text-align: right;">sc=2</th>
+<th style="text-align: right;">pl_comb</th>
+<th style="text-align: right;">sat_Δeps</th>
+<th style="text-align: right;">sat_ΔPA</th>
+<th style="text-align: right;">max|Δpa|</th>
+<th style="text-align: right;">eps range</th>
+<th style="text-align: right;">PA range (°)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baseline (no outer-reg)</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">91.42</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6.29°</td>
+<td style="text-align: right;">0.19–0.53</td>
+<td style="text-align: right;">50.4–69.1</td>
+</tr>
+<tr>
+<td>selector center-only (historical default)</td>
+<td style="text-align: right;">0.20</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">26.85°</td>
+<td style="text-align: right;">0.21–0.41</td>
+<td style="text-align: right;">40.8–67.6</td>
+</tr>
+<tr>
+<td>selector full weights</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">13.74°</td>
+<td style="text-align: right;">0.21–0.31</td>
+<td style="text-align: right;">53.9–67.6</td>
+</tr>
+<tr>
+<td><strong><code>damping</code> + <code>geomconv</code> (new default)</strong></td>
+<td style="text-align: right;"><strong>0.27</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0.00</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>1.42°</strong></td>
+<td style="text-align: right;"><strong>0.20–0.27</strong></td>
+<td style="text-align: right;"><strong>67.1–68.5</strong></td>
+</tr>
+<tr>
+<td><code>solver</code> + <code>geomconv</code></td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.00°</td>
+<td style="text-align: right;">0.17–0.21</td>
+<td style="text-align: right;">61.4–61.4</td>
+</tr>
+</tbody>
+</table>
+<p>(<code>sc=2</code> = count of outer isophotes that hit <code>maxit</code>. Selector rows
+are shown for historical context: the <code>"selector"</code> value was removed
+from <code>outer_reg_mode</code> in the same change that introduced the two
+solver-level modes.)</p>
+<p>Observations:</p>
+<ul>
+<li><strong>Baseline has meaningful astrophysical content out to sma ≈ 80 px</strong>
+  (b/a walks 1.0 → 0.5, PA walks 0° → 65°) then degrades into
+  noise-driven drift (combined center drift reaches 91 px in the
+  outermost isophotes).</li>
+<li><strong>Selector form (any weights)</strong> produces visible saturated-step
+  jumps in the 1-D profiles. Center is well-anchored (pl_comb ≈ 0)
+  but eps/PA are quantized.</li>
+<li><strong><code>damping</code> mode preserves the inner walk</strong> (b/a down to ~0.75, PA
+  to ~67°) and clamps the outermost noise-driven divergence. No
+  saturated jumps; max |Δpa| = 1.42° in the outer is smoother than
+  baseline's 6.29°.</li>
+<li><strong><code>solver</code> mode flattens outer structure</strong> toward the inner
+  reference (b/a ≈ 0.21, PA ≈ 61° for all outer isophotes).
+  Appropriate when you want outer isophotes anchored to the inner
+  shape; not appropriate when you want the data-preferred walk.</li>
+</ul>
+<p>Runtime column: auto-enabled <code>geometry_convergence=True</code> keeps both
+solver-level modes within ~7% of the free-fit baseline. Without
+geomconv, solver mode runs to maxit on ~26 isophotes (0.36s → 5.86s
+at maxit=2000 with <strong>no change to recorded geometry</strong> — pure cost).</p>
+<p><strong>Maxit sensitivity.</strong> For <code>damping + geomconv</code>, maxit=50 vs
+maxit=500 give bit-identical geometry at the same runtime. Raising
+maxit is a no-op: geometry genuinely converges before 50 iterations
+in every case. For <code>solver + geomconv</code>, same — geometry stabilizes
+at the Tikhonov balance point by iteration ~10 on each outer
+isophote.</p>
+<p>Benchmark script:
+<code>examples/example_hsc_edge_real/run_outer_reg_param_sweep.py</code> (arms
+include <code>damping_recommended</code>, <code>solver_center</code>, <code>solver_full</code>,
+<code>solver_strong</code>, <code>solver_full_noselector</code> among others). Summary
+CSV/MD at <code>outputs/example_hsc_edge_real/outer_reg_param_sweep/</code>.</p>
+<h2 id="6-implementation-file-by-file">6. Implementation, file by file</h2>
+<h3 id="isosterconfigpy"><code>isoster/config.py</code></h3>
+<p>Section 12 (outer center regularization) and section 13 (LSB auto-lock)
+define the config fields. Key pieces:</p>
+<ul>
+<li>Section 12 fields:</li>
+<li><code>use_outer_center_regularization: bool = False</code></li>
+<li><code>outer_reg_sma_onset: float</code></li>
+<li><code>outer_reg_sma_width: float</code></li>
+<li><code>outer_reg_strength: float = 2.0</code> (new default; was 1.0 earlier in the
+    branch)</li>
+<li><code>outer_reg_ref_sma_factor: float</code> — filters inward candidates when
+    building the flux-weighted reference.</li>
+<li><code>outer_reg_weights: dict = {"center": 1.0, "eps": 1.0, "pa": 1.0}</code> —
+    per-axis weights for the penalty. The default damps center,
+    ellipticity, and PA together. Set an axis to <code>0.0</code> only when it
+    should intentionally remain undamped.</li>
+<li>
+<p><code>outer_reg_mode: str = "damping"</code> — solver-level variant. Accepts
+    <code>"damping"</code> (default, step shrink only) or <code>"solver"</code> (full
+    Tikhonov with ref pull). The historical <code>"selector"</code> value was
+    removed; see §2.4. The selector-level penalty has no config field
+    of its own; it is always active when the feature is enabled.</p>
+</li>
+<li>
+<p>Section 13 fields:</p>
+</li>
+<li><code>lsb_auto_lock: bool = False</code></li>
+<li><code>lsb_auto_lock_maxgerr: float = 0.3</code></li>
+<li><code>lsb_auto_lock_debounce: int = 2</code></li>
+<li>
+<p><code>lsb_auto_lock_integrator: str = "median"</code></p>
+</li>
+<li>
+<p>Validators in the section 12/13 block:</p>
+</li>
+<li><code>outer_reg_sma_onset &lt; sma0</code> → warn.</li>
+<li><code>use_outer_center_regularization=True</code> with <code>minsma &gt;= sma0</code> → warn
+    (inner reference will fall back to the anchor).</li>
+<li><code>fix_center=True</code> with <code>outer_reg_weights["center"] &gt; 0</code> → warn
+    (center penalty is inert; refined from the earlier blanket
+    <code>fix_center</code> warning).</li>
+<li><code>fix_eps=True</code> with <code>outer_reg_weights["eps"] &gt; 0</code> → warn.</li>
+<li><code>fix_pa=True</code> with <code>outer_reg_weights["pa"] &gt; 0</code> → warn.</li>
+<li><code>use_outer_center_regularization=True</code> with all weights zero → warn
+    (feature is a no-op).</li>
+<li><code>use_outer_center_regularization=True</code> with <code>simultaneous_harmonics=True</code>
+    → warn (Tikhonov term is not wired into the ISOFIT 7-parameter
+    joint solver; selector layer still applies if enabled).</li>
+<li><code>use_outer_center_regularization=True</code> with <code>geometry_convergence=False</code>
+    → silently flips <code>geometry_convergence=True</code> and warns (required
+    for either solver-level mode to finish cleanly; otherwise outer
+    isophotes hit maxit with zero geometry change).</li>
+<li><code>lsb_auto_lock=True</code> with any of <code>fix_center/fix_pa/fix_eps=True</code> →
+    raises, since the lock would conflict with prescribed geometry.</li>
+<li><code>lsb_auto_lock=True</code> with <code>debug=False</code> → silently flips <code>debug=True</code>
+    (gradient diagnostics are required for the detector) and warns.</li>
+</ul>
+<h3 id="isosterdriverpy"><code>isoster/driver.py</code></h3>
+<p>The driver owns the detector, the lock commit, and the reference-building
+helpers. Key symbols:</p>
+<ul>
+<li><code>_is_lsb_isophote(iso, maxgerr_thresh)</code> — the detector.</li>
+<li><code>_build_locked_cfg(cfg, anchor_iso, locked_integrator)</code> — clones the
+  config and freezes geometry for the locked tail.</li>
+<li><code>_mark_lsb_lock_state(iso, locked, is_anchor=False)</code> — single write site
+  for <code>lsb_locked</code> / <code>lsb_auto_lock_anchor</code>, so future loop reorderings
+  cannot accidentally mutate the anchor dict twice.</li>
+<li><code>_build_outer_reference(inwards_results, anchor_iso, cfg)</code> — the
+  flux-weighted inner reference builder (renamed from
+  <code>_build_outer_center_reference</code>). Returns a full geom dict
+  <code>{x0, y0, eps, pa}</code>; pa uses a circular mean on <code>2·pa</code>.</li>
+</ul>
+<p>In <code>fit_image</code> (the regular-mode path is inline in the driver):</p>
+<ol>
+<li>After the inward loop, compute <code>outer_ref_geom</code> via
+   <code>_build_outer_reference</code>. Pass it into the outward fit as
+   <code>outer_reference_geom=outer_ref_geom</code>; which fields feed the penalty
+   is controlled by <code>cfg.outer_reg_weights</code>.</li>
+<li>Initialize <code>lsb_state = {"locked": False, "consec": 0, "transition_sma": None}</code>.</li>
+<li>Mark the anchor with <code>_mark_lsb_lock_state(anchor_iso, locked=False)</code>.</li>
+<li>In the outward loop, after each successful isophote:</li>
+<li><code>_mark_lsb_lock_state(next_iso, locked=lsb_state["locked"])</code>.</li>
+<li>If not yet locked, run <code>_is_lsb_isophote</code>; increment or reset the
+     debounce counter.</li>
+<li>When the counter hits <code>lsb_auto_lock_debounce</code>, pick the anchor
+     <code>debounce</code> isophotes back, build the locked clone, re-mark the trigger
+     isophote with <code>is_anchor=True</code>, and switch the loop to the locked
+     clone.</li>
+<li>After the outward loop finishes, write result-dict keys:</li>
+<li><code>result["lsb_auto_lock"] = True</code></li>
+<li><code>result["lsb_auto_lock_sma"] = lsb_state["transition_sma"]</code></li>
+<li><code>result["lsb_auto_lock_count"] = sum(1 for iso in ... if iso.get("lsb_locked"))</code></li>
+<li><code>result["outer_reg_x0_ref"] = outer_ref_x0</code> (when enabled)</li>
+<li><code>result["outer_reg_y0_ref"] = outer_ref_y0</code> (when enabled)</li>
+</ol>
+<p>The forced-photo driver (<code>_fit_image_template_forced</code>) early-returns
+before any of the above, and emits a <code>UserWarning</code> when either feature
+flag is set together with a template.</p>
+<h3 id="isosterfittingpy"><code>isoster/fitting.py</code></h3>
+<p>The per-isophote fitter owns both the selector-layer penalty and the
+solver-level Tikhonov blend.</p>
+<ul>
+<li>
+<p><code>compute_outer_center_regularization_penalty(current_geom,
+  reference_geom, sma, config)</code> — the selector-level penalty. Returns
+  0.0 when the feature is off, when <code>reference_geom is None</code>, or when
+  <code>λ(sma) &lt; 1e-6</code>.</p>
+</li>
+<li>
+<p><code>_tikhonov_alpha(coeff, lambda_sma, weight)</code> — closed-form blend
+  fraction for the solver-level Tikhonov update. See §2.4 for the
+  math. Returns <code>α ∈ [0, 1)</code>: 0 means fully harmonic-driven (no reg
+  effect on the step), 1 means fully pulled to reference (reachable
+  only in the limit of vanishing gradient or <code>λ·w → ∞</code>).</p>
+</li>
+<li>
+<p><code>fit_isophote</code> hoists the solver-level setup out of the iteration
+  loop:</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">outer_solver_on</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">cfg</span><span class="o">.</span><span class="n">use_outer_center_regularization</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">outer_reg_mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;damping&quot;</span><span class="p">,</span> <span class="s2">&quot;solver&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="ow">and</span> <span class="n">outer_reference_geom</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="ow">and</span> <span class="ow">not</span> <span class="n">simultaneous_harmonics</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">)</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">outer_solver_use_pull</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">outer_reg_mode</span> <span class="o">==</span> <span class="s2">&quot;solver&quot;</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">outer_solver_lambda</span> <span class="o">=</span> <span class="n">strength</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">sma</span> <span class="o">-</span> <span class="n">onset</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span><span class="p">))</span>
+</code></pre></div>
+<p>Each of the four coord-descent update branches (A1, B1, A2, B2) and
+  the simultaneous branch computes its parameter-specific Jacobian
+  coefficient, calls <code>_tikhonov_alpha</code>, and blends:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">if</span> <span class="n">outer_solver_on</span> <span class="ow">and</span> <span class="n">w_param</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">alpha</span> <span class="o">=</span> <span class="n">_tikhonov_alpha</span><span class="p">(</span><span class="n">coeff</span><span class="p">,</span> <span class="n">lambda_sma</span><span class="p">,</span> <span class="n">w_param</span><span class="p">)</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="k">if</span> <span class="n">outer_solver_use_pull</span><span class="p">:</span>   <span class="c1"># mode = &quot;solver&quot;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_harmonic</span> <span class="o">-</span> <span class="n">alpha</span> <span class="o">*</span> <span class="p">(</span><span class="n">param</span> <span class="o">-</span> <span class="n">param_ref</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="k">else</span><span class="p">:</span>                        <span class="c1"># mode = &quot;damping&quot;</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        <span class="n">step</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">step_harmonic</span>
+</code></pre></div>
+<p>Clipping (<code>clip_max_*</code>) is applied to the blended step, so the
+  safety bounds still fire if a catastrophic proposed update sneaks
+  through.</p>
+<ul>
+<li>Selector integration site stays as before:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">outer_reg_penalty</span> <span class="o">=</span> <span class="n">compute_outer_center_regularization_penalty</span><span class="p">(</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">current_geom</span><span class="p">,</span> <span class="n">outer_reference_geom</span><span class="p">,</span> <span class="n">sma</span><span class="p">,</span> <span class="n">cfg</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">effective_amp</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">max_amp</span><span class="p">)</span> <span class="o">+</span> <span class="n">reg_penalty</span> <span class="o">+</span> <span class="n">outer_reg_penalty</span>
+</code></pre></div>
+<p>The selector penalty still feeds the best-iteration picker; it does
+  not enter the convergence criterion (<code>|max_amp| &lt; conver·rms</code>),
+  which uses the raw harmonic amplitude. Note that <code>effective_amp</code> is
+  a deliberate heuristic that mixes units: <code>abs(max_amp)</code> is a
+  harmonic amplitude in intensity units while the two penalty terms
+  are squared geometry offsets (px², rad²), so the relative
+  weighting of the terms depends on the image's flux scale.</p>
+<h3 id="testsintegrationtest_lsb_auto_lockpy"><code>tests/integration/test_lsb_auto_lock.py</code></h3>
+<p>Integration test coverage for the auto-lock: detector trigger, debounce,
+anchor mutation, marker keys, result-dict keys, forced-photo guard,
+compatibility with existing modes. Sibling test
+<code>test_outer_center_regularization.py</code> covers the soft pre-lock: penalty
+shape, reference building, fallback on <code>minsma &gt;= sma0</code>, <code>fix_center</code>
+warning, forced-photo guard.</p>
+<p>The full suite is 951 passing, 1 skipped (5 deselected) as of 2026-08-21; regenerate with <code>uv run pytest tests/ --collect-only -q | tail -2</code> rather than trusting this figure.</p>
+<h2 id="7-future-work">7. Future work</h2>
+<ul>
+<li><strong>Dynamic reference update when the lock is late.</strong> If the auto-lock
+  commits far past the <code>outer_reg_sma_onset</code>, the frozen reference is
+  measurably "stale" and the penalty is resisting the locked geometry. An
+  option to re-evaluate the reference at the lock anchor is worth
+  investigating for deep DES/LSST fits.</li>
+<li><strong>Penalty form ablation for DES/LSST.</strong> The <code>"absolute"</code> form was picked
+  because it dominated the <code>"normalized"</code> form at equivalent strength on
+  HSC edge cases. A deeper,
+  lower-S/N survey might invert the ordering; the ablation should be
+  repeated when that dataset lands.</li>
+<li><strong>Auto-tuned <code>outer_reg_strength</code>.</strong> The <code>strength=2.0</code> default was
+  chosen from the HSC sweep. A scale-free auto-tune — e.g. set strength
+  so the saturated penalty matches the median pre-lock |max_amp| in the
+  outer half of the inward loop — would remove one more user knob.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

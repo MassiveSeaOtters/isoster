@@ -1,0 +1,1602 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/03-algorithm/">
+      
+      
+        <link rel="prev" href="../02-configuration-reference/">
+      
+      
+        <link rel="next" href="../04-architecture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Algorithm - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#algorithm-and-implementation-notes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Algorithm
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sampling-and-angle-spaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sampling and Angle Spaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-isophote-fitting-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Isophote Fitting Loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry-update-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry Update Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-and-damping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and Damping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrators
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weighted-least-squares-variance-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weighted Least Squares (Variance Map)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forced-and-template-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced and Template Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forced and Template Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-based-forced-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-based forced (template)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stop-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stop Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sampling-and-angle-spaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sampling and Angle Spaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-isophote-fitting-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Isophote Fitting Loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometry-update-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometry Update Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-and-damping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety and Damping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrators
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weighted-least-squares-variance-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weighted Least Squares (Variance Map)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#forced-and-template-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forced and Template Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forced and Template Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-based-forced-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-based forced (template)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stop-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stop Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Caveats
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="algorithm-and-implementation-notes">Algorithm and Implementation Notes</h1>
+<p>This document describes the behavior of the current code path in <code>isoster/sampling.py</code>, <code>isoster/fitting.py</code>, and <code>isoster/driver.py</code>.</p>
+<h2 id="pipeline-overview">Pipeline Overview</h2>
+<p>Regular mode in <code>fit_image</code> (<code>isoster/driver.py</code>) runs:</p>
+<ol>
+<li>Central pixel estimate (<code>fit_central_pixel</code>).</li>
+<li>First free-geometry isophote at <code>sma0</code> (<code>fit_isophote</code>).</li>
+<li>Optional inward growth until <code>max(minsma, 0.5)</code>, but only when the anchor isophote stop code is acceptable (<code>0</code>, <code>1</code>, or <code>2</code>).</li>
+<li>Outward growth until <code>maxsma</code>.</li>
+<li>Optional CoG attachment (<code>compute_cog</code>) in regular mode.</li>
+</ol>
+<p>The inward-first execution order is unconditional. It lets the outer-region
+regularization feature build an inner reference before outward growth starts,
+while the returned <code>results["isophotes"]</code> list is still assembled in ascending
+SMA order.</p>
+<p>Mode selection priority is:</p>
+<ol>
+<li><code>template</code> provided (e.g., results dict, FITS path, or isophote list).</li>
+<li>Regular mode.</li>
+</ol>
+<p>(<code>template_isophotes</code> is deprecated and will be removed in a future version.)</p>
+<h2 id="sampling-and-angle-spaces">Sampling and Angle Spaces</h2>
+<p><code>extract_isophote_data</code> uses <code>map_coordinates</code> to sample intensities along ellipse coordinates computed by <code>compute_ellipse_coords</code>.</p>
+<p>Sampling density:</p>
+<ul>
+<li><code>n_samples = max(64, int(2*pi*sma))</code></li>
+</ul>
+<p>Angle semantics:</p>
+<ul>
+<li>Regular mode (<code>use_eccentric_anomaly=False</code>): harmonics use <code>phi</code> (position angle), and <code>angles is phi</code>.</li>
+<li>Eccentric-anomaly mode (<code>use_eccentric_anomaly=True</code>): harmonics use <code>psi</code>. The geometry update consumes those <code>psi</code>-basis coefficients <strong>directly</strong> — there is no conversion back to <code>phi</code>. <code>phi</code> is carried alongside (and sigma-clipped in lockstep) so the angular bookkeeping stays aligned for diagnostics and error propagation, but it does not enter the update. Consuming the <code>psi</code> coefficients directly is <strong>correct, not an approximation</strong>: the Jedrzejewski geometry corrections are themselves derived from an eccentric-anomaly parametrisation of the trial ellipse. A major-axis offset <code>d</code> puts a pure <code>cos(psi)</code> term of amplitude <code>-d*grad</code> into the sampled ring; a minor-axis offset a pure <code>sin(psi)</code> term with an extra <code>1/(1-eps)</code>; an ellipticity error a pure <code>cos(2*psi)</code> term with <code>a*grad/(2*(1-eps))</code>; a PA error a pure <code>sin(2*psi)</code> term. Inverting those four relations reproduces exactly the <code>(1-eps)</code>, <code>2*(1-eps)/sma</code> and <code>((1-eps)**2 - 1)</code> factors in the update code. It is the default <code>phi</code> mode that feeds the formulas coefficients from the wrong basis, for IRAF/photutils compatibility; the error vanishes as <code>eps -&gt; 0</code>.</li>
+</ul>
+<p>Do <strong>not</strong> justify the <code>phi</code> mode with a fixed-point argument ("the iteration drives the residual to zero, so the basis cannot matter"). The map <code>tan(phi) = (1 - eps) * tan(psi)</code> is nonlinear and does not preserve which Fourier orders vanish: a pure <code>cos(3*psi)</code> residual at <code>b/a = 0.3</code> has exactly zero first- and second-order content in <code>psi</code> but a first-order cosine coefficient of <code>-0.180</code> in <code>phi</code>. The two bases place the fixed point in different locations, so real higher-order structure leaks into the geometry update in <code>phi</code> mode.</p>
+<p>Earlier versions of this line, and of the comments in <code>fitting.py</code>, claimed geometry updates used <code>phi</code>; that was never what the code did (corrected in <code>80618bb</code>).</p>
+<p>The returned structure is <code>IsophoteData(angles, phi, intens, radii, variances)</code> where <code>angles</code> is the harmonic-fit angle basis and <code>variances</code> is <code>None</code> when no variance map is provided.</p>
+<h2 id="per-isophote-fitting-loop">Per-Isophote Fitting Loop</h2>
+<p><code>fit_isophote</code> iterates up to <code>maxit</code>:</p>
+<ol>
+<li>Sample data for current geometry.</li>
+<li>Sigma-clip sampled profile (<code>sigma_clip</code>).</li>
+<li>Early quality exits:</li>
+<li>stop code <code>1</code> when <code>actual_points &lt; total_points * (1.0 - fflag)</code>.</li>
+<li>stop code <code>3</code> when <code>len(intens) &lt; 6</code>.</li>
+<li>Fit first/second harmonics by least squares.</li>
+<li>Compute radial gradient using offset SMA sampling.</li>
+<li><strong>Lazy Evaluation</strong>: If <code>use_lazy_gradient=True</code>, the gradient is evaluated only
+     on iteration 0 and reused for subsequent iterations. It is re-evaluated if
+     convergence stalls (3 iterations without amplitude improvement). Measured on the
+     reference fit: <strong>60 gradient evaluations against 414</strong> for the classical path, a
+     median wall-clock saving of 24% (IQR 23.0-24.1%) over eighteen sessions. The
+     iteration count is unchanged; the saving is in sampling passes per iteration.
+     See <code>docs/technical/1.3-why-fast.md</code>, whose numbers are produced and checked by
+     <code>benchmarks/draft_timings/</code>.</li>
+<li>Apply gradient quality checks (outward mode only):</li>
+<li>uses <code>maxgerr</code>, sign checks, and a two-strike <code>lexceed</code> rule before stop code <code>-1</code>.</li>
+<li>Compute dominant harmonic amplitude and geometry correction target.</li>
+<li>Track the best geometry by minimal <code>effective_amp = abs(max_amp) + regularization_penalty</code>.</li>
+<li>Converge when <code>abs(max_amp) &lt; conver * convergence_scale * effective_rms</code> and <code>i &gt;= minit</code>.</li>
+<li><strong>Noise Floor</strong>: If <code>sigma_bg</code> is provided, <code>effective_rms = max(rms, sigma_bg / sqrt(N))</code>. This prevents overfitting noise-induced asymmetries in LSB regions.</li>
+<li>If iterations reach <code>maxit</code> without convergence, return best-so-far geometry with stop code <code>2</code>.</li>
+</ol>
+<p>On convergence, optional blocks are attached:</p>
+<ul>
+<li>parameter errors (<code>compute_errors=True</code>)</li>
+<li>higher-order harmonics (<code>compute_deviations=True</code>, sequential or simultaneous)</li>
+<li>aperture metrics (<code>full_photometry=True</code>)</li>
+</ul>
+<h2 id="geometry-update-mapping">Geometry Update Mapping</h2>
+<p>The dominant first/second harmonic term selects the parameter update:</p>
+<ul>
+<li>max index <code>0</code> (<code>A1</code>) -&gt; center shift (minor-axis direction component).</li>
+<li>max index <code>1</code> (<code>B1</code>) -&gt; center shift (major-axis direction component).</li>
+<li>max index <code>2</code> (<code>A2</code>) -&gt; position-angle update.</li>
+<li>max index <code>3</code> (<code>B2</code>) -&gt; ellipticity update with bounds/wrap handling.</li>
+</ul>
+<p>Constraint flags (<code>fix_center</code>, <code>fix_pa</code>, <code>fix_eps</code>) zero the corresponding harmonic terms in the dominance selection step.</p>
+<h2 id="safety-and-damping">Safety and Damping</h2>
+<ul>
+<li><strong>Gradient SNR Damping</strong>: If the local radial gradient is noisy (<span class="arithmatex">\(SNR &lt; 3\)</span>), the iteration step size (<code>geometry_damping</code>) is dynamically reduced to prevent overfitting the noise floor.</li>
+<li><strong>Step Clipping</strong>: Hard limits (<code>clip_max_shift</code>, <code>clip_max_pa</code>, <code>clip_max_eps</code>) restrict the maximum geometry update per iteration. This prevents runaway divergence when the model temporarily evaluates across an image defect or extreme noise.</li>
+</ul>
+<h2 id="integrators">Integrators</h2>
+<p>Supported config values:</p>
+<ul>
+<li><code>mean</code></li>
+<li><code>median</code></li>
+<li><code>adaptive</code> (switches to <code>median</code> when <code>sma &gt; lsb_sma_threshold</code>)</li>
+</ul>
+<p><code>adaptive</code> requires <code>lsb_sma_threshold</code> by config validation.</p>
+<h2 id="weighted-least-squares-variance-map">Weighted Least Squares (Variance Map)</h2>
+<p>When <code>variance_map</code> is provided to <code>fit_image</code>, all harmonic fits switch to WLS:</p>
+<p><strong>OLS (default)</strong>: minimizes <code>||y - Ax||²</code>, covariance = <code>(A^T A)^-1 * σ²_res</code> where <code>σ²_res</code> is estimated from residuals.</p>
+<p><strong>WLS</strong>: minimizes <code>||W^{1/2}(y - Ax)||²</code> with <code>W = diag(1/σ²_i)</code>:
+- Normal equations: <code>(A^T W A) x = A^T W y</code>
+- Covariance: <code>(A^T W A)^-1</code> — exact, no residual scaling needed.</p>
+<p><strong>Gradient error</strong> (WLS): <code>σ_grad = sqrt(Var(mean_c) + Var(mean_g)) / Δr</code> where <code>Var(mean) = Σσ²_i / N²</code>.</p>
+<p><strong>Intensity error</strong> (WLS): <code>intens_err = sqrt(Σσ²_i / N²)</code> (exact variance of the mean).</p>
+<p>The OLS path is byte-identical when <code>variance_map=None</code>. All WLS branches are gated by <code>if variances is not None</code>.</p>
+<p>The WLS error propagation above was cross-checked against the autoprof variance-map derivation (internal review record, not part of the public docs tree).</p>
+<h2 id="forced-and-template-modes">Forced and Template Modes</h2>
+<h3 id="template-based-forced-template">Template-based forced (<code>template</code>)</h3>
+<ul>
+<li>Accepts results dict, FITS path, or list of isophote dicts.</li>
+<li>Sorts template by <code>sma</code>.</li>
+<li>Reuses each template isophote geometry at its own SMA.</li>
+<li>Handles <code>sma == 0</code> via <code>fit_central_pixel</code>.</li>
+</ul>
+<h2 id="stop-codes">Stop Codes</h2>
+<p>Current <code>isoster</code> fitting emits:</p>
+<ul>
+<li><code>0</code>: success</li>
+<li><code>1</code>: too many flagged points</li>
+<li><code>2</code>: max-iteration fallback (best-so-far geometry)</li>
+<li><code>3</code>: too few points</li>
+<li><code>-1</code>: gradient-related failure</li>
+</ul>
+<p>Canonical user-facing reference: <code>docs/01-user-guide.md</code>.</p>
+<h2 id="current-caveats">Current Caveats</h2>
+<ul>
+<li>Central regularization uses <code>previous_geometry</code> propagated by regular <code>fit_image</code> outward/inward growth when enabled.</li>
+<li>In <code>compute_gradient</code>, both linear and multiplicative growth use <code>/ delta_r</code> normalization (where <code>delta_r = step</code> for linear or <code>sma * step</code> for multiplicative).</li>
+<li><code>build_isoster_model</code> filters on <code>sma &gt; 0</code> and drops rows with non-finite intensity/geometry values, but does not filter by stop-code quality.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>
