@@ -1,4 +1,55 @@
-# Next: comprehensive Huang2013 updated analysis
+# Huang2013 benchmark complete; next: AutoProf accuracy-gap investigation
+
+## Wrap-up authorization and review — 2026-09-30
+
+- [x] User confirmed the current-version Huang2013 benchmark analysis is complete.
+- [x] Complete center/extent audit and five authorized fixed-center special cases.
+- [x] Recheck 666 unit tests (18.57 s, 10 existing warnings), targeted Ruff,
+      formatting and whitespace before committing.
+- User explicitly authorized committing all changes, merging with a merge commit,
+  returning to main, pushing, and recording journal/handover plus Obsidian snapshot.
+  Earlier no-merge/no-push entries describe historical scopes, not this wrap-up.
+- Next session: create a fresh branch and isolate inner-profile extraction versus
+  reconstruction on identical saved ellipses. Preserve all historical data,
+  harmonic-off controls, fixed 2-pixel cut and failed/unsupported cases. No new
+  refits/default changes are implied; S4G remains deferred.
+- Final merge IDs and clean/pushed state will be recorded in the local handover
+  `docs/agent/journal/2026-09-30-handover.md` after Git operations finish.
+
+## Fixed-center special cases — 2026-09-30
+
+- [x] Freeze high-AutoProf-advantage cases and inspect existing center profiles.
+- [x] Validate one free-center replay and fixed-center fit before the remaining cases.
+- [x] Compare fixed/free/AutoProf on identical pixels; inspect figures and retain regressions.
+- [x] Record findings, source hashes, checks and remaining causal uncertainty.
+
+User authorizes only these special-case refits; no defaults, merge/push or S4G.
+
+Review: five fixed fits succeeded; gate replay exactly matches saved baseline.
+Noisy outer RMS improves 16.5–29.3%, full RMS only 0.47–1.27%; noiseless control
+unchanged. Full flux bias worsens for two noisy cases. 95.9–99.6% of original
+linear-model squared error is inner-zone error. 57 source hashes unchanged,
+41 accepted-audit matches; 57 targeted tests passed, Ruff/format/whitespace passed.
+Report: `publication/reference/2026-09-30-fixed-center-cases.md`; output campaign:
+`outputs/isoster_fixed_center_cases_20260930`. Next: inner extraction/rendering.
+
+## Active center and extent investigation — 2026-09-23
+
+- [x] Read accepted handover, plan, lessons, wrappers and installed AutoProf source.
+- [x] Audit saved primary options/configurations and source provenance.
+- [x] Pass a sub-minute saved-profile diagnostic gate, then measure the population.
+- [x] Report verified center/stopping behavior, measured opportunities and unknowns.
+
+Scope: saved fits only; preserve every failure and harmonic-off control. No refits,
+default changes, merge or push. S4G remains deferred.
+
+Review: 1,674 primary outcomes, including 17 AutoProf errors. Gate 1.5156 s;
+population 119.8685 s. All 9,140 consulted input hashes unchanged; 4,989 match the
+accepted audit. One diagnostic unit test and analytic assertions passed; targeted
+Ruff and whitespace checks passed. Report:
+`publication/reference/2026-09-23-autoprof-center-extent.md`.
+Native/spline support, same-ellipse extraction, causal flux/harmonic studies and
+selected-case visual diagnosis remain open in the investigation spec.
 
 - [x] Journal accepted rendering, metrics and QA rules; prepare comprehensive handover.
 - [x] Follow `docs/specs/2026-09-23-huang-final-analysis.md`: validate all-arm/mode
@@ -165,3 +216,19 @@ The first bulk attempt and every gate remain preserved. Shared polar EA-on remai
 unsupported by design; native EA is validated and included. Rankings depend on
 renderer and zone; native Isoster full-RMS improvement does not imply outer-zone
 improvement, and native AutoProf is not intensity-harmonic-on.
+
+## Branch closure and next investigation — 2026-09-23
+
+- [x] Commit all inherited/final analysis changes as `4622ace`.
+- [x] Merge 27 accumulated commits into main with merge commit `97e9f8c` and push.
+- [x] Delete merged `feature/huang-final-analysis-20260923`; preserve other branches.
+- [x] Recheck 665 unit tests (18.67 s, 10 warnings), targeted Ruff and whitespace.
+- [x] Append the development snapshot to Obsidian before journal/handover.
+- [x] Create `analysis/autoprof-comparison-20260923` for the next investigation.
+- [ ] Execute `docs/specs/2026-09-23-autoprof-comparison.md`: center, radial extent,
+      algorithm differences, rendering/flux bias and measured improvement options.
+- [ ] Reassess S4G readiness after explaining Huang2013 differences.
+
+Review: main's merge tree exactly matches the tested `4622ace` tree. No historical
+results were changed and no fits rerun. Earlier no-merge/no-push entries describe
+the historical analysis run; the user explicitly authorized this later closure.

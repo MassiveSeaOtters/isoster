@@ -1,5 +1,27 @@
 # Publication workflow lessons
 
+## 2026-09-30: center freedom, region weighting and metric tradeoffs
+
+- A converged outer isophote can have a several-pixel center offset despite a
+  gradient relative error below the stop threshold. A step bound is not a bound
+  on the final center; injected-noise first harmonics matter in shallow gradients.
+- A fixed-center test must refit with only the configuration flag changed and
+  compare on identical pixels. Simply replacing saved center columns is not the
+  same experiment. Exact truth centering is stronger than estimating one center.
+- Reduced outer RMS need not improve integrated flux bias or explain full RMS.
+  Measure each region's contribution to squared error before attributing a global
+  difference to visually conspicuous outer drift. Retain noiseless low-drift cases.
+
+## 2026-09-23: distinguish retry options from baseline options
+
+- The comparison handover described `ap_truncate_evaluation=True` and
+  `ap_extractfull=False` without their conditional scope. The wrapper adds these
+  only after a recognized first-attempt failure. Read saved options for every
+  accepted run; absence invokes installed defaults, not the retry values.
+- AutoProf's auxiliary center and fit-limit radius are rounded to two decimals.
+  The wrapper copies that rounded center into the standardized profile. Do not
+  interpret a zero saved offset as proof of an exactly truth-centered optimizer.
+
 ## 2026-09-23: separate residual display from metric support
 
 - User-approved cross-tool QA now displays full finite residuals, not just the
