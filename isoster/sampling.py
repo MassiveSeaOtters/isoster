@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import map_coordinates, spline_filter
 
 # Import numba-accelerated kernels (with numpy fallback)
 from .numba_kernels import compute_ellipse_coords
@@ -131,6 +131,24 @@ def _bilinear_support_is_valid(variance_map, x, y):
     return usable
 
 
+def prepare_sampling_image(image, interpolation="bilinear"):
+    """Return ``(sampling_image, interpolation_order)`` for :func:`extract_isophote_data`.
+
+    For ``"cubic"`` the image is converted once into cubic B-spline coefficients so
+    that every later ring sample costs a single ``map_coordinates(order=3,
+    prefilter=False)`` call; the prefilter is the only O(image) step. Non-finite
+    pixels would poison the whole coefficient array, so they are zeroed first and
+    must be excluded through ``mask`` by the caller.
+    """
+    if interpolation == "bilinear":
+        return image, 1
+    if interpolation != "cubic":
+        raise ValueError(f"Unknown sampling interpolation: {interpolation!r}")
+    finite = np.isfinite(image)
+    source = image if finite.all() else np.where(finite, image, 0.0)
+    return spline_filter(np.asarray(source, dtype=np.float64), order=3), 3
+
+
 def extract_isophote_data(
     image,
     mask,
@@ -142,6 +160,7 @@ def extract_isophote_data(
     use_eccentric_anomaly=False,
     variance_map=None,
     variance_map_prepared=False,
+    interpolation_order=1,
 ):
     """
     Extract image pixels along an elliptical path using vectorized sampling.
@@ -172,6 +191,10 @@ def extract_isophote_data(
     variance_map : 2D array, optional
         Per-pixel variance map. When provided, variance values are sampled along the
         ellipse using bilinear interpolation and included in the returned IsophoteData.
+    interpolation_order : int
+        1 samples ``image`` bilinearly. 3 expects ``image`` to hold the cubic
+        B-spline coefficients from :func:`prepare_sampling_image` and evaluates
+        the spline without re-filtering.
     variance_map_prepared : bool
         Set True only when every unusable entry in ``variance_map`` is already
         non-finite, as :func:`isoster.driver.fit_image` guarantees after its own
@@ -201,7 +224,7 @@ def extract_isophote_data(
 
     # VECTORIZED SAMPLING
     coords = np.vstack([y, x])
-    intens = map_coordinates(image, coords, order=1, mode="constant", cval=np.nan)
+    intens = map_coordinates(image, coords, order=interpolation_order, mode="constant", cval=np.nan, prefilter=False)
 
     # MASKING
     # The mask must be a float array for map_coordinates. Callers should

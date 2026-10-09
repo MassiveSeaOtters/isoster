@@ -1,3 +1,20 @@
+# Isoster vs AutoProf gap review — 2026-10-09
+
+Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-review`).
+
+- [x] Catch up on the Codex inner-profile study, isophote_test and sga_isoster.
+- [x] Independent code review of Isoster sampling/fitting/rendering vs AutoProf 1.3.4.
+- [x] Add opt-in cubic sampling and log-linear renderer; refit 7 recorded + 55 population cases.
+- [x] Verify the mock PSF problem with profit-cli; refit 22 PSF-convolved galaxies.
+- [x] Report, journal, tests (1274 + 3 passed), local commit; no merge/push.
+- [ ] User decisions: fix MockGal (`convolve=1`) and regenerate mocks; adopt cubic + EA
+      sampling as default after validation on convolved mocks and SGA; Dropbox checkout cleanup.
+
+Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
+to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on
+cusp cores unless rings below 4 px stay bilinear. Details in
+`publication/reference/2026-10-09-isoster-autoprof-gap-review.md`.
+
 # Huang2013 benchmark complete; next: AutoProf accuracy-gap investigation
 
 ## Wrap-up authorization and review — 2026-09-30

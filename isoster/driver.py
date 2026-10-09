@@ -5,6 +5,7 @@ import numpy as np
 
 from .config import IsosterConfig
 from .fitting import fit_isophote
+from .sampling import prepare_sampling_image
 
 ACCEPTABLE_STOP_CODES = {0, 1, 2}
 
@@ -558,10 +559,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     # 1. Fit Central Pixel (Approximation)
     central_result = fit_central_pixel(image, mask, x0, y0, debug=cfg.debug, config=cfg, variance_map=variance_map)
 
+    # Image (or its cubic spline coefficients) that every ring sample reads from.
+    sampling_image, interpolation_order = prepare_sampling_image(image, cfg.sampling_interpolation)
+    sampling = dict(sampling_image=sampling_image, interpolation_order=interpolation_order)
+
     # 2. Fit First Isophote at SMA0 (with optional retry)
     start_geometry = {"x0": x0, "y0": y0, "eps": cfg.eps, "pa": cfg.pa}
     first_iso = fit_isophote(
-        image, mask, sma0, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+        image, mask, sma0, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True, **sampling
     )
 
     # Retry with perturbed parameters if first isophote failed
@@ -571,7 +576,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         for attempt_idx, (sma0_try, eps_try, pa_try) in enumerate(perturbations, start=1):
             retry_geometry = {"x0": x0, "y0": y0, "eps": eps_try, "pa": pa_try}
             candidate = fit_isophote(
-                image, mask, sma0_try, retry_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+                image,
+                mask,
+                sma0_try,
+                retry_geometry,
+                cfg,
+                variance_map=variance_map,
+                variance_map_prepared=True,
+                **sampling,
             )
             retry_log.append(
                 {
@@ -608,7 +620,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
             if probe_sma > maxsma:
                 break
             probe_iso = fit_isophote(
-                image, mask, probe_sma, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+                image,
+                mask,
+                probe_sma,
+                start_geometry,
+                cfg,
+                variance_map=variance_map,
+                variance_map_prepared=True,
+                **sampling,
             )
             failed_initial.append(probe_iso)
             if _is_acceptable_stop_code(probe_iso["stop_code"]):
@@ -663,6 +682,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 previous_geometry=current_iso,
                 variance_map=variance_map,
                 variance_map_prepared=True,
+                **sampling,
             )
             inwards_results.append(next_iso)
 
@@ -721,6 +741,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 previous_geometry=current_iso,
                 variance_map=variance_map,
                 variance_map_prepared=True,
+                **sampling,
                 outer_reference_geom=outer_ref_geom,
             )
             if cfg.lsb_auto_lock:

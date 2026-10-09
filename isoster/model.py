@@ -51,6 +51,9 @@ def build_isoster_model(
         Interpolation method for radial intensity profile. Options:
         - 'linear': Linear interpolation (default, faster)
         - 'cubic': Cubic spline interpolation (smoother)
+        - 'log_linear': Linear interpolation of log(intensity); exact for an
+          exponential profile and far less biased than 'linear' for any steep
+          convex profile. Falls back to 'linear' if any intensity is <= 0.
     use_harmonics : bool, optional
         If True (default), include harmonic deviations in the model reconstruction.
         Harmonics modify the effective elliptical radius to capture isophote shape
@@ -120,14 +123,6 @@ def build_isoster_model(
     # Sort by SMA
     sorted_isos = sorted(valid_isos, key=lambda x: x["sma"])
 
-    # Handle central pixel if present
-    central_iso = [iso for iso in isophote_results if iso["sma"] == 0]
-    if central_iso:
-        iso = central_iso[0]
-        x0, y0 = int(np.round(iso["x0"])), int(np.round(iso["y0"]))
-        if 0 <= y0 < h and 0 <= x0 < w:
-            model[y0, x0] = iso["intens"]
-
     # Create coordinate grids
     y_grid, x_grid = np.ogrid[:h, :w]
     y_grid = y_grid.astype(np.float64)
@@ -146,10 +141,37 @@ def build_isoster_model(
         def intens_interp(r):
             result = np.where(r <= sma_single, intens_single, fill)
             return result
+    elif interp_kind == "log_linear" and np.all(intens_values > 0) and np.isfinite(fill) and fill > 0:
+        log_interp = interp1d(
+            sma_values,
+            np.log(intens_values),
+            kind="linear",
+            bounds_error=False,
+            fill_value=(np.log(intens_values[0]), np.log(fill)),
+        )
+
+        def intens_interp(r):
+            return np.exp(log_interp(r))
+    elif interp_kind == "log_linear" and np.all(intens_values > 0):
+        log_interp = interp1d(
+            sma_values,
+            np.log(intens_values),
+            kind="linear",
+            bounds_error=False,
+            fill_value=(np.log(intens_values[0]), np.nan),
+        )
+
+        def intens_interp(r):
+            out = np.exp(log_interp(r))
+            return np.where(np.asarray(r) > sma_values[-1], fill, out)
     else:
         # Interpolate, with boundary handling
         intens_interp = interp1d(
-            sma_values, intens_values, kind=interp_kind, bounds_error=False, fill_value=(intens_values[0], fill)
+            sma_values,
+            intens_values,
+            kind="linear" if interp_kind == "log_linear" else interp_kind,
+            bounds_error=False,
+            fill_value=(intens_values[0], fill),
         )
 
     # For each pixel, we need to:
@@ -310,6 +332,15 @@ def build_isoster_model(
         # Harmonics disabled or insufficient isophotes
         model_flat = intens_interp(r_ell.ravel())
         model = model_flat.reshape(image_shape)
+
+    # The central-pixel row (sma == 0) is the one directly measured pixel value;
+    # it must be written after the interpolated model so it is not overwritten.
+    central_iso = [iso for iso in isophote_results if iso["sma"] == 0]
+    if central_iso and np.isfinite(central_iso[0]["intens"]):
+        iso = central_iso[0]
+        x0, y0 = int(np.round(iso["x0"])), int(np.round(iso["y0"]))
+        if 0 <= y0 < h and 0 <= x0 < w:
+            model[y0, x0] = iso["intens"]
 
     return model
 

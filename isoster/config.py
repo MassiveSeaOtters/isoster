@@ -156,6 +156,27 @@ class IsosterConfig(BaseModel):
         "the geometry update consumes those coefficients directly. eps = 1 - b/a.",
     )
 
+    # Image sampling kernel
+    sampling_interpolation: str = Field(
+        "bilinear",
+        pattern="^(bilinear|cubic)$",
+        description="Interpolation used to read the image along each ellipse. 'bilinear' "
+        "(default) averages the four surrounding pixels, which overestimates a steep "
+        "convex profile between pixel centres. 'cubic' uses a prefiltered cubic B-spline "
+        "(scipy order 3), computed once per image, which tracks the pixel values far more "
+        "closely at the cost of about twice the per-ring sampling time.",
+    )
+
+    sampling_cubic_min_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma below this value "
+        "(pixels) are still read bilinearly. A cubic interpolant rings around a core that is "
+        "sharper than the pixel grid (an unresolved nucleus), and that ringing can drive the "
+        "innermost ellipticity fits astray; bilinear sampling never overshoots. 0 uses cubic "
+        "everywhere.",
+    )
+
     # Higher-Order Harmonics Fitting
     simultaneous_harmonics: bool = Field(
         False,
