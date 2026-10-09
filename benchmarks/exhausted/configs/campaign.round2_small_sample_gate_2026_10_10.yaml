@@ -1,0 +1,72 @@
+# One-galaxy gate for the round-2 small-sample campaign.
+campaign_name: round2_small_sample_gate_2026_10_10
+output_root: /Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/fits
+tools:
+  isoster:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms:
+    - ref_default
+    - geom_ea
+    - int_median
+    - samp_cubic
+    - samp_cubic_ea
+    - samp_cubic_ea_min4
+    - samp_cubic_ea_median
+    - samp_cubic_ea_outer_damp
+  photutils:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    select_arms:
+    - baseline_median
+    - default_bilinear
+    timeout: 900
+  autoprof:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/autoprof_arms_zero_background.yaml
+    select_arms:
+    - baseline
+    - deep
+    - fix_center
+    venv_python: ~/.venvs/autoprof_venv/bin/python
+    timeout: 300
+isoster_harmonic_sweeps: []
+datasets:
+  huang2013:
+    enabled: true
+    adapter: huang2013_scenarios
+    root: /Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/mock_data/huang2013
+    depths:
+    - noiseless
+    - wide
+    - deep
+    redshift_tags:
+    - '005'
+    - '020'
+    - '035'
+    - '050'
+    select:
+    - NGC2325/noiseless_z005
+    - NGC2325/wide_z005
+    - NGC2325/deep_z005
+    - NGC2325/wide_z020
+    - NGC2325/deep_z020
+    - NGC2325/wide_z035
+    - NGC2325/deep_z035
+    - NGC2325/wide_z050
+    - NGC2325/deep_z050
+qa:
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
+  summary_grids: false
+  residual_models: false
+execution:
+  max_parallel_galaxies: 8
+  skip_existing: true
+  dry_run: false
+  fail_fast: false
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: true
+  cross_tool_table: true
