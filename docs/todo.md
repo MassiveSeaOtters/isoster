@@ -7,8 +7,12 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [x] Add opt-in cubic sampling and log-linear renderer; refit 7 recorded + 55 population cases.
 - [x] Verify the mock PSF problem with profit-cli; refit 22 PSF-convolved galaxies.
 - [x] Report, journal, tests (1274 + 3 passed), local commit; no merge/push.
-- [ ] User decisions: fix MockGal (`convolve=1`) and regenerate mocks; adopt cubic + EA
-      sampling as default after validation on convolved mocks and SGA; Dropbox checkout cleanup.
+- [x] Housekeeping: old clone and worktree removed, Dropbox checkout repaired (2026-10-09).
+- [x] MockGal fixed (`convolve=1`, `PSFCONV` header) and round-2 PSF-convolved mocks
+      generated for Huang2013 (837) and S4G (1800) under
+      `/Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/` (2026-10-10).
+- [ ] Rerun the Huang2013 three-tool campaign on round 2 (configs, truth regeneration
+      from the fixed generator, analysis) and validate cubic + EA sampling there and on SGA.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
 to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on
