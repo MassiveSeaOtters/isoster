@@ -11,8 +11,11 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [x] MockGal fixed (`convolve=1`, `PSFCONV` header) and round-2 PSF-convolved mocks
       generated for Huang2013 (837) and S4G (1800) under
       `/Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/` (2026-10-10).
-- [ ] Rerun the Huang2013 three-tool campaign on round 2 (configs, truth regeneration
-      from the fixed generator, analysis) and validate cubic + EA sampling there and on SGA.
+- [x] Small-sample round-2 campaign (20 galaxies, 9 scenarios, 13 arms, 3 tools) with the
+      truth-based multi-renderer analysis: cubic sampling halves Isoster's RMS and beats
+      AutoProf in 86 % of inputs with no failures (2026-10-10).
+- [ ] Decide: cubic sampling as default; renderer for the benchmark; full round-2
+      Huang2013 campaign (then S4G); outer-zone noise follow-up for the cubic kernel.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
 to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on
