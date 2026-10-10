@@ -76,6 +76,11 @@ arms:
     use_outer_center_regularization: true
     outer_reg_mode: damping
     outer_reg_strength: 2.0
+  # Cubic reads inside 2 Re, bilinear (lower-noise) reads beyond; see
+  # docs/publication/reference/2026-10-10-round2-small-sample-campaign.md.
+  samp_cubic_outer2re:
+    sampling_interpolation: cubic
+    sampling_cubic_max_sma: _use_2Re
 
   # G5 - higher-order harmonics
   harm_isofit_inloop:

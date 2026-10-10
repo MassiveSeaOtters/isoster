@@ -128,7 +128,9 @@ campaign.
 Arm sentinels resolved at fit time:
 
 - `_use_Re`, `_use_2Re` — isoster, replaced by the adapter's
-  `effective_Re_pix`. Arm is skipped when the adapter has no Re.
+  `effective_Re_pix` (times 2 for `_use_2Re`) on any radius-like knob, for
+  example `lsb_sma_threshold` or `sampling_cubic_max_sma`. Arm is skipped
+  when the adapter has no Re.
 - `_special: drop_variance` — isoster, forces OLS. Arm is skipped when
   the adapter has no variance map (nothing to drop).
 - `_fix_center_from: isoster_weighted` — autoprof, sets `ap_set_center`

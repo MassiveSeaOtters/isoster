@@ -50,6 +50,28 @@ def test_bilinear_default_is_unchanged_and_fallback_uses_bilinear_inside_min_sma
     assert any(changed)
 
 
+def test_outer_fallback_keeps_cubic_inside_max_sma_and_reads_bilinearly_beyond():
+    image = _exponential_image()
+    cubic_config = IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=20.0, minsma=0.0, sampling_interpolation="cubic")
+    cubic = fit_image(image, None, cubic_config)["isophotes"]
+    switched = fit_image(image, None, cubic_config.model_copy(update={"sampling_cubic_max_sma": 12.0}))["isophotes"]
+    assert len(cubic) == len(switched)
+    inside = [(a, b) for a, b in zip(cubic, switched) if 0 < a["sma"] <= 12.0]
+    beyond = [(a, b) for a, b in zip(cubic, switched) if a["sma"] > 12.0]
+    assert inside and beyond
+    for a, b in inside:
+        # The fit grows outward from sma0 = 8, so rings up to the switch radius are untouched.
+        np.testing.assert_allclose(a["intens"], b["intens"], rtol=1e-12)
+    assert any(abs(a["intens"] - b["intens"]) > 1e-9 for a, b in beyond)
+    bilinear = fit_image(image, None, cubic_config.model_copy(update={"sampling_interpolation": "bilinear"}))[
+        "isophotes"
+    ]
+    everywhere = fit_image(image, None, cubic_config.model_copy(update={"sampling_cubic_max_sma": 0.5}))["isophotes"]
+    for a, b in zip(bilinear, everywhere):
+        # A switch radius below every ring must reproduce the bilinear fit exactly.
+        np.testing.assert_allclose(a["intens"], b["intens"], rtol=1e-12)
+
+
 def test_log_linear_renderer_is_exact_for_an_exponential_profile_and_keeps_central_pixel():
     scale = 12.0
     sma = np.array([0.0, 2.0, 4.0, 8.0, 16.0, 32.0])

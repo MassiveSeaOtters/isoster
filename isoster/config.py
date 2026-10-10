@@ -177,6 +177,16 @@ class IsosterConfig(BaseModel):
         "everywhere.",
     )
 
+    sampling_cubic_max_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma above this value "
+        "(pixels) are read bilinearly instead. A bilinear read averages the four surrounding "
+        "pixels and so carries about 20 % less noise than a cubic read; in the outskirts, "
+        "where the profile is flat on the pixel scale, that averaging costs no bias. 0 keeps "
+        "cubic out to the last ring.",
+    )
+
     # Higher-Order Harmonics Fitting
     simultaneous_harmonics: bool = Field(
         False,

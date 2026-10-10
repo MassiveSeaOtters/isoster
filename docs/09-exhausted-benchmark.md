@@ -197,8 +197,8 @@ built.
 
 | Sentinel | Scope | Behavior |
 |---|---|---|
-| `_use_Re` | isoster (integrator knobs) | Replaced by `adapter.effective_Re_pix`. If the adapter supplies no Re, the arm is skipped with `status="skipped"` and a clear `error_msg`. |
-| `_use_2Re` | isoster (integrator knobs) | As above, multiplied by 2. |
+| `_use_Re` | isoster (any radius-like knob, e.g. `lsb_sma_threshold`, `sampling_cubic_max_sma`) | Replaced by `adapter.effective_Re_pix`. If the adapter supplies no Re, the arm is skipped with `status="skipped"` and a clear `error_msg`. |
+| `_use_2Re` | isoster (any radius-like knob) | As above, multiplied by 2. |
 | `_special: drop_variance` | isoster (top-level key) | Forces `variance_map=None` (OLS path). If the adapter did not supply a variance map, the arm is skipped (nothing to drop). |
 | `_fix_center_from: isoster_weighted` | autoprof | Hard-fixes AutoProf's center via `ap_set_center` to the intensity-weighted (x0, y0) over the first 10 stop_code==0 isophotes of the companion isoster `ref_default` profile. Requires isoster to run first on the same galaxy; otherwise the arm is skipped with a clear `error_msg`. |
 

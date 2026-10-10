@@ -1290,8 +1290,9 @@ def fit_isophote(
     else:
         cfg = IsosterConfig(**(config or {}))
 
-    # Innermost rings may fall back to bilinear reads; see sampling_cubic_min_sma.
-    if interpolation_order != 1 and sma < cfg.sampling_cubic_min_sma:
+    # The innermost rings (sampling_cubic_min_sma) and the outermost rings
+    # (sampling_cubic_max_sma) may fall back to bilinear reads.
+    if interpolation_order != 1 and (sma < cfg.sampling_cubic_min_sma or 0 < cfg.sampling_cubic_max_sma < sma):
         sampling_image, interpolation_order = image, 1
 
     maxit = cfg.maxit

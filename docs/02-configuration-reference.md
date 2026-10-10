@@ -214,6 +214,7 @@ Sampling mode for high-ellipticity isophotes.
 | `use_eccentric_anomaly` | `False` | `bool` | Step the eccentric anomaly (psi) uniformly instead of the position angle, distributing samples more evenly around an elongated ellipse. |
 | `sampling_interpolation` | `"bilinear"` | `str` | How ring samples are read from the image: `bilinear` (four surrounding pixels; overestimates a steep convex profile between pixel centres) or `cubic` (prefiltered cubic B-spline, computed once per image; tracks pixel values closely, about +9 % fit time). Experimental: see `docs/publication/reference/2026-10-09-isoster-autoprof-gap-review.md`. |
 | `sampling_cubic_min_sma` | `0.0` | `float` | In `cubic` mode, rings with sma below this value (pixels) are still read bilinearly, which avoids spline ringing around a core sharper than the pixel grid. `0` uses cubic everywhere. |
+| `sampling_cubic_max_sma` | `0.0` | `float` | In `cubic` mode, rings with sma above this value (pixels) are read bilinearly. A bilinear read averages the four surrounding pixels and carries about 20 % less noise than a cubic read (`benchmarks/exhausted/analysis/ring_noise_response.py`), with no bias where the profile is flat on the pixel scale. `0` keeps cubic out to the last ring. |
 
 **Interaction notes:**
 

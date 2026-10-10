@@ -27,10 +27,11 @@ analysis `.../analysis/small_sample_2026_10_10` (`summary.md`, `fit_metrics.csv`
   vs cubic + EA 0.672 %; EA alone 1.290 % vs 1.286 %). The median statistic adds nothing.
   The inner bilinear fallback (`samp_cubic_ea_min4`) throws most of the gain away
   (1.116 %) and should not be used on PSF-limited images.
-- **One caveat: the noise-dominated outer zone.** Cubic reads are slightly noisier than a
+- **One caveat: the noise-dominated outer zone.** Cubic reads are noisier than a
   bilinear average, and outer-zone RMS rises from 3.88 % to 4.06 % (cubic beats the
   default there in only 36 % of inputs; AutoProf is at 4.57 %). The outer-damping arm
-  makes this worse (6.16 %), so it is not the remedy.
+  makes this worse (6.16 %), so it is not the remedy. The cause and a tested remedy are
+  in the follow-up section below.
 
 ## Sample and arms
 
@@ -111,7 +112,94 @@ native model looked unbiased. Both halves are needed to compare tools fairly.
    (bilinear control), `samp_cubic` (candidate default) and `samp_cubic_ea`; Photutils
    `baseline_median`; AutoProf `baseline` and `deep` with zero background. Then rerun the
    standardized two-pixel analysis with both renderers.
-4. Follow-up for the outer zone: the cubic kernel's extra noise sensitivity in the
-   outskirts (+5 % outer RMS) is the one remaining regression; test a radius- or
-   signal-to-noise-dependent switch back to bilinear, or noise-aware outer regularization,
-   before the S4G run. Not a blocker for the Huang2013 campaign.
+4. Outer zone: the cubic kernel's extra noise is understood and measured (follow-up
+   below). Rings beyond 2 Re read bilinearly (`sampling_cubic_max_sma`, arm
+   `samp_cubic_outer2re`) recover it on this sample; carry that arm in the full campaign
+   rather than changing the default, because the switch radius needs a size prior.
+
+## Follow-up: the integrator and the outer-zone penalty (2026-10-10)
+
+Two questions had to be settled before changing a default: is the `mean` integrator the
+right choice in both the inner and the outer zone, and why does cubic sampling lose in
+the outer zone. Three measurements answer them; outputs under
+`.../analysis/{outer_zone_decomposition,kernel_switch_refit}_2026_10_10` and
+`outputs/benchmark_exhausted/ring_noise_response`.
+
+**Noise response of a ring (pure white noise, 600 realizations;
+`benchmarks/exhausted/analysis/ring_noise_response.py`).** A bilinear read averages the
+four surrounding pixels, so a sample carries 0.66 sigma of noise; an interpolating cubic
+spline passes through the pixel values and a sample carries 0.87 sigma. Averaged along the
+ring, the cubic ring mean is 1.20× noisier than the bilinear one at every radius from 5
+to 150 px, and the four harmonic coefficients that drive the centre and shape updates are
+1.18–1.23× noisier. Relative to the same number of independent pixels, bilinear is at
+0.85–0.93 (it smooths a little) and cubic at 1.01–1.13 (no smoothing). Integrators on the
+same rings: the one-pass 3-sigma clipped mean (the actual Isoster default, `nclip=1`)
+costs < 1 % over the plain mean, the 10 % trimmed mean 1–2 %, the biweight location
+2–3 %, and the median 5–15 % (less than the textbook 25 % because neighbouring samples
+are correlated).
+
+**Where the outer-zone error comes from
+(`benchmarks/exhausted/analysis/round2_outer_zone_decomposition.py`).** Every Isoster
+arm of the 160 noisy inputs was refitted on the noiseless truth image with its own saved
+configuration, and the saved isophotes were compared one by one with that noise-free fit
+and with the truth averaged along the saved ellipse.
+
+| Outer zone, medians over noisy inputs | ref_default (bilinear) | samp_cubic | samp_cubic_ea_median |
+|---|---:|---:|---:|
+| truth RMS of the saved fit (`full`) | 4.68 % | 4.95 % | 5.06 % |
+| truth RMS of the noise-free fit (`noise_free`) | 1.40 % | 1.11 % | 1.11 % |
+| intensity noise along the saved ellipse | 2.05 % | 2.43 % | 2.76 % |
+| ellipticity scatter vs noise-free fit | 0.0106 | 0.0118 | 0.0110 |
+| position-angle scatter vs noise-free fit | 1.60° | 1.85° | 1.56° |
+| centre scatter vs noise-free fit | 0.50 px | 0.48 px | 0.48 px |
+| rings held by the gradient check (`stop_code = -1`) | 15.5 % | 20.1 % | 27.7 % |
+
+Without noise, cubic is the better kernel in the outer zone too (1.11 % against 1.40 %),
+so the penalty is entirely noise. Per ring the cubic intensity is 18 % noisier and the
+position angle 16 % noisier, as the white-noise test predicts, and the noisier gradient
+trips the `maxgerr` check more often, which freezes the geometry of more outer rings. The
+penalty is largest in the shallow `wide` images (7.19 → 8.24 %) and small in the `deep`
+ones (3.36 → 3.45 %). The same table shows what bilinear costs inside: the bilinear
+intensity sits 0.49 % off the truth along its own ellipse in the inner zone and 0.51 % in
+the mid zone, where the cubic read is off by 0.02 % and 0.21 %; that offset is the read
+bias that produced the gap, not noise.
+
+**Integrator.** On these mocks the mean is the right statistic in every zone, but the
+margin is small: with bilinear reads the median arm is worse everywhere (all 1.35 vs
+1.29 %, inner 1.15 vs 1.08 %, mid 1.47 vs 1.43 %, outer 3.92 vs 3.88 %; better than the
+default in 7 % of inputs); with cubic + EA the median is a wash (0.65 vs 0.67 %, inner
+0.285 vs 0.277 %, mid 0.953 vs 0.952 %, outer 3.99 vs 4.05 %), and per ring its outer
+intensity is 20 % noisier. The mocks carry no unmasked stars or neighbours, so they cannot
+measure what the median is for, robustness on real images; that must be tested on the
+SGA sample or on contaminant-injected mocks. The available integrators are the clipped
+mean (default), `median`, `adaptive` (mean inside `lsb_sma_threshold`, median beyond) and
+the LSB auto-lock switch; a biweight or trimmed mean would give most of the median's
+robustness at a 1–3 % noise cost and is the natural candidate if the real-image tests
+show the clipped mean failing.
+
+**Remedy for the outer zone
+(`benchmarks/exhausted/analysis/round2_kernel_switch_refit.py`).** New option
+`sampling_cubic_max_sma`: rings beyond it return to bilinear reads. All 180 inputs were
+refitted from the saved `samp_cubic` configuration (the `bilinear` and `cubic` variants
+reproduce the saved `ref_default` and `samp_cubic` profiles exactly, 180/180). Medians,
+linear renderer:
+
+| switch radius | all | inner | mid | outer | outer: beats cubic | outer: beats bilinear | fit time / bilinear |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| none (bilinear) | 1.289 | 1.082 | 1.427 | 3.924 | 64 % | — | 1.00 |
+| none (cubic) | 0.663 | 0.280 | 0.970 | 4.227 | — | 36 % | 1.05 |
+| 3 PSF FWHM (12.5 px) | 0.640 | 0.282 | 0.969 | 3.926 | 67 % | 52 % | 1.02 |
+| 5 PSF FWHM (20.8 px) | 0.631 | 0.279 | 0.956 | 4.004 | 66 % | 49 % | 1.01 |
+| 10 PSF FWHM (41.7 px) | 0.658 | 0.279 | 0.958 | 3.976 | 45 % | 42 % | 1.02 |
+| 1 Re | 0.716 | 0.281 | 1.037 | 3.924 | 66 % | 40 % | 1.01 |
+| 2 Re | 0.630 | 0.280 | 0.966 | 3.797 | 72 % | 62 % | 1.01 |
+| 4 Re | 0.651 | 0.279 | 0.966 | 3.929 | 64 % | 40 % | 1.01 |
+
+Switching at 2 Re keeps the inner and mid gains untouched, turns the outer-zone loss into
+a gain (3.80 % against 3.92 % bilinear and 4.23 % cubic; the `wide` images go from 8.25 %
+to 6.70 %), and brings the fit time back to +1 %. Switching at 1 Re is too early (bias
+returns in the mid zone, worst input 2.9× cubic there); PSF-based radii help the small
+high-redshift images but clip the gain of the large ones. Because the right switch radius
+is a galaxy size, not a pixel count, it stays an option (`_use_2Re` sentinel in the arms
+file) rather than a default; a signal-to-noise-triggered switch, in the spirit of the LSB
+auto-lock, would be the scale-free version and is a candidate for a later arm.

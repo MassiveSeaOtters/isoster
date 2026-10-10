@@ -14,8 +14,12 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [x] Small-sample round-2 campaign (20 galaxies, 9 scenarios, 13 arms, 3 tools) with the
       truth-based multi-renderer analysis: cubic sampling halves Isoster's RMS and beats
       AutoProf in 86 % of inputs with no failures (2026-10-10).
+- [x] Integrator and outer-zone follow-up: white-noise ring test, noise-free refit
+      decomposition, radius-switch refits; `sampling_cubic_max_sma` option and arm
+      `samp_cubic_outer2re` (`_use_2Re` sentinel now works on any radius knob) (2026-10-10).
 - [ ] Decide: cubic sampling as default; renderer for the benchmark; full round-2
-      Huang2013 campaign (then S4G); outer-zone noise follow-up for the cubic kernel.
+      Huang2013 campaign (then S4G) including `samp_cubic_outer2re`; integrator
+      robustness test on real images (SGA) or contaminant-injected mocks.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
 to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on

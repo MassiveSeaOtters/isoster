@@ -64,7 +64,9 @@ outside the public docs tree.
   Bilinear by default; `IsosterConfig.sampling_interpolation="cubic"` makes the driver
   prefilter the image once (`prepare_sampling_image`) and pass the spline coefficients plus
   `interpolation_order=3` through `fit_isophote` and `compute_gradient`, while aperture
-  photometry keeps reading the raw image. `build_isoster_model` also accepts
+  photometry keeps reading the raw image. `fit_isophote` falls back to the raw image and
+  bilinear reads for rings below `sampling_cubic_min_sma` or above `sampling_cubic_max_sma`
+  (both off at 0). `build_isoster_model` also accepts
   `interp_kind="log_linear"` (linear interpolation of log intensity).
 - `isoster/config.py`: `IsosterConfig` schema and validators.
 - `isoster/model.py`: 2D model reconstruction by radial interpolation. `build_isoster_model()` supports `harmonic_orders=None` (auto-detect from isophote keys) and `use_eccentric_anomaly=None` (auto-detect from isophote dicts, or explicit `True`/`False` override) for correct harmonic evaluation in EA-mode fits.
