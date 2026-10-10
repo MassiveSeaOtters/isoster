@@ -52,7 +52,7 @@ These are not necessarily flagged fits: all maximum-offset rows have code 0 and
 gradient relative error below the configured 0.5 threshold. Convergence of the
 local fitting criterion does not guarantee a physically correct center.
 
-Verified mechanism in [fitting.py](../../../isoster/fitting.py#L1869): first-order
+Verified mechanism in [fitting.py](../../../../isoster/fitting.py#L1869): first-order
 sine/cosine residuals drive center shifts, with corrections proportional to their
 amplitudes divided by the radial gradient. Shallow gradients can therefore turn
 small intensity asymmetries into appreciable center motion. Damping, per-iteration

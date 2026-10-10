@@ -1,11 +1,16 @@
 # Huang2013 mock-galaxy validation: manuscript draft
 
+> **Superseded (2026-10-11).** This section was written from the round-1 campaign, whose mock images
+> were not PSF-convolved. Its numbers are obsolete. Rewrite it from
+> [`reference/2026-10-10-round2-huang2013-full-campaign.md`](../reference/2026-10-10-round2-huang2013-full-campaign.md).
+
+
 Updated 2026-09-23 using the audited zero-background AutoProf selection,
 the fixed two-pixel inner evaluation cut and the complete four-mode saved-fit
 reconstruction analysis. See the
-[final detailed reference](../reference/2026-09-23-huang-final-analysis.md)
+[final detailed reference](../reference/round1-no-psf/2026-09-23-huang-final-analysis.md)
 for the audited statistics, QA, coverage and caveats; the
-[original-support baseline reference](../reference/2026-09-23-two-pixel-analysis.md)
+[original-support baseline reference](../reference/round1-no-psf/2026-09-23-two-pixel-analysis.md)
 remains preserved. No refitting accompanied this analysis.
 
 We evaluated single-band isophotal fitting on 93 multi-component Sersic

@@ -31,6 +31,15 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       full-aperture RMS (1.27 → 0.65 %), switch arms 0.61 % and best in every zone, beats
       AutoProf in 80–84 % of inputs, 0 Isoster failures; report
       `publication/reference/2026-10-10-round2-huang2013-full-campaign.md` (2026-10-10).
+- [x] Bookkeeping: eleven round-1 (PSF-free) reports moved to
+      `publication/reference/round1-no-psf/` with a README on what carries over; links
+      repointed; publication README status block rewritten; round-1 manuscript section
+      marked superseded (2026-10-11).
+- [ ] Decide later whether to keep the round-1 campaign data on the `galaxy` volume
+      (`publication_single_band_round1_2026_08_28/`).
+- [ ] Edge case, not now: cuspy inner profiles do occur in space-telescope or AO images of
+      nearby massive galaxies; cubic sampling on unconvolved cusps needs the inner bilinear
+      fallback (`sampling_cubic_min_sma`), see the 2026-10-09 gap review.
 - [ ] S4G: campaign running (chained after Huang2013); add a dataset switch to
       `round2_small_sample.py` (dataset folder, generator manifest, model file), then score
       and report it the same way.
@@ -76,7 +85,7 @@ Noisy outer RMS improves 16.5–29.3%, full RMS only 0.47–1.27%; noiseless con
 unchanged. Full flux bias worsens for two noisy cases. 95.9–99.6% of original
 linear-model squared error is inner-zone error. 57 source hashes unchanged,
 41 accepted-audit matches; 57 targeted tests passed, Ruff/format/whitespace passed.
-Report: `publication/reference/2026-09-30-fixed-center-cases.md`; output campaign:
+Report: `publication/reference/round1-no-psf/2026-09-30-fixed-center-cases.md`; output campaign:
 `outputs/isoster_fixed_center_cases_20260930`. Next: inner extraction/rendering.
 
 ## Active center and extent investigation — 2026-09-23
@@ -93,7 +102,7 @@ Review: 1,674 primary outcomes, including 17 AutoProf errors. Gate 1.5156 s;
 population 119.8685 s. All 9,140 consulted input hashes unchanged; 4,989 match the
 accepted audit. One diagnostic unit test and analytic assertions passed; targeted
 Ruff and whitespace checks passed. Report:
-`publication/reference/2026-09-23-autoprof-center-extent.md`.
+`publication/reference/round1-no-psf/2026-09-23-autoprof-center-extent.md`.
 Native/spline support, same-ellipse extraction, causal flux/harmonic studies and
 selected-case visual diagnosis remain open in the investigation spec.
 
@@ -141,7 +150,7 @@ primary. Outputs: `outputs/huang2013_harmonic_qa_zones_20260923` and
   on two galaxies/two scenarios. Ranking depends on renderer. EA harmonic
   reconstruction and broader pixel-integration checks remain follow-up work,
   not a completed harmonic-inclusive population ranking.
-- Details: `docs/publication/reference/2026-09-23-two-pixel-analysis.md`.
+- Details: `docs/publication/reference/round1-no-psf/2026-09-23-two-pixel-analysis.md`.
 
 # Individual QA demo — 2026-09-22
 
@@ -211,7 +220,7 @@ primary. Outputs: `outputs/huang2013_harmonic_qa_zones_20260923` and
   outer RMS; AutoProf retains full RMS advantage. Renderer effects are larger
   than matched-spline harmonic effects. No population inference or default change.
 - Final output: `outputs/huang2013_harmonic_demo_20260923_v2`; detailed results
-  in `docs/publication/reference/2026-09-23-harmonic-demonstration.md`.
+  in `docs/publication/reference/round1-no-psf/2026-09-23-harmonic-demonstration.md`.
 - The user subsequently accepted the rendering/metric/QA rules and requested a
   handover for the full sample; see the next-analysis section above. No new fits,
   merge or push.
@@ -256,7 +265,7 @@ passed. Revised output gate and fresh population execution follow.
 
 Final QA: campaign analysis `huang2013_final_reconstruction_2026_09_23_v2`.
 Statistics/index: `outputs/huang2013_final_statistics_20260923`.
-Reference: `docs/publication/reference/2026-09-23-huang-final-analysis.md`.
+Reference: `docs/publication/reference/round1-no-psf/2026-09-23-huang-final-analysis.md`.
 665 unit tests passed; final source hashes frozen; no refit, merge, push or commit.
 The first bulk attempt and every gate remain preserved. Shared polar EA-on remains
 unsupported by design; native EA is validated and included. Rankings depend on

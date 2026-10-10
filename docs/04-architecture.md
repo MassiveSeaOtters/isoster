@@ -621,7 +621,7 @@ and writes a new directory containing six summary figures, descriptive
 tables and rule-selected comparison QA. Primary comparisons use matched
 finite samples, never replacement arms; atlas reconstructions must reproduce
 the measured pixel counts and truth RMS. See
-`docs/publication/reference/2026-09-12-huang2013-scientific-analysis.md` for
+`docs/publication/reference/round1-no-psf/2026-09-12-huang2013-scientific-analysis.md` for
 results, immutable product paths and interpretation limits.
 
 - Stable docs live in `docs/` root.

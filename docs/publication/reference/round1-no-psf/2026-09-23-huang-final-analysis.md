@@ -7,7 +7,7 @@ The harmonic-off baseline, all failures, intentional skips and unsupported
 reconstructions remain explicit. **The ranking depends strongly on reconstruction
 and radial zone; these results do not establish a single overall tool winner.**
 
-[Browse QA and statistics](../../../outputs/huang2013_final_statistics_20260923/index.html).
+[Browse QA and statistics](../../../../outputs/huang2013_final_statistics_20260923/index.html).
 The QA directory is on the mounted `/Volumes/galaxy` volume; the local statistics
 index links to it. All machine-readable tables are in
 `outputs/huang2013_final_statistics_20260923` in the isolated checkout.

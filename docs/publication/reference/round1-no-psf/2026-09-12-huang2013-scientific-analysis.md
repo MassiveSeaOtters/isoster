@@ -8,7 +8,7 @@ Retain the numbers below as a record, not the current manuscript selection.
 
 The full corrected Huang2013 selection was measured on 2026-09-12 on branch
 `analysis/huang2013-corrected-science`, following the
-[approved measurement contract](../../specs/2026-09-10-huang2013-scientific-analysis.md)
+[approved measurement contract](../../../specs/2026-09-10-huang2013-scientific-analysis.md)
 and [AutoProf correction](2026-09-11-autoprof-pa-correction-log.md).
 No new fitting was required and no existing input or result was changed.
 
@@ -20,7 +20,7 @@ much more clearly than it changes pooled reconstruction RMS. Cross-tool
 differences include background estimation and sampling, not geometry alone.
 
 This is the detailed reference behind the
-[manuscript draft](../manuscript-only/huang2013-scientific-analysis.md).
+[manuscript draft](../../manuscript-only/huang2013-scientific-analysis.md).
 The sample is exploratory, as agreed; no held-out or global-score claim is made.
 
 ## Data, conditions and selection
