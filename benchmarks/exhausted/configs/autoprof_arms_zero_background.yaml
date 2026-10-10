@@ -30,3 +30,13 @@ arms:
     ap_regularize_scale: 1.0
     ap_fit_limit: 2.0
     ap_samplegeometricscale: 0.1
+
+  # Round-1 arm restored for the round-2 full campaign, with the same
+  # zero-background preparation as the arms above.
+  high_regularization:
+    ap_set_background: 0.0
+    ap_isoclip: true
+    ap_isoclip_nsigma: 5.0
+    ap_regularize_scale: 2.0
+    ap_fit_limit: 2.0
+    ap_samplegeometricscale: 0.1

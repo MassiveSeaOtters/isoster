@@ -21,9 +21,19 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       `sampling_cubic_min_snr`; outward one-way latch, two-ring debounce): scatter rule 0.1
       matches the 2 Re oracle with no size prior; arms `samp_cubic_rms010`,
       `samp_cubic_snr200` (2026-10-10).
-- [ ] Decide: cubic sampling as default (with or without the scatter switch); renderer
-      for the benchmark; full round-2 Huang2013 campaign (then S4G) with the switch arms;
-      integrator robustness test on real images (SGA) or contaminant-injected mocks.
+- [x] Low S/N thresholds (200 → 3) and the variance-map path for the switch; real-data
+      warning in the configuration reference (2026-10-10).
+- [x] Round-2 full campaign designed and launched: round-1 roster + small-sample sampling
+      arms + three fallback arms (25 arms, `ols_noweight` dropped as a no-op), AutoProf
+      `high_regularization` restored; gate on NGC2325 passed (224 ok, 1 known photutils
+      noiseless failure); Huang2013 (837 inputs) then S4G chained, detached (2026-10-10).
+- [ ] Analyse the full Huang2013 campaign with the truth-based multi-renderer analysis
+      (log-linear renderer primary), zone tables and switch-radius distribution; update
+      the publication reference; then S4G.
+- [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
+      cubic sampling as default (switch stays opt-in); as a separate commit with version
+      bump, regression-test updates and draft-timing re-archive.
+- [ ] Integrator robustness test on real images (SGA) or contaminant-injected mocks.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
 to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on
