@@ -239,3 +239,60 @@ ring whose mean is that noisy gains nothing from an unbiased read. Neither trigg
 fires on the noiseless images (except `S/N < 200` on 2 of 20, through the numerical
 scatter of the samples). Arms `samp_cubic_rms010` and `samp_cubic_snr200` carry the two
 triggers into the full campaign; `samp_cubic_outer2re` stays as the oracle reference.
+
+**Lower thresholds and the variance-map path (third run,
+`.../analysis/kernel_switch_lowsnr_refit_2026_10_10`).** Survey images reach a given ring
+signal-to-noise much earlier than these mocks, so the realistic thresholds for real data
+are lower. The ring signal-to-noise of the all-cubic fit on the mocks (medians over noisy
+inputs) sets the scale:
+
+| | 0.5 Re | 1 Re | 2 Re | 3 Re |
+|---|---:|---:|---:|---:|
+| deep, empirical error | 1630 | 610 | 190 | 77 |
+| wide, empirical error | 860 | 250 | 67 | 29 |
+| deep, variance-map error | 1570 | 540 | 154 | 65 |
+| wide, variance-map error | 580 | 200 | 57 | 24 |
+
+Lowering the threshold moves the switch outward and does nothing else: no zone gets worse
+than plain cubic (all-zone ratio 1.000, mid-zone worst input at most 1.06×, inner
+unchanged), the gain in the outer zone simply fades because the switch then fires beyond
+the outer zone or not at all.
+
+| `S/N <` | outer: ratio to cubic | switch radius / Re, median (10–90 %) | switched | fit time / bilinear |
+|---:|---:|---:|---:|---:|
+| 200 | 0.969 | 1.7 (0.9–3.6) | 89 % | 1.01 |
+| 100 | 0.976 | 2.5 (1.3–4.6) | 87 % | 1.03 |
+| 50 | 0.996 | 3.2 (1.8–5.1) | 81 % | 1.04 |
+| 30 | 1.000 | 3.7 (2.2–5.4) | 72 % | 1.03 |
+| 20 | 1.000 | 4.1 (2.7–5.3) | 63 % | 1.02 |
+| 10 | 1.000 | 4.8 (3.4–5.8) | 46 % | 1.01 |
+| 5 | 1.000 | 5.2 (4.3–5.7) | 25 % | 1.01 |
+| 3 | 1.000 | 5.7 (4.7–6.7) | 13 % | 1.00 |
+
+The real-data path was exercised by fitting every noisy input with a constant variance map
+equal to the injected noise (`cubic_var` and `cubic_snr_{50,20,10}_var`). The trigger then
+reads `intens_err` from the weighted fit; that error is 10–20 % lower than the empirical
+one at the same radius (a cubic read carries 0.87 sigma, the map says 1 sigma), so the
+same threshold fires slightly earlier (S/N < 50: 2.9 Re instead of 3.2 Re) with the same
+gain (outer ratio 0.976, better than plain cubic in 68 % of inputs, mid worst 1.06×).
+One side observation that has nothing to do with the switch: with the variance map the
+all-cubic fit itself is 2 % worse in the outer zone (4.30 % against 4.22 %) and freezes
+more rings through the gradient check (21.5 % against 17.9 %), because the formal gradient
+error is compared with `maxgerr` instead of the empirical one; the campaign never used
+variance maps, so this is untested territory for the whole pipeline, not only for the
+switch.
+
+*Choosing a threshold.* Per ring, a bilinear read is the better estimator when its
+relative bias `b` is below about `0.55 / (S/N)` of the cubic ring (bilinear mean-square
+error `b² + σ²` against cubic `1.44 σ²`, with the measured S/N being the cubic one).
+The mid-zone bilinear bias on these mocks is 0.3–0.5 %, which gives 110–180, exactly where
+the best thresholds landed. On a survey image the same rule holds with that image's own
+S/N: a threshold between 20 and 100 switches only where the ring noise exceeds the
+bilinear bias several times over, and the cost of a threshold that is too low is bounded
+(cubic's +20 % noise over the part of the galaxy that stays cubic). The numbers above come
+from Gaussian-noise mocks without contaminants; on real galaxies both the variance map
+(optimistic in coadds with correlated noise) and the empirical scatter (inflated by arms,
+bars and unmasked sources) behave differently, so the threshold has to be checked on a few
+real galaxies, with the switch off and on and `sampling_switch_sma` compared with the
+profiles, before either trigger is enabled in production. That warning is in the
+configuration reference.

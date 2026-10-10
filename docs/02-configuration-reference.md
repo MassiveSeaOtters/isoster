@@ -230,6 +230,31 @@ Sampling mode for high-ellipticity isophotes.
   themselves derived from an eccentric-anomaly parametrisation. See
   [`03-algorithm.md`](03-algorithm.md) for the derivation.
 - Affects both regular fitting and template-based forced photometry extraction.
+
+**Sampling kernel notes (test before use on real data):**
+
+- Every threshold quoted for `sampling_cubic_max_relative_rms` and `sampling_cubic_min_snr`
+  was calibrated on the Huang2013 mocks (Gaussian noise, no contaminants, no variance
+  map), where the ring signal-to-noise stays above 100 out to about 2 Re. Survey images
+  (HSC, Legacy Surveys) reach that regime much earlier, so a threshold copied from the
+  mocks may switch most of a real galaxy to bilinear reads. Run a few galaxies with the
+  switch off and on, compare the `sampling_switch_sma` radii with the profiles, and pick
+  the threshold from that comparison before enabling either trigger in production.
+- With a `variance_map`, `intens_err` is the propagated per-pixel noise of the weighted
+  fit, not the empirical scatter along the ring, so the signal-to-noise trigger then
+  follows the variance map. Correlated noise in coadds makes that error optimistic. The
+  scatter trigger always uses the empirical `rms`, which also contains real azimuthal
+  structure (arms, bars, unmasked sources) and therefore fires earlier on such galaxies.
+- Both triggers are one-way and outward only. A galaxy whose profile flattens into a
+  bright, smooth envelope after the switch keeps bilinear reads there; set the threshold
+  low enough that this happens only where the rings are genuinely noise-dominated.
+- Rule of thumb for `sampling_cubic_min_snr`: a bilinear read is the better estimator of a
+  ring once its relative bias is below about `0.55 / (S/N)`. The bilinear bias is a few
+  tenths of a percent outside the core, which gives thresholds of 100–200 on the mocks;
+  on survey images any value from 20 to 100 switches only where the noise already exceeds
+  that bias several times over, and a value that is too low costs at most cubic's +20 %
+  ring noise over the part of the galaxy that stays cubic. Lowering the threshold never
+  made any zone worse than plain cubic on the mocks.
 - `build_isoster_model()` auto-detects whether eccentric anomaly was used from the
   isophote dicts (presence of `'use_eccentric_anomaly'` key). Can be overridden
   explicitly.
@@ -449,6 +474,11 @@ Weighted Least Squares fitting is enabled by passing a per-pixel variance map to
 ```python
 results = fit_image(image, config=config, variance_map=variance_map)
 ```
+
+With a variance map the ring error `intens_err` is the exact weighted-least-squares error,
+and the optional cubic-to-bilinear switch `sampling_cubic_min_snr` therefore reads its
+signal-to-noise from the map rather than from the scatter along the ring (see the sampling
+kernel notes above).
 
 ### Input requirements
 

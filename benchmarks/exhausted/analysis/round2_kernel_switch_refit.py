@@ -38,23 +38,48 @@ from benchmarks.exhausted.analysis.residual_zones import (
 from benchmarks.exhausted.analysis.round2_outer_zone_decomposition import GEOMETRY, ZONES, render, zone_of
 from isoster import IsosterConfig, fit_image
 
+VARIANCE = "_variance_map"  # variant key: fit with a constant variance map equal to the injected noise
 VARIANTS = {
     "bilinear": lambda row: dict(sampling_interpolation="bilinear"),
     "cubic": lambda row: {},
-    # Oracle switch radii (need the galaxy size): kept as references.
-    "cubic_max_1rref": lambda row: dict(sampling_cubic_max_sma=1 * row["reference_pix"]),
+    # Oracle switch radius (needs the galaxy size): kept as the reference.
     "cubic_max_2rref": lambda row: dict(sampling_cubic_max_sma=2 * row["reference_pix"]),
-    "cubic_max_5psf": lambda row: dict(sampling_cubic_max_sma=5 * row["psf_pix"]),
     # Self-contained switches driven by the ring's own statistics.
-    "cubic_snr_30": lambda row: dict(sampling_cubic_min_snr=30.0),
-    "cubic_snr_50": lambda row: dict(sampling_cubic_min_snr=50.0),
-    "cubic_snr_100": lambda row: dict(sampling_cubic_min_snr=100.0),
-    "cubic_snr_200": lambda row: dict(sampling_cubic_min_snr=200.0),
     "cubic_rms_0.1": lambda row: dict(sampling_cubic_max_relative_rms=0.1),
-    "cubic_rms_0.2": lambda row: dict(sampling_cubic_max_relative_rms=0.2),
-    "cubic_rms_0.4": lambda row: dict(sampling_cubic_max_relative_rms=0.4),
+    "cubic_snr_200": lambda row: dict(sampling_cubic_min_snr=200.0),
+    "cubic_snr_100": lambda row: dict(sampling_cubic_min_snr=100.0),
+    "cubic_snr_50": lambda row: dict(sampling_cubic_min_snr=50.0),
+    "cubic_snr_30": lambda row: dict(sampling_cubic_min_snr=30.0),
+    "cubic_snr_20": lambda row: dict(sampling_cubic_min_snr=20.0),
+    "cubic_snr_10": lambda row: dict(sampling_cubic_min_snr=10.0),
+    "cubic_snr_5": lambda row: dict(sampling_cubic_min_snr=5.0),
+    "cubic_snr_3": lambda row: dict(sampling_cubic_min_snr=3.0),
+    # The real-data path: the ring error comes from a variance map (weighted fit), not
+    # from the empirical scatter along the ring.
+    "cubic_var": lambda row: {VARIANCE: True},
+    "cubic_snr_50_var": lambda row: {VARIANCE: True, "sampling_cubic_min_snr": 50.0},
+    "cubic_snr_20_var": lambda row: {VARIANCE: True, "sampling_cubic_min_snr": 20.0},
+    "cubic_snr_10_var": lambda row: {VARIANCE: True, "sampling_cubic_min_snr": 10.0},
 }
 REPLAY = {"bilinear": "ref_default", "cubic": "samp_cubic"}
+REFERENCE_MULTIPLES = (0.5, 1.0, 2.0, 3.0)
+
+
+def snr_at_reference_multiples(isophotes, reference):
+    """Ring signal-to-noise interpolated (in log) at fixed multiples of the reference radius."""
+    sma = np.array([iso["sma"] for iso in isophotes], float)
+    error = np.array([iso["intens_err"] for iso in isophotes], float)
+    intens = np.array([iso["intens"] for iso in isophotes], float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        snr = intens / error
+    ok = (sma > 0) & np.isfinite(snr) & (snr > 0)
+    out = {}
+    for k in REFERENCE_MULTIPLES:
+        value = np.nan
+        if ok.sum() > 1 and sma[ok].min() <= k * reference <= sma[ok].max():
+            value = 10 ** np.interp(k * reference, sma[ok], np.log10(snr[ok]))
+        out[f"snr_at_{k:g}re"] = float(value)
+    return out
 
 
 def same_profile(isophotes, saved) -> bool:
@@ -87,17 +112,20 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
 
     fits_by_variant, models, timings, replay, switches = {}, {}, {}, {}, {}
     for name, overrides in VARIANTS.items():
-        config = IsosterConfig(**{**saved_config, **overrides(row)})
+        delta = dict(overrides(row))
+        with_variance = delta.pop(VARIANCE, False) and np.isfinite(sigma) and sigma > 0
+        variance_map = np.full(image.shape, sigma**2) if with_variance else None
+        config = IsosterConfig(**{**saved_config, **delta})
         elapsed = []
         for _ in range(repeats):
             started = time.perf_counter()
-            result = fit_image(image, None, config)
+            result = fit_image(image, None, config, variance_map=variance_map)
             elapsed.append(time.perf_counter() - started)
         fits_by_variant[name] = result["isophotes"]
         timings[name] = min(elapsed)
         # Radius beyond which rings were read bilinearly: the oracle's configured radius,
         # or the ring at which a self-contained switch fired (None when it never did).
-        switches[name] = overrides(row).get("sampling_cubic_max_sma", result.get("sampling_switch_sma"))
+        switches[name] = delta.get("sampling_cubic_max_sma", result.get("sampling_switch_sma"))
         models[name] = render(image.shape, result["isophotes"])
         if name in REPLAY:
             saved = profile_dicts(load_profile(arms / REPLAY[name] / "profile.fits"))
@@ -123,6 +151,7 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
             n_isophotes=len(isophotes),
             outer_isophotes=len(outer),
             outer_gradient_flagged=sum(iso["stop_code"] == -1 for iso in outer),
+            **snr_at_reference_multiples(isophotes, reference),
         )
         model = models[name]
         for zone in ZONES:
@@ -187,6 +216,16 @@ def summarize(frame, output: Path) -> str:
         "## Where the switch fired, in units of the reference radius (inputs where it fired)",
         "",
         switched.round(2).to_markdown(),
+        "",
+    ]
+    snr_columns = [column for column in checks.columns if column.startswith("snr_at_")]
+    plain = checks[checks.variant.isin(["cubic", "cubic_var"]) & ~checks.scenario.eq("noiseless_z005")]
+    snr_table = plain.groupby(["variant", "depth"])[snr_columns].median()
+    lines += [
+        "## Ring signal-to-noise of the all-cubic fit at multiples of the reference radius "
+        "(medians over noisy inputs; `cubic_var` takes the error from the variance map)",
+        "",
+        snr_table.round(1).to_markdown(),
         "",
     ]
     text = "\n".join(lines)
