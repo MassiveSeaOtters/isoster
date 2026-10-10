@@ -27,9 +27,13 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       arms + three fallback arms (25 arms, `ols_noweight` dropped as a no-op), AutoProf
       `high_regularization` restored; gate on NGC2325 passed (224 ok, 1 known photutils
       noiseless failure); Huang2013 (837 inputs) then S4G chained, detached (2026-10-10).
-- [ ] Analyse the full Huang2013 campaign with the truth-based multi-renderer analysis
-      (log-linear renderer primary), zone tables and switch-radius distribution; update
-      the publication reference; then S4G.
+- [x] Full Huang2013 campaign (837 inputs, 25 arms) run and analysed: cubic halves the
+      full-aperture RMS (1.27 → 0.65 %), switch arms 0.61 % and best in every zone, beats
+      AutoProf in 80–84 % of inputs, 0 Isoster failures; report
+      `publication/reference/2026-10-10-round2-huang2013-full-campaign.md` (2026-10-10).
+- [ ] S4G: campaign running (chained after Huang2013); add a dataset switch to
+      `round2_small_sample.py` (dataset folder, generator manifest, model file), then score
+      and report it the same way.
 - [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
       cubic sampling as default (switch stays opt-in); as a separate commit with version
       bump, regression-test updates and draft-timing re-archive.
