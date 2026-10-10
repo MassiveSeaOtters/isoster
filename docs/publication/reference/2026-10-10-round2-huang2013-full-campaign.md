@@ -169,6 +169,6 @@ sample: `int_median` 1.323 against 1.265 % with bilinear reads, `samp_cubic_ea_m
 
 ## Next
 
-The S4G campaign (303 galaxies, 6 scenarios, same arms) runs after this one. The
-measurement script is Huang2013-specific (dataset folder and generator manifest) and needs
-a dataset switch before S4G can be scored the same way.
+The S4G campaign (300 galaxies, 6 scenarios, same arms) ran after this one and is reported
+in [2026-10-11-round2-s4g-full-campaign.md](2026-10-11-round2-s4g-full-campaign.md). The
+measurement script gained a `--dataset` switch for it (commit `971b9ed`).

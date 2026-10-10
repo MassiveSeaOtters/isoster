@@ -12,8 +12,11 @@ record is:
 - [Round-2 small-sample campaign](reference/2026-10-10-round2-small-sample-campaign.md):
   20 galaxies, the integrator and outer-zone follow-up, the self-contained sampling switch.
 - [Round-2 Huang2013 full campaign](reference/2026-10-10-round2-huang2013-full-campaign.md):
-  the population statistics for the paper (837 inputs, 25 arms, three tools). The S4G
-  campaign follows.
+  the population statistics for the paper on single-Sersic ellipticals (837 inputs,
+  25 arms, three tools).
+- [Round-2 S4G full campaign](reference/2026-10-11-round2-s4g-full-campaign.md): the same
+  arms on 300 barred disk galaxies (1800 inputs); where the harmonics matter and where the
+  kernel switch fires too late.
 
 Round-1 reports are kept in [`reference/round1-no-psf/`](reference/round1-no-psf/README.md)
 with a note on what carries over (the timing benchmark, the AutoProf setup corrections,

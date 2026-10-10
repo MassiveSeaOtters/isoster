@@ -40,10 +40,19 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [ ] Edge case, not now: cuspy inner profiles do occur in space-telescope or AO images of
       nearby massive galaxies; cubic sampling on unconvolved cusps needs the inner bilinear
       fallback (`sampling_cubic_min_sma`), see the 2026-10-09 gap review.
-- [ ] S4G: campaign running (chained after Huang2013). Dataset switch added to
-      `round2_small_sample.py` (`--dataset s4g`: CS4G generator manifest, six scenarios),
-      validated on one complete S4G galaxy copied to scratch (truth matched exactly); score
-      and report the full campaign when it finishes.
+- [x] S4G full campaign (300 barred disks, 1800 inputs, 25 arms, 6.5 h) scored with the
+      `--dataset s4g` switch and reported: all 1800 truths matched exactly; cubic lowers
+      the median full RMS by 18 % (1.60 → 1.31 %), 90th percentile unchanged (bar and
+      bulge-disk twist dominate), 0 Isoster failures, 17 of 1800 regressions > 20 %;
+      harmonics-on renderer takes the cubic arms to 0.75–0.80 %; switch neutral at the
+      median and fires too late for the outer disk; report
+      `publication/reference/2026-10-11-round2-s4g-full-campaign.md` (2026-10-11).
+- [ ] Add a log-linear harmonics-on renderer to `round2_small_sample.py` and rescore
+      both datasets with it: on disk galaxies the harmonics are signal and the current
+      headline (harmonics off) understates Isoster's model by 40 % on S4G.
+- [ ] Later refinement of the kernel switch: weigh bilinear bias (profile curvature in
+      pixel units) against ring noise instead of noise alone; on S4G the scatter and
+      S/N rules fire beyond 2 R_ref where bilinear already wins.
 - [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
       cubic sampling as default (switch stays opt-in); as a separate commit with version
       bump, regression-test updates and draft-timing re-archive.
