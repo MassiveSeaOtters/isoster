@@ -81,6 +81,14 @@ arms:
   samp_cubic_outer2re:
     sampling_interpolation: cubic
     sampling_cubic_max_sma: _use_2Re
+  # Self-contained switches: bilinear reads once two consecutive outward rings are
+  # noise-dominated by the ring's own statistics (no size prior).
+  samp_cubic_rms010:
+    sampling_interpolation: cubic
+    sampling_cubic_max_relative_rms: 0.1
+  samp_cubic_snr200:
+    sampling_interpolation: cubic
+    sampling_cubic_min_snr: 200.0
 
   # G5 - higher-order harmonics
   harm_isofit_inloop:

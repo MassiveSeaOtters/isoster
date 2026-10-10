@@ -17,9 +17,13 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [x] Integrator and outer-zone follow-up: white-noise ring test, noise-free refit
       decomposition, radius-switch refits; `sampling_cubic_max_sma` option and arm
       `samp_cubic_outer2re` (`_use_2Re` sentinel now works on any radius knob) (2026-10-10).
-- [ ] Decide: cubic sampling as default; renderer for the benchmark; full round-2
-      Huang2013 campaign (then S4G) including `samp_cubic_outer2re`; integrator
-      robustness test on real images (SGA) or contaminant-injected mocks.
+- [x] Self-contained kernel switch (`sampling_cubic_max_relative_rms`,
+      `sampling_cubic_min_snr`; outward one-way latch, two-ring debounce): scatter rule 0.1
+      matches the 2 Re oracle with no size prior; arms `samp_cubic_rms010`,
+      `samp_cubic_snr200` (2026-10-10).
+- [ ] Decide: cubic sampling as default (with or without the scatter switch); renderer
+      for the benchmark; full round-2 Huang2013 campaign (then S4G) with the switch arms;
+      integrator robustness test on real images (SGA) or contaminant-injected mocks.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
 to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on

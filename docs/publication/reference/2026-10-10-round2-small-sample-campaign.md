@@ -113,9 +113,11 @@ native model looked unbiased. Both halves are needed to compare tools fairly.
    `baseline_median`; AutoProf `baseline` and `deep` with zero background. Then rerun the
    standardized two-pixel analysis with both renderers.
 4. Outer zone: the cubic kernel's extra noise is understood and measured (follow-up
-   below). Rings beyond 2 Re read bilinearly (`sampling_cubic_max_sma`, arm
-   `samp_cubic_outer2re`) recover it on this sample; carry that arm in the full campaign
-   rather than changing the default, because the switch radius needs a size prior.
+   below). A switch to bilinear reads once the ring's own scatter says it is
+   noise-dominated (`sampling_cubic_max_relative_rms = 0.1`, arm `samp_cubic_rms010`)
+   recovers it with no size prior and matches the 2 Re oracle; carry it, the
+   signal-to-noise variant (`samp_cubic_snr200`) and the oracle (`samp_cubic_outer2re`)
+   in the full campaign, and decide the default from that run.
 
 ## Follow-up: the integrator and the outer-zone penalty (2026-10-10)
 
@@ -199,7 +201,41 @@ Switching at 2 Re keeps the inner and mid gains untouched, turns the outer-zone 
 a gain (3.80 % against 3.92 % bilinear and 4.23 % cubic; the `wide` images go from 8.25 %
 to 6.70 %), and brings the fit time back to +1 %. Switching at 1 Re is too early (bias
 returns in the mid zone, worst input 2.9× cubic there); PSF-based radii help the small
-high-redshift images but clip the gain of the large ones. Because the right switch radius
-is a galaxy size, not a pixel count, it stays an option (`_use_2Re` sentinel in the arms
-file) rather than a default; a signal-to-noise-triggered switch, in the spirit of the LSB
-auto-lock, would be the scale-free version and is a candidate for a later arm.
+high-redshift images but clip the gain of the large ones. The right switch radius is a
+galaxy size, which is unknown before the fit on a real image, so the radius itself cannot
+be the default rule.
+
+**Self-contained switch (same script, second run,
+`.../analysis/kernel_switch_snr_refit_2026_10_10`).** The ring already carries the
+information: during outward growth, once two consecutive rings look noise-dominated, all
+remaining outward rings are read bilinearly (a one-way latch like the LSB auto-lock; the
+inward rings and the switch radius are reported in the result). Two triggers were tested
+on the same 180 inputs: the relative scatter of the samples along the ring, `rms / intens`
+(`sampling_cubic_max_relative_rms`), and the signal-to-noise of the ring mean,
+`intens / intens_err` (`sampling_cubic_min_snr`). The two are related by the sample count,
+`rms / intens = sqrt(n) × intens_err / intens`, so the scatter rule is a signal-to-noise
+rule whose threshold grows with ring size, which follows the bias–variance trade-off
+(the bilinear bias shrinks with radius while the ring mean gets more samples).
+
+| trigger | all: ratio to cubic (beats cubic) | mid: worst input | outer: ratio to cubic (beats cubic / bilinear) | switch radius / Re, median (10–90 %) | switched | fit time / bilinear |
+|---|---:|---:|---:|---:|---:|---:|
+| none (cubic) | 1.000 | 1.00 | 1.000 (— / 36 %) | — | — | 1.07 |
+| oracle 2 Re | 0.996 (64 %) | 1.05 | 0.943 (71 % / 61 %) | 2.0 | 100 % | 1.04 |
+| `rms / intens > 0.1` | 0.993 (63 %) | 1.05 | 0.962 (68 % / 54 %) | 2.2 (1.3–3.6) | 88 % | 1.01 |
+| `rms / intens > 0.2` | 0.999 (56 %) | 1.07 | 0.990 (57 % / 43 %) | 2.9 (1.7–4.3) | 87 % | 1.02 |
+| `S/N < 200` | 0.993 (63 %) | 1.05 | 0.968 (63 % / 50 %) | 1.7 (0.9–3.6) | 89 % | 1.02 |
+| `S/N < 100` | 0.997 (57 %) | 1.05 | 0.977 (62 % / 46 %) | 2.5 (1.3–4.6) | 87 % | 1.02 |
+| `S/N < 50` | 1.000 (52 %) | 1.07 | 0.996 (53 % / 42 %) | 3.2 (1.8–5.1) | 81 % | 1.04 |
+
+Inner-zone results are identical for every row (0.279–0.281 %). The scatter rule at 0.1
+(per-sample signal-to-noise below 10) is the best self-contained trigger and sits between
+the oracle and the plain cubic fit in the outer zone (median RMS 3.81 % against 3.77 %
+oracle, 3.91 % bilinear, 4.22 % cubic); the signal-to-noise rule at 200 is equivalent
+within the noise of 180 inputs. Both fire later on deep images (2.6 and 2.2 Re) than on
+shallow ones (1.8 and 1.5 Re), which is the intended behaviour: the switch follows the
+noise, not the galaxy. When the signal-to-noise rule fires inside 1 Re (10 % of inputs,
+all shallow and small) the mid zone is not hurt (worst input 1.05× cubic), because a
+ring whose mean is that noisy gains nothing from an unbiased read. Neither trigger ever
+fires on the noiseless images (except `S/N < 200` on 2 of 20, through the numerical
+scatter of the samples). Arms `samp_cubic_rms010` and `samp_cubic_snr200` carry the two
+triggers into the full campaign; `samp_cubic_outer2re` stays as the oracle reference.

@@ -187,6 +187,24 @@ class IsosterConfig(BaseModel):
         "cubic out to the last ring.",
     )
 
+    sampling_cubic_min_snr: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', switch the remaining outward rings "
+        "to bilinear reads once the ring signal-to-noise ratio intens / intens_err has fallen "
+        "below this value on two consecutive outward rings (a ring with intens <= 0 counts "
+        "as below). Needs no size prior: the ring's own statistics decide where noise "
+        "outweighs the bilinear read bias. 0 disables the switch.",
+    )
+
+    sampling_cubic_max_relative_rms: float = Field(
+        0.0,
+        ge=0.0,
+        description="Alternative trigger for the same outward switch: the relative scatter of "
+        "the samples along the ring, rms / intens, above this value on two consecutive "
+        "outward rings. 0 disables it.",
+    )
+
     # Higher-Order Harmonics Fitting
     simultaneous_harmonics: bool = Field(
         False,

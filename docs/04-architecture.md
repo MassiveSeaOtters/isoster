@@ -66,7 +66,11 @@ outside the public docs tree.
   `interpolation_order=3` through `fit_isophote` and `compute_gradient`, while aperture
   photometry keeps reading the raw image. `fit_isophote` falls back to the raw image and
   bilinear reads for rings below `sampling_cubic_min_sma` or above `sampling_cubic_max_sma`
-  (both off at 0). `build_isoster_model` also accepts
+  (both off at 0). The driver's outward loop can also switch to bilinear reads once two
+  consecutive rings look noise-dominated (`sampling_cubic_max_relative_rms` on
+  `rms / intens`, or `sampling_cubic_min_snr` on `intens / intens_err`;
+  `_ring_is_noise_dominated`), a one-way latch like the LSB auto-lock; the radius is
+  reported as `result["sampling_switch_sma"]`. `build_isoster_model` also accepts
   `interp_kind="log_linear"` (linear interpolation of log intensity).
 - `isoster/config.py`: `IsosterConfig` schema and validators.
 - `isoster/model.py`: 2D model reconstruction by radial interpolation. `build_isoster_model()` supports `harmonic_orders=None` (auto-detect from isophote keys) and `use_eccentric_anomaly=None` (auto-detect from isophote dicts, or explicit `True`/`False` override) for correct harmonic evaluation in EA-mode fits.

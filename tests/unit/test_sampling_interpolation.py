@@ -72,6 +72,34 @@ def test_outer_fallback_keeps_cubic_inside_max_sma_and_reads_bilinearly_beyond()
         np.testing.assert_allclose(a["intens"], b["intens"], rtol=1e-12)
 
 
+def test_noise_driven_switch_fires_outward_once_and_only_when_asked():
+    rng = np.random.default_rng(3)
+    # Noise of 3 per pixel on a profile falling from 100: ring S/N passes 50 between sma 20 and 40.
+    image = _exponential_image() + 3.0 * rng.standard_normal((101, 101))
+    cubic_config = IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=40.0, minsma=0.0, sampling_interpolation="cubic")
+    cubic = fit_image(image, None, cubic_config)
+    assert cubic["sampling_switch_sma"] is None
+    switched = fit_image(image, None, cubic_config.model_copy(update={"sampling_cubic_min_snr": 50.0}))
+    switch_sma = switched["sampling_switch_sma"]
+    assert switch_sma is not None and 8.0 < switch_sma < 40.0
+    # The ring that fired and its predecessor were both below the threshold.
+    fired = [iso for iso in switched["isophotes"] if 0 < iso["sma"] <= switch_sma][-2:]
+    assert len(fired) == 2
+    for iso in fired:
+        assert iso["intens"] / iso["intens_err"] < 50.0
+    # Every ring out to the switch is identical to the all-cubic fit; the first one beyond differs.
+    for a, b in zip(cubic["isophotes"], switched["isophotes"]):
+        if 0 < a["sma"] <= switch_sma:
+            np.testing.assert_allclose(a["intens"], b["intens"], rtol=1e-12)
+    beyond = [(a, b) for a, b in zip(cubic["isophotes"], switched["isophotes"]) if a["sma"] > switch_sma]
+    assert beyond and abs(beyond[0][0]["intens"] - beyond[0][1]["intens"]) > 1e-9
+    # The scatter trigger is an alternative route to the same switch.
+    by_rms = fit_image(image, None, cubic_config.model_copy(update={"sampling_cubic_max_relative_rms": 0.2}))
+    assert by_rms["sampling_switch_sma"] is not None
+    # Bilinear mode never reports a switch.
+    assert "sampling_switch_sma" not in fit_image(image, None, IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=20.0))
+
+
 def test_log_linear_renderer_is_exact_for_an_exponential_profile_and_keeps_central_pixel():
     scale = 12.0
     sma = np.array([0.0, 2.0, 4.0, 8.0, 16.0, 32.0])

@@ -3,10 +3,13 @@
 Cubic ring sampling removes the bilinear read bias but reads about 20 % more noise per
 ring (``ring_noise_response.py``), which costs a few percent of truth RMS in the
 noise-dominated outskirts. Every campaign input is refitted from the saved ``samp_cubic``
-configuration with ``sampling_cubic_max_sma`` set per input in units of the PSF FWHM and
-of the reference radius, so that rings beyond that radius return to bilinear reads. Each
-variant is rendered with the linear harmonic-off renderer and scored against the truth
-by zone on one common support. The ``bilinear`` and ``cubic`` variants must reproduce the
+configuration with rings beyond a switch radius read bilinearly: either an oracle radius
+set per input from the known galaxy size or PSF (``sampling_cubic_max_sma``), or a
+self-contained switch that fires on the rings' own statistics
+(``sampling_cubic_min_snr``, ``sampling_cubic_max_relative_rms``). Each variant is
+rendered with the linear harmonic-off renderer and scored against the truth by zone on
+one common support, and the radius at which each switch fired is tabulated against the
+reference radius. The ``bilinear`` and ``cubic`` variants must reproduce the
 saved ``ref_default`` and ``samp_cubic`` profiles exactly, which ties the refits to the
 campaign.
 
@@ -38,12 +41,18 @@ from isoster import IsosterConfig, fit_image
 VARIANTS = {
     "bilinear": lambda row: dict(sampling_interpolation="bilinear"),
     "cubic": lambda row: {},
-    "cubic_max_3psf": lambda row: dict(sampling_cubic_max_sma=3 * row["psf_pix"]),
-    "cubic_max_5psf": lambda row: dict(sampling_cubic_max_sma=5 * row["psf_pix"]),
-    "cubic_max_10psf": lambda row: dict(sampling_cubic_max_sma=10 * row["psf_pix"]),
+    # Oracle switch radii (need the galaxy size): kept as references.
     "cubic_max_1rref": lambda row: dict(sampling_cubic_max_sma=1 * row["reference_pix"]),
     "cubic_max_2rref": lambda row: dict(sampling_cubic_max_sma=2 * row["reference_pix"]),
-    "cubic_max_4rref": lambda row: dict(sampling_cubic_max_sma=4 * row["reference_pix"]),
+    "cubic_max_5psf": lambda row: dict(sampling_cubic_max_sma=5 * row["psf_pix"]),
+    # Self-contained switches driven by the ring's own statistics.
+    "cubic_snr_30": lambda row: dict(sampling_cubic_min_snr=30.0),
+    "cubic_snr_50": lambda row: dict(sampling_cubic_min_snr=50.0),
+    "cubic_snr_100": lambda row: dict(sampling_cubic_min_snr=100.0),
+    "cubic_snr_200": lambda row: dict(sampling_cubic_min_snr=200.0),
+    "cubic_rms_0.1": lambda row: dict(sampling_cubic_max_relative_rms=0.1),
+    "cubic_rms_0.2": lambda row: dict(sampling_cubic_max_relative_rms=0.2),
+    "cubic_rms_0.4": lambda row: dict(sampling_cubic_max_relative_rms=0.4),
 }
 REPLAY = {"bilinear": "ref_default", "cubic": "samp_cubic"}
 
@@ -76,7 +85,7 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
     arms = input_dir / "isoster" / "arms"
     saved_config = yaml.safe_load((arms / "samp_cubic" / "config.yaml").read_text())
 
-    fits_by_variant, models, timings, replay = {}, {}, {}, {}
+    fits_by_variant, models, timings, replay, switches = {}, {}, {}, {}, {}
     for name, overrides in VARIANTS.items():
         config = IsosterConfig(**{**saved_config, **overrides(row)})
         elapsed = []
@@ -86,6 +95,9 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
             elapsed.append(time.perf_counter() - started)
         fits_by_variant[name] = result["isophotes"]
         timings[name] = min(elapsed)
+        # Radius beyond which rings were read bilinearly: the oracle's configured radius,
+        # or the ring at which a self-contained switch fired (None when it never did).
+        switches[name] = overrides(row).get("sampling_cubic_max_sma", result.get("sampling_switch_sma"))
         models[name] = render(image.shape, result["isophotes"])
         if name in REPLAY:
             saved = profile_dicts(load_profile(arms / REPLAY[name] / "profile.fits"))
@@ -103,7 +115,8 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
             depth=scenario.split("_")[0],
             redshift=round(float(scenario[-3:]) / 100, 2),
             variant=name,
-            switch_sma=overrides_switch(name, row),
+            switch_sma=np.nan if switches[name] is None else float(switches[name]),
+            switch_over_reference=np.nan if switches[name] is None else float(switches[name]) / reference,
             fit_time_s=timings[name],
             fit_time_ratio=timings[name] / timings["bilinear"],
             replay_exact=replay.get(name),
@@ -123,10 +136,6 @@ def analyze_input(row: dict, campaign: str, analysis: str, repeats: int) -> list
                 )
             )
     return rows
-
-
-def overrides_switch(name, row):
-    return VARIANTS[name](row).get("sampling_cubic_max_sma", np.nan)
 
 
 def summarize(frame, output: Path) -> str:
@@ -166,6 +175,18 @@ def summarize(frame, output: Path) -> str:
         "## Fit time relative to bilinear, and outer rings held by the gradient check",
         "",
         timing.round(3).to_markdown(),
+        "",
+    ]
+    switched = checks.groupby("variant").switch_sma.apply(lambda s: s.notna().mean()).to_frame("switched_fraction")
+    switched["switch_over_reference_p10"] = checks.groupby("variant").switch_over_reference.quantile(0.1)
+    switched["switch_over_reference_median"] = checks.groupby("variant").switch_over_reference.median()
+    switched["switch_over_reference_p90"] = checks.groupby("variant").switch_over_reference.quantile(0.9)
+    by_depth = checks.pivot_table(index="variant", columns="depth", values="switch_over_reference", aggfunc="median")
+    switched = switched.join(by_depth.add_prefix("median_")).reindex(variants)
+    lines += [
+        "## Where the switch fired, in units of the reference radius (inputs where it fired)",
+        "",
+        switched.round(2).to_markdown(),
         "",
     ]
     text = "\n".join(lines)

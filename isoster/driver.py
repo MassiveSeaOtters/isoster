@@ -59,6 +59,33 @@ def _first_isophote_perturbations(sma0, eps, pa, max_retries):
     return result
 
 
+# Consecutive outward rings that must look noise-dominated before cubic reads give
+# way to bilinear ones; mirrors the LSB auto-lock default.
+SAMPLING_SWITCH_DEBOUNCE = 2
+
+
+def _ring_is_noise_dominated(iso, cfg):
+    """True when a fitted ring's own statistics say noise outweighs the bilinear read bias.
+
+    Two triggers, each off at 0: the ring signal-to-noise ``intens / intens_err`` below
+    ``sampling_cubic_min_snr``, or the relative scatter along the ring ``rms / intens``
+    above ``sampling_cubic_max_relative_rms``. A non-positive ring mean is pure noise
+    and triggers both; a non-finite statistic cannot be assessed and triggers neither.
+    """
+    if cfg.sampling_cubic_min_snr <= 0 and cfg.sampling_cubic_max_relative_rms <= 0:
+        return False
+    intens, intens_err, rms = (iso.get(key) for key in ("intens", "intens_err", "rms"))
+    if intens is None or intens_err is None or rms is None:
+        return False
+    if not (np.isfinite(intens) and np.isfinite(intens_err) and np.isfinite(rms)):
+        return False
+    if intens <= 0:
+        return True
+    if cfg.sampling_cubic_min_snr > 0 and intens_err > 0 and intens / intens_err < cfg.sampling_cubic_min_snr:
+        return True
+    return cfg.sampling_cubic_max_relative_rms > 0 and rms / intens > cfg.sampling_cubic_max_relative_rms
+
+
 def _is_lsb_isophote(iso, maxgerr_thresh):
     """Return True when an outward isophote indicates the LSB regime.
 
@@ -712,6 +739,8 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         "anchor_sma": None,
     }
     active_cfg = cfg
+    # Outward switch from cubic to bilinear reads, driven by the rings' own statistics.
+    sampling_switch = {"consecutive": 0, "sma": None}
 
     if anchor_iso is not None:
         if cfg.lsb_auto_lock:
@@ -752,6 +781,18 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
             # In permissive mode, always update to prevent cascading failures
             if _is_acceptable_stop_code(next_iso["stop_code"]) or active_cfg.permissive_geometry:
                 current_iso = next_iso
+
+            # Noise-driven kernel switch: one-way, outward only. Bilinear reads
+            # carry about 20 % less noise than cubic ones, and the bias they
+            # trade for it is negligible once a ring is noise-dominated.
+            if sampling["interpolation_order"] != 1 and sampling_switch["sma"] is None:
+                if _ring_is_noise_dominated(next_iso, cfg):
+                    sampling_switch["consecutive"] += 1
+                    if sampling_switch["consecutive"] >= SAMPLING_SWITCH_DEBOUNCE:
+                        sampling = dict(sampling_image=image, interpolation_order=1)
+                        sampling_switch["sma"] = float(next_iso["sma"])
+                else:
+                    sampling_switch["consecutive"] = 0
 
             # LSB auto-lock detector: free-mode only. Once locked, the mode
             # stays locked for the rest of outward growth (one-way state
@@ -821,6 +862,10 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         result["first_isophote_failure"] = True
     if retry_log:
         result["first_isophote_retry_log"] = retry_log
+    if cfg.sampling_interpolation == "cubic":
+        # Semi-major axis of the last cubic ring before the noise-driven switch; None
+        # when the switch is off or never fired.
+        result["sampling_switch_sma"] = sampling_switch["sma"]
     if cfg.lsb_auto_lock:
         result["lsb_auto_lock"] = True
         result["lsb_auto_lock_sma"] = lsb_state["transition_sma"]
