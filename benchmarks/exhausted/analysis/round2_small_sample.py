@@ -1,4 +1,4 @@
-"""Truth-based measurement of a round-2 (PSF-convolved) Huang2013 campaign.
+"""Truth-based measurement of a round-2 (PSF-convolved) campaign (Huang2013 or S4G).
 
 Every arm of every tool is rendered with several harmonic-off radial interpolators
 (Isoster linear, cubic and log-linear; the Photutils spline painter) and with each
@@ -36,29 +36,40 @@ from benchmarks.exhausted.analysis.residual_zones import (
 from isoster.model import build_isoster_model
 
 FROZEN_MOCK_COMMIT = "8632e1fd1807d43c384d3a4a5355a39b95b49e26"
-MANIFEST_NAME = "inputs/huang2013/runs/huang2013_publication_single_band_psf.yaml"
-SCENARIOS = ["noiseless_z005"] + [f"{depth}_z{z}" for z in ("005", "020", "035", "050") for depth in ("wide", "deep")]
+# Per campaign dataset folder: the generator manifest inside the frozen source and the scenario names.
+DATASETS = {
+    "huang2013": dict(
+        manifest="inputs/huang2013/runs/huang2013_publication_single_band_psf.yaml",
+        scenarios=["noiseless_z005"]
+        + [f"{depth}_z{z}" for z in ("005", "020", "035", "050") for depth in ("wide", "deep")],
+    ),
+    "s4g": dict(
+        manifest="inputs/cs4g/runs/cs4g_publication_single_band_psf.yaml",
+        scenarios=[f"{depth}_z{z}" for z in ("005", "010") for depth in ("noiseless", "wide", "deep")],
+    ),
+}
 PRIMARY = {"isoster": "ref_default", "photutils": "baseline_median", "autoprof": "baseline"}
 RENDERERS = ("linear_off", "cubic_off", "log_off", "spline_off", "native")
 ZONES = ("all", "inner", "mid", "outer")
 
-mock = mock_manifest = mock_galaxies = profit_executable = None
+mock = mock_manifest = mock_galaxies = profit_executable = scenarios = None
 
 
-def initialize_mock(source: str, executable: str) -> None:
+def initialize_mock(source: str, executable: str, dataset: str) -> None:
     """Load the frozen round-2 generator in each worker without editing that repository."""
-    global mock, mock_manifest, mock_galaxies, profit_executable
+    global mock, mock_manifest, mock_galaxies, profit_executable, scenarios
     source = Path(source)
     os.environ["DYLD_LIBRARY_PATH"] = str(Path(executable).parent)
     spec = importlib.util.spec_from_file_location("round2_frozen_generator", source / "scripts/generate_mocks.py")
     mock = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mock
     spec.loader.exec_module(mock)
-    mock_manifest = mock.resolve_run_manifest(source / MANIFEST_NAME)
+    mock_manifest = mock.resolve_run_manifest(source / DATASETS[dataset]["manifest"])
     mock_galaxies = {
         mock.sanitize_filename(g.name): g for g in mock.load_galaxies(source / mock_manifest.model_file, None, False)
     }
     profit_executable = executable
+    scenarios = DATASETS[dataset]["scenarios"]
 
 
 def render(tool, table, record, arm_dir, shape, renderer):
@@ -93,7 +104,7 @@ def analyze_galaxy(name: str, records: list[dict], output: str, inner_cut_pix: f
     target.mkdir(parents=True, exist_ok=False)
     galaxy = mock_galaxies[name]
     truth_cache, verification, measured = {}, [], []
-    for scenario in SCENARIOS:
+    for scenario in scenarios:
         subset = [r for r in records if r["scenario"] == scenario]
         if not subset:
             continue
@@ -203,9 +214,9 @@ def analyze_galaxy(name: str, records: list[dict], output: str, inner_cut_pix: f
     return dict(galaxy=name, records=len(measured), elapsed_seconds=round(time.monotonic() - started, 1))
 
 
-def collect_records(campaign: Path) -> list[dict]:
+def collect_records(campaign: Path, dataset: str) -> list[dict]:
     rows = []
-    for path in sorted((campaign / "huang2013").glob("*/*/arms/*/run_record.json")):
+    for path in sorted((campaign / dataset).glob("*/*/arms/*/run_record.json")):
         galaxy, scenario = path.parents[3].name.split("__")
         record = json.loads(path.read_text())
         rows.append(
@@ -228,7 +239,7 @@ def summarize(frame, output: Path) -> str:
     frame = frame.copy()
     frame["rms"] = 100 * frame.truth_relative_rms
     frame["bias"] = 100 * frame.flux_bias
-    lines = ["# Round-2 small-sample summary", ""]
+    lines = ["# Round-2 truth-based summary", ""]
     ok = frame[frame.status.eq("ok") & frame.model_available]
     status = (
         frame[frame.zone.eq("all") & frame.renderer.eq("linear_off")]
@@ -311,6 +322,9 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign", type=Path, required=True, help="<output_root>/<campaign_name>")
+    parser.add_argument(
+        "--dataset", default="huang2013", choices=sorted(DATASETS), help="dataset folder in the campaign"
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mock-source", type=Path, required=True)
     parser.add_argument("--profit-cli", type=Path, required=True)
@@ -320,7 +334,7 @@ def main() -> None:
     head = subprocess.check_output(["git", "-C", str(args.mock_source), "rev-parse", "HEAD"], text=True).strip()
     if head != FROZEN_MOCK_COMMIT:
         raise ValueError(f"Wrong mock generator revision: {head}")
-    rows = collect_records(args.campaign)
+    rows = collect_records(args.campaign, args.dataset)
     if not rows:
         raise ValueError("No run records found")
     names = sorted({r["galaxy"] for r in rows})
@@ -341,7 +355,9 @@ def main() -> None:
         + "\n"
     )
     with ProcessPoolExecutor(
-        max_workers=args.workers, initializer=initialize_mock, initargs=(str(args.mock_source), str(args.profit_cli))
+        max_workers=args.workers,
+        initializer=initialize_mock,
+        initargs=(str(args.mock_source), str(args.profit_cli), args.dataset),
     ) as executor:
         futures = [
             executor.submit(

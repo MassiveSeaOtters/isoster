@@ -40,9 +40,10 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [ ] Edge case, not now: cuspy inner profiles do occur in space-telescope or AO images of
       nearby massive galaxies; cubic sampling on unconvolved cusps needs the inner bilinear
       fallback (`sampling_cubic_min_sma`), see the 2026-10-09 gap review.
-- [ ] S4G: campaign running (chained after Huang2013); add a dataset switch to
-      `round2_small_sample.py` (dataset folder, generator manifest, model file), then score
-      and report it the same way.
+- [ ] S4G: campaign running (chained after Huang2013). Dataset switch added to
+      `round2_small_sample.py` (`--dataset s4g`: CS4G generator manifest, six scenarios),
+      validated on one complete S4G galaxy copied to scratch (truth matched exactly); score
+      and report the full campaign when it finishes.
 - [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
       cubic sampling as default (switch stays opt-in); as a separate commit with version
       bump, regression-test updates and draft-timing re-archive.
