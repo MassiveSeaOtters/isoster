@@ -422,6 +422,30 @@ class IsosterConfigMB(BaseModel):
         "(recommended for ε > 0.3). Same semantics as single-band.",
     )
 
+    # --- Ring sampling kernel (copied, 1.1.0) ---
+    sampling_interpolation: str = Field(
+        "cubic",
+        pattern="^(bilinear|cubic)$",
+        description="Interpolation used to read every band along each ellipse. 'cubic' "
+        "(default, as in single-band since 1.1.0) reads prefiltered cubic B-spline "
+        "coefficients, computed once per band; 'bilinear' averages the four surrounding "
+        "pixels and overestimates a steep convex profile between pixel centres. Same "
+        "semantics, fallbacks and costs as the single-band field; variance maps and masks "
+        "are always read bilinearly and nearest-pixel respectively.",
+    )
+    sampling_cubic_min_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma below this value "
+        "(pixels) are still read bilinearly. Same semantics as single-band.",
+    )
+    sampling_cubic_max_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma above this value "
+        "(pixels) are read bilinearly instead. Same semantics as single-band.",
+    )
+
     # --- Permissive geometry mode (copied) ---
     permissive_geometry: bool = Field(
         default=False,

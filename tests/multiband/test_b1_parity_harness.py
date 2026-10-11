@@ -25,6 +25,7 @@ from isoster.config import IsosterConfig
 from isoster.fitting import fit_isophote
 from isoster.multiband.config_mb import IsosterConfigMB
 from isoster.multiband.fitting_mb import fit_isophote_mb
+from isoster.sampling import prepare_sampling_image
 
 TRUE = {"x0": 128.0, "y0": 128.0, "eps": 0.25, "pa": 0.45}
 START = {"x0": 128.0, "y0": 128.0, "eps": 0.20, "pa": 0.40}
@@ -105,7 +106,22 @@ def run_pair(integrator, wls, eccentric_anomaly, sigma_bg):
         fit_per_band_intens_jointly=(integrator != "median"),
     )
     variance_map = VARIANCE if wls else None
-    sb = fit_isophote(IMAGE, None, SMA, START, single, variance_map=variance_map)
+    # The single-band driver, not fit_isophote, prepares the ring-read kernel, so the
+    # harness prepares it here exactly as the driver does; fit_isophote_mb prepares its
+    # own from the same configuration field. Both paths therefore read with the
+    # default cubic kernel, through scipy on one side and the numba stack kernel on
+    # the other.
+    sampling_image, interpolation_order = prepare_sampling_image(IMAGE, single.sampling_interpolation)
+    sb = fit_isophote(
+        IMAGE,
+        None,
+        SMA,
+        START,
+        single,
+        variance_map=variance_map,
+        sampling_image=sampling_image,
+        interpolation_order=interpolation_order,
+    )
     mb = fit_isophote_mb([IMAGE], None, SMA, START, multi, variance_maps=[variance_map] if wls else None)
     return sb, mb
 

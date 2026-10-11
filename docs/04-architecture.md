@@ -69,8 +69,13 @@ outside the public docs tree.
   a one-time cost proportional to the image area (about 20 ms per megapixel); a future
   optimisation is to prefilter only the region the rings can reach. The forced-photometry
   path (`_fit_image_template_forced`) uses the same kernel, fallbacks and the template's
-  switch radius. The multi-band driver has its own sampling path and still reads
-  bilinearly. `fit_isophote` falls back to the raw image and
+  switch radius. Non-finite pixels are flagged in the mask (`mask_non_finite_pixels`)
+  and replaced by their nearest finite neighbour before the prefilter
+  (`fill_non_finite_pixels`), because a zeroed hole leaks into the neighbouring spline
+  coefficients. The multi-band driver mirrors all of this with its own numba kernel
+  (`prepare_sampling_stack`, `cubic_sample_stack`, `ring_sampling_stack` in
+  `isoster/multiband/`), driven by `IsosterConfigMB.sampling_interpolation`.
+  `fit_isophote` falls back to the raw image and
   bilinear reads for rings below `sampling_cubic_min_sma` or above `sampling_cubic_max_sma`
   (both off at 0). The driver's outward loop can also switch to bilinear reads once two
   consecutive rings look noise-dominated (`sampling_cubic_max_relative_rms` on

@@ -18,11 +18,12 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import map_coordinates, spline_filter
 
 from .._shared import _prepare_mask_float
 from ..numba_kernels import compute_ellipse_coords
-from .numba_kernels_mb import bilinear_sample_stack
+from ..sampling import fill_non_finite_pixels
+from .numba_kernels_mb import bilinear_sample_stack, cubic_sample_stack
 
 
 # Multi-band counterpart of ``isoster.sampling.IsophoteData``.
@@ -76,6 +77,47 @@ class MultiIsophoteData:
     intens_per_band: Optional[List[np.ndarray]] = field(default=None)
     phi_per_band: Optional[List[np.ndarray]] = field(default=None)
     variances_per_band: Optional[List[np.ndarray]] = field(default=None)
+
+
+def prepare_sampling_stack(
+    image_stack: NDArray[np.float64], interpolation: str = "bilinear"
+) -> Tuple[NDArray[np.float64], int]:
+    """Return ``(sampling_stack, interpolation_order)`` for the ring reads.
+
+    Multi-band counterpart of :func:`isoster.sampling.prepare_sampling_image`.
+    For ``"cubic"`` every band is converted once into cubic B-spline
+    coefficients, the only O(pixels) step (about 20 ms per megapixel per
+    band), and each later ring read is one :func:`cubic_sample_stack` call.
+    Non-finite pixels are replaced by their nearest finite neighbour before
+    filtering (:func:`isoster.sampling.fill_non_finite_pixels`) so they cannot poison the
+    coefficients; the kernel still returns NaN for any sample whose bilinear
+    footprint touches one, so such pixels are excluded exactly as they are
+    under bilinear reads.
+    """
+    if interpolation == "bilinear":
+        return image_stack, 1
+    if interpolation != "cubic":
+        raise ValueError(f"Unknown sampling interpolation: {interpolation!r}")
+    return np.stack([spline_filter(fill_non_finite_pixels(band), order=3) for band in image_stack], axis=0), 3
+
+
+def ring_sampling_stack(
+    config,
+    sma: float,
+    image_stack: NDArray[np.float64],
+    sampling_stack: NDArray[np.float64],
+    interpolation_order: int,
+) -> Tuple[NDArray[np.float64], int]:
+    """Apply the inner and outer bilinear fallbacks of a cubic read to one ring.
+
+    Mirrors the rule in :func:`isoster.fitting.fit_isophote`: rings below
+    ``sampling_cubic_min_sma`` or above a non-zero ``sampling_cubic_max_sma``
+    read the raw stack bilinearly; every other ring keeps the prepared kernel.
+    """
+    falls_back = sma < config.sampling_cubic_min_sma or 0 < config.sampling_cubic_max_sma < sma
+    if interpolation_order != 1 and falls_back:
+        return image_stack, 1
+    return sampling_stack, interpolation_order
 
 
 def _stack_images(images: Sequence[NDArray[np.floating]]) -> NDArray[np.float64]:
@@ -244,8 +286,16 @@ def _sample_along_ellipse(
     use_eccentric_anomaly: bool,
     *,
     loose_validity: bool = False,
+    sampling_stack: Optional[NDArray[np.float64]] = None,
+    interpolation_order: int = 1,
 ) -> MultiIsophoteData:
     """Core multi-band sampling kernel.
+
+    ``sampling_stack`` / ``interpolation_order`` come from
+    :func:`prepare_sampling_stack`: order 3 reads the spline coefficients in
+    ``sampling_stack`` with the cubic kernel, anything else reads
+    ``image_stack`` bilinearly. Variance maps are always read bilinearly and
+    masks at the nearest pixel, as in single-band.
 
     Two modes coexist (decision D9 + D9 backport):
 
@@ -278,7 +328,10 @@ def _sample_along_ellipse(
     # alloc) which dominates over the actual interpolation work for
     # small N. Falls back to per-band scipy when numba is unavailable.
     intens_full = np.empty((n_bands, n_samples), dtype=np.float64)
-    bilinear_sample_stack(image_stack, y_coords, x_coords, intens_full)
+    if interpolation_order == 3:
+        cubic_sample_stack(sampling_stack, image_stack, y_coords, x_coords, intens_full)
+    else:
+        bilinear_sample_stack(image_stack, y_coords, x_coords, intens_full)
 
     var_full: Optional[NDArray[np.float64]] = None
     if var_stack is not None:
@@ -387,9 +440,14 @@ def extract_isophote_data_multi_prepared(
     use_eccentric_anomaly: bool = False,
     *,
     loose_validity: bool = False,
+    sampling_stack: Optional[NDArray[np.float64]] = None,
+    interpolation_order: int = 1,
 ) -> MultiIsophoteData:
     """
     Fast-path multi-band sampler for callers that pre-resolved the inputs.
+
+    ``sampling_stack`` and ``interpolation_order`` select the ring-read kernel
+    (see :func:`prepare_sampling_stack`); the default reads bilinearly.
 
     The driver layer hits this function once per isophote-fit iteration
     (and twice per gradient call), so the per-call cost dominates the
@@ -421,6 +479,8 @@ def extract_isophote_data_multi_prepared(
         pa,
         use_eccentric_anomaly,
         loose_validity=loose_validity,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
 
 

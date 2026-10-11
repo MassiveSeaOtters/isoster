@@ -42,9 +42,10 @@ from .numba_kernels_mb import (
 )
 from .sampling_mb import (
     MultiIsophoteData,
-    extract_isophote_data_multi,
     extract_isophote_data_multi_prepared,
     prepare_inputs,
+    prepare_sampling_stack,
+    ring_sampling_stack,
 )
 
 # Per-band column-key naming. Centralized so ``_empty_isophote_dict``,
@@ -1150,6 +1151,8 @@ def compute_joint_gradient(
     previous_gradient: Optional[float] = None,
     current_data: Optional[MultiIsophoteData] = None,
     pooling_weights: Optional[NDArray[np.float64]] = None,
+    sampling_stack: Optional[NDArray[np.float64]] = None,
+    interpolation_order: int = 1,
 ) -> Tuple[float, Optional[float], List[float], List[Optional[float]]]:
     """
     Compute one combined-scalar radial gradient from multiple bands.
@@ -1211,6 +1214,8 @@ def compute_joint_gradient(
             pa,
             use_eccentric_anomaly=config.use_eccentric_anomaly,
             loose_validity=loose_validity,
+            sampling_stack=sampling_stack,
+            interpolation_order=interpolation_order,
         )
 
     if _ring_is_empty(data_c):
@@ -1235,6 +1240,8 @@ def compute_joint_gradient(
         pa,
         use_eccentric_anomaly=config.use_eccentric_anomaly,
         loose_validity=loose_validity,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
 
     if _ring_is_empty(data_g):
@@ -1336,6 +1343,8 @@ def compute_joint_gradient(
             pa,
             use_eccentric_anomaly=config.use_eccentric_anomaly,
             loose_validity=loose_validity,
+            sampling_stack=sampling_stack,
+            interpolation_order=interpolation_order,
         )
         if not _ring_is_empty(data_g2):
             delta_r_2 = 2 * config.astep if config.linear_growth else sma * 2 * config.astep
@@ -1574,9 +1583,17 @@ def fit_isophote_mb(
     masks_resolved: Optional[List[Optional[NDArray[np.float64]]]] = None,
     var_stack: Optional[NDArray[np.float64]] = None,
     outer_reference_geom: Optional[Dict[str, float]] = None,
+    sampling_stack: Optional[NDArray[np.float64]] = None,
+    interpolation_order: int = 1,
 ) -> Dict[str, object]:
     """
     Fit a single multi-band isophote at the given semi-major axis.
+
+    ``sampling_stack`` / ``interpolation_order`` are the ring-read kernel the
+    driver prepared once with :func:`prepare_sampling_stack`; a standalone
+    caller that passes neither gets the kernel ``config.sampling_interpolation``
+    asks for, prepared here (one prefilter per call). The inner and outer
+    bilinear fallbacks are applied per ring, as in single-band.
 
     Mirrors :func:`isoster.fitting.fit_isophote` but with the joint
     design-matrix solver, the combined-scalar radial gradient, per-band
@@ -1602,6 +1619,13 @@ def fit_isophote_mb(
     elif var_stack is None and variance_maps is not None:
         # Caller passed image_stack and masks but not var_stack: resolve.
         _, _, var_stack = prepare_inputs(images, masks, variance_maps)
+
+    # Ring-read kernel: prepared by the driver, or here for a standalone call.
+    if sampling_stack is None:
+        sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, config.sampling_interpolation)
+    sampling_stack, interpolation_order = ring_sampling_stack(
+        config, sma, image_stack, sampling_stack, interpolation_order
+    )
 
     x0 = start_geometry["x0"]
     y0 = start_geometry["y0"]
@@ -1743,6 +1767,8 @@ def fit_isophote_mb(
             pa,
             use_eccentric_anomaly=config.use_eccentric_anomaly,
             loose_validity=loose_validity,
+            sampling_stack=sampling_stack,
+            interpolation_order=interpolation_order,
         )
         last_data = data
         total_points = data.valid_count
@@ -2089,6 +2115,8 @@ def fit_isophote_mb(
                 previous_gradient=previous_gradient,
                 current_data=data,
                 pooling_weights=pooling_weights,
+                sampling_stack=sampling_stack,
+                interpolation_order=interpolation_order,
             )
             cached_gradient = grad_joint
             cached_gradient_error = grad_err_joint
@@ -3625,9 +3653,21 @@ def extract_forced_photometry_mb(
     variance_maps: Union[None, NDArray[np.floating], Sequence[NDArray[np.floating]]] = None,
     *,
     return_ring_data: bool = False,
+    image_stack: Optional[NDArray[np.float64]] = None,
+    masks_resolved: Optional[List[Optional[NDArray[np.float64]]]] = None,
+    var_stack: Optional[NDArray[np.float64]] = None,
+    sampling_stack: Optional[NDArray[np.float64]] = None,
+    interpolation_order: int = 1,
 ) -> Union[Dict[str, object], Tuple[Dict[str, object], object]]:
     """
     Single-isophote forced multi-band extraction (no fitting).
+
+    The driver's template path passes the pre-resolved stacks and the ring-read
+    kernel it prepared once (``sampling_stack`` / ``interpolation_order`` from
+    :func:`prepare_sampling_stack`), so forced rings read with the same kernel
+    as a free fit, inner and outer fallbacks included. Without them the ring is
+    resolved from ``images`` on every call and read with the kernel
+    ``config.sampling_interpolation`` asks for.
 
     Ring samples are sigma-clipped with ``config.sclip`` / ``nclip``
     (shared-validity AND across bands) before any statistics, mirroring
@@ -3650,17 +3690,28 @@ def extract_forced_photometry_mb(
     debug = bool(config.debug)
     band_list = list(bands)
     loose_validity = bool(config.loose_validity)
-    data = extract_isophote_data_multi(
-        images,
-        masks,
+    if image_stack is None or masks_resolved is None:
+        image_stack, masks_resolved, var_stack = prepare_inputs(images, masks, variance_maps)
+    elif var_stack is None and variance_maps is not None:
+        _, _, var_stack = prepare_inputs(images, masks, variance_maps)
+    if sampling_stack is None:
+        sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, config.sampling_interpolation)
+    sampling_stack, interpolation_order = ring_sampling_stack(
+        config, sma, image_stack, sampling_stack, interpolation_order
+    )
+    data = extract_isophote_data_multi_prepared(
+        image_stack,
+        masks_resolved,
+        var_stack,
         x0,
         y0,
         sma,
         eps,
         pa,
         use_eccentric_anomaly=config.use_eccentric_anomaly,
-        variance_maps=variance_maps,
         loose_validity=loose_validity,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
     # Sigma-clip the ring samples before any statistics, mirroring the
     # single-band forced path and the iteration loop. Without this,

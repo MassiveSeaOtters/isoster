@@ -36,7 +36,7 @@ from .fitting_mb import (
     extract_forced_photometry_mb,
     fit_isophote_mb,
 )
-from .sampling_mb import prepare_inputs
+from .sampling_mb import prepare_inputs, prepare_sampling_stack
 
 ACCEPTABLE_STOP_CODES = {0, 1, 2}
 
@@ -410,6 +410,9 @@ def _delegate_single_band(
         debug=config_mb.debug,
         integrator=config_mb.integrator,
         use_eccentric_anomaly=config_mb.use_eccentric_anomaly,
+        sampling_interpolation=config_mb.sampling_interpolation,
+        sampling_cubic_min_sma=config_mb.sampling_cubic_min_sma,
+        sampling_cubic_max_sma=config_mb.sampling_cubic_max_sma,
         permissive_geometry=config_mb.permissive_geometry,
         max_retry_first_isophote=config_mb.max_retry_first_isophote,
         first_isophote_fail_count=config_mb.first_isophote_fail_count,
@@ -627,6 +630,16 @@ def _fit_image_template_forced_mb(
     geometry).
     """
     template_list = _resolve_template_mb(template)
+    # Same stacks and ring-read kernel as a free fit, prepared once for the whole template.
+    image_stack, masks_resolved, var_stack = prepare_inputs(images, masks, variance_maps)
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, config.sampling_interpolation)
+    prepared = dict(
+        image_stack=image_stack,
+        masks_resolved=masks_resolved,
+        var_stack=var_stack,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
+    )
 
     # Warn-and-ignore validators. The features are no-ops in forced
     # mode but their being on indicates the user may have a config
@@ -692,6 +705,7 @@ def _fit_image_template_forced_mb(
                     config=config,
                     variance_maps=variance_maps,
                     return_ring_data=True,
+                    **prepared,
                 )
                 ring_data_per_row.append(ring)
             else:
@@ -706,6 +720,7 @@ def _fit_image_template_forced_mb(
                     bands=bands,
                     config=config,
                     variance_maps=variance_maps,
+                    **prepared,
                 )
                 ring_data_per_row.append(None)
         isophotes.append(iso)
@@ -939,6 +954,9 @@ def fit_image_multiband(
         masks,
         variance_maps,
     )
+    # Ring-read kernel, prepared once per fit (spline coefficients per band for
+    # cubic) and threaded through every per-isophote call like the stacks above.
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, config.sampling_interpolation)
 
     h, w = np.asarray(images[0]).shape
     x0 = config.x0 if config.x0 is not None else w / 2.0
@@ -971,6 +989,8 @@ def fit_image_multiband(
         image_stack=image_stack,
         masks_resolved=masks_resolved,
         var_stack=var_stack,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
 
     retry_log: List[Dict[str, object]] = []
@@ -993,6 +1013,8 @@ def fit_image_multiband(
                 image_stack=image_stack,
                 masks_resolved=masks_resolved,
                 var_stack=var_stack,
+                sampling_stack=sampling_stack,
+                interpolation_order=interpolation_order,
             )
             retry_log.append(
                 {
@@ -1030,6 +1052,8 @@ def fit_image_multiband(
                 image_stack=image_stack,
                 masks_resolved=masks_resolved,
                 var_stack=var_stack,
+                sampling_stack=sampling_stack,
+                interpolation_order=interpolation_order,
             )
             failed_initial.append(probe_iso)
             if _is_acceptable(probe_iso):
@@ -1077,6 +1101,8 @@ def fit_image_multiband(
                 image_stack=image_stack,
                 masks_resolved=masks_resolved,
                 var_stack=var_stack,
+                sampling_stack=sampling_stack,
+                interpolation_order=interpolation_order,
             )
             inwards_results.append(next_iso)
             if _is_acceptable(next_iso) or config.permissive_geometry:
@@ -1133,6 +1159,8 @@ def fit_image_multiband(
                 image_stack=image_stack,
                 masks_resolved=masks_resolved,
                 var_stack=var_stack,
+                sampling_stack=sampling_stack,
+                interpolation_order=interpolation_order,
                 outer_reference_geom=outer_ref_geom,
             )
             if config.lsb_auto_lock:

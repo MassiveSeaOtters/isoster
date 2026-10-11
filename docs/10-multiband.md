@@ -230,13 +230,23 @@ pre-merge review pass.
     the rows with `lsb_auto_lock_anchor=False` are frozen, and those do
     share the anchor's geometry exactly in both validity modes.
 
-14. **Ring reads are bilinear, unlike single-band.** Since 1.1.0 the single-band
-    driver reads rings with a cubic B-spline by default
-    (`sampling_interpolation="cubic"`); the multi-band sampler
-    (`sampling_mb.py`) has its own `map_coordinates` path with `order=1` and
-    does not read that setting. Multi-band intensities therefore carry the
-    bilinear read bias described in the configuration reference until the
-    kernel is wired through here.
+14. **Ring reads use the same kernel as single-band.** `IsosterConfigMB` carries
+    `sampling_interpolation` (default `"cubic"`, as in single-band since 1.1.0)
+    with the same `sampling_cubic_min_sma` / `sampling_cubic_max_sma`
+    fallbacks. The driver prefilters every band once per fit (10 ms for two
+    500 px bands, 24 ms for five) and a numba kernel reads the coefficient
+    stack, matching scipy's cubic read to 1e-14; the forced-photometry path and
+    the B=1 delegation use the same field. Before this, the multi-band sampler
+    always read bilinearly, so a band fitted inside a stack differed from the
+    same band fitted alone by the whole bilinear read bias (1.0 % RMS, 2.5 %
+    worst, on a PSF-convolved n=2 Sersic); it now agrees to 0.05 % RMS. Cost on
+    a 300 px image, measured on an idle machine: B=2 fits 115 → 121 ms and B=5
+    195 → 204 ms (5 %), against 53 → 59 ms single-band; the numba cubic read is
+    2.6 to 4.4 times the bilinear one per ring (1.7–13 µs). Variance maps are
+    still read bilinearly and masks at the nearest pixel, non-finite pixels are
+    excluded exactly as under bilinear reads, and the two self-contained
+    outward switch triggers (`sampling_cubic_max_relative_rms`,
+    `sampling_cubic_min_snr`) remain single-band only.
 
 ## What it does
 

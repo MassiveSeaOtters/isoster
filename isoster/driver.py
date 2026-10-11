@@ -5,7 +5,7 @@ import numpy as np
 
 from .config import IsosterConfig
 from .fitting import fit_isophote
-from .sampling import prepare_sampling_image
+from .sampling import mask_non_finite_pixels, prepare_sampling_image
 
 ACCEPTABLE_STOP_CODES = {0, 1, 2}
 
@@ -591,7 +591,10 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     # 1. Fit Central Pixel (Approximation)
     central_result = fit_central_pixel(image, mask, x0, y0, debug=cfg.debug, config=cfg, variance_map=variance_map)
 
-    # Image (or its cubic spline coefficients) that every ring sample reads from.
+    # Image (or its cubic spline coefficients) that every ring sample reads from. Non-finite
+    # pixels exclude themselves from a bilinear read but not from the coefficients, so a
+    # cubic read needs them in the mask.
+    mask = mask_non_finite_pixels(image, mask, cfg.sampling_interpolation)
     sampling_image, interpolation_order = prepare_sampling_image(image, cfg.sampling_interpolation)
     sampling = dict(sampling_image=sampling_image, interpolation_order=interpolation_order)
 
@@ -924,6 +927,7 @@ def _fit_image_template_forced(image, mask, config, template_isophotes, variance
     # Same ring-read kernel as a free fit: cubic spline coefficients prepared once, with
     # the inner and outer bilinear fallbacks and the template's switch radius applied
     # ring by ring.
+    mask = mask_non_finite_pixels(image, mask, config.sampling_interpolation)
     sampling_image, interpolation_order = prepare_sampling_image(image, config.sampling_interpolation)
 
     def ring_sampling(sma):
