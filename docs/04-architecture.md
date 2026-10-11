@@ -593,6 +593,17 @@ onto one mechanism: at a matched threshold the two routes agree exactly.
 Both archives are gated in docs CI by `check_harmonic_scale.py`; see
 `docs/05-testing.md` for the rules on changing either.
 
+### SGA-2020 real-data spot check (`benchmarks/sga2020/`)
+
+`cubic_spot_check.py` fits a dozen `benchmark_sample1` cutouts from the local
+SGA-2020 benchmark set three ways (bilinear read, cubic read, cubic read with
+masked pixels set to NaN so the prefilter fills them) under the `sga_isoster`
+campaign settings, and compares them ring by ring and through the campaign's
+data residual (image minus rendered model, in noise units). It reads the data
+folders only and writes to `outputs/benchmark_sga2020/`. The 2026-10-12 record in
+`docs/publication/reference/` is what cleared the cubic default for real data and
+decided against filling masked pixels before the prefilter.
+
 ### Controlled three-way timing (`benchmarks/timing/`)
 
 The Part B timing study keeps scientific accuracy and timing eligibility as
