@@ -1,3 +1,24 @@
+# Renderer odd-harmonic frame fix — 2026-10-12
+
+Branch `feature/renderer-odd-harmonic-unwrap-20261012`. Found on the SGA bm1 round-2
+smoke (sga_isoster): the cubic and bilinear fits of UGC02446 agree to 0.001 in every
+ring parameter yet the harmonics-on renders differ by 2 sigma rms at 12-20 px.
+
+- [x] `build_isoster_model`: negate the odd-order harmonics of every ring the π-unwrap
+      rotates by an odd number of half-turns (even orders are invariant); regression
+      test `test_pa_unwrap_flips_odd_harmonics_with_the_frame`.
+- [x] Same fix in the benchmark photutils wrapper `baseline_shared.build_photutils_model_image`
+      (a3, b3 follow the unwrapped pa).
+- [x] Version 1.1.1; pandas and tabulate declared in the `dev` extra (the benchmark
+      analysis modules and `tests/unit/test_autoprof_center_extent.py` import them).
+- [ ] Exposure of the round-2 mock campaigns: census of ok fits with a rotated ring,
+      paired old/new rescoring of the `native` renderer rows
+      (`benchmarks/exhausted/analysis/renderer_frame_fix.py`); the `log_off` headline
+      is harmonics-off and unaffected. Record under `docs/publication/reference/`.
+- [ ] Downstream: sga_isoster must re-render the isoster `model.fits` of bm1 v3 and
+      re-run the afterburner before any residual metric from a harmonics-on render
+      is quoted (37 % of bm1_batch01 `ref_default` fits carry a > π/2 jump).
+
 # Isoster vs AutoProf gap review — 2026-10-09
 
 Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-review`).

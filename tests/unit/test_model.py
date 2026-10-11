@@ -433,6 +433,49 @@ class TestModel(unittest.TestCase):
             err_msg="Explicit use_eccentric_anomaly=False should override isophote flag",
         )
 
+    def test_pa_unwrap_flips_odd_harmonics_with_the_frame(self):
+        """Inner rings written as pa + pi must not change the rendered model.
+
+        The renderer unwraps pa with period pi so it can interpolate it over sma, so
+        every ring outward of a > pi/2 jump is evaluated in a frame rotated by pi.
+        The ellipse is unchanged, but sin(n*theta) and cos(n*theta) flip sign for
+        odd n, so the odd-order coefficients of the rotated rings must be negated.
+        Two lists that describe the same isophotes, one with its four inner rings
+        written as pa + pi with a3, b3, a5, b5 negated, must render identically;
+        the even orders a4, b4 are left alone.
+        """
+        shape = (121, 121)
+        base = [
+            {
+                "x0": 60.0,
+                "y0": 60.0,
+                "sma": float(s),
+                "eps": 0.3,
+                "pa": 0.4,
+                "intens": 100.0 * np.exp(-s / 15.0),
+                "a3": 0.02,
+                "b3": -0.015,
+                "a4": 0.01,
+                "b4": 0.005,
+                "a5": 0.008,
+                "b5": -0.004,
+            }
+            for s in np.arange(1.0, 41.0)
+        ]
+        rotated = [dict(iso) for iso in base]
+        for iso in rotated[:4]:
+            iso["pa"] += np.pi
+            for key in ("a3", "b3", "a5", "b5"):
+                iso[key] = -iso[key]
+
+        model_base = build_isoster_model(shape, base, use_harmonics=True)
+        model_rotated = build_isoster_model(shape, rotated, use_harmonics=True)
+        np.testing.assert_allclose(model_rotated, model_base, rtol=0, atol=1e-9)
+
+        # The harmonics are large enough that a sign error would have been visible.
+        model_off = build_isoster_model(shape, base, use_harmonics=False)
+        self.assertGreater(np.max(np.abs(model_base - model_off)), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
