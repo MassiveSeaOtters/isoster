@@ -123,10 +123,14 @@ def extract_claims(results: Dict[str, object]) -> Dict[str, float]:
 
     # --- clean-configuration agreement ------------------------------------
     # Reported per radius as well as worst-case. The worst case alone would
-    # hide the structure: agreement degrades at small radii because the ring
-    # is only a few pixels across a quarter of an m=4 cycle, which is
-    # pixelation of the fixture rather than disagreement between the tools.
-    # Quoting one number would make that look like the tools' error floor.
+    # hide the structure: for photutils and AutoProf agreement degrades at
+    # small radii, where the ring is only a few pixels across a quarter of an
+    # m=4 cycle. Quoting one number would make that look like every tool's
+    # error floor. isoster's own per-radius trend (2.18 % at sma 12 falling to
+    # 0.13 % at sma 45 in the archive made with bilinear ring reads) vanished
+    # when the cubic read became the default in 1.1.0 (0.01 % at every radius),
+    # so that trend was the read kernel smoothing the planted modes, not the
+    # fixture: a per-radius table is what made the distinction visible.
     for tool in TOOLS:
         values: List[float] = []
         for index, sma in enumerate(radii):

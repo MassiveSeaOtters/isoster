@@ -3,8 +3,8 @@
     "mode": "pilot",
     "fixture": "sersic_n2_compact",
     "seed_block": 500000,
-    "commit": "43d31720979b56fe5b7686d947b66e423b55d263",
-    "dirty": true,
+    "commit": "cb1f4531b3ca327ab4ecbac8499e3c358e8d2103",
+    "dirty": false,
     "fixture_fingerprint": "8d919191da378060338220367a724195583ca054091f9225e2f1a9fd6830f47c"
   },
   "policy": {
@@ -21,204 +21,204 @@
   },
   "claims": {
     "typical_ring_gradient_agreement_pct_clean": {
-      "pilot_value": 0.041026,
+      "pilot_value": 0.066873,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_clean": {
-      "pilot_value": 0.130897,
+      "pilot_value": 0.226637,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_eps_circular": {
-      "pilot_value": 0.025764,
+      "pilot_value": 0.048105,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_eps_circular": {
-      "pilot_value": 0.18272,
+      "pilot_value": 0.087133,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_eps_high": {
-      "pilot_value": 0.35278,
+      "pilot_value": 0.337658,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_eps_high": {
-      "pilot_value": 5.54124,
-      "tolerance": 0.110825,
+      "pilot_value": 4.605321,
+      "tolerance": 0.092106,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_pa_30": {
-      "pilot_value": 0.069505,
+      "pilot_value": 0.038546,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_pa_30": {
-      "pilot_value": 0.224703,
+      "pilot_value": 0.082058,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_background_offset": {
-      "pilot_value": 0.041026,
+      "pilot_value": 0.066873,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_background_offset": {
-      "pilot_value": 0.130897,
+      "pilot_value": 0.226637,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_interpolate_default": {
-      "pilot_value": 1.20683,
+      "pilot_value": 1.254606,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_gradient_agreement_pct_interpolate_default": {
-      "pilot_value": 2.275045,
+      "pilot_value": 2.350158,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_gradient_agreement_pct_noise_snr100": {
-      "pilot_value": 0.173124,
-      "tolerance": 0.070319,
+      "pilot_value": 0.088688,
+      "tolerance": 0.05,
       "basis": "bootstrap",
       "reduction": "typical_ring",
-      "bootstrap_stdev": 0.02344
+      "bootstrap_stdev": 0.015977
     },
     "worst_ring_gradient_agreement_pct_noise_snr100": {
-      "pilot_value": 0.260108,
-      "tolerance": 0.130385,
+      "pilot_value": 0.236567,
+      "tolerance": 0.077525,
       "basis": "bootstrap",
       "reduction": "worst_ring",
-      "bootstrap_stdev": 0.043462
+      "bootstrap_stdev": 0.025842
     },
     "typical_ring_gradient_agreement_pct_noise_snr30": {
-      "pilot_value": 0.521456,
-      "tolerance": 0.269891,
+      "pilot_value": 0.274502,
+      "tolerance": 0.112433,
       "basis": "bootstrap",
       "reduction": "typical_ring",
-      "bootstrap_stdev": 0.089964
+      "bootstrap_stdev": 0.037478
     },
     "worst_ring_gradient_agreement_pct_noise_snr30": {
-      "pilot_value": 0.974621,
-      "tolerance": 0.523198,
+      "pilot_value": 0.311817,
+      "tolerance": 0.272203,
       "basis": "bootstrap",
       "reduction": "worst_ring",
-      "bootstrap_stdev": 0.174399
+      "bootstrap_stdev": 0.090734
     },
     "typical_ring_median_estimator_penalty_pct": {
-      "pilot_value": 0.738863,
+      "pilot_value": 0.871745,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_median_estimator_penalty_pct": {
-      "pilot_value": 0.978942,
+      "pilot_value": 0.996791,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_secant_vs_point_derivative_pct": {
-      "pilot_value": 10.546245,
-      "tolerance": 0.210925,
+      "pilot_value": 10.628367,
+      "tolerance": 0.212567,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_secant_vs_point_derivative_pct": {
-      "pilot_value": 13.186083,
-      "tolerance": 0.263722,
+      "pilot_value": 13.227045,
+      "tolerance": 0.264541,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_bender_agreement_pct_reference": {
-      "pilot_value": 0.116135,
+      "pilot_value": 0.202593,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_bender_agreement_pct_reference": {
-      "pilot_value": 1.962288,
+      "pilot_value": 1.687744,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_raw_agreement_pct_reference": {
-      "pilot_value": 0.051634,
+      "pilot_value": 0.14068,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_raw_agreement_pct_reference": {
-      "pilot_value": 1.945446,
+      "pilot_value": 1.464932,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_bender_agreement_pct_eps_high": {
-      "pilot_value": 1.027867,
+      "pilot_value": 0.541712,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_bender_agreement_pct_eps_high": {
-      "pilot_value": 14.315905,
-      "tolerance": 0.286318,
+      "pilot_value": 3.167604,
+      "tolerance": 0.063352,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_raw_agreement_pct_eps_high": {
-      "pilot_value": 0.152892,
+      "pilot_value": 0.55256,
       "tolerance": 0.05,
       "basis": "deterministic_floor",
       "reduction": "typical_ring"
     },
     "worst_ring_raw_agreement_pct_eps_high": {
-      "pilot_value": 7.981386,
-      "tolerance": 0.159628,
+      "pilot_value": 5.791859,
+      "tolerance": 0.115837,
       "basis": "deterministic_floor",
       "reduction": "worst_ring"
     },
     "typical_ring_bender_agreement_pct_noise_snr30": {
-      "pilot_value": 3.586812,
-      "tolerance": 0.846456,
+      "pilot_value": 1.623483,
+      "tolerance": 0.441687,
       "basis": "bootstrap",
       "reduction": "typical_ring",
-      "bootstrap_stdev": 0.282152
+      "bootstrap_stdev": 0.147229
     },
     "worst_ring_bender_agreement_pct_noise_snr30": {
-      "pilot_value": 9.910608,
-      "tolerance": 5.274362,
+      "pilot_value": 3.657839,
+      "tolerance": 1.922826,
       "basis": "bootstrap",
       "reduction": "worst_ring",
-      "bootstrap_stdev": 1.758121
+      "bootstrap_stdev": 0.640942
     },
     "typical_ring_raw_agreement_pct_noise_snr30": {
-      "pilot_value": 3.312363,
-      "tolerance": 0.850805,
+      "pilot_value": 1.503247,
+      "tolerance": 0.42184,
       "basis": "bootstrap",
       "reduction": "typical_ring",
-      "bootstrap_stdev": 0.283602
+      "bootstrap_stdev": 0.140613
     },
     "worst_ring_raw_agreement_pct_noise_snr30": {
-      "pilot_value": 10.505219,
-      "tolerance": 5.770098,
+      "pilot_value": 4.200692,
+      "tolerance": 2.510544,
       "basis": "bootstrap",
       "reduction": "worst_ring",
-      "bootstrap_stdev": 1.923366
+      "bootstrap_stdev": 0.836848
     }
   }
 }
