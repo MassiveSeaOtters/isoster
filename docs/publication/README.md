@@ -32,6 +32,10 @@ Supporting documents, in order of events:
   twelve real Legacy Survey cutouts fitted with both ring reads under the campaign
   settings; same rings, no cost, better data residual in the cores, masked-pixel
   filling tested and not adopted.
+- [Renderer fix: odd harmonics follow the unwrapped position angle](reference/2026-10-12-renderer-odd-harmonic-frame.md):
+  before 1.1.1 one > π/2 position-angle jump between rings rendered `a3, b3` with the
+  wrong sign over the rest of the galaxy; mechanism, evidence, and the exposure of the
+  round-2 `native` renderer rows (the `log_off` headline is unaffected).
 
 Round-1 reports are kept in [`reference/round1-no-psf/`](reference/round1-no-psf/README.md)
 with a note on what carries over (the timing benchmark, the AutoProf setup corrections,

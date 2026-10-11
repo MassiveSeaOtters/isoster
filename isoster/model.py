@@ -274,15 +274,26 @@ def build_isoster_model(
                 # Position angle: φ = arctan2(y_rot, x_rot)
                 theta = np.arctan2(y_rot, x_rot)
 
+            # Each ring's a_n, b_n refer to its own ``pa``; theta below is measured
+            # in the frame of ``pa_unwrapped``, which can differ from that ``pa`` by
+            # a multiple of pi (every ring outward of a > pi/2 jump is rotated). The
+            # ellipse is the same, but sin(n*theta) and cos(n*theta) change by
+            # (-1)**n per pi, so the odd-order coefficients of a ring rotated by an
+            # odd number of half-turns must be negated before interpolation.
+            # Without this, one inner-ring pa flip renders a3, b3 with the wrong
+            # sign over the whole galaxy outside it.
+            pa_half_turns = np.rint((pa_unwrapped - pa_raw) / np.pi).astype(int)
+
             # Create interpolators for harmonic coefficients
             harm_interps = {}
             for n in harmonic_orders:
                 an_key, bn_key = f"a{n}", f"b{n}"
                 if any(an_key in iso for iso in sorted_isos):
+                    frame_sign = np.where((n % 2 == 1) & (pa_half_turns % 2 != 0), -1.0, 1.0)
                     an_values = np.array([iso.get(an_key, 0.0) for iso in sorted_isos])
                     bn_values = np.array([iso.get(bn_key, 0.0) for iso in sorted_isos])
-                    an_values = np.where(np.isfinite(an_values), an_values, 0.0)
-                    bn_values = np.where(np.isfinite(bn_values), bn_values, 0.0)
+                    an_values = frame_sign * np.where(np.isfinite(an_values), an_values, 0.0)
+                    bn_values = frame_sign * np.where(np.isfinite(bn_values), bn_values, 0.0)
                     harm_interps[n] = (
                         interp1d(
                             sma_values,

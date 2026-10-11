@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "isoster"
-version = "1.1.0"
+version = "1.1.1"
 description = "ISOphote on STERoid - Accelerated isophote fitting"
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -30,6 +30,9 @@ dev = [
     "ruff>=0.6; python_version >= '3.9'",
     "pre-commit>=3.8; python_version >= '3.9'",
     "asdf>=3.0",
+    # benchmarks/exhausted/analysis and the unit tests that import it
+    "pandas>=2.0; python_version >= '3.9'",
+    "tabulate>=0.9; python_version >= '3.9'",
 ]
 docs = [
     "mkdocs>=1.6",

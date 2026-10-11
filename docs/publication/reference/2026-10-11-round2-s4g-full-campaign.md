@@ -203,6 +203,15 @@ holds under every renderer. AutoProf and photutils swap places between the harmo
 renderers and the native models, so their relative ranking on this sample is
 renderer-dependent and should not be quoted without the renderer.
 
+*Note added 2026-10-12.* Every "native" number in this record (the table above and the
+zone table in "Harmonics matter on this sample") was rendered with isoster 1.1.0, whose
+renderer applied `a3, b3` with the wrong sign outward of any > π/2 position-angle jump
+(20 % of these fits; fixed in 1.1.1). Re-scoring the affected fits with the fixed renderer
+changes the quoted medians by at most 0.003 percentage points (for example `samp_cubic`
+inner 0.354 → 0.353, photutils outer 1.249 → 1.246): the bars are even structure and the
+odd coefficients are small here. The harmonic-off rows are unaffected by construction. See
+`2026-10-12-renderer-odd-harmonic-frame.md`.
+
 ## Integrator
 
 Median integration is worse than the clipped mean again: `int_median` 1.663 against

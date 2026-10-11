@@ -541,7 +541,16 @@ def build_photutils_model_image(
             [r.get(key, 0.0) for r in unique_rows], dtype=float
         )
     columns.setdefault("grad", np.zeros(len(unique_rows)))
-    columns["pa"] = np.unwrap(columns["pa"], period=np.pi)
+    pa_raw = columns["pa"].copy()
+    columns["pa"] = np.unwrap(pa_raw, period=np.pi)
+    # photutils splines pa and the harmonics over sma and measures phi from the
+    # splined pa. A ring the unwrap rotated by an odd number of half-turns keeps
+    # its ellipse but its odd-order harmonics change sign (sin/cos of 3*phi), so
+    # a3, b3 must follow the frame; a4, b4 are invariant. Same rule as
+    # isoster.model.build_isoster_model.
+    odd_half_turns = np.rint((columns["pa"] - pa_raw) / np.pi).astype(int) % 2 != 0
+    for key in ("a3", "b3"):
+        columns[key] = np.where(odd_half_turns, -columns[key], columns[key])
 
     class _SmaNode:
         def __init__(self, sma_value):
