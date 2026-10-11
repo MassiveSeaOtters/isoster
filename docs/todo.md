@@ -47,6 +47,18 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       harmonics-on renderer takes the cubic arms to 0.75–0.80 %; switch neutral at the
       median and fires too late for the outer disk; report
       `publication/reference/2026-10-11-round2-s4g-full-campaign.md` (2026-10-11).
+- [x] Combined Huang2013 + S4G summary as the main publication record:
+      `round2_combined_summary.py` (every metric, both datasets side by side, 26 tables
+      on the galaxy volume under `analysis/combined_2026_10_11/`) and
+      `publication/reference/2026-10-11-round2-combined-summary.md`. New in the combined
+      view: the cubic model residual against the data sits at the noise level on the
+      ellipticals (1.00 sigma, bilinear 1.04 with 3.4 sigma inner); cubic + EA has a
+      regression tail on disks (155 of 1800 inputs worse than the default by > 20 %,
+      plain cubic 17), so plain cubic, not cubic + EA, is the default candidate
+      (2026-10-11).
+- [ ] Eccentric-anomaly sampling on barred isophotes: find why EA loses by > 20 % to
+      plain cubic in 152 of 1800 S4G inputs (inner and mid zone, mostly z = 0.05, also on
+      noiseless images) before recommending EA anywhere.
 - [ ] Add a log-linear harmonics-on renderer to `round2_small_sample.py` and rescore
       both datasets with it: on disk galaxies the harmonics are signal and the current
       headline (harmonics off) understates Isoster's model by 40 % on S4G.

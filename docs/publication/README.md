@@ -3,8 +3,17 @@
 ## Status of the record (2026-10-11)
 
 The mock images used before 2026-10-10 (round 1) were generated without PSF
-convolution, so every accuracy result measured on them is superseded. The current
-record is:
+convolution, so every accuracy result measured on them is superseded.
+
+**Main record:**
+[Round-2 benchmark summary: Huang2013 and S4G](reference/2026-10-11-round2-combined-summary.md).
+Both full campaigns side by side, every metric (fit outcomes, fit time, truth RMS and
+flux bias per zone, data residual in noise units, centre and convergence, win fractions,
+regression ratios, depth and redshift dependence, renderer dependence, kernel switch,
+integrator) and the conclusions for the paper. Numbers come from
+`benchmarks/exhausted/analysis/round2_combined_summary.py`.
+
+Supporting documents, in order of events:
 
 - [Isoster vs AutoProf gap review](reference/2026-10-09-isoster-autoprof-gap-review.md):
   the diagnosis (bilinear read bias, missing PSF in the mocks), opt-in cubic sampling
@@ -12,8 +21,8 @@ record is:
 - [Round-2 small-sample campaign](reference/2026-10-10-round2-small-sample-campaign.md):
   20 galaxies, the integrator and outer-zone follow-up, the self-contained sampling switch.
 - [Round-2 Huang2013 full campaign](reference/2026-10-10-round2-huang2013-full-campaign.md):
-  the population statistics for the paper on single-Sersic ellipticals (837 inputs,
-  25 arms, three tools).
+  single-Sersic ellipticals (837 inputs, 25 arms, three tools), with the switch-radius
+  study.
 - [Round-2 S4G full campaign](reference/2026-10-11-round2-s4g-full-campaign.md): the same
   arms on 300 barred disk galaxies (1800 inputs); where the harmonics matter and where the
   kernel switch fires too late.
