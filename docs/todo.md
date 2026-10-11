@@ -73,21 +73,49 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       circular galaxy; high-ellipticity accuracy window 3 R_e where the 5 % check is
       3 sigma). Measured cost: 1–3 % at campaign medians, 2–11 % on two campaign images,
       10–46 % on bare small synthetic fits (2026-10-11).
-- [ ] Real-data spot check of the cubic default on a few SGA/HSC galaxies before the
-      next release; the switch stays opt-in.
-- [ ] Multi-band driver still reads bilinearly (`sampling_mb.py` has its own path);
-      decide whether to honour `sampling_interpolation` there.
-- [ ] Cubic prefilter is a one-time cost of about 20 ms per megapixel on the whole image
-      (0.37 s on a 4000 px frame): prefilter only the region the rings can reach
-      (centre ± maxsma plus the kernel margin) so large frames with small galaxies do not
-      pay for the frame.
-- [ ] Archives measured with the bilinear read and not yet redone: the 45x speed-up
-      archive (`benchmarks/performance/reference_speedup.json`; cubic adds 1–3 % at the
-      campaign medians, so "tens of times faster" stands) and the harmonic-scale
-      calibration (`benchmarks/harmonic_scale/`, needs AutoProf).
-- [ ] Under cubic reads, `use_outer_center_regularization=True` with strength 0 changes
-      the first-isophote fit at the 1e-6 relative level (one iteration); harmless, but
-      the reason is not understood.
+- [ ] Real-data check of the cubic default on SGA2020 (decided 2026-10-11): the
+      `benchmark_sample1` set at `/Volumes/galaxy/isophote/sga2020/data/` has 2,000
+      r-band cutouts of 241–545 px (median 338 px, 0.11 Mpix). Two fits measured:
+      cubic/bilinear wall time 1.05 and 1.07, prefilter 2 and 5 ms. The switch stays opt-in.
+- [ ] Multi-band reads bilinearly (`sampling_mb.py` numba stack kernel). Measured
+      2026-10-11: a 2-band stack of one image gives the single-band *bilinear* result
+      (1e-2 % RMS apart) and differs from the single-band cubic fit by 1.0 % RMS
+      (2.5 % max) on a PSF-convolved n=2 Sersic, while B=1 delegates to `fit_image` and
+      is cubic. Ring read cost: numba bilinear 0.6–2.9 µs per ring (B=2–5) vs scipy
+      cubic per band 13–108 µs. Recommended: a 16-tap numba cubic stack kernel plus a
+      per-band prefilter (22 ms for five 500 px bands), honouring the same
+      `sampling_interpolation` and fallbacks; add a B=2-of-one-image vs single-band test.
+- [ ] Windowed prefilter: low priority. A window of centre ± maxsma needs a 32 px margin
+      to reproduce whole-frame coefficients exactly (16 px gives 2e-9 relative); on a
+      4000 px frame it is 7 ms instead of 379 ms. But the library default and the SGA
+      pipeline both set maxsma to half the frame, so the window is the frame; on SGA2020
+      cutouts the prefilter is 2–5 ms of a 60–80 ms fit. Revisit only if users fit
+      mosaics with an explicit small maxsma.
+- [ ] Re-archive the bilinear-era archives; both change under cubic reads.
+      Speed-up (`benchmarks/performance/reference_speedup.json`): isoster re-timed on the
+      archived 237-case grid, bilinear reproduces the archive (52 vs 51 ms median,
+      projected median 44.0x vs archived 44.8x), cubic gives 60 ms and a projected
+      median 38.8x (q1 30.2, q3 47.4); cubic/bilinear time ratio median 1.13, max 1.36 on
+      these bare fits. The archived sweep took 557 s of photutils and 12 s of isoster;
+      rerun `bench_vs_photutils.py --no-failure-plots` then `archive_speedup.py`, update
+      README/CLAUDE.md/CITATION.cff via `check_speedup_claims.py`.
+      Harmonic scale (`benchmarks/harmonic_scale/`): isoster's clean-agreement claims are
+      2.1791 / 1.02 / 0.5714 / 0.2537 / 0.1252 % at sma 12–45 under bilinear (exactly the
+      archive) and 0.0136 / 0.0054 / 0.0016 / 0.0005 / 0.0002 % under cubic, so the archived
+      floor was the bilinear read, not fixture pixelation as `claims.py` says; every clean
+      claim breaks its ±0.05 % frozen tolerance. Gradient reconstruction (n2 compact fixture):
+      cubic moves isoster's secant gradient by −0.21 % at sma 12 to −0.05 % at sma 45,
+      beyond the ±0.05 % tolerances of the clean gradient claims. Both need a new pilot,
+      re-frozen tolerances, and a validation archive; AutoProf venv present
+      (`~/.venvs/autoprof_venv`), one AutoProf case takes 3.3 s, 111 + 56 + 56 realizations.
+- [x] Resolved 2026-10-11: `use_outer_center_regularization=True` with strength 0 differs
+      from the flag off only because the flag auto-enables `geometry_convergence=True`
+      (config.py), a second stopping rule. With `geometry_convergence=True` set on the
+      flag-off run the two fits are bit-identical under both kernels; under bilinear the
+      two rules happened to trip on the same iteration, under cubic the geometry rule
+      stops the first isophote at 9 iterations instead of 12. Follow-up: make the
+      backward-compatibility test set `geometry_convergence=True` on both sides and
+      restore exact equality.
 - [ ] Integrator robustness test on real images (SGA) or contaminant-injected mocks.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
