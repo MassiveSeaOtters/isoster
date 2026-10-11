@@ -1,8 +1,9 @@
 {
   "frozen_from": {
     "mode": "pilot",
+    "fixture": "sersic_n2_compact",
     "seed_block": 900000,
-    "commit": "04d4a07f443c6569d0a058a4314a368b137acf12",
+    "commit": "cb1f4531b3ca327ab4ecbac8499e3c358e8d2103",
     "fixture_fingerprint": "ff56ad7d2ac125276a9f82ce17ac0dfffab2255cedff057e6bc8b1edb3be58dd"
   },
   "policy": {
@@ -13,32 +14,32 @@
   },
   "claims": {
     "clean_agreement_pct_isoster_sma12": {
-      "pilot_value": 2.1791,
+      "pilot_value": 0.0136,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma18": {
-      "pilot_value": 1.02,
+      "pilot_value": 0.0054,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma25": {
-      "pilot_value": 0.5714,
+      "pilot_value": 0.0016,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma35": {
-      "pilot_value": 0.2537,
+      "pilot_value": 0.0005,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma45": {
-      "pilot_value": 0.1252,
+      "pilot_value": 0.0002,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster": {
-      "pilot_value": 2.1791,
+      "pilot_value": 0.0136,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
@@ -148,7 +149,7 @@
       "basis": "deterministic_floor"
     },
     "leakage_pct_isoster": {
-      "pilot_value": 0.1869,
+      "pilot_value": 0.0009,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
@@ -163,8 +164,8 @@
       "basis": "deterministic_floor"
     },
     "noise_scatter_snr100_isoster": {
-      "pilot_value": 0.115993,
-      "tolerance": 0.049212,
+      "pilot_value": 0.142948,
+      "tolerance": 0.060648,
       "basis": "scatter"
     },
     "noise_scatter_snr100_photutils": {
@@ -178,8 +179,8 @@
       "basis": "scatter"
     },
     "noise_scatter_snr30_isoster": {
-      "pilot_value": 0.383649,
-      "tolerance": 0.186738,
+      "pilot_value": 0.470287,
+      "tolerance": 0.23683,
       "basis": "scatter"
     },
     "noise_scatter_snr30_photutils": {

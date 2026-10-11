@@ -3,7 +3,7 @@
     "mode": "pilot",
     "fixture": "sersic_n4_extended",
     "seed_block": 700000,
-    "commit": "f45820aa402ab0ef74788a56aa654b312b966975",
+    "commit": "cb1f4531b3ca327ab4ecbac8499e3c358e8d2103",
     "fixture_fingerprint": "408143c3fe679160cda9f8c960259a7d8e716f357f44f8b3f9aac116b4ffed08"
   },
   "policy": {
@@ -14,32 +14,32 @@
   },
   "claims": {
     "clean_agreement_pct_isoster_sma18": {
-      "pilot_value": 1.0414,
+      "pilot_value": 0.0091,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma28": {
-      "pilot_value": 0.2603,
+      "pilot_value": 0.0013,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma40": {
-      "pilot_value": 0.2656,
+      "pilot_value": 0.0003,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma55": {
-      "pilot_value": 0.0697,
+      "pilot_value": 0.0001,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster_sma70": {
-      "pilot_value": 0.0795,
+      "pilot_value": 0.0,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
     "clean_agreement_pct_isoster": {
-      "pilot_value": 1.0414,
+      "pilot_value": 0.0091,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
@@ -154,7 +154,7 @@
       "basis": "deterministic_floor"
     },
     "leakage_pct_isoster": {
-      "pilot_value": 0.093,
+      "pilot_value": 0.0002,
       "tolerance": 0.05,
       "basis": "deterministic_floor"
     },
@@ -169,8 +169,8 @@
       "basis": "deterministic_floor"
     },
     "noise_scatter_snr100_isoster": {
-      "pilot_value": 0.076031,
-      "tolerance": 0.032257,
+      "pilot_value": 0.088718,
+      "tolerance": 0.03764,
       "basis": "scatter"
     },
     "noise_scatter_snr100_photutils": {
@@ -184,8 +184,8 @@
       "basis": "scatter"
     },
     "noise_scatter_snr30_isoster": {
-      "pilot_value": 0.25874,
-      "tolerance": 0.139372,
+      "pilot_value": 0.28693,
+      "tolerance": 0.173755,
       "basis": "scatter"
     },
     "noise_scatter_snr30_photutils": {
