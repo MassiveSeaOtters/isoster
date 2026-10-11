@@ -91,23 +91,23 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       pipeline both set maxsma to half the frame, so the window is the frame; on SGA2020
       cutouts the prefilter is 2–5 ms of a 60–80 ms fit. Revisit only if users fit
       mosaics with an explicit small maxsma.
-- [ ] Re-archive the bilinear-era archives; both change under cubic reads.
-      Speed-up (`benchmarks/performance/reference_speedup.json`): isoster re-timed on the
-      archived 237-case grid, bilinear reproduces the archive (52 vs 51 ms median,
-      projected median 44.0x vs archived 44.8x), cubic gives 60 ms and a projected
-      median 38.8x (q1 30.2, q3 47.4); cubic/bilinear time ratio median 1.13, max 1.36 on
-      these bare fits. The archived sweep took 557 s of photutils and 12 s of isoster;
-      rerun `bench_vs_photutils.py --no-failure-plots` then `archive_speedup.py`, update
-      README/CLAUDE.md/CITATION.cff via `check_speedup_claims.py`.
-      Harmonic scale (`benchmarks/harmonic_scale/`): isoster's clean-agreement claims are
-      2.1791 / 1.02 / 0.5714 / 0.2537 / 0.1252 % at sma 12–45 under bilinear (exactly the
-      archive) and 0.0136 / 0.0054 / 0.0016 / 0.0005 / 0.0002 % under cubic, so the archived
-      floor was the bilinear read, not fixture pixelation as `claims.py` says; every clean
-      claim breaks its ±0.05 % frozen tolerance. Gradient reconstruction (n2 compact fixture):
-      cubic moves isoster's secant gradient by −0.21 % at sma 12 to −0.05 % at sma 45,
-      beyond the ±0.05 % tolerances of the clean gradient claims. Both need a new pilot,
-      re-frozen tolerances, and a validation archive; AutoProf venv present
-      (`~/.venvs/autoprof_venv`), one AutoProf case takes 3.3 s, 111 + 56 + 56 realizations.
+- [x] Re-archived under cubic reads (branch `feature/rearchive-cubic-default-20261011`,
+      2026-10-11). Speed-up sweep (`benchmarks/performance/reference_speedup.json`):
+      median 39.5x, q1 30.1, q3 49.7, min 12.9, max 96.9 over the same 237 of 243 cases
+      (projection from re-timed isoster had said 38.8x); README, CLAUDE.md, CITATION.cff
+      and the consistency audit now say median 40x. The archive's drift record against
+      the bilinear-era run (median −5.3) is marked not attributable, because that run came
+      from a different machine (10-core MacBookPro18,2 vs this 20-core Mac13,2).
+      Harmonic scale: new pilots, re-frozen tolerances and validation archives for both
+      fixtures; isoster's clean agreement is 0.01 % at every radius, so the archived
+      2.18 → 0.13 % trend was the bilinear read, not fixture pixelation; the design
+      document and the `claims.py` comment say so. Gradient reconstruction: both fixtures
+      re-archived; matched-secant agreement 0.227 / 0.067 % (n2 worst / typical) and
+      0.156 / 0.028 % (n4), criterion-1 margins 58x and 84x (were 101x and 162x), regime
+      table and per-ring convention offsets updated. All four checkers and their
+      self-tests pass. Lesson: the `--archive` runs refuse a dirty tree, so archives
+      must land one at a time with a commit between them (or run without `--archive`
+      and promote with `--rearchive`).
 - [x] Resolved 2026-10-11: `use_outer_center_regularization=True` with strength 0 differs
       from the flag off only because the flag auto-enables `geometry_convergence=True`
       (config.py), a second stopping rule. With `geometry_convergence=True` set on the

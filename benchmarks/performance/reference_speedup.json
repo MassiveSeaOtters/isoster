@@ -5,26 +5,26 @@
   "protocol_caveat": "Each configuration is timed ONCE per tool, isoster first and photutils second, with no warm-up, no repetition and no interleaving. The quartiles below are spread across grid CONFIGURATIONS, not across repeated timings of one configuration, so they do not characterise timing noise. This is an archived single sweep, not a controlled timing study of the kind benchmarks/draft_timings implements. The measured ratio is large enough (tens of times) that ordering and warm-up effects are unlikely to change its order of magnitude, but they have not been quantified. Quote the median and quartiles; treat the extremes as indicative only. Pass --compare-to <previous archive> to have the run-to-run drift measured and recorded here instead of assumed.",
   "environment": {
     "astropy": "7.2.0",
-    "cpu_count": 10,
+    "cpu_count": 20,
     "environment_variables": {
       "MKL_NUM_THREADS": "",
       "NUMBA_DISABLE_JIT": "",
       "OMP_NUM_THREADS": "",
       "OPENBLAS_NUM_THREADS": ""
     },
-    "generated_at_utc": "2026-08-21T14:51:07.683951+00:00",
-    "git_sha": "01adc6e439ab771892beca982f21f1e012898f17",
+    "generated_at_utc": "2026-10-11T14:48:22.288458+00:00",
+    "git_sha": "db0b379234586eb8ba89bd4dcc5074bb32d2682f",
     "git_worktree": {
       "dirty": false
     },
-    "machine_model": "MacBookPro18,2",
-    "node_sha256": "f9cbd92a66f319b2",
+    "machine_model": "Mac13,2",
+    "node_sha256": "6e758d1ed2c45c7f",
     "numba": "0.63.1",
     "numpy": "2.3.5",
     "photutils": "2.3.0",
-    "platform": "macOS-15.7.4-arm64-arm-64bit",
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
     "processor": "arm",
-    "python": "3.12.7",
+    "python": "3.12.11",
     "scipy": "1.17.0"
   },
   "provenance_warning": null,
@@ -103,31 +103,71 @@
   "excluded_fingerprint": "67a484099206b904e567856e157ce07e14cae49a1c35cc699a9c25d24c5dc5c3",
   "all_completed_cases_passed": true,
   "speedup": {
-    "median": 44.8,
-    "q1": 34.8,
-    "q3": 54.9,
-    "min": 12.7,
-    "max": 110.0
+    "median": 39.5,
+    "q1": 30.1,
+    "q3": 49.7,
+    "min": 12.9,
+    "max": 96.9
   },
   "speedup_by_R_e": {
     "20": {
       "n": 79,
-      "median": 41.2,
-      "min": 12.7,
-      "max": 71.0
+      "median": 35.9,
+      "min": 12.9,
+      "max": 68.7
     },
     "50": {
       "n": 79,
-      "median": 51.4,
-      "min": 30.4,
-      "max": 110.0
+      "median": 46.6,
+      "min": 28.7,
+      "max": 96.9
     },
     "100": {
       "n": 79,
-      "median": 43.4,
-      "min": 30.1,
-      "max": 87.7
+      "median": 38.0,
+      "min": 26.5,
+      "max": 88.3
     }
   },
-  "caveat": "Absolute times are machine-specific. The ratio is less machine-dependent than absolute time, but it is not portable: hardware, BLAS, and library versions all change ratios too. One run on one machine."
+  "caveat": "Absolute times are machine-specific. The ratio is less machine-dependent than absolute time, but it is not portable: hardware, BLAS, and library versions all change ratios too. One run on one machine.",
+  "run_to_run_drift": {
+    "differences": {
+      "median": {
+        "previous": 44.8,
+        "current": 39.5,
+        "delta": -5.3
+      },
+      "q1": {
+        "previous": 34.8,
+        "current": 30.1,
+        "delta": -4.7
+      },
+      "q3": {
+        "previous": 54.9,
+        "current": 49.7,
+        "delta": -5.2
+      },
+      "min": {
+        "previous": 12.7,
+        "current": 12.9,
+        "delta": 0.2
+      },
+      "max": {
+        "previous": 110.0,
+        "current": 96.9,
+        "delta": -13.1
+      }
+    },
+    "summary": "median 44.8x -> 39.5x (-5.3), q1 34.8x -> 30.1x (-4.7), q3 54.9x -> 49.7x (-5.2), min 12.7x -> 12.9x (+0.2), max 110.0x -> 96.9x (-13.1)",
+    "controlled": false,
+    "blockers": [
+      "different code revision (01adc6e439ab771892beca982f21f1e012898f17 vs db0b379234586eb8ba89bd4dcc5074bb32d2682f)",
+      "different cpu_count (10 vs 20)",
+      "different machine_model ('MacBookPro18,2' vs 'Mac13,2')",
+      "different node_sha256 ('f9cbd92a66f319b2' vs '6e758d1ed2c45c7f')",
+      "different platform ('macOS-15.7.4-arm64-arm-64bit' vs 'macOS-15.7.3-arm64-arm-64bit')",
+      "different python ('3.12.7' vs '3.12.11')"
+    ],
+    "interpretation": "NOT ATTRIBUTABLE. These archives are not a controlled comparison: different code revision (01adc6e439ab771892beca982f21f1e012898f17 vs db0b379234586eb8ba89bd4dcc5074bb32d2682f); different cpu_count (10 vs 20); different machine_model ('MacBookPro18,2' vs 'Mac13,2'); different node_sha256 ('f9cbd92a66f319b2' vs '6e758d1ed2c45c7f'); different platform ('macOS-15.7.4-arm64-arm-64bit' vs 'macOS-15.7.3-arm64-arm-64bit'); different python ('3.12.7' vs '3.12.11'). The differences above are reported as measurements only -- they cannot be assigned to timing noise, to the protocol, or to a change in the software, because more than one thing changed between the runs."
+  }
 }
