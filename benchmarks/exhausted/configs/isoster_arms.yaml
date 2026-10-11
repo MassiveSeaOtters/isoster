@@ -3,7 +3,14 @@
 # Each arm is defined as a minimal *delta* from the current
 # IsosterConfig() baseline (minit=6, nclip=1, max_retry_first_isophote=3,
 # geometry_update_mode="largest", integrator="mean", WLS when variance is
-# supplied by the dataset adapter).
+# supplied by the dataset adapter, sampling_interpolation="cubic" since 1.1.0).
+#
+# ``ref_default`` therefore follows the library default. In every campaign run
+# before 1.1.0 (round 1 and the round-2 campaigns of 2026-10-10) it read the
+# image bilinearly; the run records store the full effective config, so those
+# results stay interpretable. ``samp_bilinear`` pins the old kernel, and
+# ``samp_cubic`` pins the new one, so both can be compared against whatever the
+# default is.
 #
 # Special tokens resolved by the runner against the dataset adapter:
 #   _use_Re        -> dataset_adapter.effective_Re(galaxy); arm is skipped
@@ -57,6 +64,8 @@ arms:
     use_eccentric_anomaly: true
 
   # G4b - image sampling kernel (review/isoster-autoprof-gap-20261009)
+  samp_bilinear:
+    sampling_interpolation: bilinear
   samp_cubic:
     sampling_interpolation: cubic
   samp_cubic_ea:

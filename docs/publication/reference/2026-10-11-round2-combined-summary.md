@@ -181,9 +181,27 @@ both kernels: 1.32 against 1.26 % and 1.66 against 1.60 % with bilinear reads; 0
 against 0.639 % and 1.309 against 1.307 % with cubic + EA reads, where the median beats the
 mean in 37 % and 36 % of inputs. The mean stays.
 
+## Decision taken (2026-10-11)
+
+Cubic ring sampling is the Isoster default from version 1.1.0 (branch
+`feature/cubic-sampling-default-20261011`); `sampling_interpolation="bilinear"` restores
+the previous read. Consequences for this record: the `ref_default` arm of every campaign
+reported here read the image bilinearly, and the benchmark arm roster now carries an
+explicit `samp_bilinear` arm for that kernel, so a future campaign's `ref_default` is the
+cubic default and `samp_bilinear` is the comparison. The forced-photometry (template) path
+reads with the same kernel as a free fit, including the inner and outer fallbacks and a
+template's switch radius. The multi-band driver still reads bilinearly. Measured cost of the
+new default: 1 to 3 % of a whole fit at the campaign medians (harmonics on), 2 and 11 % on
+two campaign images refit with the campaign configuration, and 10 to 46 % on bare fits of
+small synthetic images where the ring reads dominate the fit time. On top of that the
+spline prefilter costs about 20 ms per megapixel once per image, independent of the
+number of rings, so a galaxy fitted inside a full survey frame pays for the frame; the
+timing chapter's archive was redone with the new default and shows this as a constant
+offset in its maxsma table.
+
 ## What this means for the paper and the code
 
-1. Cubic ring sampling should become the default. It halves the error on ellipticals,
+1. Cubic ring sampling should become the default (done, see above). It halves the error on ellipticals,
    lowers it by 18 % on barred disks, never fails, costs 1 to 3 % in time, leaves the
    geometry unchanged and regresses by more than 20 % in under 1 % of inputs on both
    samples. Plain cubic, without eccentric-anomaly sampling.

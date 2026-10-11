@@ -34,20 +34,22 @@ def test_cubic_sampling_reproduces_pixel_values_and_reduces_bilinear_bias():
     assert bilinear > exact and abs(cubic - exact) < 0.25 * abs(bilinear - exact)
 
 
-def test_bilinear_default_is_unchanged_and_fallback_uses_bilinear_inside_min_sma():
+def test_cubic_is_the_default_and_the_inner_fallback_reproduces_the_bilinear_fit():
     image = _exponential_image()
     base = IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=20.0, minsma=0.0)
-    assert base.sampling_interpolation == "bilinear"
-    reference = fit_image(image, None, base)["isophotes"]
-    cubic_inner = fit_image(
-        image, None, base.model_copy(update={"sampling_interpolation": "cubic", "sampling_cubic_min_sma": 100.0})
-    )["isophotes"]
-    for a, b in zip(reference, cubic_inner):
+    assert base.sampling_interpolation == "cubic"
+    bilinear = fit_image(image, None, base.model_copy(update={"sampling_interpolation": "bilinear"}))["isophotes"]
+    cubic_inner = fit_image(image, None, base.model_copy(update={"sampling_cubic_min_sma": 100.0}))["isophotes"]
+    for a, b in zip(bilinear, cubic_inner):
         # With the fallback covering every ring, cubic mode must reproduce the bilinear fit.
         np.testing.assert_allclose(a["intens"], b["intens"], rtol=1e-12)
-    cubic = fit_image(image, None, base.model_copy(update={"sampling_interpolation": "cubic"}))["isophotes"]
-    changed = [abs(a["intens"] - b["intens"]) > 1e-9 for a, b in zip(reference, cubic) if a["sma"] > 0]
+    default = fit_image(image, None, base)["isophotes"]
+    changed = [abs(a["intens"] - b["intens"]) > 1e-9 for a, b in zip(bilinear, default) if a["sma"] > 0]
     assert any(changed)
+    # Opting back into the old kernel never reports a switch radius.
+    assert "sampling_switch_sma" not in fit_image(
+        image, None, base.model_copy(update={"sampling_interpolation": "bilinear"})
+    )
 
 
 def test_outer_fallback_keeps_cubic_inside_max_sma_and_reads_bilinearly_beyond():
@@ -96,8 +98,8 @@ def test_noise_driven_switch_fires_outward_once_and_only_when_asked():
     # The scatter trigger is an alternative route to the same switch.
     by_rms = fit_image(image, None, cubic_config.model_copy(update={"sampling_cubic_max_relative_rms": 0.2}))
     assert by_rms["sampling_switch_sma"] is not None
-    # Bilinear mode never reports a switch.
-    assert "sampling_switch_sma" not in fit_image(image, None, IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=20.0))
+    # The default (cubic, switch off) reports the switch field as None.
+    assert fit_image(image, None, IsosterConfig(x0=50.0, y0=50.0, sma0=8.0, maxsma=20.0))["sampling_switch_sma"] is None
 
 
 def test_log_linear_renderer_is_exact_for_an_exponential_profile_and_keeps_central_pixel():

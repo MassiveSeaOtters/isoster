@@ -156,7 +156,11 @@ class TestBackwardCompatibility:
         are independent of the feature flag (feature off vs on).
         """
         image = _make_exponential_galaxy(scale=20.0, peak=10000.0, noise_sigma=0.0)
-        base = dict(x0=100.0, y0=100.0, sma0=10.0, minsma=2.0, maxsma=80.0, astep=0.2)
+        # The feature auto-enables geometry_convergence, a second stopping rule, so the
+        # flag-off run must carry it explicitly or the two fits are not comparable: under
+        # cubic reads the geometry rule stops the first isophote three iterations before
+        # the harmonic rule does. With the rule on both sides the fits are bit-identical.
+        base = dict(x0=100.0, y0=100.0, sma0=10.0, minsma=2.0, maxsma=80.0, astep=0.2, geometry_convergence=True)
 
         result_off = fit_image(image, None, IsosterConfig(**base))
         result_on = fit_image(
@@ -173,9 +177,11 @@ class TestBackwardCompatibility:
         inward_on = [iso for iso in result_on["isophotes"] if iso["sma"] < 10.0]
         assert len(inward_off) == len(inward_on)
         for a, b in zip(inward_off, inward_on):
-            assert a["x0"] == pytest.approx(b["x0"])
-            assert a["y0"] == pytest.approx(b["y0"])
-            assert a["eps"] == pytest.approx(b["eps"])
+            assert a["x0"] == b["x0"]
+            assert a["y0"] == b["y0"]
+            assert a["eps"] == b["eps"]
+            assert a["intens"] == b["intens"]
+            assert a["niter"] == b["niter"]
 
 
 class TestCleanGalaxyNoOverConstraint:

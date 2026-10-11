@@ -175,7 +175,7 @@ Each arm is a minimal *delta* from the tool's baseline configuration.
 The runner merges the delta into the tool's default config before
 invoking the fitter. Arms live in:
 
-- `configs/isoster_arms.yaml`   — 22 declared arms + `harm_higher_orders::*` expansion
+- `configs/isoster_arms.yaml`   — 35 declared arms + `harm_higher_orders::*` expansion
 - `configs/photutils_arms.yaml` — 5 arms
 - `configs/autoprof_arms.yaml`  — 4 arms
 
@@ -187,6 +187,13 @@ arms:
   sclip_off:
     nclip: 0                     # isoster knob override
 ```
+
+`ref_default` means "whatever the library defaults are at the time of the run", so its
+meaning moves with the defaults: every campaign run before Isoster 1.1.0 read the image
+bilinearly, and from 1.1.0 it reads with the cubic spline. Each run record stores the
+full effective config, so old results stay interpretable, and the isoster roster pins
+both kernels explicitly (`samp_bilinear`, `samp_cubic`) for comparisons that must not
+move.
 
 ### Sentinels
 

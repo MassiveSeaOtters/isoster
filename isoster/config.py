@@ -158,13 +158,20 @@ class IsosterConfig(BaseModel):
 
     # Image sampling kernel
     sampling_interpolation: str = Field(
-        "bilinear",
+        "cubic",
         pattern="^(bilinear|cubic)$",
-        description="Interpolation used to read the image along each ellipse. 'bilinear' "
-        "(default) averages the four surrounding pixels, which overestimates a steep "
-        "convex profile between pixel centres. 'cubic' uses a prefiltered cubic B-spline "
-        "(scipy order 3), computed once per image, which tracks the pixel values far more "
-        "closely at the cost of about twice the per-ring sampling time.",
+        description="Interpolation used to read the image along each ellipse. 'cubic' "
+        "(default since 1.1.0) uses a prefiltered cubic B-spline (scipy order 3), computed "
+        "once per image, which returns the pixel values exactly at pixel centres and tracks "
+        "a steep profile between them. 'bilinear' (the default before 1.1.0) averages the "
+        "four surrounding pixels, which overestimates a steep convex profile between pixel "
+        "centres: on PSF-convolved mocks it doubled the truth error of single-Sersic "
+        "ellipticals and raised that of barred disks by a fifth. Cubic costs about twice "
+        "the per-ring read time (1 to 3 % of a whole fit at the round-2 campaign medians "
+        "with harmonics on, up to about 50 % on a bare fit of a small image where the ring "
+        "reads dominate) plus a one-time prefilter of the whole image, about 20 ms per "
+        "megapixel, so pass a cutout rather than a full mosaic. Its read is about 20 % "
+        "noisier than a bilinear one in the outskirts; see the sampling_cubic_* switches.",
     )
 
     sampling_cubic_min_sma: float = Field(

@@ -61,10 +61,16 @@ outside the public docs tree.
 - `isoster/driver.py`: image-level orchestration and mode routing.
 - `isoster/fitting.py`: per-isophote fitting loop, gradient checks, geometry updates.
 - `isoster/sampling.py`: vectorized ellipse sampling via `scipy.ndimage.map_coordinates`.
-  Bilinear by default; `IsosterConfig.sampling_interpolation="cubic"` makes the driver
-  prefilter the image once (`prepare_sampling_image`) and pass the spline coefficients plus
+  Cubic B-spline by default since 1.1.0 (`IsosterConfig.sampling_interpolation="cubic"`;
+  `"bilinear"` restores the pre-1.1.0 read): the driver prefilters the image once
+  (`prepare_sampling_image`) and passes the spline coefficients plus
   `interpolation_order=3` through `fit_isophote` and `compute_gradient`, while aperture
-  photometry keeps reading the raw image. `fit_isophote` falls back to the raw image and
+  photometry and variance maps keep reading the raw arrays bilinearly. The prefilter is
+  a one-time cost proportional to the image area (about 20 ms per megapixel); a future
+  optimisation is to prefilter only the region the rings can reach. The forced-photometry
+  path (`_fit_image_template_forced`) uses the same kernel, fallbacks and the template's
+  switch radius. The multi-band driver has its own sampling path and still reads
+  bilinearly. `fit_isophote` falls back to the raw image and
   bilinear reads for rings below `sampling_cubic_min_sma` or above `sampling_cubic_max_sma`
   (both off at 0). The driver's outward loop can also switch to bilinear reads once two
   consecutive rings look noise-dominated (`sampling_cubic_max_relative_rms` on
@@ -362,8 +368,8 @@ always come from the same estimator on the same samples:
 The median formula is an **approximation**, not an exact result: its normal-theory
 derivation assumes independent, identically distributed Gaussian samples, but a real
 isophote ring carries genuine azimuthal structure (the galaxy's light is not uniform around
-the ring) and neighbouring samples are correlated, because bilinear interpolation
-(`scipy.ndimage.map_coordinates`) blends each sample from nearby pixels. Monte Carlo tests
+the ring) and neighbouring samples are correlated, because the interpolation
+(`scipy.ndimage.map_coordinates`, cubic or bilinear) blends each sample from nearby pixels. Monte Carlo tests
 against both formulas showed agreement within about 0.08% for uniform per-sample variance
 and 1.36% for heteroscedastic (spatially varying) variance — close enough to trust as an
 error estimate, but not exact in the way a from-first-principles derivation on independent
