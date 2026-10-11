@@ -495,13 +495,15 @@ the switch, not *large and decreasing*.
   truth to better than 2.3%; on the extended n=4 fixture the three tools agree
   with the analytic truth to better than 2.4%. The tools separate at large
   radius: on the compact n=2 fixture at the largest tested radius, sma = 45 px,
-  isoster reaches 0.13% and AutoProf 0.13%, while photutils retains 1.85%; on the
+  isoster reaches 0.00% and AutoProf 0.13%, while photutils retains 1.85%; on the
   extended n=4 fixture at the largest tested radius, sma = 70 px, isoster reaches
-  0.08% and AutoProf 0.19%, while photutils retains 1.85%.
+  0.00% and AutoProf 0.19%, while photutils retains 1.85%.
 
-  The isoster-versus-AutoProf agreement at large radius is the strong result;
-  the photutils residual is a separate finding (see A3 result). Both clauses
-  above are bound to the archive by `check_harmonic_scale.py`.
+  isoster's recovery of the planted amplitudes to 0.01% at every radius (with
+  the cubic ring read that became its default in 1.1.0) and AutoProf's agreement
+  with it at large radius are the strong results; the photutils residual is a
+  separate finding (see A3 result). Both clauses above are bound to the archive
+  by `check_harmonic_scale.py`.
 - `ap_iso_interpolate_start` becomes a **grid axis**, not a default to
   inherit and not a fixed recorded setting. A3 below states why: it is the
   largest effect on the grid by an order of magnitude, so pinning it to
@@ -656,20 +658,25 @@ validation run. Archived in `benchmarks/harmonic_scale/reference_harmonic_scale.
 
 **The headline.** In the clean configuration — noiseless, clipping on, and on
 only those rings AutoProf actually interpolated — on the compact n=2 fixture
-the three tools agree with the analytic truth to better than 2.3%, and the
-agreement is strongly radius-dependent:
+the three tools agree with the analytic truth to better than 2.3%, and for
+photutils and AutoProf the agreement is strongly radius-dependent:
 
 | worst \|ratio − 1\| | sma=12 | sma=18 | sma=25 | sma=35 | sma=45 |
 |---|---|---|---|---|---|
-| isoster | 2.18% | 1.02% | 0.57% | 0.25% | 0.13% |
+| isoster | 0.01% | 0.01% | 0.00% | 0.00% | 0.00% |
 | photutils | 1.90% | 1.70% | 1.25% | 0.88% | 1.85% |
 | AutoProf | 2.33% | 0.81% | 0.99% | 0.45% | 0.13% |
 
-The pooled worst case is set by the smallest ring, where the fixture itself is
-marginally resolved: at `sma = 12` and `eps = 0.3` a quarter of an `m=4` cycle
-spans only a few pixels. Quoting the pooled number alone would present
-pixelation of the fixture as the tools' agreement floor. isoster and AutoProf
-converge to 0.13% at `sma = 45`; photutils does not, for a reason given below.
+For photutils and AutoProf the pooled worst case is set by the smallest ring,
+where at `sma = 12` and `eps = 0.3` a quarter of an `m=4` cycle spans only a few
+pixels, so quoting the pooled number alone would present the smallest ring as
+the tools' agreement floor. isoster recovers the planted amplitudes to 0.01%
+at every radius. An earlier archive, measured with bilinear ring reads, had
+put isoster at 2.18% at `sma = 12` falling to 0.13% at `sma = 45` and
+attributed that trend to pixelation of the fixture; the cubic read that became
+the default in 1.1.0 removes the trend entirely, so it was the bilinear read
+smoothing the planted modes, not the fixture. AutoProf converges to 0.13% at
+`sma = 45`; photutils does not, for a reason given below.
 
 **Sampling mode is the cause of the AutoProf excess, and this now says so
 rather than inferring it.** AutoProf reads 24.5% high at sma = 25 px when that
@@ -818,18 +825,20 @@ conditional on that galaxy. A second campaign — Sérsic `n = 4`, `R_e = 40`,
 pilot — says which conclusions were about the tools and which were about the
 fixture. Archived in `reference_harmonic_scale_n4.json`.
 
-**Agreement improves for two tools and not for the third.** On the extended
-n=4 fixture the three tools agree with the analytic truth to better than 2.4%,
-but that pooled number hides two opposite behaviours:
+**Agreement improves for AutoProf, stays at the floor for isoster, and does not
+improve for photutils.** On the extended n=4 fixture the three tools agree with
+the analytic truth to better than 2.4%, but that pooled number hides opposite
+behaviours:
 
 | worst \|ratio − 1\| | sma=18 | sma=28 | sma=40 | sma=55 | sma=70 |
 |---|---|---|---|---|---|
-| isoster | 1.04% | 0.26% | 0.27% | 0.07% | 0.08% |
+| isoster | 0.01% | 0.00% | 0.00% | 0.00% | 0.00% |
 | photutils | 1.67% | 2.01% | 2.12% | 2.41% | 1.85% |
 | AutoProf | 0.81% | 0.86% | 0.27% | 0.20% | 0.19% |
 
-isoster and AutoProf improve on this fixture — its rings are larger in pixels,
-so there is less pixelation — and fall to 0.08% and 0.19%. photutils does not
+AutoProf improves on this fixture — its rings are larger in pixels, so there is
+less pixelation — and falls to 0.19%; isoster sits at 0.01% or better on both
+fixtures. photutils does not
 improve at all: it is flat-to-rising across the tested radii and ends worse
 than it started. Its leakage metric grew from 1.19% to 2.03% on the steeper
 profile. Note this is a finite fixed-aperture experiment, so "flat-to-rising
@@ -943,13 +952,13 @@ disagreement between tools.
 **So Track 2's denominator is a matched secant.** Take AutoProf's `b0` at
 `sma` and at `sma·(1 + astep)` and difference them over the same interval
 isoster uses. Measured against isoster's own gradient on the same rings, that
-reproduces it to **0.05% median, 0.13% worst** — against 11–14% for the point
+reproduces it to **0.07% median, 0.23% worst** — against 11–14% for the point
 derivative.
 
 This is not circular. What is *shared* is the interval, which both tools must
 use or the comparison is meaningless. What is *measured* is the value, computed
 from AutoProf's own `b0` and nothing else — no isoster quantity enters the
-reconstruction. That the two land within 0.13% is a result, not an
+reconstruction. That the two land within 0.23% is a result, not an
 identity.
 
 **It is also a finding in its own right, and belongs in the publication.**
@@ -1043,13 +1052,13 @@ them is transcribed by hand.
 
 **Criterion 1 passes decisively, on both galaxies.** On the compact n=2
 fixture the matched secant reproduces isoster's gradient on the clean
-configuration to 0.131% at the worst ring and 0.041% at the typical one; on
+configuration to 0.227% at the worst ring and 0.067% at the typical one; on
 the extended n=4 fixture the matched secant reproduces isoster's gradient on
-the clean configuration to 0.081% at the worst ring and 0.049% at the typical
-one. Against the same target, the point derivative is two orders of magnitude
-further away: on the compact n=2 fixture the matched secant beats the point
-derivative by 101x, and on the extended n=4 fixture the matched secant beats
-the point derivative by 162x. The criterion asked only that the margin be
+the clean configuration to 0.156% at the worst ring and 0.028% at the typical
+one. Against the same target, the point derivative is well over an order of
+magnitude further away: on the compact n=2 fixture the matched secant beats the point
+derivative by 58x, and on the extended n=4 fixture the matched secant beats
+the point derivative by 84x. The criterion asked only that the margin be
 decisive, with ten times fixed in advance as the bar; it is not close.
 
 **The convention offset is real, reproducible, and publishable on its own.**
@@ -1065,8 +1074,8 @@ strongly with radius:
 
 | fixture | | | | | |
 |---|---|---|---|---|---|
-| compact n=2 (sma 12/18/25/35/45) | 8.01% | 9.34% | 10.55% | 11.97% | 13.19% |
-| extended n=4 (sma 18/28/40/55/70) | 10.34% | 11.18% | 11.92% | 12.56% | 13.10% |
+| compact n=2 (sma 12/18/25/35/45) | 8.20% | 9.44% | 10.63% | 12.04% | 13.23% |
+| extended n=4 (sma 18/28/40/55/70) | 10.49% | 11.26% | 11.94% | 12.59% | 13.11% |
 
 It rises monotonically with radius and nearly doubles across the n=2 fixture.
 The two galaxies agree at ~13% only because both *maxima* land there; comparing
@@ -1130,12 +1139,12 @@ How close it came is reported per regime:
 
 | fixture | regime | gradient (worst) | gradient (typical) | raw | Bender | valid rows |
 |---|---|---|---|---|---|---|
-| compact n=2 | `reference` | 0.13% | 0.04% | 1.95% | 1.96% | 5/5 |
-| compact n=2 | `eps_high` | 5.54% | 0.35% | 7.98% | 14.32% | 5/5 |
-| compact n=2 | `noise_snr30` | 1.33% | 0.59% | 9.19% | 11.06% | 5/5 |
-| extended n=4 | `reference` | 0.08% | 0.05% | 0.51% | 0.50% | 5/5 |
-| extended n=4 | `eps_high` | 1.24% | 0.16% | 7.89% | 6.57% | 5/5 |
-| extended n=4 | `noise_snr30` | 1.10% | 0.33% | 8.74% | 9.02% | 5/5 |
+| compact n=2 | `reference` | 0.23% | 0.07% | 1.46% | 1.69% | 5/5 |
+| compact n=2 | `eps_high` | 4.61% | 0.34% | 5.79% | 3.17% | 5/5 |
+| compact n=2 | `noise_snr30` | 0.58% | 0.21% | 3.69% | 3.72% | 5/5 |
+| extended n=4 | `reference` | 0.16% | 0.03% | 0.80% | 0.96% | 5/5 |
+| extended n=4 | `eps_high` | 1.82% | 0.15% | 7.44% | 5.52% | 5/5 |
+| extended n=4 | `noise_snr30` | 0.43% | 0.16% | 3.46% | 3.86% | 5/5 |
 
 The last column counts **ring pairs**, not cases. Validity is row-level and is
 read from realized provenance -- the recorded harmonic basis and each ring's
