@@ -65,9 +65,29 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
 - [ ] Later refinement of the kernel switch: weigh bilinear bias (profile curvature in
       pixel units) against ring noise instead of noise alone; on S4G the scatter and
       S/N rules fire beyond 2 R_ref where bilinear already wins.
-- [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
-      cubic sampling as default (switch stays opt-in); as a separate commit with version
-      bump, regression-test updates and draft-timing re-archive.
+- [x] Cubic sampling is the default (1.1.0, branch `feature/cubic-sampling-default-20261011`):
+      `IsosterConfig.sampling_interpolation="cubic"`, forced-photometry path reads with
+      the same kernel (fallbacks and template switch radius honoured), `samp_bilinear`
+      benchmark arm added, configuration reference / architecture / technical chapter /
+      combined record updated, tests adjusted (backward-compat eps tolerance 1e-6 on a
+      circular galaxy; high-ellipticity accuracy window 3 R_e where the 5 % check is
+      3 sigma). Measured cost: 1–3 % at campaign medians, 2–11 % on two campaign images,
+      10–46 % on bare small synthetic fits (2026-10-11).
+- [ ] Real-data spot check of the cubic default on a few SGA/HSC galaxies before the
+      next release; the switch stays opt-in.
+- [ ] Multi-band driver still reads bilinearly (`sampling_mb.py` has its own path);
+      decide whether to honour `sampling_interpolation` there.
+- [ ] Cubic prefilter is a one-time cost of about 20 ms per megapixel on the whole image
+      (0.37 s on a 4000 px frame): prefilter only the region the rings can reach
+      (centre ± maxsma plus the kernel margin) so large frames with small galaxies do not
+      pay for the frame.
+- [ ] Archives measured with the bilinear read and not yet redone: the 45x speed-up
+      archive (`benchmarks/performance/reference_speedup.json`; cubic adds 1–3 % at the
+      campaign medians, so "tens of times faster" stands) and the harmonic-scale
+      calibration (`benchmarks/harmonic_scale/`, needs AutoProf).
+- [ ] Under cubic reads, `use_outer_center_regularization=True` with strength 0 changes
+      the first-isophote fit at the 1e-6 relative level (one iteration); harmless, but
+      the reason is not understood.
 - [ ] Integrator robustness test on real images (SGA) or contaminant-injected mocks.
 
 Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %

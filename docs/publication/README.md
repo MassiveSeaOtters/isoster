@@ -11,7 +11,9 @@ Both full campaigns side by side, every metric (fit outcomes, fit time, truth RM
 flux bias per zone, data residual in noise units, centre and convergence, win fractions,
 regression ratios, depth and redshift dependence, renderer dependence, kernel switch,
 integrator) and the conclusions for the paper. Numbers come from
-`benchmarks/exhausted/analysis/round2_combined_summary.py`.
+`benchmarks/exhausted/analysis/round2_combined_summary.py`. Its "Decision taken" section
+records that cubic sampling became the Isoster default in 1.1.0, so the `ref_default` arm
+of every campaign reported there is the old bilinear read.
 
 Supporting documents, in order of events:
 

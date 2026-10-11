@@ -175,7 +175,10 @@ class TestBackwardCompatibility:
         for a, b in zip(inward_off, inward_on):
             assert a["x0"] == pytest.approx(b["x0"])
             assert a["y0"] == pytest.approx(b["y0"])
-            assert a["eps"] == pytest.approx(b["eps"])
+            # The galaxy is circular, so both fits converge to eps = 0; with cubic reads the
+            # two runs can stop one iteration apart (eps 1e-11 against 1e-9), which is far
+            # below any measurable ellipticity.
+            assert a["eps"] == pytest.approx(b["eps"], abs=1e-6)
 
 
 class TestCleanGalaxyNoOverConstraint:

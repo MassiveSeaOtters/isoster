@@ -156,11 +156,17 @@ def extract_forced_photometry(
     config=None,
     variance_map=None,
     variance_map_prepared=False,
+    sampling_image=None,
+    interpolation_order=1,
 ):
     """
     Extract forced photometry at a single SMA without fitting.
 
     This is used for template-based forced mode where geometry is predetermined.
+    Ring intensities and the gradient are read from ``sampling_image`` (the raw image,
+    or its cubic spline coefficients from :func:`isoster.sampling.prepare_sampling_image`)
+    with ``interpolation_order``, exactly as a free fit would; aperture photometry keeps
+    reading ``image``.
 
     Args:
         image (np.ndarray): Input image.
@@ -210,9 +216,12 @@ def extract_forced_photometry(
             fields[f"b{order}_err"] = np.nan
         return fields
 
+    if sampling_image is None:
+        sampling_image = image
+
     # Sample along the ellipse
     data = extract_isophote_data(
-        image,
+        sampling_image,
         mask,
         x0,
         y0,
@@ -222,6 +231,7 @@ def extract_forced_photometry(
         use_eccentric_anomaly=use_eccentric_anomaly,
         variance_map=variance_map,
         variance_map_prepared=variance_map_prepared,
+        interpolation_order=interpolation_order,
     )
     phi = data.angles  # position angle or eccentric anomaly depending on mode
     intens = data.intens
@@ -326,7 +336,7 @@ def extract_forced_photometry(
             "use_eccentric_anomaly": use_eccentric_anomaly,
         }
         gradient, gradient_error, gradient_status = compute_gradient(
-            image,
+            sampling_image,
             mask,
             {"x0": x0, "y0": y0, "sma": sma, "eps": eps, "pa": pa},
             gradient_config,
@@ -335,6 +345,7 @@ def extract_forced_photometry(
             current_data=((phi, intens, variances) if variances is not None else (phi, intens)),
             variance_map=variance_map,
             variance_map_prepared=variance_map_prepared,
+            interpolation_order=interpolation_order,
             return_status=True,
         )
 

@@ -212,7 +212,7 @@ Sampling mode for high-ellipticity isophotes.
 | Parameter | Default | Type | Description |
 |-----------|---------|------|-------------|
 | `use_eccentric_anomaly` | `False` | `bool` | Step the eccentric anomaly (psi) uniformly instead of the position angle, distributing samples more evenly around an elongated ellipse. |
-| `sampling_interpolation` | `"bilinear"` | `str` | How ring samples are read from the image: `bilinear` (four surrounding pixels; overestimates a steep convex profile between pixel centres) or `cubic` (prefiltered cubic B-spline, computed once per image; tracks pixel values closely, about +9 % fit time). Experimental: see `docs/publication/reference/2026-10-09-isoster-autoprof-gap-review.md`. |
+| `sampling_interpolation` | `"cubic"` | `str` | How ring samples are read from the image. `cubic` (default since 1.1.0): a prefiltered cubic B-spline computed once per image, exact at pixel centres and close to the profile between them. `bilinear` (default before 1.1.0): the four surrounding pixels, which overestimates a steep convex profile between pixel centres. On PSF-convolved mocks the cubic read halves the truth error of single-Sersic ellipticals (1.27 → 0.65 %) and lowers that of barred disks by 18 % (1.60 → 1.31 %), with no failures; it regresses by more than 20 % in under 1 % of inputs, all noisy outskirts, because a cubic read is about 20 % noisier than a bilinear one. Cost: about twice the per-ring read time, which is 1 to 3 % of a whole fit at the campaign medians (harmonics on) and up to about 50 % on a bare fit of a small image where the ring reads dominate, plus a one-time spline prefilter of the whole image at about 20 ms per megapixel (4 ms for a 500 px cutout, 0.37 s for a 4000 px frame), so fit cutouts rather than full mosaics. See `docs/publication/reference/2026-10-11-round2-combined-summary.md`. Multi-band fits still read bilinearly. |
 | `sampling_cubic_min_sma` | `0.0` | `float` | In `cubic` mode, rings with sma below this value (pixels) are still read bilinearly, which avoids spline ringing around a core sharper than the pixel grid. `0` uses cubic everywhere. |
 | `sampling_cubic_max_sma` | `0.0` | `float` | In `cubic` mode, rings with sma above this value (pixels) are read bilinearly. A bilinear read averages the four surrounding pixels and carries about 20 % less noise than a cubic read (`benchmarks/exhausted/analysis/ring_noise_response.py`), with no bias where the profile is flat on the pixel scale. `0` keeps cubic out to the last ring. Needs a size prior; prefer the two self-contained triggers below. |
 | `sampling_cubic_max_relative_rms` | `0.0` | `float` | In `cubic` mode, once the relative scatter of the samples along the ring, `rms / intens`, exceeds this value on two consecutive outward rings, every remaining outward ring is read bilinearly (one-way switch; inward rings are untouched). The ring's own statistics decide where noise outweighs the bilinear read bias, so no galaxy size is needed. `0.1` (per-sample signal-to-noise below 10) fires at a median 2.2 Re on the Huang2013 mocks and matches the 2 Re oracle. `0` disables. The fit result reports the switch radius as `sampling_switch_sma`. |
@@ -597,8 +597,11 @@ Output fields added to each isophote dict:
 
 ### Sub-pixel Interpolation
 
-All sampling modes use bilinear sub-pixel interpolation internally via
-`scipy.ndimage.map_coordinates` with `order=1`. This is not configurable.
+Ring intensities are read through `scipy.ndimage.map_coordinates` with the kernel set by
+`sampling_interpolation`: a prefiltered cubic B-spline (`order=3`) by default since 1.1.0,
+or bilinear (`order=1`) on request. Variance maps are always read bilinearly, masks with
+nearest-neighbour lookup, and aperture photometry always reads the raw image. The
+multi-band path reads bilinearly and does not yet honour `sampling_interpolation`.
 
 ### Mean Integrator (`integrator='mean'`)
 
@@ -641,8 +644,9 @@ outer low-S/N isophotes benefit from the robustness of the median against noise 
 ### Comparison with photutils
 
 The photutils `BILINEAR` integrator uses area-weighted sector integration, which is
-architecturally different from isoster's point-sampling path. Both use bilinear
-interpolation at the sub-pixel level, but the integration geometry differs. Isoster
+architecturally different from isoster's point-sampling path. Photutils reads bilinearly
+at the sub-pixel level; isoster reads with a cubic B-spline by default (bilinear with
+`sampling_interpolation="bilinear"`), and the integration geometry differs too. Isoster
 samples discrete points along the ellipse; photutils integrates over sectors spanning
 the annular width.
 

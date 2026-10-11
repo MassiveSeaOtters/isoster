@@ -569,7 +569,12 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 stacklevel=2,
             )
         resolved = _resolve_template(template)
-        return _fit_image_template_forced(image, mask, cfg, resolved, variance_map=variance_map)
+        # A results dict from a free fit carries the radius where its noise-driven kernel
+        # switch fired; honouring it lets forced mode reproduce that fit ring for ring.
+        switch_sma = template.get("sampling_switch_sma") if isinstance(template, dict) else None
+        return _fit_image_template_forced(
+            image, mask, cfg, resolved, variance_map=variance_map, sampling_switch_sma=switch_sma
+        )
 
     # Regular fitting mode
     h, w = image.shape
@@ -880,7 +885,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     return result
 
 
-def _fit_image_template_forced(image, mask, config, template_isophotes, variance_map=None):
+def _fit_image_template_forced(image, mask, config, template_isophotes, variance_map=None, sampling_switch_sma=None):
     """
     Extract forced photometry using geometry from template isophotes.
 
@@ -916,6 +921,21 @@ def _fit_image_template_forced(image, mask, config, template_isophotes, variance
     """
     from .fitting import extract_forced_photometry
 
+    # Same ring-read kernel as a free fit: cubic spline coefficients prepared once, with
+    # the inner and outer bilinear fallbacks and the template's switch radius applied
+    # ring by ring.
+    sampling_image, interpolation_order = prepare_sampling_image(image, config.sampling_interpolation)
+
+    def ring_sampling(sma):
+        falls_back = (
+            sma < config.sampling_cubic_min_sma
+            or 0 < config.sampling_cubic_max_sma < sma
+            or (sampling_switch_sma is not None and sma > sampling_switch_sma)
+        )
+        if interpolation_order != 1 and falls_back:
+            return dict(sampling_image=image, interpolation_order=1)
+        return dict(sampling_image=sampling_image, interpolation_order=interpolation_order)
+
     isophotes = []
     for template_iso in template_isophotes:
         sma = template_iso["sma"]
@@ -947,7 +967,11 @@ def _fit_image_template_forced(image, mask, config, template_isophotes, variance
                 config=config,
                 variance_map=variance_map,
                 variance_map_prepared=True,
+                **ring_sampling(sma),
             )
         isophotes.append(iso)
 
-    return _build_fit_result(isophotes, config)
+    result = _build_fit_result(isophotes, config)
+    if config.sampling_interpolation == "cubic":
+        result["sampling_switch_sma"] = sampling_switch_sma
+    return result

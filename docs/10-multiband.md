@@ -230,6 +230,14 @@ pre-merge review pass.
     the rows with `lsb_auto_lock_anchor=False` are frozen, and those do
     share the anchor's geometry exactly in both validity modes.
 
+14. **Ring reads are bilinear, unlike single-band.** Since 1.1.0 the single-band
+    driver reads rings with a cubic B-spline by default
+    (`sampling_interpolation="cubic"`); the multi-band sampler
+    (`sampling_mb.py`) has its own `map_coordinates` path with `order=1` and
+    does not read that setting. Multi-band intensities therefore carry the
+    bilinear read bias described in the configuration reference until the
+    kernel is wired through here.
+
 ## What it does
 
 `isoster.multiband.fit_image_multiband` fits elliptical isophotes
