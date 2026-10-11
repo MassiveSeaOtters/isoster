@@ -28,6 +28,10 @@ Supporting documents, in order of events:
 - [Round-2 S4G full campaign](reference/2026-10-11-round2-s4g-full-campaign.md): the same
   arms on 300 barred disk galaxies (1800 inputs); where the harmonics matter and where the
   kernel switch fires too late.
+- [SGA-2020 cubic spot check](reference/2026-10-12-sga2020-cubic-spot-check.md):
+  twelve real Legacy Survey cutouts fitted with both ring reads under the campaign
+  settings; same rings, no cost, better data residual in the cores, masked-pixel
+  filling tested and not adopted.
 
 Round-1 reports are kept in [`reference/round1-no-psf/`](reference/round1-no-psf/README.md)
 with a note on what carries over (the timing benchmark, the AutoProf setup corrections,

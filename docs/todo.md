@@ -73,10 +73,18 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       circular galaxy; high-ellipticity accuracy window 3 R_e where the 5 % check is
       3 sigma). Measured cost: 1–3 % at campaign medians, 2–11 % on two campaign images,
       10–46 % on bare small synthetic fits (2026-10-11).
-- [ ] Real-data check of the cubic default on SGA2020 (decided 2026-10-11): the
-      `benchmark_sample1` set at `/Volumes/galaxy/isophote/sga2020/data/` has 2,000
-      r-band cutouts of 241–545 px (median 338 px, 0.11 Mpix). Two fits measured:
-      cubic/bilinear wall time 1.05 and 1.07, prefilter 2 and 5 ms. The switch stays opt-in.
+- [x] Real-data check of the cubic default on SGA2020 (2026-10-12, branch
+      `feature/sga2020-cubic-spot-check-20261011`, `benchmarks/sga2020/cubic_spot_check.py`,
+      record `docs/publication/reference/2026-10-12-sga2020-cubic-spot-check.md`): twelve
+      `benchmark_sample1` galaxies under the campaign settings. Same ring counts on all
+      twelve, non-zero stop codes 93 → 81, wall time ratio 1.03 (median 1.00). Inner
+      zone cubic +0.40 % median (2.6 sigma median, half the rings beyond 3 sigma) and the
+      data residual improves 1.27 → 1.22 sigma RMS (10 of 12 galaxies); mid 1.13 → 1.11;
+      outskirts identical. Filling masked pixels before the prefilter moves rings that
+      touch masks by 2 % RMS but improves the residual near masks only 1.616 → 1.607
+      while worsening it elsewhere, so it is not adopted. The switch stays opt-in.
+      No non-finite pixels exist in the 400 cutouts scanned; 212 have zero inverse
+      variance pixels, handled through the variance map.
 - [x] Multi-band reads with the same kernel as single-band (branch
       `feature/multiband-cubic-sampling-20261011`, 2026-10-11): `IsosterConfigMB`
       gained `sampling_interpolation` (default cubic) and the two sma fallbacks; a numba
