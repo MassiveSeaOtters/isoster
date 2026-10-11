@@ -61,6 +61,17 @@ outside the public docs tree.
 - `isoster/driver.py`: image-level orchestration and mode routing.
 - `isoster/fitting.py`: per-isophote fitting loop, gradient checks, geometry updates.
 - `isoster/sampling.py`: vectorized ellipse sampling via `scipy.ndimage.map_coordinates`.
+  Bilinear by default; `IsosterConfig.sampling_interpolation="cubic"` makes the driver
+  prefilter the image once (`prepare_sampling_image`) and pass the spline coefficients plus
+  `interpolation_order=3` through `fit_isophote` and `compute_gradient`, while aperture
+  photometry keeps reading the raw image. `fit_isophote` falls back to the raw image and
+  bilinear reads for rings below `sampling_cubic_min_sma` or above `sampling_cubic_max_sma`
+  (both off at 0). The driver's outward loop can also switch to bilinear reads once two
+  consecutive rings look noise-dominated (`sampling_cubic_max_relative_rms` on
+  `rms / intens`, or `sampling_cubic_min_snr` on `intens / intens_err`;
+  `_ring_is_noise_dominated`), a one-way latch like the LSB auto-lock; the radius is
+  reported as `result["sampling_switch_sma"]`. `build_isoster_model` also accepts
+  `interp_kind="log_linear"` (linear interpolation of log intensity).
 - `isoster/config.py`: `IsosterConfig` schema and validators.
 - `isoster/model.py`: 2D model reconstruction by radial interpolation. `build_isoster_model()` supports `harmonic_orders=None` (auto-detect from isophote keys) and `use_eccentric_anomaly=None` (auto-detect from isophote dicts, or explicit `True`/`False` override) for correct harmonic evaluation in EA-mode fits.
 - `isoster/cog.py`: curve-of-growth computation and crossing flags.
@@ -610,7 +621,7 @@ and writes a new directory containing six summary figures, descriptive
 tables and rule-selected comparison QA. Primary comparisons use matched
 finite samples, never replacement arms; atlas reconstructions must reproduce
 the measured pixel counts and truth RMS. See
-`docs/publication/reference/2026-09-12-huang2013-scientific-analysis.md` for
+`docs/publication/reference/round1-no-psf/2026-09-12-huang2013-scientific-analysis.md` for
 results, immutable product paths and interpretation limits.
 
 - Stable docs live in `docs/` root.

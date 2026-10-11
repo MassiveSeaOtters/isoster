@@ -156,6 +156,55 @@ class IsosterConfig(BaseModel):
         "the geometry update consumes those coefficients directly. eps = 1 - b/a.",
     )
 
+    # Image sampling kernel
+    sampling_interpolation: str = Field(
+        "bilinear",
+        pattern="^(bilinear|cubic)$",
+        description="Interpolation used to read the image along each ellipse. 'bilinear' "
+        "(default) averages the four surrounding pixels, which overestimates a steep "
+        "convex profile between pixel centres. 'cubic' uses a prefiltered cubic B-spline "
+        "(scipy order 3), computed once per image, which tracks the pixel values far more "
+        "closely at the cost of about twice the per-ring sampling time.",
+    )
+
+    sampling_cubic_min_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma below this value "
+        "(pixels) are still read bilinearly. A cubic interpolant rings around a core that is "
+        "sharper than the pixel grid (an unresolved nucleus), and that ringing can drive the "
+        "innermost ellipticity fits astray; bilinear sampling never overshoots. 0 uses cubic "
+        "everywhere.",
+    )
+
+    sampling_cubic_max_sma: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', rings with sma above this value "
+        "(pixels) are read bilinearly instead. A bilinear read averages the four surrounding "
+        "pixels and so carries about 20 % less noise than a cubic read; in the outskirts, "
+        "where the profile is flat on the pixel scale, that averaging costs no bias. 0 keeps "
+        "cubic out to the last ring.",
+    )
+
+    sampling_cubic_min_snr: float = Field(
+        0.0,
+        ge=0.0,
+        description="With sampling_interpolation='cubic', switch the remaining outward rings "
+        "to bilinear reads once the ring signal-to-noise ratio intens / intens_err has fallen "
+        "below this value on two consecutive outward rings (a ring with intens <= 0 counts "
+        "as below). Needs no size prior: the ring's own statistics decide where noise "
+        "outweighs the bilinear read bias. 0 disables the switch.",
+    )
+
+    sampling_cubic_max_relative_rms: float = Field(
+        0.0,
+        ge=0.0,
+        description="Alternative trigger for the same outward switch: the relative scatter of "
+        "the samples along the ring, rms / intens, above this value on two consecutive "
+        "outward rings. 0 disables it.",
+    )
+
     # Higher-Order Harmonics Fitting
     simultaneous_harmonics: bool = Field(
         False,

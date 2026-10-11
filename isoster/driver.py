@@ -5,6 +5,7 @@ import numpy as np
 
 from .config import IsosterConfig
 from .fitting import fit_isophote
+from .sampling import prepare_sampling_image
 
 ACCEPTABLE_STOP_CODES = {0, 1, 2}
 
@@ -56,6 +57,33 @@ def _first_isophote_perturbations(sma0, eps, pa, max_retries):
         result.append((sma_new, eps_new, pa_new))
 
     return result
+
+
+# Consecutive outward rings that must look noise-dominated before cubic reads give
+# way to bilinear ones; mirrors the LSB auto-lock default.
+SAMPLING_SWITCH_DEBOUNCE = 2
+
+
+def _ring_is_noise_dominated(iso, cfg):
+    """True when a fitted ring's own statistics say noise outweighs the bilinear read bias.
+
+    Two triggers, each off at 0: the ring signal-to-noise ``intens / intens_err`` below
+    ``sampling_cubic_min_snr``, or the relative scatter along the ring ``rms / intens``
+    above ``sampling_cubic_max_relative_rms``. A non-positive ring mean is pure noise
+    and triggers both; a non-finite statistic cannot be assessed and triggers neither.
+    """
+    if cfg.sampling_cubic_min_snr <= 0 and cfg.sampling_cubic_max_relative_rms <= 0:
+        return False
+    intens, intens_err, rms = (iso.get(key) for key in ("intens", "intens_err", "rms"))
+    if intens is None or intens_err is None or rms is None:
+        return False
+    if not (np.isfinite(intens) and np.isfinite(intens_err) and np.isfinite(rms)):
+        return False
+    if intens <= 0:
+        return True
+    if cfg.sampling_cubic_min_snr > 0 and intens_err > 0 and intens / intens_err < cfg.sampling_cubic_min_snr:
+        return True
+    return cfg.sampling_cubic_max_relative_rms > 0 and rms / intens > cfg.sampling_cubic_max_relative_rms
 
 
 def _is_lsb_isophote(iso, maxgerr_thresh):
@@ -558,10 +586,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
     # 1. Fit Central Pixel (Approximation)
     central_result = fit_central_pixel(image, mask, x0, y0, debug=cfg.debug, config=cfg, variance_map=variance_map)
 
+    # Image (or its cubic spline coefficients) that every ring sample reads from.
+    sampling_image, interpolation_order = prepare_sampling_image(image, cfg.sampling_interpolation)
+    sampling = dict(sampling_image=sampling_image, interpolation_order=interpolation_order)
+
     # 2. Fit First Isophote at SMA0 (with optional retry)
     start_geometry = {"x0": x0, "y0": y0, "eps": cfg.eps, "pa": cfg.pa}
     first_iso = fit_isophote(
-        image, mask, sma0, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+        image, mask, sma0, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True, **sampling
     )
 
     # Retry with perturbed parameters if first isophote failed
@@ -571,7 +603,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         for attempt_idx, (sma0_try, eps_try, pa_try) in enumerate(perturbations, start=1):
             retry_geometry = {"x0": x0, "y0": y0, "eps": eps_try, "pa": pa_try}
             candidate = fit_isophote(
-                image, mask, sma0_try, retry_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+                image,
+                mask,
+                sma0_try,
+                retry_geometry,
+                cfg,
+                variance_map=variance_map,
+                variance_map_prepared=True,
+                **sampling,
             )
             retry_log.append(
                 {
@@ -608,7 +647,14 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
             if probe_sma > maxsma:
                 break
             probe_iso = fit_isophote(
-                image, mask, probe_sma, start_geometry, cfg, variance_map=variance_map, variance_map_prepared=True
+                image,
+                mask,
+                probe_sma,
+                start_geometry,
+                cfg,
+                variance_map=variance_map,
+                variance_map_prepared=True,
+                **sampling,
             )
             failed_initial.append(probe_iso)
             if _is_acceptable_stop_code(probe_iso["stop_code"]):
@@ -663,6 +709,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 previous_geometry=current_iso,
                 variance_map=variance_map,
                 variance_map_prepared=True,
+                **sampling,
             )
             inwards_results.append(next_iso)
 
@@ -692,6 +739,8 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         "anchor_sma": None,
     }
     active_cfg = cfg
+    # Outward switch from cubic to bilinear reads, driven by the rings' own statistics.
+    sampling_switch = {"consecutive": 0, "sma": None}
 
     if anchor_iso is not None:
         if cfg.lsb_auto_lock:
@@ -721,6 +770,7 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
                 previous_geometry=current_iso,
                 variance_map=variance_map,
                 variance_map_prepared=True,
+                **sampling,
                 outer_reference_geom=outer_ref_geom,
             )
             if cfg.lsb_auto_lock:
@@ -731,6 +781,18 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
             # In permissive mode, always update to prevent cascading failures
             if _is_acceptable_stop_code(next_iso["stop_code"]) or active_cfg.permissive_geometry:
                 current_iso = next_iso
+
+            # Noise-driven kernel switch: one-way, outward only. Bilinear reads
+            # carry about 20 % less noise than cubic ones, and the bias they
+            # trade for it is negligible once a ring is noise-dominated.
+            if sampling["interpolation_order"] != 1 and sampling_switch["sma"] is None:
+                if _ring_is_noise_dominated(next_iso, cfg):
+                    sampling_switch["consecutive"] += 1
+                    if sampling_switch["consecutive"] >= SAMPLING_SWITCH_DEBOUNCE:
+                        sampling = dict(sampling_image=image, interpolation_order=1)
+                        sampling_switch["sma"] = float(next_iso["sma"])
+                else:
+                    sampling_switch["consecutive"] = 0
 
             # LSB auto-lock detector: free-mode only. Once locked, the mode
             # stays locked for the rest of outward growth (one-way state
@@ -800,6 +862,10 @@ def fit_image(image, mask=None, config=None, template=None, template_isophotes=N
         result["first_isophote_failure"] = True
     if retry_log:
         result["first_isophote_retry_log"] = retry_log
+    if cfg.sampling_interpolation == "cubic":
+        # Semi-major axis of the last cubic ring before the noise-driven switch; None
+        # when the switch is off or never fired.
+        result["sampling_switch_sma"] = sampling_switch["sma"]
     if cfg.lsb_auto_lock:
         result["lsb_auto_lock"] = True
         result["lsb_auto_lock_sma"] = lsb_state["transition_sma"]

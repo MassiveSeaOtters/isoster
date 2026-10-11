@@ -1,0 +1,42 @@
+# AutoProf arms for prepared mock images whose background is exactly zero.
+# Same deltas as autoprof_arms.yaml, plus ap_set_background: 0.0, which the
+# accepted round-1 AutoProf campaign (publication_autoprof_zero_huang_2026_09_21)
+# injected at run time. Background subtraction is input preparation, not part
+# of the 1-D algorithm comparison.
+
+arms:
+
+  baseline:
+    ap_set_background: 0.0
+    ap_isoclip: true
+    ap_isoclip_nsigma: 5.0
+    ap_regularize_scale: 1.0
+    ap_fit_limit: 2.0
+    ap_samplegeometricscale: 0.1
+
+  deep:
+    ap_set_background: 0.0
+    ap_isoclip: true
+    ap_isoclip_nsigma: 5.0
+    ap_fit_limit: 1.0
+    ap_samplegeometricscale: 0.05
+    ap_iso_interpolate_start: 3
+
+  fix_center:
+    _fix_center_from: isoster_weighted
+    ap_set_background: 0.0
+    ap_isoclip: true
+    ap_isoclip_nsigma: 5.0
+    ap_regularize_scale: 1.0
+    ap_fit_limit: 2.0
+    ap_samplegeometricscale: 0.1
+
+  # Round-1 arm restored for the round-2 full campaign, with the same
+  # zero-background preparation as the arms above.
+  high_regularization:
+    ap_set_background: 0.0
+    ap_isoclip: true
+    ap_isoclip_nsigma: 5.0
+    ap_regularize_scale: 2.0
+    ap_fit_limit: 2.0
+    ap_samplegeometricscale: 0.1

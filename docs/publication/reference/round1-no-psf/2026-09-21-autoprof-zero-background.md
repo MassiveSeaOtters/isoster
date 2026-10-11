@@ -177,7 +177,7 @@ a separate, explicitly designed experiment.
 
 ## Full scientific selection and verification
 
-The [original measurement contract](../../specs/2026-09-10-huang2013-scientific-analysis.md)
+The [original measurement contract](../../../specs/2026-09-10-huang2013-scientific-analysis.md)
 is unchanged. The sample remains 93 centered multi-component Sersic models,
 each in nine conditions: truly noiseless z=0.05 and wide/deep Gaussian-noise
 images at z=0.05, 0.20, 0.35 and 0.50. Pixel scale is 0.168 arcsec, Gaussian

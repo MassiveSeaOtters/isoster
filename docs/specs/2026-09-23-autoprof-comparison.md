@@ -7,7 +7,7 @@ measured opportunities to improve Isoster while retaining its runtime advantage.
 Requested by the user on 2026-09-23. Work on
 `analysis/autoprof-comparison-20260923`; architecture authority remains `docs/SPEC.md`.
 Initial center/stopping measurements are complete; causal investigation remains
-open. See `../publication/reference/2026-09-23-autoprof-center-extent.md`.
+open. See `../publication/reference/round1-no-psf/2026-09-23-autoprof-center-extent.md`.
 
 Closure decision, 2026-09-30: the current-version Huang2013 benchmark analysis is
 complete. The user authorized committing/merging/pushing this investigation and
@@ -19,7 +19,7 @@ saved ellipses. This closure does not authorize further refits or default change
 
 The accepted saved-fit analysis is complete: 93 galaxies, 837 inputs, 17 arms,
 56,916 retained arm/mode outcomes, 227,664 zone rows and 8,370 PNG/PDF QA pairs.
-See `docs/publication/reference/2026-09-23-huang-final-analysis.md` and
+See `docs/publication/reference/round1-no-psf/2026-09-23-huang-final-analysis.md` and
 `outputs/huang2013_final_statistics_20260923/index.html`.
 
 Matched primary median full-image Truth RMS (%) is:
@@ -101,7 +101,7 @@ Completed: five fixed fits and one exact free-center replay. Four noisy cases ga
 16.5–29.3% in outer RMS but only 0.47–1.27% in full RMS; noiseless low-drift case
 is effectively unchanged. Flux bias regresses in two noisy linear-off comparisons.
 This establishes a selected-case outer benefit, not the main cause of full-RMS
-differences. See `../publication/reference/2026-09-30-fixed-center-cases.md`.
+differences. See `../publication/reference/round1-no-psf/2026-09-30-fixed-center-cases.md`.
 
 The user now authorizes a few new Isoster fits to test the constant-center mock
 hypothesis. This supersedes the earlier no-refit restriction only for these tests.

@@ -249,16 +249,15 @@ def _resolve_sentinels(delta: dict[str, Any], bundle: GalaxyBundle) -> tuple[dic
     elif special is not None:
         return delta, use_variance, f"unknown _special token {special!r}"
 
-    if delta.get("lsb_sma_threshold") == SENTINEL_RE:
+    # Any radius-like knob may be given in units of the effective radius.
+    factors = {SENTINEL_RE: 1.0, SENTINEL_2RE: 2.0}
+    for key, value in list(delta.items()):
+        if not (isinstance(value, str) and value in factors):
+            continue
         Re = bundle.metadata.effective_Re_pix
         if Re is None:
-            return delta, use_variance, f"arm requires Re; dataset '{bundle.metadata.dataset}' has none"
-        delta["lsb_sma_threshold"] = float(Re)
-    elif delta.get("lsb_sma_threshold") == SENTINEL_2RE:
-        Re = bundle.metadata.effective_Re_pix
-        if Re is None:
-            return delta, use_variance, f"arm requires 2*Re; dataset '{bundle.metadata.dataset}' has none"
-        delta["lsb_sma_threshold"] = float(2.0 * Re)
+            return delta, use_variance, f"arm requires {value} for {key}; dataset '{bundle.metadata.dataset}' has none"
+        delta[key] = float(factors[value] * Re)
 
     return delta, use_variance, None
 

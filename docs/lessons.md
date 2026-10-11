@@ -138,3 +138,15 @@
 - The accepted noiseless analysis records injected_sigma as NaN, not numeric zero.
   Treat noise-normalized RMS as undefined for that labelled condition and record
   the reason explicitly; do not infer that missing normalization implies failure.
+
+## 2026-10-09: check the data before explaining the fitter
+
+- `profit-cli -P psf.fits` convolves only profiles that carry `convolve=1`; MockGal
+  never set it, so every mock core is an unconvolved Sersic cusp. A neighbour/centre
+  pixel ratio is a one-line sanity check for a claimed PSF (a Gaussian of FWHM f px
+  cannot give less than exp(-4 ln2 / f^2), i.e. 0.85 at 4.17 px).
+- A sampling bias that enters the geometry fit cannot be diagnosed by swapping the
+  intensities on saved ellipses; the geometry must be refitted with the new kernel.
+- Interpolating kernels (cubic B-spline, Lanczos) ring on sub-pixel cusps; test any
+  kernel change on both cusp-dominated and PSF-limited images and watch the
+  innermost ellipticity profile, not only the pixel RMS.

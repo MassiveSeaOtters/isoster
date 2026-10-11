@@ -934,6 +934,7 @@ def compute_gradient(
     variance_map=None,
     variance_map_prepared=False,
     return_status=False,
+    interpolation_order=1,
 ):
     """Compute the radial intensity gradient.
 
@@ -990,6 +991,7 @@ def compute_gradient(
             use_eccentric_anomaly=use_eccentric_anomaly,
             variance_map=variance_map,
             variance_map_prepared=variance_map_prepared,
+            interpolation_order=interpolation_order,
         )
         intens_c = data_c.intens
         var_c = data_c.variances
@@ -1017,6 +1019,7 @@ def compute_gradient(
         use_eccentric_anomaly=use_eccentric_anomaly,
         variance_map=variance_map,
         variance_map_prepared=variance_map_prepared,
+        interpolation_order=interpolation_order,
     )
     intens_g = data_g.intens
     var_g = data_g.variances
@@ -1073,6 +1076,7 @@ def compute_gradient(
             use_eccentric_anomaly=use_eccentric_anomaly,
             variance_map=variance_map,
             variance_map_prepared=variance_map_prepared,
+            interpolation_order=interpolation_order,
         )
         intens_g2 = data_g2.intens
         var_g2 = data_g2.variances
@@ -1242,6 +1246,8 @@ def fit_isophote(
     variance_map=None,
     outer_reference_geom=None,
     variance_map_prepared=False,
+    sampling_image=None,
+    interpolation_order=1,
 ):
     """
     Fit a single isophote with quality control.
@@ -1272,12 +1278,22 @@ def fit_isophote(
     # Keep the original bool mask for aperture photometry (_attach_full_photometry).
     mask_bool = mask
     mask = _prepare_mask_float(mask)
+    # Ring intensities are read from ``sampling_image`` (the raw image, or its cubic
+    # spline coefficients from prepare_sampling_image); aperture photometry keeps
+    # reading raw pixels from ``image``.
+    if sampling_image is None:
+        sampling_image = image
 
     # Normalize configuration
     if isinstance(config, IsosterConfig):
         cfg = config
     else:
         cfg = IsosterConfig(**(config or {}))
+
+    # The innermost rings (sampling_cubic_min_sma) and the outermost rings
+    # (sampling_cubic_max_sma) may fall back to bilinear reads.
+    if interpolation_order != 1 and (sma < cfg.sampling_cubic_min_sma or 0 < cfg.sampling_cubic_max_sma < sma):
+        sampling_image, interpolation_order = image, 1
 
     maxit = cfg.maxit
     conver = cfg.conver
@@ -1396,7 +1412,7 @@ def fit_isophote(
         # angles retained for aligned diagnostics and error bookkeeping.
         # For regular: angles=φ (for harmonics), phi=φ (same)
         data = extract_isophote_data(
-            image,
+            sampling_image,
             mask,
             x0,
             y0,
@@ -1406,6 +1422,7 @@ def fit_isophote(
             use_eccentric_anomaly=use_eccentric_anomaly,
             variance_map=variance_map,
             variance_map_prepared=variance_map_prepared,
+            interpolation_order=interpolation_order,
         )
 
         angles = data.angles  # ψ for EA mode, φ for regular mode
@@ -1522,7 +1539,7 @@ def fit_isophote(
             }
             current_data_for_grad = (phi, intens, variances) if variances is not None else (phi, intens)
             gradient, gradient_error = compute_gradient(
-                image,
+                sampling_image,
                 mask,
                 geometry,
                 gradient_config,
@@ -1530,6 +1547,7 @@ def fit_isophote(
                 current_data=current_data_for_grad,
                 variance_map=variance_map,
                 variance_map_prepared=variance_map_prepared,
+                interpolation_order=interpolation_order,
             )
             cached_gradient = gradient
             cached_gradient_error = gradient_error

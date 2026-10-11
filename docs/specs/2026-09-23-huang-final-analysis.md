@@ -116,4 +116,4 @@ Completed 837 inputs, 56,916 retained arm/mode outcomes, 227,664 zone rows and
 36,153 current source hashes and 30,862 historical source hashes; 1,282 independent
 measurement checks passed. All 665 unit tests passed. Shared-EA harmonic-on remains
 explicitly unsupported, with real native EA validated. No fits, merge or push.
-Final record: `docs/publication/reference/2026-09-23-huang-final-analysis.md`.
+Final record: `docs/publication/reference/round1-no-psf/2026-09-23-huang-final-analysis.md`.

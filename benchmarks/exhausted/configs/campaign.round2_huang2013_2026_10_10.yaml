@@ -1,0 +1,81 @@
+# Round-2 (PSF-convolved) Huang2013 full campaign: all 96 galaxies, all nine
+# scenarios, three tools. The arm roster is the round-1 roster (core campaign
+# plus the Isoster afterburner and the zero-background AutoProf rerun), rerun on
+# the round-2 images, plus the round-2 sampling arms. Gate first with
+# campaign.round2_full_gate_2026_10_10.yaml.
+campaign_name: round2_huang2013_2026_10_10
+output_root: /Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/fits
+tools:
+  isoster:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/isoster_arms.yaml
+    select_arms:
+    # Round-1 core and afterburner arms.
+    - ref_default
+    - reg_outer_damp
+    - stack_all
+    - int_median
+    - geom_simul
+    - lsb_autolock
+    - geom_ea
+    - geom_simul_ea
+    - harm_simul_ea
+    # Round-2 small-sample sampling arms.
+    - samp_cubic
+    - samp_cubic_ea
+    - samp_cubic_ea_min4
+    - samp_cubic_ea_median
+    - samp_cubic_ea_outer_damp
+    # Outer-ring bilinear fallback: oracle (2 R_ref) and the two self-contained triggers.
+    - samp_cubic_outer2re
+    - samp_cubic_rms010
+    - samp_cubic_snr200
+  photutils:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/photutils_arms.yaml
+    select_arms:
+    - baseline_median
+    - aggressive_clip
+    - fixed_center
+    - default_bilinear
+    timeout: 900
+  autoprof:
+    enabled: true
+    arms_file: benchmarks/exhausted/configs/autoprof_arms_zero_background.yaml
+    select_arms:
+    - baseline
+    - deep
+    - high_regularization
+    - fix_center
+    venv_python: ~/.venvs/autoprof_venv/bin/python
+    timeout: 300
+isoster_harmonic_sweeps: []
+datasets:
+  huang2013:
+    enabled: true
+    adapter: huang2013_scenarios
+    root: /Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/mock_data/huang2013
+    depths:
+    - noiseless
+    - wide
+    - deep
+    redshift_tags:
+    - '005'
+    - '020'
+    - '035'
+    - '050'
+qa:
+  per_galaxy_qa: false
+  cross_arm_overlay: false
+  cross_tool_comparison: false
+  summary_grids: false
+  residual_models: false
+execution:
+  max_parallel_galaxies: 8
+  skip_existing: true
+  dry_run: false
+  fail_fast: false
+summary:
+  per_galaxy_inventory: true
+  per_tool_cross_arm_table: true
+  cross_tool_table: true

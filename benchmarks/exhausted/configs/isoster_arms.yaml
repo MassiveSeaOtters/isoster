@@ -56,6 +56,40 @@ arms:
     geometry_damping: 0.5
     use_eccentric_anomaly: true
 
+  # G4b - image sampling kernel (review/isoster-autoprof-gap-20261009)
+  samp_cubic:
+    sampling_interpolation: cubic
+  samp_cubic_ea:
+    sampling_interpolation: cubic
+    use_eccentric_anomaly: true
+  samp_cubic_ea_min4:
+    sampling_interpolation: cubic
+    use_eccentric_anomaly: true
+    sampling_cubic_min_sma: 4.0
+  samp_cubic_ea_median:
+    sampling_interpolation: cubic
+    use_eccentric_anomaly: true
+    integrator: median
+  samp_cubic_ea_outer_damp:
+    sampling_interpolation: cubic
+    use_eccentric_anomaly: true
+    use_outer_center_regularization: true
+    outer_reg_mode: damping
+    outer_reg_strength: 2.0
+  # Cubic reads inside 2 Re, bilinear (lower-noise) reads beyond; see
+  # docs/publication/reference/2026-10-10-round2-small-sample-campaign.md.
+  samp_cubic_outer2re:
+    sampling_interpolation: cubic
+    sampling_cubic_max_sma: _use_2Re
+  # Self-contained switches: bilinear reads once two consecutive outward rings are
+  # noise-dominated by the ring's own statistics (no size prior).
+  samp_cubic_rms010:
+    sampling_interpolation: cubic
+    sampling_cubic_max_relative_rms: 0.1
+  samp_cubic_snr200:
+    sampling_interpolation: cubic
+    sampling_cubic_min_snr: 200.0
+
   # G5 - higher-order harmonics
   harm_isofit_inloop:
     simultaneous_harmonics: true

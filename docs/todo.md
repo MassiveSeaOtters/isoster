@@ -1,3 +1,80 @@
+# Isoster vs AutoProf gap review — 2026-10-09
+
+Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-review`).
+
+- [x] Catch up on the Codex inner-profile study, isophote_test and sga_isoster.
+- [x] Independent code review of Isoster sampling/fitting/rendering vs AutoProf 1.3.4.
+- [x] Add opt-in cubic sampling and log-linear renderer; refit 7 recorded + 55 population cases.
+- [x] Verify the mock PSF problem with profit-cli; refit 22 PSF-convolved galaxies.
+- [x] Report, journal, tests (1274 + 3 passed), local commit; no merge/push.
+- [x] Housekeeping: old clone and worktree removed, Dropbox checkout repaired (2026-10-09).
+- [x] MockGal fixed (`convolve=1`, `PSFCONV` header) and round-2 PSF-convolved mocks
+      generated for Huang2013 (837) and S4G (1800) under
+      `/Volumes/galaxy/isophote/publication_single_band_round2_2026_10_10/` (2026-10-10).
+- [x] Small-sample round-2 campaign (20 galaxies, 9 scenarios, 13 arms, 3 tools) with the
+      truth-based multi-renderer analysis: cubic sampling halves Isoster's RMS and beats
+      AutoProf in 86 % of inputs with no failures (2026-10-10).
+- [x] Integrator and outer-zone follow-up: white-noise ring test, noise-free refit
+      decomposition, radius-switch refits; `sampling_cubic_max_sma` option and arm
+      `samp_cubic_outer2re` (`_use_2Re` sentinel now works on any radius knob) (2026-10-10).
+- [x] Self-contained kernel switch (`sampling_cubic_max_relative_rms`,
+      `sampling_cubic_min_snr`; outward one-way latch, two-ring debounce): scatter rule 0.1
+      matches the 2 Re oracle with no size prior; arms `samp_cubic_rms010`,
+      `samp_cubic_snr200` (2026-10-10).
+- [x] Low S/N thresholds (200 → 3) and the variance-map path for the switch; real-data
+      warning in the configuration reference (2026-10-10).
+- [x] Round-2 full campaign designed and launched: round-1 roster + small-sample sampling
+      arms + three fallback arms (25 arms, `ols_noweight` dropped as a no-op), AutoProf
+      `high_regularization` restored; gate on NGC2325 passed (224 ok, 1 known photutils
+      noiseless failure); Huang2013 (837 inputs) then S4G chained, detached (2026-10-10).
+- [x] Full Huang2013 campaign (837 inputs, 25 arms) run and analysed: cubic halves the
+      full-aperture RMS (1.27 → 0.65 %), switch arms 0.61 % and best in every zone, beats
+      AutoProf in 80–84 % of inputs, 0 Isoster failures; report
+      `publication/reference/2026-10-10-round2-huang2013-full-campaign.md` (2026-10-10).
+- [x] Bookkeeping: eleven round-1 (PSF-free) reports moved to
+      `publication/reference/round1-no-psf/` with a README on what carries over; links
+      repointed; publication README status block rewritten; round-1 manuscript section
+      marked superseded (2026-10-11).
+- [ ] Decide later whether to keep the round-1 campaign data on the `galaxy` volume
+      (`publication_single_band_round1_2026_08_28/`).
+- [ ] Edge case, not now: cuspy inner profiles do occur in space-telescope or AO images of
+      nearby massive galaxies; cubic sampling on unconvolved cusps needs the inner bilinear
+      fallback (`sampling_cubic_min_sma`), see the 2026-10-09 gap review.
+- [x] S4G full campaign (300 barred disks, 1800 inputs, 25 arms, 6.5 h) scored with the
+      `--dataset s4g` switch and reported: all 1800 truths matched exactly; cubic lowers
+      the median full RMS by 18 % (1.60 → 1.31 %), 90th percentile unchanged (bar and
+      bulge-disk twist dominate), 0 Isoster failures, 17 of 1800 regressions > 20 %;
+      harmonics-on renderer takes the cubic arms to 0.75–0.80 %; switch neutral at the
+      median and fires too late for the outer disk; report
+      `publication/reference/2026-10-11-round2-s4g-full-campaign.md` (2026-10-11).
+- [x] Combined Huang2013 + S4G summary as the main publication record:
+      `round2_combined_summary.py` (every metric, both datasets side by side, 26 tables
+      on the galaxy volume under `analysis/combined_2026_10_11/`) and
+      `publication/reference/2026-10-11-round2-combined-summary.md`. New in the combined
+      view: the cubic model residual against the data sits at the noise level on the
+      ellipticals (1.00 sigma, bilinear 1.04 with 3.4 sigma inner); cubic + EA has a
+      regression tail on disks (155 of 1800 inputs worse than the default by > 20 %,
+      plain cubic 17), so plain cubic, not cubic + EA, is the default candidate
+      (2026-10-11).
+- [ ] Eccentric-anomaly sampling on barred isophotes: find why EA loses by > 20 % to
+      plain cubic in 152 of 1800 S4G inputs (inner and mid zone, mostly z = 0.05, also on
+      noiseless images) before recommending EA anywhere.
+- [ ] Add a log-linear harmonics-on renderer to `round2_small_sample.py` and rescore
+      both datasets with it: on disk galaxies the harmonics are signal and the current
+      headline (harmonics off) understates Isoster's model by 40 % on S4G.
+- [ ] Later refinement of the kernel switch: weigh bilinear bias (profile curvature in
+      pixel units) against ring noise instead of noise alone; on S4G the scatter and
+      S/N rules fire beyond 2 R_ref where bilinear already wins.
+- [ ] Decide, after the analysis and a real-data spot check (a few SGA/HSC galaxies):
+      cubic sampling as default (switch stays opt-in); as a separate commit with version
+      bump, regression-test updates and draft-timing re-archive.
+- [ ] Integrator robustness test on real images (SGA) or contaminant-injected mocks.
+
+Review: on PSF-convolved images cubic + EA sampling lowers median full RMS from 0.78 %
+to 0.29 % on all 22 galaxies at +9 % fit time; on the unconvolved mocks it fails on
+cusp cores unless rings below 4 px stay bilinear. Details in
+`publication/reference/2026-10-09-isoster-autoprof-gap-review.md`.
+
 # Huang2013 benchmark complete; next: AutoProf accuracy-gap investigation
 
 ## Wrap-up authorization and review — 2026-09-30
@@ -30,7 +107,7 @@ Noisy outer RMS improves 16.5–29.3%, full RMS only 0.47–1.27%; noiseless con
 unchanged. Full flux bias worsens for two noisy cases. 95.9–99.6% of original
 linear-model squared error is inner-zone error. 57 source hashes unchanged,
 41 accepted-audit matches; 57 targeted tests passed, Ruff/format/whitespace passed.
-Report: `publication/reference/2026-09-30-fixed-center-cases.md`; output campaign:
+Report: `publication/reference/round1-no-psf/2026-09-30-fixed-center-cases.md`; output campaign:
 `outputs/isoster_fixed_center_cases_20260930`. Next: inner extraction/rendering.
 
 ## Active center and extent investigation — 2026-09-23
@@ -47,7 +124,7 @@ Review: 1,674 primary outcomes, including 17 AutoProf errors. Gate 1.5156 s;
 population 119.8685 s. All 9,140 consulted input hashes unchanged; 4,989 match the
 accepted audit. One diagnostic unit test and analytic assertions passed; targeted
 Ruff and whitespace checks passed. Report:
-`publication/reference/2026-09-23-autoprof-center-extent.md`.
+`publication/reference/round1-no-psf/2026-09-23-autoprof-center-extent.md`.
 Native/spline support, same-ellipse extraction, causal flux/harmonic studies and
 selected-case visual diagnosis remain open in the investigation spec.
 
@@ -95,7 +172,7 @@ primary. Outputs: `outputs/huang2013_harmonic_qa_zones_20260923` and
   on two galaxies/two scenarios. Ranking depends on renderer. EA harmonic
   reconstruction and broader pixel-integration checks remain follow-up work,
   not a completed harmonic-inclusive population ranking.
-- Details: `docs/publication/reference/2026-09-23-two-pixel-analysis.md`.
+- Details: `docs/publication/reference/round1-no-psf/2026-09-23-two-pixel-analysis.md`.
 
 # Individual QA demo — 2026-09-22
 
@@ -165,7 +242,7 @@ primary. Outputs: `outputs/huang2013_harmonic_qa_zones_20260923` and
   outer RMS; AutoProf retains full RMS advantage. Renderer effects are larger
   than matched-spline harmonic effects. No population inference or default change.
 - Final output: `outputs/huang2013_harmonic_demo_20260923_v2`; detailed results
-  in `docs/publication/reference/2026-09-23-harmonic-demonstration.md`.
+  in `docs/publication/reference/round1-no-psf/2026-09-23-harmonic-demonstration.md`.
 - The user subsequently accepted the rendering/metric/QA rules and requested a
   handover for the full sample; see the next-analysis section above. No new fits,
   merge or push.
@@ -210,7 +287,7 @@ passed. Revised output gate and fresh population execution follow.
 
 Final QA: campaign analysis `huang2013_final_reconstruction_2026_09_23_v2`.
 Statistics/index: `outputs/huang2013_final_statistics_20260923`.
-Reference: `docs/publication/reference/2026-09-23-huang-final-analysis.md`.
+Reference: `docs/publication/reference/round1-no-psf/2026-09-23-huang-final-analysis.md`.
 665 unit tests passed; final source hashes frozen; no refit, merge, push or commit.
 The first bulk attempt and every gate remain preserved. Shared polar EA-on remains
 unsupported by design; native EA is validated and included. Rankings depend on
