@@ -150,6 +150,13 @@ Median full-aperture RMS in percent of the primary arms under each renderer:
 The ranking is the same under every renderer. The linear renderer used in round 1 gives the
 same conclusions with slightly larger numbers (`report_linear_off.md`).
 
+*Note added 2026-10-12.* The "native model" row was rendered with isoster 1.1.0, whose
+renderer applied `a3, b3` with the wrong sign outward of any > π/2 position-angle jump
+(20 % of these fits; fixed in 1.1.1). Re-scoring the affected fits with the fixed renderer
+moves the medians in this row by at most 0.003 percentage points (`samp_cubic_ea` 0.691 →
+0.694, photutils 2.294 → 2.291); the harmonic-off rows are unaffected by construction. See
+`2026-10-12-renderer-odd-harmonic-frame.md`.
+
 ## Integrator
 
 Median integration is worse than the clipped mean on the whole sample, as in the small

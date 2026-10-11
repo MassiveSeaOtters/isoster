@@ -163,7 +163,11 @@ inner 0.35 against 0.68, mid 0.97 against 1.60): the a3, a4, b3, b4 harmonics ar
 ellipticals and signal on bars. Its outer-zone loss on the disks (1.49 against 0.73 %) comes
 from the linear interpolation, not from the harmonics. No renderer in the set combines
 log-linear interpolation with harmonics; one should be added before the S4G tables go into
-the paper.
+the paper. (The native numbers here were rendered with isoster 1.1.0, whose renderer
+flipped the sign of `a3, b3` outward of a > π/2 position-angle jump; the 1.1.1 fix moves
+them by at most 0.003 percentage points on both samples because the mocks are symmetric.
+See `2026-10-12-renderer-odd-harmonic-frame.md`. On real, lopsided galaxies the same
+flip is large, so the SGA-2020 harmonics-on residuals must be re-rendered.)
 
 **Kernel switch.** Both self-contained rules fire on 99 to 100 % of noisy elliptical inputs
 and 94 to 100 % of noisy disk inputs, and every one of the 5,274 refits reproduced the saved

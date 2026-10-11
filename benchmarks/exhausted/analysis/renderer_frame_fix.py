@@ -111,17 +111,17 @@ def census_one(record_path: Path, dataset: str) -> dict | None:
     return out
 
 
-def run_census() -> pd.DataFrame:
+def run_census(workers: int) -> pd.DataFrame:
     rows = []
     for dataset, (fits_rel, _) in CAMPAIGNS.items():
         paths = sorted((ROOT / fits_rel).glob("*/*/arms/*/run_record.json"))
-        print(f"[census] {dataset}: {len(paths)} run records")
-        for i, p in enumerate(paths):
-            r = census_one(p, dataset)
-            if r is not None:
-                rows.append(r)
-            if i % 5000 == 0 and i:
-                print(f"[census] {dataset}: {i} done")
+        print(f"[census] {dataset}: {len(paths)} run records", flush=True)
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for i, r in enumerate(pool.map(census_one, paths, [dataset] * len(paths), chunksize=64)):
+                if r is not None:
+                    rows.append(r)
+                if i % 5000 == 0 and i:
+                    print(f"[census] {dataset}: {i} done", flush=True)
     frame = pd.DataFrame(rows)
     OUT.mkdir(parents=True, exist_ok=True)
     frame.to_csv(OUT / "census.csv", index=False)
@@ -242,7 +242,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     if args.step == "census":
-        run_census()
+        run_census(args.workers)
     elif args.step == "rescore":
         run_rescore(args.workers)
     else:

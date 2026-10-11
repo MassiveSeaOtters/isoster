@@ -82,7 +82,66 @@ bilinear one, as the spot check predicted.
 - The stored odd coefficients themselves are frame-dependent by construction;
   an `a3(sma)` profile plotted across a `pa` jump shows a sign flip. That is a
   presentation caveat, not a bug.
+- Not affected: the fit itself (every ring's harmonics are solved in its own
+  frame), the forced-photometry and multi-band paths (same geometry per ring),
+  and the QA contour overlays in `isoster/plotting.py`, which draw each
+  isophote from its own `pa` and coefficients without interpolating across
+  rings. The two interpolating renderers were the only places where rings in
+  different frames were combined.
 
 ## Exposure of the round-2 mock campaigns
 
-Pending: filled from `outputs/benchmark_exhausted/renderer_frame_fix_20261012/summary.md`.
+Measured with `renderer_frame_fix.py` on 2026-10-12 (census 66,000 run records at
+8 workers in 10 min; 11,075 affected fits re-rendered in 8 min). Full tables for
+every arm: `outputs/benchmark_exhausted/renderer_frame_fix_20261012/summary.md`.
+
+**Census.** About one ok fit in five has at least one ring rotated by the unwrap,
+at every depth, noiseless included:
+
+| dataset | tool | ok fits | affected | first rotated ring, sma/R_e (p10, median, p90) | max odd coefficient on rotated rings (median, p90) |
+|---|---|---:|---:|---|---|
+| Huang2013 | isoster | 14,229 | 2,819 (19.8 %) | 0.09, 0.79, 3.18 | 0.031, 0.091 |
+| Huang2013 | photutils | 3,289 | 688 (20.9 %) | 0.03, 0.19, 2.01 | 0.028, 0.74 |
+| S4G | isoster | 30,600 | 6,118 (20.0 %) | 0.15, 0.49, 1.69 | 0.004, 0.048 |
+| S4G | photutils | 6,910 | 1,450 (21.0 %) | 0.03, 0.29, 1.12 | 0.009, 0.055 |
+
+Affected fraction by depth, isoster: Huang2013 14 % noiseless, 17 % deep, 24 % wide;
+S4G 19, 20, 21 %. The rotations are not confined to sub-pixel rings: on the round
+Huang2013 ellipticals the position angle is ill-defined at every radius, and the
+median first rotation sits near 0.8 R_e.
+
+**Paired rescoring of the native renderer.** For every affected fit the native model
+was rendered with the old behaviour (emulated exactly) and with the fix, and both were
+scored against the saved truth on the campaign zones. The median paired change in truth
+RMS is 0.000 percentage points in every zone for every arm quoted in the records; the
+10th to 90th percentile spread is within ±0.03 points in the inner and mid zones and
+within ±0.35 points in the noisy outer zone (both signs). Campaign medians of the
+native renderer, archived against patched by the paired shift (truth RMS in per cent):
+
+| dataset | arm | all | inner | mid | outer |
+|---|---|---|---|---|---|
+| Huang2013 | `ref_default` | 1.324 → 1.324 | 1.097 → 1.097 | 1.403 → 1.403 | 4.539 → 4.517 |
+| Huang2013 | `samp_cubic` | 0.697 → 0.697 | 0.250 → 0.250 | 0.811 → 0.811 | 4.932 → 4.956 |
+| Huang2013 | `samp_cubic_ea` | 0.691 → 0.694 | 0.243 → 0.243 | 0.795 → 0.795 | 4.993 → 4.994 |
+| Huang2013 | `samp_cubic_snr200` | 0.656 → 0.656 | 0.250 → 0.250 | 0.808 → 0.808 | 4.521 → 4.521 |
+| Huang2013 | photutils `baseline_median` | 2.294 → 2.291 | 2.086 → 2.086 | 1.904 → 1.905 | 4.877 → 4.849 |
+| S4G | `ref_default` | 1.264 → 1.266 | 1.102 → 1.102 | 1.216 → 1.216 | 1.514 → 1.514 |
+| S4G | `samp_cubic` | 0.800 → 0.800 | 0.354 → 0.353 | 0.969 → 0.969 | 1.490 → 1.489 |
+| S4G | `samp_cubic_ea` | 0.752 → 0.752 | 0.306 → 0.306 | 0.896 → 0.896 | 1.490 → 1.492 |
+| S4G | `samp_cubic_snr200` | 0.781 → 0.781 | 0.357 → 0.357 | 0.973 → 0.973 | 1.475 → 1.474 |
+| S4G | photutils `baseline_median` | 1.923 → 1.923 | 1.998 → 1.998 | 1.271 → 1.271 | 1.249 → 1.246 |
+
+**Conclusion.** The round-2 records stand. Every native-renderer number quoted in the
+Huang2013 and S4G records changes by at most 0.003 percentage points in the full
+aperture and the inner and mid zones, and by at most 0.03 points in the outer zone,
+below the precision the records quote and far below the differences they discuss
+(0.80 against 1.31 % on the disks). The reason is physical: the mocks are symmetric,
+so the `m = 3` coefficients that the bug flips are noise on the ellipticals and nearly
+zero on the barred disks, whose structure is even (`m = 2, 4`). On real galaxies with
+genuine lopsidedness the same flip is large: UGC02446 carries `b3 ≈ −0.013` at 12 to
+20 px and its residual doubled. The SGA-2020 campaign, not the mock campaigns, is where
+the fix changes numbers, and `sga_isoster` must re-render before quoting them.
+
+The old-behaviour emulation reproduces the archived values exactly at the median; the
+90th-percentile difference (0.34 points on Huang2013, 0.06 on S4G) is the support
+difference described above, in the noisy outskirts, and cancels in the paired shift.
