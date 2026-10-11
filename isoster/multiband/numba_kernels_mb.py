@@ -252,6 +252,133 @@ def _bilinear_sample_stack_numpy(
 bilinear_sample_stack = _bilinear_sample_stack_numba if NUMBA_AVAILABLE else _bilinear_sample_stack_numpy
 
 
+@njit(cache=True)
+def _mirror_index(index: int, last: int) -> int:
+    """Fold a spline-footprint index back into ``[0, last]`` the way scipy does.
+
+    ``map_coordinates(mode="constant")`` returns ``cval`` only for sample points
+    outside the image; for a point inside it, footprint taps that fall past the
+    edge are mirrored about the edge pixel (``-1 -> 1``, ``last + 1 -> last - 1``).
+    Reproducing that rule is what lets this kernel match the single-band scipy
+    read to rounding; clamping or repeating the edge pixel differs by up to the
+    pixel-to-pixel contrast one pixel in from the border.
+    """
+    if index < 0:
+        index = -index
+    elif index > last:
+        index = 2 * last - index
+    if index < 0:
+        index = 0
+    elif index > last:
+        index = last
+    return index
+
+
+@njit(cache=True)
+def _cubic_weights(t: float):
+    """The four cubic B-spline weights for a fractional offset ``t`` in [0, 1)."""
+    u = 1.0 - t
+    return (
+        u * u * u / 6.0,
+        (3.0 * t * t * t - 6.0 * t * t + 4.0) / 6.0,
+        (-3.0 * t * t * t + 3.0 * t * t + 3.0 * t + 1.0) / 6.0,
+        t * t * t / 6.0,
+    )
+
+
+@njit(cache=True)
+def _cubic_sample_stack_numba(
+    coeff_stack: NDArray[np.float64],
+    raw_stack: NDArray[np.float64],
+    y_coords: NDArray[np.float64],
+    x_coords: NDArray[np.float64],
+    out: NDArray[np.float64],
+) -> None:
+    """Cubic B-spline read of every band at every (y, x), matching scipy.
+
+    ``coeff_stack`` holds the per-band spline coefficients from
+    :func:`isoster.multiband.sampling_mb.prepare_sampling_stack`; the read
+    reproduces ``map_coordinates(coeffs, order=3, mode="constant", cval=nan,
+    prefilter=False)`` band by band, including scipy's mirrored footprint at
+    the image edge, to rounding (about 1e-14 relative). ``raw_stack`` is the
+    unfiltered image stack: a sample whose bilinear footprint touches a
+    non-finite pixel is returned as NaN, exactly as the bilinear kernel
+    returns it, because the coefficients were built with those pixels zeroed
+    and would otherwise read a hole as flux.
+    """
+    n_bands, h, w = coeff_stack.shape
+    n_samples = y_coords.shape[0]
+    h_max = h - 1
+    w_max = w - 1
+    for n in range(n_samples):
+        y = y_coords[n]
+        x = x_coords[n]
+        if y < 0.0 or y > h_max or x < 0.0 or x > w_max:
+            for b in range(n_bands):
+                out[b, n] = np.nan
+            continue
+        y0 = int(np.floor(y))
+        x0 = int(np.floor(x))
+        y1 = y0 + 1 if y0 < h_max else y0
+        x1 = x0 + 1 if x0 < w_max else x0
+        wy = _cubic_weights(y - y0)
+        wx = _cubic_weights(x - x0)
+        rows = (
+            _mirror_index(y0 - 1, h_max),
+            _mirror_index(y0, h_max),
+            _mirror_index(y0 + 1, h_max),
+            _mirror_index(y0 + 2, h_max),
+        )
+        cols = (
+            _mirror_index(x0 - 1, w_max),
+            _mirror_index(x0, w_max),
+            _mirror_index(x0 + 1, w_max),
+            _mirror_index(x0 + 2, w_max),
+        )
+        for b in range(n_bands):
+            if (
+                np.isnan(raw_stack[b, y0, x0])
+                or np.isnan(raw_stack[b, y0, x1])
+                or np.isnan(raw_stack[b, y1, x0])
+                or np.isnan(raw_stack[b, y1, x1])
+            ):
+                out[b, n] = np.nan
+                continue
+            acc = 0.0
+            for j in range(4):
+                row = rows[j]
+                row_acc = 0.0
+                for i in range(4):
+                    row_acc += wx[i] * coeff_stack[b, row, cols[i]]
+                acc += wy[j] * row_acc
+            out[b, n] = acc
+
+
+def _cubic_sample_stack_numpy(
+    coeff_stack: NDArray[np.float64],
+    raw_stack: NDArray[np.float64],
+    y_coords: NDArray[np.float64],
+    x_coords: NDArray[np.float64],
+    out: NDArray[np.float64],
+) -> None:
+    """Pure-scipy fallback for the cubic stack read (one call per band).
+
+    The non-finite rule is applied through a bilinear read of the raw stack,
+    which is NaN wherever the bilinear kernel would have been.
+    """
+    from scipy.ndimage import map_coordinates  # local import — fallback only
+
+    coords = np.vstack([y_coords, x_coords]).astype(np.float64, copy=False)
+    for b in range(coeff_stack.shape[0]):
+        values = map_coordinates(coeff_stack[b], coords, order=3, mode="constant", cval=np.nan, prefilter=False)
+        touched = map_coordinates(raw_stack[b], coords, order=1, mode="constant", cval=np.nan)
+        values[~np.isfinite(touched)] = np.nan
+        out[b] = values
+
+
+cubic_sample_stack = _cubic_sample_stack_numba if NUMBA_AVAILABLE else _cubic_sample_stack_numpy
+
+
 def warmup_numba_mb() -> None:
     """
     Trigger numba JIT compilation for the multi-band kernels.
@@ -261,6 +388,14 @@ def warmup_numba_mb() -> None:
     """
     if not NUMBA_AVAILABLE:
         return
+    # Warm both ring-read kernels on a two-band stack.
+    stack = np.zeros((2, 8, 8), dtype=np.float64)
+    ys = np.linspace(1.0, 6.0, 5)
+    xs = np.linspace(1.0, 6.0, 5)
+    out = np.empty((2, 5), dtype=np.float64)
+    _bilinear_sample_stack_numba(stack, ys, xs, out)
+    _cubic_sample_stack_numba(stack, stack, ys, xs, out)
+
     phi = np.linspace(0.0, 2.0 * np.pi, 64)
     _ = _build_joint_design_matrix_numba(phi, 2)
     # Warm the jagged-builder kernel for both normalize=False and =True.

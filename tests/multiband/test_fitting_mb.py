@@ -2739,10 +2739,19 @@ def test_forced_mode_ols_mean_sem_matches_single_band_convention():
     # At n≈250 the ddof=0 and ddof=1 forms differ by only 0.2%, so a
     # tolerance-based check cannot tell them apart. Cross-check the exact
     # arithmetic instead — that is the user-visible contract.
-    from isoster.multiband.sampling_mb import extract_isophote_data_multi
+    from isoster.multiband.sampling_mb import (
+        extract_isophote_data_multi_prepared,
+        prepare_inputs,
+        prepare_sampling_stack,
+    )
 
-    data = extract_isophote_data_multi(
-        [img_g, img_r],
+    # Re-read the ring with the kernel the forced extraction used (cubic by default),
+    # so the expected statistic describes the same samples.
+    image_stack, masks_resolved, _ = prepare_inputs([img_g, img_r], None, None)
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, cfg.sampling_interpolation)
+    data = extract_isophote_data_multi_prepared(
+        image_stack,
+        masks_resolved,
         None,
         x0,
         y0,
@@ -2750,6 +2759,8 @@ def test_forced_mode_ols_mean_sem_matches_single_band_convention():
         0.0,
         0.0,
         use_eccentric_anomaly=False,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
     n_b = data.intens.shape[1]
     expected_sem_g = float(np.std(data.intens[0]) / np.sqrt(n_b))
@@ -2769,7 +2780,11 @@ def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
     reported error low by ~25%.
     """
     from isoster.multiband.fitting_mb import extract_forced_photometry_mb
-    from isoster.multiband.sampling_mb import extract_isophote_data_multi
+    from isoster.multiband.sampling_mb import (
+        extract_isophote_data_multi_prepared,
+        prepare_inputs,
+        prepare_sampling_stack,
+    )
 
     h = w = 256
     x0 = y0 = 128.0
@@ -2802,8 +2817,13 @@ def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
         variance_maps=None,
     )
 
-    data = extract_isophote_data_multi(
-        [img_g, img_r],
+    # Re-read the ring with the kernel the forced extraction used (cubic by default),
+    # so the expected statistic describes the same samples.
+    image_stack, masks_resolved, _ = prepare_inputs([img_g, img_r], None, None)
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, cfg.sampling_interpolation)
+    data = extract_isophote_data_multi_prepared(
+        image_stack,
+        masks_resolved,
         None,
         x0,
         y0,
@@ -2811,6 +2831,8 @@ def test_h4_forced_mode_ols_median_sem_applies_gaussian_factor():
         0.0,
         0.0,
         use_eccentric_anomaly=False,
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
     n_b = data.intens.shape[1]
     median_factor = float(np.sqrt(np.pi / 2.0))

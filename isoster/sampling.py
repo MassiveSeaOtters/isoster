@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
-from scipy.ndimage import map_coordinates, spline_filter
+from scipy.ndimage import distance_transform_edt, map_coordinates, spline_filter
 
 # Import numba-accelerated kernels (with numpy fallback)
 from .numba_kernels import compute_ellipse_coords
@@ -131,22 +131,58 @@ def _bilinear_support_is_valid(variance_map, x, y):
     return usable
 
 
+def mask_non_finite_pixels(image, mask, interpolation="bilinear"):
+    """Return ``mask`` with the non-finite pixels of ``image`` flagged for a cubic read.
+
+    A bilinear read returns NaN for any sample that touches a non-finite pixel, so
+    such pixels exclude themselves. The cubic coefficients are built with those
+    pixels zeroed (see :func:`prepare_sampling_image`), which would read a hole as
+    flux; flagging the pixels in the mask, which is read at the nearest pixel,
+    restores the exclusion. ``None`` stays ``None`` when the image is finite.
+    """
+    if interpolation == "bilinear":
+        return mask
+    bad = ~np.isfinite(image)
+    if not bad.any():
+        return mask
+    if mask is None:
+        return bad
+    return np.asarray(mask, dtype=bool) | bad
+
+
 def prepare_sampling_image(image, interpolation="bilinear"):
     """Return ``(sampling_image, interpolation_order)`` for :func:`extract_isophote_data`.
 
     For ``"cubic"`` the image is converted once into cubic B-spline coefficients so
     that every later ring sample costs a single ``map_coordinates(order=3,
     prefilter=False)`` call; the prefilter is the only O(image) step. Non-finite
-    pixels would poison the whole coefficient array, so they are zeroed first and
-    must be excluded through ``mask`` by the caller.
+    pixels would poison the whole coefficient array, so they are replaced first
+    (see :func:`fill_non_finite_pixels`) and must be excluded through ``mask`` by
+    the caller (:func:`mask_non_finite_pixels`).
     """
     if interpolation == "bilinear":
         return image, 1
     if interpolation != "cubic":
         raise ValueError(f"Unknown sampling interpolation: {interpolation!r}")
+    return spline_filter(fill_non_finite_pixels(np.asarray(image, dtype=np.float64)), order=3), 3
+
+
+def fill_non_finite_pixels(image):
+    """Return ``image`` with every non-finite pixel replaced by its nearest finite one.
+
+    The spline prefilter is a recursive filter, so whatever sits in a hole leaks into
+    the coefficients around it with a weight that falls by a factor 3.7 per pixel.
+    Filling a hole with zero biased the rings passing within two or three pixels of
+    it (0.15 % on a 10 px hole at 1.7 scale lengths of an exponential galaxy); the
+    nearest finite value keeps the coefficients close to the local profile, and the
+    hole itself stays out of the rings through the mask. The image is returned as is
+    when it is finite.
+    """
     finite = np.isfinite(image)
-    source = image if finite.all() else np.where(finite, image, 0.0)
-    return spline_filter(np.asarray(source, dtype=np.float64), order=3), 3
+    if finite.all():
+        return image
+    nearest = distance_transform_edt(~finite, return_distances=False, return_indices=True)
+    return image[tuple(nearest)]
 
 
 def extract_isophote_data(

@@ -118,3 +118,50 @@ def test_log_linear_renderer_is_exact_for_an_exponential_profile_and_keeps_centr
     assert np.nanmax(np.abs(log_linear[inside] - truth[inside])[truth[inside] > 1]) < 1e-9
     assert np.nansum(linear[inside] - truth[inside]) > 0  # linear-in-intensity overestimates a convex profile
     assert log_linear[40, 40] == 123.0 and linear[40, 40] == 123.0
+
+
+def _exponential_with_hole(size=200, scale=20.0, peak=1000.0, hole=None):
+    y, x = np.mgrid[:size, :size]
+    image = peak * np.exp(-np.hypot(x - size / 2.0, y - size / 2.0) / scale)
+    image += np.random.default_rng(0).normal(0.0, 1.0, image.shape)
+    if hole is not None:
+        rows, cols = hole
+        image[rows, cols] = np.nan
+    return image
+
+
+def test_fill_non_finite_pixels_uses_the_nearest_finite_value():
+    from isoster.sampling import fill_non_finite_pixels, mask_non_finite_pixels
+
+    image = np.arange(25, dtype=float).reshape(5, 5)
+    image[2, 2] = np.nan
+    image[0, 4] = np.inf
+    filled = fill_non_finite_pixels(image)
+    assert np.isfinite(filled).all()
+    assert filled[2, 2] in (image[1, 2], image[2, 1], image[2, 3], image[3, 2])
+    assert filled[0, 4] in (image[0, 3], image[1, 4])
+    assert fill_non_finite_pixels(filled) is filled
+    assert mask_non_finite_pixels(filled, None, "cubic") is None
+    mask = mask_non_finite_pixels(image, None, "cubic")
+    assert mask.sum() == 2 and mask[2, 2] and mask[0, 4]
+    assert mask_non_finite_pixels(image, None, "bilinear") is None
+
+
+def test_non_finite_pixels_do_not_read_as_flux_under_cubic_reads():
+    """A hole of NaN pixels leaves the rings through the mask, and the prefilter sees
+    the nearest finite value instead of zero, so rings passing near the hole are no
+    more disturbed than under bilinear reads (0.03 % on this hole; 0.15 % with the
+    hole zeroed, because the recursive prefilter leaks a zero into the neighbouring
+    coefficients)."""
+    hole = (slice(95, 105), slice(130, 140))
+    clean, holed = _exponential_with_hole(), _exponential_with_hole(hole=hole)
+    worst = {}
+    for kernel in ("bilinear", "cubic"):
+        cfg = IsosterConfig(x0=100.0, y0=100.0, sma0=10.0, maxsma=60.0, sampling_interpolation=kernel)
+        reference = {round(i["sma"], 6): i["intens"] for i in fit_image(clean, None, cfg)["isophotes"]}
+        with_hole = {round(i["sma"], 6): i["intens"] for i in fit_image(holed, None, cfg)["isophotes"]}
+        common = sorted(set(reference) & set(with_hole))
+        assert len(common) == len(reference) > 40
+        worst[kernel] = max(abs(with_hole[s] / reference[s] - 1.0) for s in common)
+    assert worst["cubic"] < 5e-4
+    assert worst["cubic"] < 1.5 * worst["bilinear"]

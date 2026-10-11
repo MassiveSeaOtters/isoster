@@ -28,7 +28,11 @@ from isoster.multiband.fitting_mb import (
     evaluate_joint_model,
     fit_isophote_mb,
 )
-from isoster.multiband.sampling_mb import extract_isophote_data_multi_prepared, prepare_inputs
+from isoster.multiband.sampling_mb import (
+    extract_isophote_data_multi_prepared,
+    prepare_inputs,
+    prepare_sampling_stack,
+)
 from isoster.numba_kernels import build_harmonic_matrix
 
 START = {"x0": 60.0, "y0": 60.0, "eps": 0.3, "pa": 0.4}
@@ -255,8 +259,17 @@ def test_reference_mode_geometry_and_reference_intensity_share_one_scale():
 
     The non-reference bands report a plain ring mean, which is a different
     quantity and correctly stays unfloored.
+
+    The images carry pixel noise of 1 ADU so the non-reference ring scatter has
+    a floor of its own. On a noiseless image the cubic read reproduces the
+    model almost exactly, the ring scatter is then only the residual of the
+    stopping geometry (0.005 against 0.02 between the two runs below), and the
+    1x contrast this test relies on is lost in it.
     """
-    images = [make_sersic_image(), make_sersic_image(amplitude=600.0)]
+    rng = np.random.default_rng(3)
+    images = [
+        image + rng.normal(0.0, 1.0, image.shape) for image in (make_sersic_image(), make_sersic_image(amplitude=600.0))
+    ]
     results = {}
     for sigma_bg in (5.0, 50.0):
         cfg = IsosterConfigMB(
@@ -291,18 +304,34 @@ def test_reference_mode_non_reference_bands_report_the_weighted_mean():
     ``intens_err_<b>`` reported the inverse-variance-weighted mean's variance.
     On the map below the reported error understated the reported mean's own
     error tenfold (0.0904 against 0.9026). The variance map is deliberately
-    bimodal so the two means differ.
+    bimodal so the two means differ, and the r band carries a 1 ADU step across
+    the half-plane where its variance is low so that they differ by
+    construction: under the cubic read a noiseless ring is flat to 1e-5 and
+    both estimators would otherwise return the same value.
     """
     base = make_sersic_image()
-    images = [base, base * 0.6]
+    stepped = base * 0.6
+    stepped[: 121 // 2] += 1.0
+    images = [base, stepped]
     variance_maps = [np.full((121, 121), 1.0), azimuthal_variance_map()]
     cfg = IsosterConfigMB(bands=["g", "r"], reference_band="g", harmonic_combination="ref")
 
     out = fit_isophote_mb(images, None, SMA, START, cfg, variance_maps=variance_maps)
 
     image_stack, masks, var_stack = prepare_inputs(images, None, variance_maps)
+    # Same ring read as the fit (cubic by default), or the comparison measures the kernel.
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, cfg.sampling_interpolation)
     ring = extract_isophote_data_multi_prepared(
-        image_stack, masks, var_stack, out["x0"], out["y0"], SMA, out["eps"], out["pa"]
+        image_stack,
+        masks,
+        var_stack,
+        out["x0"],
+        out["y0"],
+        SMA,
+        out["eps"],
+        out["pa"],
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
     intens, variances = ring.intens[1], ring.variances[1]
     weights = 1.0 / variances
@@ -329,8 +358,19 @@ def test_reference_mode_ols_non_reference_bands_are_unchanged():
     out = fit_isophote_mb(images, None, SMA, START, cfg)
 
     image_stack, masks, var_stack = prepare_inputs(images, None, None)
+    # Same ring read as the fit (cubic by default), or the comparison measures the kernel.
+    sampling_stack, interpolation_order = prepare_sampling_stack(image_stack, cfg.sampling_interpolation)
     ring = extract_isophote_data_multi_prepared(
-        image_stack, masks, var_stack, out["x0"], out["y0"], SMA, out["eps"], out["pa"]
+        image_stack,
+        masks,
+        var_stack,
+        out["x0"],
+        out["y0"],
+        SMA,
+        out["eps"],
+        out["pa"],
+        sampling_stack=sampling_stack,
+        interpolation_order=interpolation_order,
     )
     assert out["intens_r"] == pytest.approx(float(ring.intens[1].mean()), rel=1e-9)
 

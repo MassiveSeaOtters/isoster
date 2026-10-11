@@ -319,10 +319,13 @@ def test_simultaneous_original_matches_shared_within_tolerance():
     # `simultaneous_*` modes still stamp one identical raw amplitude into every
     # band. They therefore agree on the underlying signal but not column by
     # column; the reference band is compared with a tolerance that reflects
-    # that. See docs/10-multiband.md on the shared-shape convention.
+    # that. See docs/10-multiband.md on the shared-shape convention. The gap
+    # between the two modes is 8 % of the recovered b4 under either ring read;
+    # the cubic read recovers 0.040 of the planted 0.05 where the bilinear read
+    # recovered 0.029, so the absolute gap grew from 0.0022 to 0.0034.
     for rs, ro in zip(iso_s, iso_o):
         for col in ("a3_r", "b3_r", "a4_r", "b4_r"):
-            np.testing.assert_allclose(rs[col], ro[col], atol=3e-3, err_msg=col)
+            np.testing.assert_allclose(rs[col], ro[col], atol=5e-3, err_msg=col)
 
 
 def test_simultaneous_in_loop_emits_warning():

@@ -77,14 +77,19 @@ Branch `review/isoster-autoprof-gap-20261009` (worktree `~/code/isoster-gap-revi
       `benchmark_sample1` set at `/Volumes/galaxy/isophote/sga2020/data/` has 2,000
       r-band cutouts of 241–545 px (median 338 px, 0.11 Mpix). Two fits measured:
       cubic/bilinear wall time 1.05 and 1.07, prefilter 2 and 5 ms. The switch stays opt-in.
-- [ ] Multi-band reads bilinearly (`sampling_mb.py` numba stack kernel). Measured
-      2026-10-11: a 2-band stack of one image gives the single-band *bilinear* result
-      (1e-2 % RMS apart) and differs from the single-band cubic fit by 1.0 % RMS
-      (2.5 % max) on a PSF-convolved n=2 Sersic, while B=1 delegates to `fit_image` and
-      is cubic. Ring read cost: numba bilinear 0.6–2.9 µs per ring (B=2–5) vs scipy
-      cubic per band 13–108 µs. Recommended: a 16-tap numba cubic stack kernel plus a
-      per-band prefilter (22 ms for five 500 px bands), honouring the same
-      `sampling_interpolation` and fallbacks; add a B=2-of-one-image vs single-band test.
+- [x] Multi-band reads with the same kernel as single-band (branch
+      `feature/multiband-cubic-sampling-20261011`, 2026-10-11): `IsosterConfigMB`
+      gained `sampling_interpolation` (default cubic) and the two sma fallbacks; a numba
+      cubic stack kernel matches scipy to 1e-14 (mirrored edge footprint); the driver
+      prefilters once per fit and threads the kernel through the fit loop, the gradient
+      rings, the forced path and the B=1 delegation. Before: a 2-band stack of one image
+      sat 1.0 % RMS (2.5 % max) from the single-band cubic fit; after: 0.05 % RMS. Cost
+      on a 300 px image: B=2 115 → 121 ms, B=5 195 → 204 ms (5 %), single-band 53 → 59
+      ms; numba cubic read 1.7–13 µs per ring vs bilinear 0.7–3.0 µs. Same branch fixes
+      non-finite pixels under cubic reads in both drivers: they are flagged in the mask
+      and filled with the nearest finite neighbour before the prefilter (a zeroed hole
+      leaked into the neighbouring coefficients and biased nearby rings by 0.15 %
+      against 0.03 % bilinear; now 0.03 %).
 - [ ] Windowed prefilter: low priority. A window of centre ± maxsma needs a 32 px margin
       to reproduce whole-frame coefficients exactly (16 px gives 2e-9 relative); on a
       4000 px frame it is 7 ms instead of 379 ms. But the library default and the SGA
