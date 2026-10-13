@@ -219,4 +219,9 @@ offset in its maxsma table.
 5. The clipped mean remains the integrator.
 6. The headline renderer for the paper's S4G tables should interpolate log-linearly and
    include the harmonics; the current set has one or the other.
-7. Before the default flip: a real-data spot check on a few SGA or HSC galaxies.
+7. Before the default flip: a real-data spot check on a few SGA or HSC galaxies. Done:
+   twelve SGA-2020 cutouts ([spot check](2026-10-12-sga2020-cubic-spot-check.md)), then
+   1,999 under 1.1.1 ([SGA-2020 round 2](2026-10-13-sga2020-bm1-round2.md)). The cubic
+   read never fails, makes the cores 0.5 % brighter (+3.4 sigma per ring on early
+   types), describes the pixels better in the inner zone on 83 % of early types, and
+   costs 10 % of a 0.11 s fit at the median.
