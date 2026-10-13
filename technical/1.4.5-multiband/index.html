@@ -1,0 +1,2377 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.4.5-multiband/">
+      
+      
+        <link rel="prev" href="../1.4.4-batch-robustness/">
+      
+      
+        <link rel="next" href="../1.4.6-diagnostics-qa/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.4.5 Multi-band Joint Fit - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#145-multi-band-joint-free-fit" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.4.5 Multi-band Joint Fit
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.4-batch-robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1451-what-each-multi-band-workflow-actually-measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.1 What each multi-band workflow actually measures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1452-the-joint-design-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.2 The joint design matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="§1.4.5.2 The joint design matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-shared-parameters-should-be-amplitudes-or-geometry-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the shared parameters should be: amplitudes or geometry steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pooling-the-gradient-with-the-weights-the-solve-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pooling the gradient with the weights the solve used
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-fields-that-reshape-the-solve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration fields that reshape the solve
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1453-four-modes-for-higher-order-harmonics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.3 Four modes for higher-order harmonics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1454-loose-validity-for-per-band-masking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.4 Loose validity for per-band masking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1455-per-band-bender-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.5 Per-band Bender normalization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1456-output-schema-and-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.6 Output schema and serialization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1457-parallel-multi-band-command-line-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.7 Parallel multi-band command-line interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1458-caveats-and-design-choices-worth-flagging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.8 Caveats and design choices worth flagging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14510-when-the-joint-fit-matters-a-signal-to-noise-dependence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.10 When the joint fit matters: a signal-to-noise dependence
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1451-what-each-multi-band-workflow-actually-measures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.1 What each multi-band workflow actually measures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1452-the-joint-design-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.2 The joint design matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="§1.4.5.2 The joint design matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-shared-parameters-should-be-amplitudes-or-geometry-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the shared parameters should be: amplitudes or geometry steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pooling-the-gradient-with-the-weights-the-solve-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pooling the gradient with the weights the solve used
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-fields-that-reshape-the-solve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration fields that reshape the solve
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1453-four-modes-for-higher-order-harmonics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.3 Four modes for higher-order harmonics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1454-loose-validity-for-per-band-masking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.4 Loose validity for per-band masking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1455-per-band-bender-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.5 Per-band Bender normalization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1456-output-schema-and-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.6 Output schema and serialization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1457-parallel-multi-band-command-line-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.7 Parallel multi-band command-line interface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1458-caveats-and-design-choices-worth-flagging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.8 Caveats and design choices worth flagging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14510-when-the-joint-fit-matters-a-signal-to-noise-dependence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.5.10 When the joint fit matters: a signal-to-noise dependence
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="145-multi-band-joint-free-fit">§1.4.5 Multi-band joint free fit</h1>
+<p>Modern resolved-galaxy science is almost always <em>multi-band</em>. The
+photometric pipelines that deliver the imaging — Hyper Suprime-Cam
+SSP, DECaLS / BASS / MzLS, DES, the Sloan Digital Sky Survey, the
+eventual LSST main survey — provide co-aligned images in three or
+more filters per target, each with its own per-pixel inverse-
+variance map. The scientific quantities of interest — color
+gradients, age maps, dust attenuation profiles, spatially-resolved
+stellar-population fits — are not single-band quantities; they
+depend on differences and ratios across bands and on whether those
+differences are evaluated at <em>the same physical isophote</em> in each
+band.</p>
+<p>The classical multi-band workflow handles this through
+<em>forced photometry</em>. A reference band is fit independently to
+discover the per-SMA geometry, and the other bands are then
+extracted under that fixed geometry as forced templates. This is
+the workflow ISOSTER supports through its <code>template</code> argument
+(§1.2). For galaxies whose morphology is genuinely band-independent
+— most ellipticals, and most disk galaxies within a fixed
+photometric aperture in the inner high-<span class="arithmatex">\(S/N\)</span> region — forced
+photometry is a defensible choice and produces reasonable per-band
+intensity profiles.</p>
+<p>For galaxies with morphological structure that <em>varies</em> across
+bands — disk-bulge color gradients, dust-lane asymmetries, AGN
+color excess, star-formation regions that appear preferentially in
+shorter wavelengths — forced photometry makes a choice that is
+worth surfacing rather than leaving implicit: it reports every band
+on an aperture sequence selected by one reference band, so the
+non-reference bands are measured on ellipses that are not their own
+isophotes. That is a real property of the workflow, and it is the
+motivation for the <em>joint multi-band free fit</em> described in this
+subsection. The joint fit solves for a single shared geometry per
+SMA across all bands simultaneously, with per-band intensities and
+per-band higher-order harmonics as additional unknowns in the
+linear system.</p>
+<p>It is important not to overstate what that fixes, and §1.4.5.1
+develops the point at length. The joint fit does not recover each
+band's own isophotes either; it also imposes one shared aperture
+sequence, and when the bands genuinely differ in shape that
+sequence is a compromise. What changes is <em>how the compromise is
+chosen</em> — from the data, weighted by each band's geometric
+leverage, rather than by the analyst's choice of reference band —
+and, decisively for colour work, that the same aperture is used in
+every band, so a colour is differenced on identical apertures. The
+forced-photometry workflow remains available for the case where a
+predetermined aperture is what the science calls for; the joint free
+fit is the recommended path for colour-gradient science, on the
+strength of the precision result measured in §1.4.5.10.</p>
+<p>This subsection describes the joint algorithm. It is the longest
+feature subsection because the multi-band fit is algorithmically
+distinct enough from single-band that several design choices —
+the joint design-matrix structure and what its shared parameters
+should be, the four higher-harmonic modes, per-band masking through
+loose validity, the per-band Bender normalization — need explicit
+treatment. A theme runs through the first, third and fourth of those:
+in a multi-band fit, the quantity that is physically common across
+bands is a <em>geometric</em> or <em>dimensionless shape</em> quantity, while the
+quantity a naive linear system shares is an <em>intensity amplitude</em>.
+Every band's amplitude carries that band's own radial gradient, so
+sharing amplitudes is a misspecification wherever the gradients
+differ. Recognising this in the geometry solve (§1.4.5.2) and in the
+shared higher harmonics (§1.4.5.3) is what makes the joint fit
+insensitive to the bands' arbitrary flux units.</p>
+<h2 id="1451-what-each-multi-band-workflow-actually-measures">§1.4.5.1 What each multi-band workflow actually measures</h2>
+<p>Consider a disk-bulge galaxy whose disk component dominates the
+<span class="arithmatex">\(g\)</span>-band light and whose bulge component dominates the <span class="arithmatex">\(i\)</span>-band
+light. The <span class="arithmatex">\(g\)</span>-band isophotes at intermediate SMA are nearly
+circular and aligned with the disk's projected geometry. The
+<span class="arithmatex">\(i\)</span>-band isophotes at the same intermediate SMA are more elliptical
+and aligned with the bulge's photometric major axis. The two
+geometries are <em>physically different</em> — they reflect the different
+spatial distributions of the two stellar populations — and a fit
+that allows each band its own geometry finds these differences
+without difficulty.</p>
+<p>Forced photometry overrides this by enforcing the <span class="arithmatex">\(g\)</span>-band
+geometry on the <span class="arithmatex">\(i\)</span>-band extraction. The <span class="arithmatex">\(i\)</span>-band intensity at SMA
+<span class="arithmatex">\(a\)</span> is now reported as the mean intensity along an ellipse that is
+<em>not</em> an isophote of the <span class="arithmatex">\(i\)</span>-band image; it is an ellipse drawn
+along <span class="arithmatex">\(g\)</span>-band isophotal contours and resampled in <span class="arithmatex">\(i\)</span>. The
+reported intensity is biased away from the <span class="arithmatex">\(i\)</span>-band's natural
+intensity at the <em>physical</em> radius defined by the <span class="arithmatex">\(i\)</span>-band's
+shape. The bias is small in the inner region where the two bands
+are both above the noise floor and their geometries differ
+modestly; it grows toward larger SMAs where the geometry
+divergence accumulates.</p>
+<p>A second, related bias appears in the higher-order harmonics. The
+classical forced-photometry workflow extracts only the intensity
+along the fixed ellipse; the higher-order harmonics <span class="arithmatex">\((A_n, B_n)\)</span>
+for <span class="arithmatex">\(n \ge 3\)</span> are either omitted from the forced result or computed
+on the same fixed geometry. The latter produces a coefficient
+profile that mixes the genuine higher-order morphology of the
+<span class="arithmatex">\(i\)</span>-band image with the forced-geometry mismatch at orders 1 and 2
+— a contamination that grows with band-to-band morphological
+difference.</p>
+<p>The joint free fit changes what the shared aperture <em>is</em>. It treats
+the geometry as a shared unknown across bands and the intensities as
+per-band unknowns: the shared geometry is the one geometry per SMA
+that minimizes the joint residual across all <span class="arithmatex">\(B\)</span> bands, and the
+per-band intensities are the best-fit zero points of each band's
+sampled profile under it. The reported <span class="arithmatex">\(i\)</span>-band intensity at SMA <span class="arithmatex">\(a\)</span>
+is therefore not the intensity along the <span class="arithmatex">\(g\)</span>-band's preferred
+ellipse; it is the intensity along an ellipse that every band had a
+say in, weighted by how much geometric information each carries.</p>
+<p><strong>Three workflows, three different estimands.</strong> It would be
+convenient to say that this removes the forced-photometry bias, and
+the preceding paragraphs invite that reading, but it does not — and
+the distinction is worth drawing sharply, because it determines what
+any demonstration can legitimately claim. The three workflows do not
+estimate the same quantity:</p>
+<ul>
+<li><strong>Forced photometry</strong> reports each band's intensity on an aperture
+  sequence chosen by one reference band.</li>
+<li><strong>The joint free fit</strong> reports each band's intensity on one
+  data-informed shared aperture sequence.</li>
+<li><strong>Independent per-band fitting</strong> reports each band on its own
+  natural isophotal geometry.</li>
+</ul>
+<p>When the bands genuinely differ in morphology, <em>no</em> shared-geometry
+method can be unbiased with respect to every band's own isophotes,
+because there is no single aperture sequence that is right for all
+of them. The joint fit returns a compromise just as forced
+photometry does; §1.4.5.8 says so explicitly. What differs is how
+the compromise is chosen — by the data, in proportion to each band's
+geometric leverage, rather than by the analyst's choice of reference
+band — and, decisively for colour work, that the compromise is
+<em>common to all bands</em>, so a colour formed by differencing two of
+them is differenced on identical apertures.</p>
+<p>That last property is the durable argument, and it is the one the
+measured experiment of §1.4.5.10 supports: what the joint fit
+demonstrably buys is <em>precision</em> in the colour profile at low
+signal-to-noise, where independent per-band geometries scatter and
+their difference mixes a real colour gradient with a spurious
+geometry mismatch. The claim that the joint fit is <em>unbiased</em> under
+genuinely band-dependent morphology is a separate proposition; it
+would require a separate experiment, on a mock with genuinely
+band-dependent structure, and that experiment has not been
+performed.</p>
+<h2 id="1452-the-joint-design-matrix">§1.4.5.2 The joint design matrix</h2>
+<p>The single-band fit at each iteration constructs the
+five-parameter design matrix</p>
+<div class="arithmatex">\[
+\mathbf{A}_5 = [\mathbf{1}, \sin\theta, \cos\theta, \sin 2\theta, \cos 2\theta] \in \mathbb{R}^{N \times 5}
+\]</div>
+<p>with <span class="arithmatex">\(N\)</span> sample points along the trial ellipse, and solves the
+linear system <span class="arithmatex">\(\mathbf{A}_5\,\mathbf{x} = \mathbf{y}\)</span> for the
+parameter vector <span class="arithmatex">\(\mathbf{x} = (I_0, A_1, B_1, A_2, B_2)\)</span>.</p>
+<p>The joint multi-band fit at each iteration constructs an extended
+matrix in which the per-band intensity column <span class="arithmatex">\(\mathbf{1}\)</span> is
+replaced by <span class="arithmatex">\(B\)</span> band-specific columns (each non-zero only on the
+<span class="arithmatex">\(N\)</span> rows corresponding to that band), and the four geometry
+harmonic columns are vertically tiled across all bands:</p>
+<div class="arithmatex">\[
+\mathbf{A}_\mathrm{MB} = \left[\begin{array}{cccc|cccc}
+\mathbf{1} &amp; 0          &amp; \cdots &amp; 0          &amp; \sin\theta &amp; \cos\theta &amp; \sin 2\theta &amp; \cos 2\theta \\
+0          &amp; \mathbf{1} &amp; \cdots &amp; 0          &amp; \sin\theta &amp; \cos\theta &amp; \sin 2\theta &amp; \cos 2\theta \\
+\vdots     &amp; \vdots     &amp; \ddots &amp; \vdots     &amp; \vdots     &amp; \vdots     &amp; \vdots       &amp; \vdots       \\
+0          &amp; 0          &amp; \cdots &amp; \mathbf{1} &amp; \sin\theta &amp; \cos\theta &amp; \sin 2\theta &amp; \cos 2\theta
+\end{array}\right]
+\in \mathbb{R}^{B N \times (B + 4)}.
+\]</div>
+<p>The first <span class="arithmatex">\(B\)</span> columns are <em>per-band intensity zero points</em>: column
+<span class="arithmatex">\(b\)</span> has the value <span class="arithmatex">\(1\)</span> on the <span class="arithmatex">\(N\)</span> rows corresponding to band <span class="arithmatex">\(b\)</span>
+and zero everywhere else. The last four columns are the <em>shared
+geometry harmonic terms</em>, repeated identically on every band's
+<span class="arithmatex">\(N\)</span>-row block. The full matrix has <span class="arithmatex">\(B N\)</span> rows (one per sample
+point per band) and <span class="arithmatex">\(B + 4\)</span> columns.</p>
+<p>The corresponding parameter vector is</p>
+<div class="arithmatex">\[
+\mathbf{x}_\mathrm{MB} = (I_{0,1}, I_{0,2}, \ldots, I_{0,B}, A_1, B_1, A_2, B_2).
+\]</div>
+<p>The first <span class="arithmatex">\(B\)</span> components are the per-band intensity zero points;
+the last four are the shared geometry-mismatch harmonics. The
+geometry-update rule of §1.1 reads the four shared coefficients
+<span class="arithmatex">\((A_1, B_1, A_2, B_2)\)</span> identically to the single-band case: the
+dominant amplitude
+<span class="arithmatex">\(a_\max = \max(|A_1|, |B_1|, |A_2|, |B_2|)\)</span> selects which geometry
+coordinate to update, and the magnitude <span class="arithmatex">\(a_\max\)</span> is converted to a
+geometry-update step via the local radial gradient. The per-band
+intensities are reported as the converged <span class="arithmatex">\(I_{0,b}\)</span> values in the
+output dictionary.</p>
+<p>The shape of the joint system has two important properties. First,
+the per-band block-diagonal structure of the intensity columns
+makes the linear system <em>well-conditioned</em> even at large <span class="arithmatex">\(B\)</span>: the
+diagonal blocks of <span class="arithmatex">\(\mathbf{A}_\mathrm{MB}^\mathsf{T}
+\mathbf{A}_\mathrm{MB}\)</span> that couple the per-band intensities to the
+shared harmonics have rank <span class="arithmatex">\(4\)</span> in the harmonic sub-block and rank
+<span class="arithmatex">\(B\)</span> in the intensity sub-block, and the intensity–intensity cross
+terms vanish identically because the per-band intensity columns are
+mutually orthogonal by construction. (The intensity–harmonic cross
+terms vanish only for complete, uniformly sampled rings, where
+<span class="arithmatex">\(\sum_j \sin n\theta_j = \sum_j \cos n\theta_j = 0\)</span>; on masked or
+loose-validity rings they are nonzero and the joint solve absorbs
+them.) The conditioning is therefore no worse
+than the single-band problem at large <span class="arithmatex">\(B\)</span>. Second, the WLS weights
+of §1.4.2 extend transparently to the multi-band case: the weight
+matrix <span class="arithmatex">\(\mathbf{W}_\mathrm{MB} = \mathrm{diag}(1/\sigma_{b,i}^2)\)</span>
+encodes the per-band per-pixel variances on the corresponding rows
+of the system, and the weighted normal equations are constructed
+through the same row-scaling pipeline as in single-band.</p>
+<p>With <span class="arithmatex">\(B = 1\)</span> and <span class="arithmatex">\(w_b = 1\)</span> the joint system reduces to the
+single-band five-parameter problem exactly, and the reduction is
+verified against the single-band solver rather than asserted.</p>
+<h3 id="what-the-shared-parameters-should-be-amplitudes-or-geometry-steps">What the shared parameters should be: amplitudes or geometry steps</h3>
+<p>The system written above shares a harmonic <em>amplitude</em> across bands,
+and that turns out to be the wrong thing to share. A harmonic
+amplitude is not a geometric quantity: a common geometry error
+<span class="arithmatex">\(\delta\)</span> — the same misplacement of the same ellipse, seen in every
+band — produces a ring harmonic whose amplitude in band <span class="arithmatex">\(b\)</span> is
+<span class="arithmatex">\(\delta \cdot (dI/da)_b\)</span>, proportional to <em>that band's</em> radial
+gradient. Bands with different gradients therefore see the same
+geometric error at different amplitudes, and a model that forces one
+amplitude on all of them is misspecified whenever the gradients
+differ. What such a fit returns is <span class="arithmatex">\(\delta\)</span> multiplied by a
+weight-averaged gradient, which then has to be divided back out by a
+separately pooled gradient before the geometry can be updated — two
+quantities that have no structural reason to agree.</p>
+<p>ISOSTER's default therefore fits the geometry steps directly. Each
+band's four shared columns are scaled by that band's own gradient, so
+the model becomes</p>
+<div class="arithmatex">\[
+y_{b,i} = I_{0,b} + \left(\frac{dI}{da}\right)_b
+\left(D_1 \sin\theta_i + E_1 \cos\theta_i
+    + D_2 \sin 2\theta_i + E_2 \cos 2\theta_i\right),
+\]</div>
+<p>and the four shared free parameters <span class="arithmatex">\((D_1, E_1, D_2, E_2)\)</span> are the
+geometry steps themselves. The per-band intercept columns are never
+scaled — <span class="arithmatex">\(I_{0,b}\)</span> remains an intensity. This is the
+<code>geometry_parameterized_solve</code> field, and it has been the default
+since 2026-08-15; setting it <code>False</code> recovers the shared-amplitude
+form above, which is also what the first iteration of each isophote
+uses, since it has no previous-iteration gradients to scale with.</p>
+<p>The reparameterisation removes a defect rather than trading one off,
+in three separate ways:</p>
+<ul>
+<li><strong>The fitted step no longer depends on a separate gradient
+  estimate.</strong> Under the amplitude form the recovered geometry step is
+  correct only if the pooled gradient happens to reproduce the
+  weight-average the solve implicitly performed; here the step is
+  what the solve returns. ISOSTER still multiplies by a pooled
+  gradient afterwards, but only to hand downstream consumers the
+  units they expect, and the geometry update divides by the same
+  number, so the round trip is exact by construction rather than by
+  coincidence.</li>
+<li><strong>The effective per-band weight becomes minimum-variance.</strong> Under
+  the amplitude form each band enters the geometry constraint with
+  weight <span class="arithmatex">\(w_b / \sigma_b^2\)</span>; under the geometry form it enters with
+  <span class="arithmatex">\(w_b (dI/da)_b^2 / \sigma_b^2\)</span>, which is the correct weighting for
+  estimating a geometry step, because a band's leverage on the
+  geometry scales with its gradient. The difference is not academic:
+  measured on HSC <span class="arithmatex">\(g/r/i\)</span> imaging, the amplitude weighting was close
+  to <em>inverted</em> against the bands' actual information content, giving
+  the <span class="arithmatex">\(g\)</span> band 65% of the weight while it carried about 10% of the
+  information. Against synthetic data with a known common geometry,
+  the geometry form leaves the bias unchanged and cuts the scatter of
+  the recovered geometry by roughly 25–30% wherever the two
+  weightings disagree, and changes nothing where they agree. It also
+  improves the OLS case, where the amplitude form weights every band
+  equally regardless of how much geometric signal each carries.</li>
+<li><strong>The shared coefficients and the residual scatter end up in the
+  same units</strong>, so the convergence comparison stops depending on any
+  band's arbitrary flux scale.</li>
+</ul>
+<p>A band whose gradient is zero or unmeasurable contributes zero
+columns and therefore no geometry information, which is the correct
+behaviour rather than a special case: no measurable radial gradient
+means no geometric leverage.</p>
+<p>Downstream of the solve, ISOSTER converts the fitted steps back into
+amplitude-equivalent coefficients by multiplying the shared block by
+the same pooled gradient the geometry update will divide by, so the
+update recovers the fitted step exactly and every consumer — the
+dominant-amplitude selector, the convergence test, the covariance-
+based geometry errors, the higher-harmonic attachers — keeps working
+in the units it already expected. Only the <em>value</em> changes, and it
+now carries the minimum-variance band weighting.</p>
+<p>That conversion introduces one implementation invariant worth naming,
+because violating it is silent. Band <span class="arithmatex">\(b\)</span>'s <em>fitted</em> amplitude is
+<span class="arithmatex">\(\delta \cdot (dI/da)_b\)</span>, not <span class="arithmatex">\(\delta \cdot \overline{dI/da}\)</span>, so
+anything that reconstructs the model for band <span class="arithmatex">\(b\)</span> must apply the
+per-band factor <span class="arithmatex">\((dI/da)_b / \overline{dI/da}\)</span>. That includes the
+per-band residuals, the convergence RMS built from them, the OLS
+error rescaling, and the harmonic subtraction that the shared and
+simultaneous higher-order modes perform. Omitting the factor leaves
+the geometry step itself exact while making every residual-derived
+quantity wrong, which is precisely the kind of error that survives a
+test suite aimed at the fitted parameters.</p>
+<h3 id="pooling-the-gradient-with-the-weights-the-solve-used">Pooling the gradient with the weights the solve used</h3>
+<p>The geometry update needs a single radial gradient, and the multi-band
+driver forms it by pooling the per-band gradients. The pooling weights
+must be the weights the harmonic solve actually applied, not the
+user-facing band weights. The joint solve weights every sample by
+<span class="arithmatex">\(w_b / \sigma_{b,i}^2\)</span>, so band <span class="arithmatex">\(b\)</span> contributes total weight</p>
+<div class="arithmatex">\[
+W_b = w_b \sum_{i} \frac{1}{\sigma_{b,i}^2},
+\]</div>
+<p>and the shared fitted amplitude under the amplitude parameterisation
+is <span class="arithmatex">\(\delta \sum_b W_b (dI/da)_b / \sum_b W_b\)</span>. Dividing that by a
+gradient pooled with the <em>same</em> <span class="arithmatex">\(W_b\)</span> returns <span class="arithmatex">\(\delta\)</span> exactly;
+pooling with the bare <span class="arithmatex">\(w_b\)</span> does not, and the resulting error is not
+even one-signed — against a planted truth of <span class="arithmatex">\(0.100\)</span>, two different
+band configurations recovered <span class="arithmatex">\(0.180\)</span> and <span class="arithmatex">\(0.045\)</span>. Under OLS there is
+no variance map, the solve weights by <span class="arithmatex">\(w_b\)</span> alone, and <span class="arithmatex">\(W_b\)</span> reduces
+to <span class="arithmatex">\(w_b\)</span>. The variances used must also be the <em>post-clipping</em> arrays
+handed to the solve; taking them from the sampler's unfiltered ring
+would put the pooled gradient and the fitted amplitude back on
+different sample sets, which is the class of error the whole
+construction exists to remove.</p>
+<p>One honest limitation. The exactly correct weight is
+<span class="arithmatex">\(\sum_i w_b \sin^2\theta_i / \sigma_{b,i}^2\)</span>, which differs per
+harmonic once the variance varies <em>azimuthally within</em> a band, so no
+single scalar can be right for <span class="arithmatex">\(A_1, B_1, A_2, B_2\)</span> simultaneously.
+<span class="arithmatex">\(W_b\)</span> as defined above is exact for shared angular coverage with an
+azimuthally uniform variance inside each band — the common case,
+where bands differ in sky level but each band's own ring is uniform —
+and an approximation otherwise. Under
+<code>harmonic_combination='ref'</code> the geometry is driven by one band, and
+the pooling collapses to a one-hot weight on that band, so the
+reference band's own gradient is the one used.</p>
+<h3 id="configuration-fields-that-reshape-the-solve">Configuration fields that reshape the solve</h3>
+<p>Four configuration fields change either the design matrix or the
+weighting, and are worth naming together.
+<code>geometry_parameterized_solve</code> (default <code>True</code>) selects the
+geometry-step parameterisation described above over the
+shared-amplitude form. <code>harmonic_combination</code> selects how the
+harmonic information enters the geometry update: <code>'joint'</code> (default)
+solves the single combined system once per iteration, while <code>'ref'</code>
+drives the geometry from the reference band alone and treats the
+other bands as passive. <code>fit_per_band_intens_jointly</code> (default
+<code>True</code>) keeps the <span class="arithmatex">\(B\)</span> per-band intercept columns inside the joint
+solve as shown; setting it <code>False</code> drops those columns, runs the
+geometric solve on mean-subtracted residuals, and computes each
+<code>intens_&lt;b&gt;</code> separately as that band's own ring statistic. The two
+agree numerically on complete rings, where <span class="arithmatex">\(\sin n\theta\)</span> and
+<span class="arithmatex">\(\cos n\theta\)</span> are orthogonal to the constant column over
+<span class="arithmatex">\([0, 2\pi]\)</span>; they differ on partial rings, where the joint solve
+absorbs the coupling between the intercept and the harmonic shape.
+The decoupled mode is also the only one that can host
+<code>integrator='median'</code>, since a median cannot ride inside a linear
+least-squares solve; the configuration validator rejects that
+combination outright rather than silently reporting a mean.
+<code>band_weights</code> applies a per-band scalar weight <span class="arithmatex">\(w_b\)</span> to each
+band's row block of the normal equations (uniform by default), so
+a higher-<span class="arithmatex">\(S/N\)</span> band can be given more influence over the shared
+geometry.</p>
+<p>A practical implementation note. The construction of
+<span class="arithmatex">\(\mathbf{A}_\mathrm{MB}\)</span> for <span class="arithmatex">\(B\)</span> in the typical survey range (3–6
+bands) and <span class="arithmatex">\(N\)</span> in the typical isophote range (64–600 sample points)
+produces matrices with <span class="arithmatex">\(B N\)</span> in the range <span class="arithmatex">\(200\)</span>–<span class="arithmatex">\(3600\)</span> — small
+enough that a vectorized NumPy construction is fast in absolute
+terms, but large enough that the per-iteration overhead would be
+noticeable without optimization. ISOSTER implements
+<span class="arithmatex">\(\mathbf{A}_\mathrm{MB}\)</span> construction in a Numba-JIT inner kernel
+(<code>build_joint_design_matrix</code> in <code>isoster/multiband/numba_kernels_mb.py</code>)
+that fills the block structure directly without going through
+intermediate NumPy reshape operations. A byte-equivalent NumPy
+fallback is available for systems without Numba, as elsewhere in
+the codebase.</p>
+<h2 id="1453-four-modes-for-higher-order-harmonics">§1.4.5.3 Four modes for higher-order harmonics</h2>
+<p>The single-band ISOFIT path of §1.4.1 has two configurable axes:
+<em>when</em> the higher-order harmonics are fit (inside the iteration
+loop vs. post-hoc on the converged geometry) and <em>which</em> design
+matrix is used (the 5-parameter geometry-only matrix vs. the
+extended matrix that includes higher orders). The multi-band path
+adds a third axis: <em>whether the higher-order harmonics are shared
+across bands</em> or fit independently per band.</p>
+<p>The Cartesian product of the three axes would have eight modes,
+but only four are scientifically distinct and operationally
+supported. They are exposed through the <code>multiband_higher_harmonics</code>
+configuration field:</p>
+<p><strong><code>'independent'</code> (default).</strong> Higher-order harmonics are fit
+per-band post-hoc. After the iteration loop converges on the
+shared geometry, ISOSTER performs <span class="arithmatex">\(B\)</span> separate post-hoc fits, one
+per band, each using the standard single-band higher-order
+harmonic procedure. The resulting coefficient set is
+<span class="arithmatex">\((A_{n,b}, B_{n,b})\)</span> for each order <span class="arithmatex">\(n \in \{n_1, \ldots, n_L\}\)</span>
+and each band <span class="arithmatex">\(b\)</span>. This is the right default for color-gradient
+science because the per-band higher harmonics are genuinely
+different physical quantities — a <span class="arithmatex">\(g\)</span>-band spiral arm may be
+absent in <span class="arithmatex">\(i\)</span>-band, a dust lane may produce different fourth-order
+coefficients in different bands, an AGN's color excess affects
+only specific bands. Reporting band-distinct coefficients is the
+correct generalization of the single-band default to the
+multi-band case.</p>
+<p><strong><code>'shared'</code>.</strong> A single post-hoc joint fit over all bands is
+performed after convergence, on a residual design matrix that
+contains only the higher-order harmonic columns; the geometric
+<span class="arithmatex">\((A_1, B_1, A_2, B_2)\)</span> and the per-band intercepts <span class="arithmatex">\(I_{0,b}\)</span> stay
+frozen at their converged values, and the residuals subtract that
+frozen geometric model band by band.</p>
+<p>What the mode shares is a <em>shape</em>, not a raw amplitude, and the
+distinction is the same one that drove the geometry parameterisation
+of §1.4.5.2. A common dimensionless shape deviation produces a raw
+amplitude <span class="arithmatex">\(A_n^\mathrm{raw} = -a_n \cdot a \cdot
+(dI/da)_b\)</span> in band <span class="arithmatex">\(b\)</span> — again proportional to that band's gradient.
+Writing one identical raw value into every band therefore cannot
+represent one shared shape once the gradients differ, and because the
+Bender normalization of §1.4.5.5 divides by each band's own gradient,
+such a fit reports normalized amplitudes that are band-dependent
+<em>and</em> dependent on the bands' arbitrary flux units. ISOSTER
+consequently scales each band's higher-order columns by
+<span class="arithmatex">\(-a\,(dI/da)_b\)</span>, so the fitted coefficient <em>is</em> the dimensionless
+Bender-normalized amplitude, and converts back to each band's own raw
+units when writing Schema 1. The per-band raw columns then
+legitimately differ — that is what one shared shape looks like in raw
+units — and the invariant to check is that they all <em>normalize</em> to a
+single value.</p>
+<p>The improvement is measurable on a planted shape of <span class="arithmatex">\(0.02\)</span> in two
+bands, rescaling one band's arbitrary flux units:</p>
+<table>
+<thead>
+<tr>
+<th>band units</th>
+<th>reported normalized <span class="arithmatex">\(a_4\)</span>, band <span class="arithmatex">\(g\)</span></th>
+<th>band <span class="arithmatex">\(r\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>original</td>
+<td>0.02000</td>
+<td>0.02000</td>
+</tr>
+<tr>
+<td>band <span class="arithmatex">\(r\)</span> × 10</td>
+<td>0.11000</td>
+<td>0.01100</td>
+</tr>
+<tr>
+<td>band <span class="arithmatex">\(r\)</span> × 0.1</td>
+<td>0.01100</td>
+<td>0.11000</td>
+</tr>
+</tbody>
+</table>
+<p>Under the shape parameterisation both bands report <span class="arithmatex">\(0.02000\)</span> at every
+rescaling. The mode is the right choice when the user <em>assumes</em> the
+higher-order shape parameters are band-independent — typical of
+kinematic-isophote analyses where the shape is set by the stellar
+orbital structure rather than by the photometric distribution.</p>
+<p><strong><code>'simultaneous_in_loop'</code>.</strong> The full multi-band ISOFIT analogue
+of §1.4.1's <code>isofit_mode='in_loop'</code>. Inside every iteration of the
+geometry fit, the design matrix is extended from <span class="arithmatex">\((B N) \times (B + 4)\)</span>
+to <span class="arithmatex">\((B N) \times (B + 4 + 2L)\)</span> by appending the <span class="arithmatex">\(2L\)</span> shared higher-
+harmonic columns at the right. The joint solve absorbs the
+cross-correlations between geometry harmonics and higher-order
+harmonics throughout the iteration. This is the most aggressive
+multi-band variant and the most computationally expensive; it is
+aimed at galaxies with strong non-elliptical isophotal structure
+where the higher harmonics interact with the geometry update.</p>
+<p><strong><code>'simultaneous_original'</code>.</strong> The Ciambur (2015) original
+variant. The iteration loop uses the standard <span class="arithmatex">\((B N) \times (B + 4)\)</span>
+design matrix; after convergence, the wider <span class="arithmatex">\((B N) \times (B + 4 + 2L)\)</span>
+matrix is solved once. The geometry that the iteration converges to
+is identical to the <code>'independent'</code> and <code>'shared'</code> modes (since the
+inside-loop solve is the same); only the higher-order coefficients
+reported are different — they come from the post-convergence joint
+solve rather than from per-band post-hoc fits or the <code>'shared'</code>
+post-hoc residual fit.</p>
+<p><strong>Both <code>simultaneous_*</code> modes remain experimental</strong>, for two
+independent reasons. The first is inherited: the single-band
+equivalent (<code>simultaneous_harmonics=True</code>) has shown benchmark
+regressions, and it is not established that the joint constraint
+rescues it. The second is specific to multi-band and follows directly
+from the <code>'shared'</code> discussion above — these two modes stamp <em>one
+identical raw amplitude</em> into every band, so what they share is a raw
+intensity residual, not a shape. They therefore no longer agree with
+<code>'shared'</code> column by column, and their raw coefficients do not
+normalize to a common value once the per-band gradients differ.
+Repairing them is entangled with the geometry rescale of §1.4.5.2 and
+has been deferred; both emit a warning at configuration time, and
+<code>'shared'</code> is the lower-risk choice for anyone who wants cross-band
+coupling of the higher orders. The default <code>'independent'</code> mode is
+unaffected by all of this: it fits each band separately from that
+band's own gradient and was always self-consistent.</p>
+<p>The four modes share a single output schema. Whichever mode is
+selected, the output isophote dictionary carries per-band columns
+named <code>a&lt;n&gt;_&lt;b&gt;</code> and <code>b&lt;n&gt;_&lt;b&gt;</code> for each band <span class="arithmatex">\(b\)</span> and order <span class="arithmatex">\(n\)</span>,
+with <code>a&lt;n&gt;_err_&lt;b&gt;</code> and <code>b&lt;n&gt;_err_&lt;b&gt;</code> companions. The columns are
+not, however, in the same <em>units</em> in every mode, and this is the one
+place where a shared schema hides a real difference that consumers
+must respect. Under <code>'independent'</code> the stored values are already
+Bender-normalized, because the per-band post-hoc path uses the
+single-band deviation solver, which normalizes at fit time. Under
+<code>'shared'</code> and the two <code>'simultaneous_*'</code> modes the stored values are
+<em>raw</em>, and the normalization of §1.4.5.5 is applied at plotting time.
+The distinction is carried explicitly in the output as the
+<code>harmonics_shared</code> flag, and ISOSTER's own plotting code reads that
+flag to decide whether to normalize. A consumer that normalizes
+<code>'independent'</code> output a second time will produce silently wrong
+curves, which is why the flag is part of the result dictionary rather
+than something to be inferred from the mode name.</p>
+<p>Under <code>'shared'</code> the per-band raw columns differ from one another by
+each band's <span class="arithmatex">\(-a\,(dI/da)_b\)</span> factor; under <code>'simultaneous_*'</code> they are
+identical across bands; under <code>'independent'</code> they are per-band fits.
+Only in the first and third cases do the normalized curves carry the
+intended meaning.</p>
+<h2 id="1454-loose-validity-for-per-band-masking">§1.4.5.4 Loose validity for per-band masking</h2>
+<p>The joint design matrix construction of §1.4.5.2 assumes that all
+<span class="arithmatex">\(B\)</span> bands have the same <em>validity</em> at every sample point — that
+is, that a sample point either has valid (unmasked) pixels in
+every band or is excluded from all bands. This is the
+<em>rectangular validity</em> layout, and it is the right default for
+co-aligned, same-grid imaging where the per-pixel masks are
+typically also same-grid and band-independent.</p>
+<p>Survey pipelines occasionally violate this assumption. A defect
+mask in one band that does not appear in the others, a cosmic-ray
+hit on one frame that was rejected only in one band's coaddition,
+a band-specific bad-column flag — all of these produce per-band
+validity that varies across bands. The naive rectangular treatment
+would either propagate the mask to all bands (losing information
+in the unaffected bands) or ignore the mask in some bands (using
+known-bad data).</p>
+<p>ISOSTER's <em>loose validity</em> mode (<code>loose_validity=True</code> in
+<code>IsosterConfigMB</code>) handles this by replacing the rectangular
+<span class="arithmatex">\((B, N)\)</span> validity layout with a jagged per-band layout. Each band
+maintains its own list of valid sample points, and the joint
+design matrix is constructed band-by-band with each band's row
+block sized to that band's actual valid count <span class="arithmatex">\(N_b\)</span>:</p>
+<div class="arithmatex">\[
+\mathbf{A}_\mathrm{MB}^\mathrm{loose} \in \mathbb{R}^{\sum_b N_b \times (B + 4)}.
+\]</div>
+<p>A second JIT-compiled kernel (<code>build_joint_design_matrix_jagged</code> in
+the same module) handles this jagged construction with NumPy
+fallback. The shared geometry harmonics on each band's row block
+are evaluated at that band's surviving <span class="arithmatex">\(\theta\)</span> values, and the
+WLS weights are constructed on the same jagged layout from the
+per-band variance maps.</p>
+<p>A small number of caveats apply to the loose-validity path. First,
+the loose-validity construction is meaningful only when the
+band-to-band validity disagreement is <em>sparse</em>: a band that has
+lost most of its samples contributes little to the joint geometry
+constraint, and the user should consider whether that band should
+participate in the joint fit at all. The configuration fields
+<code>loose_validity_min_per_band_count</code> (default 6 samples, mirroring the
+five-parameter minimum plus one sample of slack) and
+<code>loose_validity_min_per_band_frac</code> (default <span class="arithmatex">\(0.2\)</span> of the sampled
+count) set the minimum participation below which a band is dropped
+from the joint solve at that isophote. A dropped band's <code>intens_&lt;b&gt;</code>
+and harmonic columns are reported as <code>NaN</code> — an explicit "not
+measured here", distinguishable from a measured zero — while the
+surviving bands still constrain the shared geometry. The isophote as
+a whole is failed only when fewer than two bands survive. For the
+same reason, <code>loose_validity=True</code> is rejected at configuration time
+when only one band is supplied: per-band validity has no meaning when
+bands cannot disagree, and every isophote would otherwise fail.
+Second, the loose-validity weight normalization through the
+<code>loose_validity_band_normalization</code> field controls whether bands
+with smaller <span class="arithmatex">\(N_b\)</span> are reweighted to contribute equally to the
+joint geometry constraint, or whether they are left to contribute
+proportionally to their surviving sample count. The default is the
+proportional weighting, which is the right choice for typical
+band-asymmetric masking; the alternative (<code>'per_band_count'</code>)
+row-scales each band's block by <span class="arithmatex">\(\sqrt{1/N_b}\)</span> so that a
+user-specified <code>band_weights</code> keeps its intended meaning even when
+masking has left the bands with very different sample counts.</p>
+<p><strong>Status.</strong> Loose validity is correct end to end and covered by tests
+— the forced-photometry path honours it, the joint gradient is
+sampled in the same validity mode the solve uses, and coupled
+intercepts keep their joint covariance — but it is <em>not</em> the default.
+Turning it on changes every result on data with per-band masks, so
+the switch is deliberately left to the user. The reason to consider
+it is quantitative: on the HSC demonstration data, the shared-validity
+AND routinely discards 18–27% of otherwise usable samples, and at one
+radius it discarded all of them. That is the cost of the rectangular
+layout, paid on data where only one band was actually affected.</p>
+<h2 id="1455-per-band-bender-normalization">§1.4.5.5 Per-band Bender normalization</h2>
+<p>The normalized higher-harmonic coefficient
+<span class="arithmatex">\(a_n = A_n^\mathrm{raw} / (a\,\lvert dI/da\rvert)\)</span> — the Bender form
+<span class="arithmatex">\(-A_n^\mathrm{raw}/(a\,dI/da)\)</span> wherever the gradient is negative — is the
+implementation-independent quantity that quantifies the isophotal
+shape deviation; it is the form in which higher-order coefficients
+are reported in the isophote-analysis literature. The
+normalization factor <span class="arithmatex">\(1 / (a \cdot dI/da)\)</span> converts the raw
+coefficient (which has intensity units that scale with the galaxy
+profile) into a dimensionless shape parameter that is comparable
+across SMAs and across galaxies.</p>
+<p>In the multi-band fit the question arises of <em>which</em> gradient to use
+in the normalization, because the per-band gradients <span class="arithmatex">\((dI/da)_b\)</span> are
+different by construction — the per-band intensity profiles differ,
+which is the whole reason for fitting multiple bands. ISOSTER's
+convention is that the normalization is <strong>always evaluated per band</strong>,
+with that band's own gradient:</p>
+<div class="arithmatex">\[
+a_{n,b} = -\,\frac{A_{n,b}^\mathrm{raw}}{a \cdot (dI/da)_b}
+\qquad\text{(plot-time, multi-band raw paths).}
+\]</div>
+<p>This is the <em>signed</em> form, applied by <code>_normalize_harmonic_for_plot</code> to the
+<code>shared</code> and <code>simultaneous_*</code> paths, whose stored columns are raw. It is not
+the expression used by <code>compute_deviations</code>, which normalizes at fit time with
+the absolute gradient, <span class="arithmatex">\(a_n = A_n^\mathrm{raw} / (a\,\lvert dI/da\rvert)\)</span>;
+the two agree wherever the gradient is negative.</p>
+<p>This is the right convention because the <em>meaning</em> of the normalized
+amplitude in band <span class="arithmatex">\(b\)</span> is a fractional <strong>radial</strong> displacement — how far
+the isophote is pushed in or out relative to its own semi-major axis —
+measured through band <span class="arithmatex">\(b\)</span>'s own gradient. It is not a fractional
+intensity deviation, though the two are easy to confuse: dividing an
+intensity residual by the local gradient is precisely what converts it
+from a brightness into a displacement.</p>
+<p>The convention has a consequence that is easy to state and was easy
+to get wrong: it fixes what "shared" has to mean. If a mode intends
+to share a shape across bands, then dividing each band's stored raw
+value by that band's own gradient must return the <em>same</em> number in
+every band. The only way to arrange that is for the shared quantity
+to be the normalized coefficient itself, with the raw per-band values
+reconstructed from it — which is what §1.4.5.3 describes for
+<code>'shared'</code>. The converse arrangement, storing one identical raw value
+in every band, fails the test: dividing one number by <span class="arithmatex">\(B\)</span> different
+gradients gives <span class="arithmatex">\(B\)</span> different normalized amplitudes, so the reported
+"shared" shape becomes a function of the bands' arbitrary flux units.
+The two <code>simultaneous_*</code> modes still work that way and are flagged
+accordingly.</p>
+<p>For the default <code>'independent'</code> mode the question does not arise: each
+band's coefficients are fit from that band's own samples and gradient,
+and are stored already normalized.</p>
+<p>Where the normalization is <em>applied</em> depends on the storage path, and
+it is worth being exact because two of the three consumers do nothing at
+all. <code>_normalize_harmonic_for_plot</code> in <code>isoster/_shared.py</code> is called
+<strong>only</strong> by the multi-band plotter, and only when the result's
+<code>harmonics_shared</code> flag says the stored values are raw. The single-band
+plotter does not call it — its values were normalized at fit time — and
+neither does the audit framework in
+<code>benchmarks/exhausted/analysis/scenario_summary.py</code>, which consumes the
+stored columns directly. The rule is normalize exactly once, wherever
+that has not already happened. This consistency is essential for
+reproducibility: a published <span class="arithmatex">\(a_n\)</span> value from an
+ISOSTER-fit galaxy can be recomputed from the saved isophote
+dictionary plus a single band-identifier label.</p>
+<h2 id="1456-output-schema-and-serialization">§1.4.5.6 Output schema and serialization</h2>
+<p>The multi-band output dictionary mirrors the single-band structure
+with additions. Alongside the <code>isophotes</code> key (a list of per-SMA
+dictionaries) and the resolved <code>IsosterConfigMB</code>, the top level
+records everything a consumer needs to interpret the per-band columns
+without re-reading the configuration: the ordered <code>bands</code> list, the
+<code>reference_band</code>, the resolved <code>band_weights</code>, the <code>variance_mode</code>
+(<code>'wls'</code> or <code>'ols'</code>), the <code>harmonic_combination</code>, the
+<code>multiband_higher_harmonics</code> mode with its <code>harmonic_orders</code>, the
+<code>loose_validity</code> and <code>fit_per_band_intens_jointly</code> switches, and the
+<code>harmonics_shared</code> boolean of §1.4.5.3. Each per-SMA dictionary
+carries:</p>
+<ul>
+<li>The single shared geometry block: <code>sma</code>, <code>x0</code>, <code>y0</code>, <code>eps</code>, <code>pa</code>
+  and their <code>_err</code> companions; the stop code; the iteration count;
+  the joint <code>rms</code>; and the shared sample-count diagnostics <code>ndata</code>
+  and <code>nflag</code>. Under shared validity those two are the ring's kept
+  and sigma-clipped counts; under loose validity, where the bands no
+  longer share a sample set, they are sums over bands.</li>
+<li>Per-band intensity blocks: <code>intens_&lt;b&gt;</code>, <code>intens_err_&lt;b&gt;</code>,
+  <code>rms_&lt;b&gt;</code>, and <code>n_valid_&lt;b&gt;</code> — the last being that band's own
+  surviving-sample count after sigma clipping, which equals the
+  shared <code>ndata</code> under shared validity and diverges from it under
+  loose validity.</li>
+<li>Per-band higher-harmonic blocks: <code>a&lt;n&gt;_&lt;b&gt;</code>, <code>b&lt;n&gt;_&lt;b&gt;</code>,
+  <code>a&lt;n&gt;_err_&lt;b&gt;</code>, <code>b&lt;n&gt;_err_&lt;b&gt;</code> for each order
+  <span class="arithmatex">\(n \in\)</span> <code>harmonic_orders</code> and each band <span class="arithmatex">\(b\)</span> — the multi-band
+  Schema 1 layout. As §1.4.5.3 sets out, these are raw amplitudes
+  under <code>'shared'</code> and the <code>'simultaneous_*'</code> modes and already
+  Bender-normalized under <code>'independent'</code>; <code>harmonics_shared</code>
+  distinguishes the two cases. The column <em>names</em> are the same in
+  all modes.</li>
+<li>Optional per-band curve-of-growth columns (<code>cog_&lt;b&gt;</code>,
+  <code>cog_annulus_&lt;b&gt;</code>) with shared <code>area_annulus</code> and crossing flags,
+  when <code>compute_cog=True</code>.</li>
+<li>Optional per-band gradient diagnostics (<code>grad_&lt;b&gt;</code>,
+  <code>grad_error_&lt;b&gt;</code>, <code>grad_r_error_&lt;b&gt;</code>) when <code>debug=True</code>.</li>
+</ul>
+<p>Note the suffix ordering: the band identifier always comes <em>last</em>, so
+an error column is <code>intens_err_g</code>, not <code>intens_g_err</code>. The rule makes
+a band's columns share a common suffix, which is what lets a consumer
+select one band's block with a single string match.</p>
+<p>Two serialization paths are provided. The <code>isophote_results_mb_to_asdf</code>
+writer is the recommended path for multi-band output because ASDF
+natively supports nested dicts and the per-band column proliferation
+is more readable in ASDF's tree structure than as FITS BinTable
+columns. A FITS path through <code>isophote_results_mb_to_fits</code> is also
+available; it produces a four-HDU file (primary, <code>ISOPHOTES</code>,
+<code>CONFIG</code>, <code>META</code>) analogous to the single-band layout, with the
+per-band columns flattened into the <code>ISOPHOTES</code> BinTable, the
+multi-band identifiers in the primary header, and the remaining
+top-level result keys preserved as JSON rows in <code>META</code> so they
+survive the round trip. Both writers live in
+<code>isoster/multiband/utils_mb.py</code> and share a common helper layer with
+the single-band serializers in <code>isoster/_shared.py</code>, ensuring that the
+configuration round-trip property of §1.3.4 — the saved <code>CONFIG</code>
+block recording every resolved field, so the settings need not be
+supplied out of band — applies to multi-band fits as well, with the
+same scope: the file records the configuration, not the images,
+software version or numerical environment.</p>
+<h2 id="1457-parallel-multi-band-command-line-interface">§1.4.5.7 Parallel multi-band command-line interface</h2>
+<p>The single-band CLI <code>isoster</code> and the multi-band CLI <code>isoster-mb</code>
+are <em>parallel</em>: they share no Python implementation, by design. The
+multi-band CLI is defined in <code>isoster/multiband/cli_mb.py</code> and is
+exposed as the entry point <code>isoster-mb</code> in <code>pyproject.toml</code>. The
+isolation is deliberate. Multi-band fitting carries operational
+risks — per-band mask asymmetry, missing variance maps in some
+bands, alignment failures — that have no counterpart in single-band,
+and a shared CLI implementation would have required threading
+multi-band-specific error handling and validation through the
+single-band code path. The parallel CLI keeps each path's failure
+modes localized to its own implementation.</p>
+<p>A typical invocation looks like:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>isoster-mb<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>image_g.fits<span class="w"> </span>image_r.fits<span class="w"> </span>image_i.fits<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--variance-maps<span class="w"> </span>variance_g.fits<span class="w"> </span>variance_r.fits<span class="w"> </span>variance_i.fits<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>--mask<span class="w">    </span>mask.fits<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--bands<span class="w"> </span>g<span class="w"> </span>r<span class="w"> </span>i<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span>--config<span class="w"> </span>config.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span>--output<span class="w"> </span>galaxy_mb.asdf
+</code></pre></div>
+<p>The CLI takes <span class="arithmatex">\(B\)</span> co-aligned science images as positional
+arguments, optionally <span class="arithmatex">\(B\)</span> corresponding variance maps via
+<code>--variance-maps</code> (each with the same shape as its science image),
+an optional single shared mask via <code>--mask</code> (or <span class="arithmatex">\(B\)</span> per-band masks
+via <code>--masks</code> for the loose-validity path), and an
+<code>IsosterConfigMB</code> in YAML form. The output is a single ASDF file
+with the full multi-band schema. The CLI prints a banner on each
+invocation (suppressible with a flag) warning that the multi-band
+API and output schema may still change between releases — a
+statement about interface stability, not about the correctness of
+the fit; see the maturity note in §1.4.5.8.</p>
+<h2 id="1458-caveats-and-design-choices-worth-flagging">§1.4.5.8 Caveats and design choices worth flagging</h2>
+<p><strong>Maturity, stated precisely.</strong> The default multi-band configuration
+— shared validity, joint per-band intercepts, the
+geometry-parameterised solve, and <code>'independent'</code> higher harmonics, in
+either OLS or WLS — is supported rather than experimental. Three
+qualifications attach to that, and they are of three different kinds,
+which the previous phrasing ran together.</p>
+<p><em>One mode is known to be wrong for its stated purpose.</em> The two
+<code>'simultaneous_*'</code> higher-harmonic modes (§1.4.5.3) share a raw
+residual rather than a shape, and carry a warning for that reason
+among others.</p>
+<p><em>One correct feature is not the default.</em> <code>loose_validity=True</code>
+(§1.4.5.4) is correct and tested end to end; it is off by default
+because turning it on changes every result on data with per-band
+masks, which is a decision for the user rather than a defect in the
+mode.</p>
+<p><em>One dimension is under-evidenced rather than unsupported.</em> The
+five-band case exercises no different code path from the three-band
+case, but at the time of writing it has synthetic coverage only,
+because the five-band
+real-data cutouts were not available on the development machine.
+Real-data validation is otherwise concentrated on a small number of
+targets. Drawing the line here rather than labelling the whole feature
+"experimental" is the honest description: the parts that are exercised
+are exercised hard, and the parts that are not are named.</p>
+<p>Six further caveats apply to the joint fit itself:</p>
+<p><strong>Bands must be co-aligned on the same pixel grid.</strong> The joint
+design matrix assumes a single <span class="arithmatex">\(\theta\)</span>-parametrization that maps
+to identical <span class="arithmatex">\((x, y)\)</span> pixel coordinates across all bands. If the
+bands have different WCS, the caller must resample to a common
+grid before the call; the driver itself performs a shape-based
+validation only, so WCS-level alignment is the caller's
+responsibility.</p>
+<p><strong>The shared geometry is the <em>same</em> geometry, not an <em>average</em>
+geometry.</strong> The joint fit converges on one set of geometric
+parameters per SMA, chosen to minimize the joint residual across
+bands. This is not a per-band geometry averaged across bands. A
+galaxy with truly band-distinct geometries (e.g. an AGN with
+position-angle differences between optical and infrared bands)
+will produce a joint-fit geometry that is some compromise of the
+per-band geometries, weighted by the per-band <span class="arithmatex">\(S/N\)</span>. For such
+galaxies, the user should consider whether single-band independent
+fits or a more sophisticated multi-component model is the
+appropriate analysis.</p>
+<p><strong>The <code>'shared'</code> and <code>'simultaneous_*'</code> modes assume band-independent
+isophotal shape.</strong> As above for the geometry, the modes that couple
+higher-order harmonics across bands are correct only when the
+shape deviations are actually band-independent. The default
+<code>'independent'</code> mode is the safe choice when this assumption is
+not verified.</p>
+<p><strong>Per-band gradients enter the default solve as scale factors.</strong> The
+geometry parameterisation of §1.4.5.2 scales each band's shared
+columns by that band's radial gradient, taken from the previous
+iteration and refreshed as the fit proceeds. These are slowly varying
+nuisance quantities, not fitted parameters, and the first iteration of
+each isophote falls back to the amplitude form because no previous
+gradient exists yet. The practical consequence is that a band whose
+gradient is unmeasurable — deep in the noise, or on a ring where the
+profile is locally flat — silently contributes no geometric
+information at that isophote. That is the correct behaviour, but it
+means the effective number of bands constraining the geometry can be
+smaller than <span class="arithmatex">\(B\)</span> in the outskirts, which is worth knowing when
+interpreting the geometry errors there.</p>
+<p><strong>The loose-validity path is a generalization that has its own
+risks.</strong> As discussed in §1.4.5.4, very sparse per-band validity
+weakens the joint geometry constraint from the affected band. The
+caller should set the <code>loose_validity_min_per_band_*</code> thresholds
+to enforce a sensible minimum participation per band.</p>
+<p><strong>Computational cost grows linearly with <span class="arithmatex">\(B\)</span> in the per-iteration
+sampling and design-matrix construction, and with <span class="arithmatex">\(B\)</span> in the
+intensity-block dimension of the linear solve.</strong> For
+<span class="arithmatex">\(B \le 6\)</span> (the typical survey case) the per-iteration cost is a
+small multiple of the single-band cost; for <span class="arithmatex">\(B\)</span> in the
+tens-of-bands range (the eventual narrowband-survey case), the
+joint fit becomes a more significant computational item and the
+caller should consider whether the higher-band variants are best
+fit with a multi-pass strategy over reduced band subsets, with
+forced photometry between subsets. Loose validity does not help
+here: its jagged system has the same <span class="arithmatex">\(B + 4\)</span> columns and typically
+<em>more</em> rows, since it stops discarding samples that only one band
+failed.</p>
+<h2 id="14510-when-the-joint-fit-matters-a-signal-to-noise-dependence">§1.4.5.10 When the joint fit matters: a signal-to-noise dependence</h2>
+<p>No experiment has yet been run on a mock with genuinely
+band-dependent morphology, so nothing so far establishes how the
+three workflows compare in that regime. What <em>has</em> been measured is
+a different
+and more tractable question: with the geometry genuinely common
+across bands, how much does fitting it jointly improve the recovered
+colour profile? The answer is a strong function of
+signal-to-noise, and it is the quantitative result this section
+rests on.</p>
+<p>The test galaxy is constructed so that both the geometry and the
+color profile are analytic. Every band shares one geometry
+(<span class="arithmatex">\(x_0, y_0, \varepsilon, \mathrm{PA}\)</span>) by construction, and the
+color gradient is produced by giving each band its own effective
+radius, so the bands differ in radial profile and in radial
+gradient while the isophote <em>shape</em> is identical. Per-band noise
+follows measured HSC <span class="arithmatex">\(g/r/i\)</span> sky variances. The joint free fit is
+compared against the pre-multi-band workflow — fit each band
+independently, then difference the resulting profiles — by the RMS
+error of the recovered <span class="arithmatex">\(g-i\)</span> profile against the analytic truth,
+over independent noise realisations.</p>
+<table>
+<thead>
+<tr>
+<th>S/N per pixel at the outer radius</th>
+<th>joint RMS (mag)</th>
+<th>independent RMS (mag)</th>
+<th>ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>81.9</td>
+<td>0.00149</td>
+<td>0.00167</td>
+<td>0.896</td>
+</tr>
+<tr>
+<td>8.2</td>
+<td>0.00236</td>
+<td>0.00477</td>
+<td><strong>0.494</strong></td>
+</tr>
+<tr>
+<td>2.7</td>
+<td>0.00635</td>
+<td>0.01213</td>
+<td><strong>0.523</strong></td>
+</tr>
+<tr>
+<td>1.4</td>
+<td>0.01149</td>
+<td>0.02174</td>
+<td><strong>0.529</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The joint fit roughly <strong>halves</strong> the color-profile error once the
+outer isophotes fall below <span class="arithmatex">\(\mathrm{S/N} \sim 10\)</span>, and buys almost
+nothing above <span class="arithmatex">\(\mathrm{S/N} \sim 50\)</span>.</p>
+<p>This shape is the expected one, and stating it is more useful than
+quoting a single ratio. At high signal-to-noise every band already
+constrains its own geometry well, the independently fitted
+geometries agree, and a shared geometry has nothing left to
+contribute. At low signal-to-noise the per-band geometries scatter,
+and a color formed by differencing them mixes the real color
+gradient with a spurious geometry mismatch that the joint
+constraint removes. Low signal-to-noise is precisely the regime
+where color profiles are scientifically interesting and
+observationally hard — the outskirts of galaxies, low-surface-
+brightness structure, and the faint end of any survey — so the
+regime where the method helps is the regime where it is needed.</p>
+<p>It also bounds the claim honestly. A reader fitting high-S/N
+imaging of a bright galaxy should not expect the joint fit to
+change their color profile, and should choose it for the
+consistency of the shared aperture rather than for precision.</p>
+<p>Reproduced by <code>examples/example_color_gradient/run_color_gradient_demo.py</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>
