@@ -36,6 +36,12 @@ Supporting documents, in order of events:
   before 1.1.1 one > π/2 position-angle jump between rings rendered `a3, b3` with the
   wrong sign over the rest of the galaxy; mechanism, evidence, and the exposure of the
   round-2 `native` renderer rows (the `log_off` headline is unaffected).
+- [SGA-2020 benchmark, round 2](reference/2026-10-13-sga2020-bm1-round2.md): 1,999 real
+  Legacy Survey galaxies, 30 isoster arms against photutils and AutoProf under 1.1.1;
+  feature advantages measured per galaxy without truth, poster-child galaxies per
+  feature, reproduction of the published SGA profiles, per-fit cost, grz forced vs
+  joint colours, and three isoster issues (in-loop ISOFIT failed-ring harmonics, the
+  renderer on spiral cores, the first-isophote warning).
 
 Round-1 reports are kept in [`reference/round1-no-psf/`](reference/round1-no-psf/README.md)
 with a note on what carries over (the timing benchmark, the AutoProf setup corrections,
