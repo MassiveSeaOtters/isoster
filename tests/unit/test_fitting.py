@@ -1756,3 +1756,26 @@ class TestStopCodes:
         result = fit_isophote(image, mask, 20.0, start, cfg)
 
         assert result["stop_code"] == -1, f"Expected gradient error (-1), got {result['stop_code']}"
+
+    def test_in_loop_isofit_failed_rings_carry_no_harmonics(self):
+        """In-loop ISOFIT must clear the joint-fit harmonics of a ring that fails.
+
+        They were normalized by a gradient the fit could not measure; before the
+        fix the two failed outer rings here kept amplitudes 0.10 and 0.59.
+        """
+        from isoster import fit_image
+
+        image = self._make_sersic(re=20.0, eps=0.5, pa=0.6, ie=100.0, n=1.0)
+        image = image + np.random.default_rng(3).normal(0.0, 3.0, image.shape)
+        cfg = IsosterConfig(
+            x0=100.0, y0=100.0, eps=0.5, pa=0.6, sma0=10.0, maxsma=95.0,
+            simultaneous_harmonics=True, isofit_mode="in_loop", harmonic_orders=[3, 4],
+        )
+        isophotes = fit_image(image, None, cfg)["isophotes"]
+
+        keys = [f"{c}{n}{e}" for n in (3, 4) for c in "ab" for e in ("", "_err")]
+        failed = [iso for iso in isophotes if iso["sma"] > 0 and iso["stop_code"] not in (0, 2)]
+        measured = [iso for iso in isophotes if iso["stop_code"] in (0, 2)]
+        assert failed, "the outer rings should fail at this noise level"
+        assert all(iso[k] == 0.0 for iso in failed for k in keys)
+        assert any(iso["a4"] != 0.0 for iso in measured)

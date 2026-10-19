@@ -476,6 +476,25 @@ class TestModel(unittest.TestCase):
         model_off = build_isoster_model(shape, base, use_harmonics=False)
         self.assertGreater(np.max(np.abs(model_base - model_off)), 1.0)
 
+    def test_ring_with_summed_harmonic_amplitude_above_one_is_ignored(self):
+        """A ring with sum_n hypot(a_n, b_n) >= 1 must not drive the radius to zero."""
+        shape = (101, 101)
+        isos = [
+            {"x0": 50.0, "y0": 50.0, "sma": s, "eps": 0.0, "pa": 0.0, "intens": 1000.0 * np.exp(-s / 5.0),
+             "a3": 0.0, "b3": 0.0, "a4": 0.0, "b4": 0.0}
+            for s in np.arange(1.0, 41.0)
+        ]
+        isos[-5].update(a3=0.6, b4=0.6)  # amplitudes 0.6 + 0.6: can reach dr/r = 1.2
+
+        with self.assertWarns(UserWarning):
+            model = build_isoster_model(shape, isos, use_harmonics=True)
+        model_off = build_isoster_model(shape, isos, use_harmonics=False)
+        np.testing.assert_allclose(model, model_off, rtol=0, atol=1e-12)
+
+        isos[-5].update(a3=0.3, b4=0.3)  # below the bound: still applied
+        model_small = build_isoster_model(shape, isos, use_harmonics=True)
+        self.assertGreater(np.max(np.abs(model_small - model_off)), 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

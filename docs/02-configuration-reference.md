@@ -283,6 +283,9 @@ Controls for simultaneous harmonic fitting following Ciambur (2015).
   aggressive). `isofit_mode='original'` matches Ciambur (2015): 5-parameter fit inside
   the loop for geometry, then simultaneous post-hoc fit for higher orders. `isofit_mode`
   is only meaningful when `simultaneous_harmonics=True`.
+- In every mode, harmonics are reported only for rings with stop code 0 or 2; other
+  rings store 0.0. (Before 1.1.2, `in_loop` kept the joint-fit values of rings that
+  then failed; see `docs/03-algorithm.md`, "Current Caveats".)
 - Falls back to 5-parameter fit when the number of sample points is less than
   `2 * len(harmonic_orders) + 5` (the minimum for the extended design matrix).
   A `RuntimeWarning` is emitted on first fallback per isophote.
