@@ -6,6 +6,7 @@ fitting results using radial interpolation.
 """
 
 import re
+import warnings
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -84,6 +85,8 @@ def build_isoster_model(
       deviation (the isophote bulges outward) shrinks the corrected
       radius, so the pixel samples the higher intensity of the
       bulging isophote.
+    - Harmonics of a ring whose summed amplitude Σₙ √(aₙ² + bₙ²) is >= 1 are
+      ignored with a warning: they could drive the corrected radius to zero.
     - The function uses local geometry interpolation at each radius to
       handle varying ellipticity and position angle profiles.
 
@@ -284,8 +287,7 @@ def build_isoster_model(
             # sign over the whole galaxy outside it.
             pa_half_turns = np.rint((pa_unwrapped - pa_raw) / np.pi).astype(int)
 
-            # Create interpolators for harmonic coefficients
-            harm_interps = {}
+            harm_coeffs = {}
             for n in harmonic_orders:
                 an_key, bn_key = f"a{n}", f"b{n}"
                 if any(an_key in iso for iso in sorted_isos):
@@ -294,22 +296,44 @@ def build_isoster_model(
                     bn_values = np.array([iso.get(bn_key, 0.0) for iso in sorted_isos])
                     an_values = frame_sign * np.where(np.isfinite(an_values), an_values, 0.0)
                     bn_values = frame_sign * np.where(np.isfinite(bn_values), bn_values, 0.0)
-                    harm_interps[n] = (
-                        interp1d(
-                            sma_values,
-                            an_values,
-                            kind="linear",
-                            bounds_error=False,
-                            fill_value=(an_values[0], an_values[-1]),
-                        ),
-                        interp1d(
-                            sma_values,
-                            bn_values,
-                            kind="linear",
-                            bounds_error=False,
-                            fill_value=(bn_values[0], bn_values[-1]),
-                        ),
-                    )
+                    harm_coeffs[n] = (an_values, bn_values)
+
+            # A ring whose summed amplitude sum_n hypot(a_n, b_n) reaches 1 can set
+            # dr/r >= 1 at some angle, i.e. a corrected radius <= 0 that would draw
+            # the central intensity in the outskirts. Such a ring is not a small
+            # perturbation of an ellipse, so its harmonics are dropped. Linear
+            # interpolation between rings below the bound stays below it, so every
+            # pixel's corrected radius remains positive.
+            amplitude_sum = sum(np.hypot(an_values, bn_values) for an_values, bn_values in harm_coeffs.values())
+            invalid_rings = np.asarray(amplitude_sum >= 1.0)
+            if invalid_rings.any():
+                warnings.warn(
+                    f"build_isoster_model: ignoring harmonics on {int(invalid_rings.sum())} ring(s) "
+                    "whose summed harmonic amplitude is >= 1",
+                    stacklevel=2,
+                )
+
+            # Create interpolators for harmonic coefficients
+            harm_interps = {}
+            for n, (an_values, bn_values) in harm_coeffs.items():
+                an_values = np.where(invalid_rings, 0.0, an_values)
+                bn_values = np.where(invalid_rings, 0.0, bn_values)
+                harm_interps[n] = (
+                    interp1d(
+                        sma_values,
+                        an_values,
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value=(an_values[0], an_values[-1]),
+                    ),
+                    interp1d(
+                        sma_values,
+                        bn_values,
+                        kind="linear",
+                        bounds_error=False,
+                        fill_value=(bn_values[0], bn_values[-1]),
+                    ),
+                )
 
             # Compute harmonic deviation: Δr/r = Σₙ [aₙ·sin(nθ) + bₙ·cos(nθ)]
             # The harmonic coefficients are already normalized by (gradient * sma)

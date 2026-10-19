@@ -1183,6 +1183,19 @@ def _attach_full_photometry(isophote_result, image, mask):
     )
 
 
+def _zero_harmonics(geometry, harmonic_orders):
+    """Store zero a_n, b_n and errors: the value of a ring with no measured harmonics.
+
+    Every path reports harmonics only for stop codes 0 and 2. In-loop ISOFIT
+    writes them on each improving iteration, so a ring that then fails must
+    have them cleared here: they were normalized by a gradient the fit could
+    not measure, and the renderer would draw them.
+    """
+    for n in harmonic_orders:
+        for key in (f"a{n}", f"b{n}", f"a{n}_err", f"b{n}_err"):
+            geometry[key] = 0.0
+
+
 def _compute_posthoc_harmonics(
     best_geometry,
     angles,
@@ -1470,6 +1483,8 @@ def fit_isophote(
 
         if actual_points < (total_points * (1.0 - fflag)):
             if best_geometry is not None:
+                if best_isofit_harmonics_stored:
+                    _zero_harmonics(best_geometry, harmonic_orders)
                 best_geometry["stop_code"], best_geometry["niter"] = 1, niter  # STOP_CODE 1: Too many flagged pixels
                 return best_geometry
             else:
@@ -1730,11 +1745,7 @@ def fit_isophote(
             }
             # Initialize harmonics for all requested orders when deviations or ISOFIT active
             if compute_deviations_flag or simultaneous_harmonics:
-                for n in harmonic_orders:
-                    best_geometry[f"a{n}"] = 0.0
-                    best_geometry[f"b{n}"] = 0.0
-                    best_geometry[f"a{n}_err"] = 0.0
-                    best_geometry[f"b{n}_err"] = 0.0
+                _zero_harmonics(best_geometry, harmonic_orders)
             # Save best-iteration data for post-hoc ISOFIT original mode
             best_angles = angles.copy()
             best_intens = intens.copy()
@@ -2029,11 +2040,7 @@ def fit_isophote(
         }
         # Initialize harmonics when deviations or ISOFIT active
         if compute_deviations_flag or simultaneous_harmonics:
-            for n in harmonic_orders:
-                best_geometry[f"a{n}"] = 0.0
-                best_geometry[f"b{n}"] = 0.0
-                best_geometry[f"a{n}_err"] = 0.0
-                best_geometry[f"b{n}_err"] = 0.0
+            _zero_harmonics(best_geometry, harmonic_orders)
         if debug:
             best_geometry.update({"ndata": 0, "nflag": 0, "grad": np.nan, "grad_error": np.nan, "grad_r_error": np.nan})
 
@@ -2059,5 +2066,7 @@ def fit_isophote(
         if full_photometry:
             _attach_full_photometry(best_geometry, image, mask_bool)
 
+    if best_isofit_harmonics_stored and stop_code not in (0, 2):
+        _zero_harmonics(best_geometry, harmonic_orders)
     best_geometry["stop_code"], best_geometry["niter"] = stop_code, niter
     return best_geometry
