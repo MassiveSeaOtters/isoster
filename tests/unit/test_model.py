@@ -515,6 +515,27 @@ class TestModel(unittest.TestCase):
         signal = build_isoster_model(shape, rings(0.01))  # S/N 5: drawn
         np.testing.assert_array_equal(signal, noise_drawn)
 
+    def test_twisting_rings_draw_every_pixel_at_a_consistent_radius(self):
+        """Each pixel is drawn at a radius r whose interpolated ellipse passes through it.
+
+        Fixed-point steps from the outer ring's geometry oscillate where the position angle
+        twists quickly (bars, spiral cores) and left such pixels at a radius no ring passes
+        through: issue 2, 2.05 instead of 1.45 sigma on SGA-2020 spiral cores.
+        """
+        sma = np.arange(1.0, 41.0)
+        pa = np.interp(sma, [4.0, 20.0], [0.0, 1.5])
+        isos = [{"x0": 50.0, "y0": 50.0, "sma": s, "eps": 0.6, "pa": p, "intens": 1000.0 * np.exp(-s / 5.0)}
+                for s, p in zip(sma, pa)]
+        model = build_isoster_model((101, 101), isos, use_harmonics=False)
+
+        intens = np.array([iso["intens"] for iso in isos])
+        r = np.interp(model, intens[::-1], sma[::-1])  # the radius each pixel was drawn at
+        yy, xx = np.mgrid[:101, :101] - 50.0
+        pa_r = np.interp(r, sma, pa)
+        x_rot = xx * np.cos(pa_r) + yy * np.sin(pa_r)
+        y_rot = -xx * np.sin(pa_r) + yy * np.cos(pa_r)
+        inside = (r > sma[0]) & (r < sma[-1])
+        np.testing.assert_array_less(np.abs(np.hypot(x_rot, y_rot / 0.4) - r)[inside], 0.1)
 
 if __name__ == "__main__":
     unittest.main()

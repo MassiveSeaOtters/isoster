@@ -30,7 +30,8 @@ def build_isoster_model(
     available. This is significantly more accurate than layer-by-layer filling.
 
     Algorithm:
-    1. For each pixel, compute its elliptical radius using the local geometry
+    1. For each pixel, solve for its elliptical radius r = R(r), R being its radius in the
+       geometry interpolated at r (fixed-point steps; bisection where they do not converge)
     2. Interpolate intensity between adjacent isophotes
     3. Apply harmonic deviations (a3, b3, a4, b4, ...) to modify elliptical radius
     4. Fill regions outside fitted range with specified value
@@ -224,49 +225,54 @@ def build_isoster_model(
         sma_values, pa_unwrapped, kind="linear", bounds_error=False, fill_value=(pa_unwrapped[0], pa_unwrapped[-1])
     )
 
-    # Use outer isophote geometry as initial guess to find approximate radii
-    outer_iso = sorted_isos[-1]
-    x0_out, y0_out = outer_iso["x0"], outer_iso["y0"]
-    eps_out, pa_out = outer_iso["eps"], outer_iso["pa"]
+    x_pixels, y_pixels = np.broadcast_arrays(x_grid, y_grid)
 
-    # Compute approximate elliptical radius using outer geometry
-    dx = x_grid - x0_out
-    dy = y_grid - y0_out
-    cos_pa, sin_pa = np.cos(pa_out), np.sin(pa_out)
-    x_rot = dx * cos_pa + dy * sin_pa
-    y_rot = -dx * sin_pa + dy * cos_pa
-    r_ell_approx = np.sqrt(x_rot**2 + (y_rot / (1.0 - eps_out)) ** 2)
+    def ellipse_frame(s, select=Ellipsis):
+        """Rotated offsets and eps of the pixels ``select`` in the geometry interpolated at radius ``s``."""
+        dx = x_pixels[select] - x0_interp(s)
+        dy = y_pixels[select] - y0_interp(s)
+        pa_s = pa_interp(s)
+        x_rot = dx * np.cos(pa_s) + dy * np.sin(pa_s)
+        y_rot = -dx * np.sin(pa_s) + dy * np.cos(pa_s)
+        return x_rot, y_rot, np.clip(eps_interp(s), 0, 0.99)  # clip: avoid division by zero for eps ~= 1
 
-    # For better accuracy, iterate to find elliptical radius using local geometry
-    # (This is important when eps or pa vary significantly with radius)
-    max_iterations = 3
-    r_ell = r_ell_approx.copy()
+    def radius_at(s, select=Ellipsis):
+        x_rot, y_rot, eps_s = ellipse_frame(s, select)
+        return np.sqrt(x_rot**2 + (y_rot / (1.0 - eps_s)) ** 2)
 
-    for iteration in range(max_iterations):
-        # Get local geometry at current radius estimate
-        r_ell_flat = r_ell.ravel()
-        x0_local = x0_interp(r_ell_flat).reshape(r_ell.shape)
-        y0_local = y0_interp(r_ell_flat).reshape(r_ell.shape)
-        eps_local = eps_interp(r_ell_flat).reshape(r_ell.shape)
-        pa_local = pa_interp(r_ell_flat).reshape(r_ell.shape)
-
-        # Recompute elliptical radius with local geometry
-        dx = x_grid - x0_local
-        dy = y_grid - y0_local
-        cos_pa_local = np.cos(pa_local)
-        sin_pa_local = np.sin(pa_local)
-        x_rot = dx * cos_pa_local + dy * sin_pa_local
-        y_rot = -dx * sin_pa_local + dy * cos_pa_local
-
-        # Avoid division by zero for eps ~= 1
-        eps_safe = np.clip(eps_local, 0, 0.99)
+    # Each pixel's radius r solves r = R(r), its elliptical radius in the geometry
+    # interpolated at r. Fixed-point steps from the outer ring's geometry converge where the
+    # geometry varies slowly with radius. x_rot, y_rot (the harmonic angle) stay those of
+    # the last step.
+    sma_max = sma_values[-1]
+    r_outer = radius_at(np.full((h, w), sma_max))
+    r_ell = r_outer
+    for _ in range(3):
+        x_rot, y_rot, eps_safe = ellipse_frame(r_ell)
         r_ell_new = np.sqrt(x_rot**2 + (y_rot / (1.0 - eps_safe)) ** 2)
-
-        # Check convergence
-        if np.max(np.abs(r_ell_new - r_ell)) < 0.1:
-            r_ell = r_ell_new
-            break
+        converged = np.max(np.abs(r_ell_new - r_ell)) < 0.1
         r_ell = r_ell_new
+        if converged:
+            break
+
+    # Where it twists fast (bars, spiral cores: about 20 % of the inner zone of SGA-2020
+    # spirals) the steps oscillate and leave a radius that no ring passes through. A root
+    # always exists below the last ring: g(s) = R(s) - s is positive at s = 0 and not
+    # positive at s = sma_max for a pixel inside it, so those pixels are bisected. Pixels
+    # outside the last ring keep R(sma_max), the outer geometry's radius.
+    # ponytail: where rings cross, several radii are consistent and bisection returns one;
+    # averaging the intensity over all of them (what photutils' painting does) is the
+    # upgrade if crossing rings matter.
+    unsolved = (np.abs(radius_at(r_ell) - r_ell) > 0.1) & (r_outer <= sma_max)
+    if unsolved.any():
+        low = np.zeros(int(unsolved.sum()))
+        high = np.full_like(low, sma_max)
+        while np.max(high - low) > 0.01:
+            mid = 0.5 * (low + high)
+            outside = radius_at(mid, unsolved) > mid
+            low, high = np.where(outside, mid, low), np.where(outside, high, mid)
+        r_ell[unsolved] = 0.5 * (low + high)
+        x_rot[unsolved], y_rot[unsolved], eps_safe[unsolved] = ellipse_frame(r_ell[unsolved], unsolved)
 
     # Apply harmonic deviations if requested
     if use_harmonics and harmonic_orders and len(sorted_isos) >= 2:
