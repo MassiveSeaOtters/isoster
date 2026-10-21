@@ -167,7 +167,7 @@ Sigma clipping and data quality thresholds.
 | `sclip_low` | `None` | `Optional[float]` | Lower (negative) sigma clipping threshold. Overrides `sclip` on the low side when set. |
 | `sclip_high` | `None` | `Optional[float]` | Upper (positive) sigma clipping threshold. Overrides `sclip` on the high side when set. |
 | `fflag` | `0.5` | `float` (0-1) | Maximum fraction of flagged data points (masked + sigma-clipped). Exceeding this triggers stop_code=1. |
-| `maxgerr` | `0.5` | `float` (> 0) | Maximum relative error in the local radial gradient. Exceeding this triggers stop_code=-1. |
+| `maxgerr` | `0.5` | `float` (> 0) | Maximum relative error in the local radial gradient. Exceeding this triggers stop_code=-1. A converged ring whose relative gradient error exceeds it (or is undefined) stores zero harmonics (1.2.0). |
 
 **Interaction notes:**
 
@@ -283,9 +283,11 @@ Controls for simultaneous harmonic fitting following Ciambur (2015).
   aggressive). `isofit_mode='original'` matches Ciambur (2015): 5-parameter fit inside
   the loop for geometry, then simultaneous post-hoc fit for higher orders. `isofit_mode`
   is only meaningful when `simultaneous_harmonics=True`.
-- In every mode, harmonics are reported only for rings with stop code 0 or 2; other
-  rings store 0.0. (Before 1.1.2, `in_loop` kept the joint-fit values of rings that
-  then failed; see `docs/03-algorithm.md`, "Current Caveats".)
+- In every mode, harmonics are reported only for rings with stop code 0 or 2 whose
+  relative gradient error is within `maxgerr`; other rings store 0.0 for `a_n`, `b_n`
+  and their errors. (Before 1.1.2, `in_loop` kept the joint-fit values of rings that
+  then failed; before 1.2.0, converged rings kept them without a measured gradient;
+  see `docs/03-algorithm.md`, "Current Caveats".)
 - Falls back to 5-parameter fit when the number of sample points is less than
   `2 * len(harmonic_orders) + 5` (the minimum for the extended design matrix).
   A `RuntimeWarning` is emitted on first fallback per isophote.

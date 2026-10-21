@@ -487,13 +487,33 @@ class TestModel(unittest.TestCase):
         isos[-5].update(a3=0.6, b4=0.6)  # amplitudes 0.6 + 0.6: can reach dr/r = 1.2
 
         with self.assertWarns(UserWarning):
-            model = build_isoster_model(shape, isos, use_harmonics=True)
+            model = build_isoster_model(shape, isos, use_harmonics=True, harmonic_min_snr=0)
         model_off = build_isoster_model(shape, isos, use_harmonics=False)
         np.testing.assert_allclose(model, model_off, rtol=0, atol=1e-12)
 
         isos[-5].update(a3=0.3, b4=0.3)  # below the bound: still applied
-        model_small = build_isoster_model(shape, isos, use_harmonics=True)
+        model_small = build_isoster_model(shape, isos, use_harmonics=True, harmonic_min_snr=0)
         self.assertGreater(np.max(np.abs(model_small - model_off)), 0.0)
+
+    def test_insignificant_harmonics_are_not_drawn(self):
+        """Order n is drawn only where hypot(a_n, b_n) / sqrt((err_a^2 + err_b^2) / 2) >= harmonic_min_snr."""
+        shape = (101, 101)
+
+        def rings(a4_err):
+            return [
+                {"x0": 50.0, "y0": 50.0, "sma": s, "eps": 0.0, "pa": 0.0, "intens": 1000.0 * np.exp(-s / 5.0),
+                 "a3": 0.0, "b3": 0.0, "a4": 0.05, "b4": 0.0,
+                 "a3_err": 0.01, "b3_err": 0.01, "a4_err": a4_err, "b4_err": a4_err}
+                for s in np.arange(1.0, 41.0)
+            ]
+
+        model_off = build_isoster_model(shape, rings(0.05), use_harmonics=False)
+        noise = build_isoster_model(shape, rings(0.05))  # S/N 1: withheld at the default 2
+        np.testing.assert_array_equal(noise, model_off)
+        noise_drawn = build_isoster_model(shape, rings(0.05), harmonic_min_snr=0)
+        self.assertGreater(np.max(np.abs(noise_drawn - model_off)), 1.0)
+        signal = build_isoster_model(shape, rings(0.01))  # S/N 5: drawn
+        np.testing.assert_array_equal(signal, noise_drawn)
 
 
 if __name__ == "__main__":
