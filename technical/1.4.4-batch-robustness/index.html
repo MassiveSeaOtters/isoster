@@ -1,0 +1,1747 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast isophote fitting for galaxy images.">
+      
+      
+        <meta name="author" content="Shuang">
+      
+      
+        <link rel="canonical" href="https://massiveseaotters.github.io/isoster/technical/1.4.4-batch-robustness/">
+      
+      
+        <link rel="prev" href="../1.4.3-lsb-outskirts/">
+      
+      
+        <link rel="next" href="../1.4.5-multiband/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>1.4.4 Batch Robustness - Isoster Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#144-robustness-primitives-for-batch-and-survey-pipelines" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Isoster Documentation" class="md-header__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Isoster Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              1.4.4 Batch Robustness
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Isoster Documentation" class="md-nav__button md-logo" aria-label="Isoster Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Isoster Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MassiveSeaOtters/isoster" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MassiveSeaOtters/isoster
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SPEC/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../01-user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../02-configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../03-algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../04-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../05-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06-qa-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../07-lsb-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LSB Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../08-outer-regularization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Regularization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../09-exhausted-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exhausted Benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Band
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical Chapter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technical Chapter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.0-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.0 Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.1-algorithmic-foundation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 Algorithmic Foundation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.2-implementation-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 Implementation Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.3-why-fast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Why ISOSTER is Fast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.1-eccentric-anomaly-isofit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.1 Eccentric Anomaly + ISOFIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.2-variance-aware-fitting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.2 Variance-Aware Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.3-lsb-outskirts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.3 LSB Outskirt Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.4 Batch Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1441-first-isophote-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.1 First-isophote retry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1442-permissive-geometry-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.2 Permissive geometry propagation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1443-adaptive-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.3 Adaptive integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1444-gradient-snr-aware-damping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.4 Gradient-SNR-aware damping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1445-per-iteration-step-clipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.5 Per-iteration step clipping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1446-background-noise-convergence-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.6 Background-noise convergence floor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1447-composition-and-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.7 Composition and defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.5-multiband/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.5 Multi-band Joint Fit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.4.6-diagnostics-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4.6 Diagnostics, QA, Reproducibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.5-comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 Comparison to Existing Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../1.6-limitations-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 Limitations and Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_14" >
+        
+          
+          <label class="md-nav__link" for="__nav_14" id="__nav_14_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_14">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visual References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/algorithm-walkthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration-decision-tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Decision Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1441-first-isophote-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.1 First-isophote retry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1442-permissive-geometry-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.2 Permissive geometry propagation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1443-adaptive-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.3 Adaptive integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1444-gradient-snr-aware-damping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.4 Gradient-SNR-aware damping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1445-per-iteration-step-clipping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.5 Per-iteration step clipping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1446-background-noise-convergence-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.6 Background-noise convergence floor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1447-composition-and-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        §1.4.4.7 Composition and defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="144-robustness-primitives-for-batch-and-survey-pipelines">§1.4.4 Robustness primitives for batch and survey pipelines</h1>
+<p>The features described in §1.4.1 through §1.4.3 are <em>algorithmic</em>
+in the sense that they change what the fit computes. The features in
+the present subsection are <em>operational</em>: they do not change the
+algorithm itself but change how the algorithm reacts to data that
+violates one or more implicit assumptions — a corrupted starting
+geometry, a bad pixel in the middle of an early isophote, a galaxy
+that lies near an image edge, an unusually shallow gradient at
+<span class="arithmatex">\(a_0\)</span>. None of these scenarios is rare in a survey-scale fit. On a
+sample of thousands of galaxies, the per-galaxy probability of an
+unrecoverable failure mode is what matters, and the fallback
+behaviour when the anchor isophote fails — return the central-pixel
+measurement and stop — leaves the affected galaxies with effectively
+no fit at all. We have not measured the rate at which that happens on
+a representative survey sample, and quote no figure for it; the
+campaigns of the benchmark chapters are where such a number would
+come from.</p>
+<p>The robustness primitives in this section address that failure mode.
+Each is independently a small change. The intent is to move the
+remaining failures toward genuine data pathology
+(catastrophic mask coverage, unmasked saturated companions, image
+edges within <span class="arithmatex">\(a_0\)</span>) rather than algorithmic fragility. Two of the
+primitives are always on (gradient-SNR-aware damping and
+per-iteration step clipping, §1.4.4.4–§1.4.4.5) and the
+first-isophote retry is enabled with a small default budget; the
+rest are opt-in so existing single-galaxy workflows are largely
+unaffected. For survey pipelines the standard recommendation is to
+enable all of them.</p>
+<h2 id="1441-first-isophote-retry">§1.4.4.1 First-isophote retry</h2>
+<p>When the anchor isophote at <span class="arithmatex">\(a_0\)</span> fails to converge with an
+acceptable stop code, the classical algorithm has no recourse. The
+fit terminates after the central-pixel measurement, returning a
+results dictionary with only one entry, and the survey pipeline
+loses the galaxy. The anchor failure can have many causes — <span class="arithmatex">\(a_0\)</span>
+chosen too small relative to the galaxy structure, <span class="arithmatex">\(a_0\)</span> chosen
+too large for the image size, the starting ellipticity or PA
+incompatible with the actual isophote shape at <span class="arithmatex">\(a_0\)</span>, a bad pixel
+patch intersecting the trial ellipse — and many of them are
+recoverable by perturbing the starting conditions.</p>
+<p>ISOSTER exposes a configurable retry mechanism through the
+<code>max_retry_first_isophote</code> field (default <span class="arithmatex">\(3\)</span>; <span class="arithmatex">\(0\)</span> disables it).
+When the anchor fails, ISOSTER catches the failure
+and re-attempts the fit up to <span class="arithmatex">\(K\)</span> additional times with perturbed
+starting conditions. The perturbation cycle through
+<span class="arithmatex">\((a_0, \varepsilon_0, \mathrm{PA}_0)\)</span> space is deterministic: the
+first five attempts follow the fixed schedule
+<span class="arithmatex">\((0.8\,a_0, \varepsilon, \mathrm{PA})\)</span>,
+<span class="arithmatex">\((1.3\,a_0, \varepsilon, \mathrm{PA})\)</span>,
+<span class="arithmatex">\((0.6\,a_0, 0.05, \mathrm{PA})\)</span>,
+<span class="arithmatex">\((1.5\,a_0, \varepsilon, \mathrm{PA} + \pi/4)\)</span>,
+<span class="arithmatex">\((0.5\,a_0, 0.05, \mathrm{PA} + \pi/2)\)</span>
+— that is, smaller and larger <span class="arithmatex">\(a_0\)</span> first, then progressively
+near-circular ellipticity and rotated PA. Beyond five attempts an
+extended cycle continues with <span class="arithmatex">\(a_0\)</span> factors <span class="arithmatex">\((0.4, 0.7, 1.1, 1.6,
+2.0)\)</span>, alternating the near-circular <span class="arithmatex">\(\varepsilon = 0.05\)</span> and
+stepping PA by <span class="arithmatex">\(\pi/6\)</span> per attempt. The schedule is designed to
+explore both larger and smaller
+<span class="arithmatex">\(a_0\)</span>, both higher and lower ellipticity, and both rotation
+directions so that an anchor failure caused by any one bad guess
+is likely to be cured by one of the perturbations.</p>
+<p>Two output fields document the retry trail. The boolean
+<code>first_isophote_failure</code> is set on the top-level results dictionary
+only when the anchor <em>and</em> every retry and probe attempt failed —
+a successful retry leaves it unset. The list
+<code>first_isophote_retry_log</code> is
+populated only when retries actually ran; each entry is a small
+dictionary recording the attempted <span class="arithmatex">\((a_0, \varepsilon_0,
+\mathrm{PA}_0)\)</span> and the resulting stop code. The log is useful for
+post-mortem analysis on the rare galaxy where even the retry
+mechanism fails: it indicates which corner of the perturbation
+space the algorithm explored before giving up.</p>
+<p>A companion field, <code>first_isophote_fail_count</code> (default <span class="arithmatex">\(3\)</span>),
+controls a last-resort probe. If the anchor and all retries failed,
+ISOSTER probes the next
+<span class="arithmatex">\(N - 1\)</span> growth steps outward with the original starting geometry;
+if one of them converges it becomes the anchor. Only when the
+anchor <em>and</em> those probes all fail does ISOSTER emit a
+<code>FIRST_FEW_ISOPHOTE_FAILURE</code> warning and set
+<code>first_isophote_failure</code>. The probe loop is never entered when the
+anchor itself converged, so the warning cannot fire on a fit whose
+anchor succeeded.</p>
+<p>A reasonable batch setting is <code>max_retry_first_isophote = 5</code>. It
+reaches the near-circular and rotated-PA corners of the schedule,
+which are the ones that address a bad initial-geometry guess, while
+bounding the worst-case wall time per galaxy at a small multiple of
+the typical single-fit cost. What fraction of anchor failures it
+actually recovers has not been measured, and the demonstration that
+would measure it — a panel of failure-mode SGA-2020 galaxies — has not
+been performed. Two bounds on the
+schedule are worth knowing. Each perturbed <span class="arithmatex">\(a_0\)</span> is clamped to at
+least one pixel and each perturbed ellipticity to <span class="arithmatex">\([0, 0.99]\)</span>, so an
+aggressive factor cannot generate a degenerate trial geometry. And
+the schedule is finite: it contains ten entries, five fixed plus
+five extended, so although the config field accepts values up to
+<span class="arithmatex">\(20\)</span>, anything above <span class="arithmatex">\(10\)</span> requests attempts that do not exist and
+yields ten. There is no randomised continuation beyond the
+schedule — the retry sequence is fully deterministic, which is what
+makes a failed galaxy's <code>first_isophote_retry_log</code> reproducible.</p>
+<h2 id="1442-permissive-geometry-propagation">§1.4.4.2 Permissive geometry propagation</h2>
+<p>The classical algorithm propagates the <em>converged</em> geometry of
+isophote <span class="arithmatex">\(k\)</span> as the starting geometry of isophote <span class="arithmatex">\(k + 1\)</span>. When
+isophote <span class="arithmatex">\(k\)</span> fails to converge — gradient failure, too few sample
+points, sigma-clipping anomaly — the algorithm has no propagated
+geometry to use, and isophote <span class="arithmatex">\(k + 1\)</span> has to be initialized from
+either the original anchor geometry or a fallback. In either case
+the propagation chain is broken at isophote <span class="arithmatex">\(k\)</span>, and a
+single-isophote failure can cascade: <span class="arithmatex">\(k + 1\)</span> has worse starting
+conditions than it would have had, fails more easily, and the
+failure can poison <span class="arithmatex">\(k + 2\)</span> in turn.</p>
+<p>The <code>permissive_geometry = True</code> flag (default <code>False</code>) changes the
+propagation rule to use the <em>latest fitted geometry</em> even when the
+fit was not acceptable. The fit-loop bookkeeping that tracks the
+best-so-far geometry for the stop-code-<span class="arithmatex">\(2\)</span> fallback (§1.1) is
+repurposed here: if isophote <span class="arithmatex">\(k\)</span>'s converged result is
+unacceptable, the propagated geometry for isophote <span class="arithmatex">\(k + 1\)</span> is the
+best-iteration geometry from <span class="arithmatex">\(k\)</span>'s fit attempt, with its associated
+<span class="arithmatex">\(|a_\max|\)</span> and stop code carried separately. The next isophote
+therefore starts from the closest-to-converged geometry the
+previous attempt reached, which is usually much better than the
+anchor geometry <span class="arithmatex">\(k - j\)</span> steps removed.</p>
+<p>The flag's name reflects the policy: ISOSTER becomes permissive
+about which iteration's geometry counts as "propagated". The
+classical strict policy ("only propagate from accepted stop codes")
+is preserved as the default for the same backwards-compatibility
+reason as the rest of §1.4.4. For survey pipelines the cost of the
+permissive policy is negligible — there is no extra computation,
+only a different selection of which geometry to carry forward —
+and the gain is a substantially shorter failure cascade.</p>
+<h2 id="1443-adaptive-integration">§1.4.4.3 Adaptive integration</h2>
+<p>The <code>integrator</code> config field selects the estimator used to reduce a
+ring of samples to a single number. Its most visible effect is on
+the intensity reported in the output dictionary's <code>intens</code> field,
+but its scope is wider than that and worth stating up front: the
+same choice is passed to the gradient computation, so it also
+governs how the two ring statistics whose difference forms
+<span class="arithmatex">\(dI/da\)</span> are located, and therefore which variance formula their
+uncertainty uses (§1.4.2.2). Switching to the median changes the
+gradient, and through the gradient the geometry updates and the
+<code>maxgerr</code> gate — not only a reported column.
+The classical algorithm uses the mean of the harmonic-fit intercept
+<span class="arithmatex">\(I_0\)</span>. The mean is the maximum-likelihood estimate of the average
+intensity along the ellipse under Gaussian noise; it is the right
+choice in the high-<span class="arithmatex">\(S/N\)</span> regime where the residual distribution is
+approximately Gaussian.</p>
+<p>In the LSB regime the residual distribution is often <em>not</em>
+Gaussian. Faint companions, scattered light, and small unmasked
+defects produce asymmetric tails in the per-sample intensity
+distribution; the mean is sensitive to those tails while the
+median is not. The classical fix is to switch the integrator to
+<code>'median'</code> globally, which is correct in the LSB regime but loses
+a small amount of precision in the inner region where the mean is
+unbiased.</p>
+<p>The <code>'adaptive'</code> integrator combines the two. When the user supplies
+<code>integrator='adaptive'</code> together with a transition SMA in the
+<code>lsb_sma_threshold</code> field, ISOSTER uses the harmonic-fit mean for
+isophotes with <span class="arithmatex">\(a \le a_\mathrm{thresh}\)</span> and the median for
+isophotes with <span class="arithmatex">\(a &gt; a_\mathrm{thresh}\)</span>. The cross-parameter
+validator rejects <code>integrator='adaptive'</code> without
+<code>lsb_sma_threshold</code>, forcing the user to make a deliberate choice
+of where the transition should be.</p>
+<p>A natural pairing is <code>integrator='adaptive'</code> with
+<code>lsb_sma_threshold</code> placed where the profile actually enters the
+noise-dominated regime for the galaxy and imaging at hand — for
+instance where the surface brightness approaches the sky level, or
+where the gradient SNR falls toward the <code>maxgerr</code> gate. A fraction
+of <span class="arithmatex">\(a_\mathrm{max}\)</span> is a convenient stand-in but not a
+recommendation: <span class="arithmatex">\(a_\mathrm{max}\)</span> is a user-chosen fitting limit, not
+a property of the galaxy, so tying the integrator transition to it
+couples an estimator choice to an unrelated setting. The automatic LSB lock (§1.4.3) also
+takes a per-axis integrator switch through <code>lsb_auto_lock_integrator</code>
+(default <code>'median'</code>); when both <code>'adaptive'</code> integration and the
+auto-lock are active, the locked clone overrides the adaptive
+integrator with its own setting for the locked tail.</p>
+<h2 id="1444-gradient-snr-aware-damping">§1.4.4.4 Gradient-SNR-aware damping</h2>
+<p>The per-iteration geometry update is multiplied by a damping
+factor <code>geometry_damping</code> (default <span class="arithmatex">\(0.7\)</span>) before being applied,
+which limits the per-step displacement and prevents the iteration
+from overshooting the converged geometry. This is a static damping:
+the same factor is used on every iteration of every isophote.</p>
+<p>In the LSB regime the radial gradient <span class="arithmatex">\(dI/da\)</span> that enters the
+geometry-update conversion (§1.1) has a small absolute value and a
+large fractional uncertainty <span class="arithmatex">\(\sigma_{dI/da} / |dI/da|\)</span>. The
+geometry-update step is proportional to <span class="arithmatex">\(|a_\max| / |dI/da|\)</span>, so
+small fractional gradient errors translate to large absolute
+geometry corrections in that regime. The static damping factor
+<span class="arithmatex">\(0.7\)</span> provides only a small safety margin against this dynamic
+range expansion.</p>
+<p>ISOSTER applies an additional <em>gradient-SNR-aware</em> damping factor
+when the local gradient SNR</p>
+<div class="arithmatex">\[
+\mathrm{SNR}_\mathrm{grad}
+= \frac{\left|\widehat{dI/da}\right|}{\sigma_{dI/da}}
+\]</div>
+<p>falls below a threshold (internally set to <span class="arithmatex">\(3\)</span>). The geometry-update
+damping is then multiplied by an additional factor
+<span class="arithmatex">\(\mathrm{clip}(\mathrm{SNR}_\mathrm{grad} / 3,\ 0.1,\ 1)\)</span> — linear
+in the gradient SNR with a floor of <span class="arithmatex">\(0.1\)</span> — so that the
+iteration step shrinks in proportion to the gradient
+informativeness without ever vanishing entirely. The mechanism is
+purely defensive: it does not
+prevent the iteration from converging in the high-<span class="arithmatex">\(S/N\)</span> regime
+(where <span class="arithmatex">\(\mathrm{SNR}_\mathrm{grad} \gg 3\)</span> and the additional factor
+is essentially <span class="arithmatex">\(1\)</span>), and it bounds the iteration step in the
+low-<span class="arithmatex">\(S/N\)</span> regime by an amount that matches the noise level of the
+gradient itself.</p>
+<p>There is no config flag to disable the mechanism, because the
+alternative — uniform damping regardless of gradient informativeness
+— is strictly worse in the LSB regime and exactly equivalent in the
+high-<span class="arithmatex">\(S/N\)</span> regime.</p>
+<p>It is not, however, unconditional, and the condition deserves
+naming because it bites in exactly the regime the mechanism targets.
+The extra damping is applied only when a gradient <em>uncertainty</em> is
+available; when <span class="arithmatex">\(\sigma_{dI/da}\)</span> is unavailable the static
+<code>geometry_damping</code> alone is used. Unavailability is not a rare
+edge case. ISOSTER reports the gradient error as unavailable
+whenever a ring's variance is non-finite, and — more importantly —
+whenever the gradient estimate itself has been rejected as anomalous
+and replaced by a fraction of the previous isophote's value. That
+substitution is a real gradient measurement being discarded, so
+declining to attach an uncertainty to the surrogate is the honest
+choice; but it means the SNR-aware damping switches off at precisely
+the isophotes whose gradients were bad enough to need replacing. The
+hard step caps of §1.4.4.5 are the defence that remains active
+there, which is part of why they are on by default rather than
+opt-in.</p>
+<h2 id="1445-per-iteration-step-clipping">§1.4.4.5 Per-iteration step clipping</h2>
+<p>A complementary defence against runaway iteration steps operates
+through <em>hard caps</em> on the per-iteration geometry change. Three
+configuration fields set these caps:</p>
+<ul>
+<li><code>clip_max_shift</code> (default <span class="arithmatex">\(5.0\,\mathrm{px}\)</span>): maximum allowed
+  centre shift per iteration.</li>
+<li><code>clip_max_pa</code> (default <span class="arithmatex">\(0.5\,\mathrm{rad} \approx 29^\circ\)</span>):
+  maximum allowed PA change per iteration.</li>
+<li><code>clip_max_eps</code> (default <span class="arithmatex">\(0.1\)</span>): maximum allowed ellipticity
+  change per iteration.</li>
+</ul>
+<p>After the gradient-SNR-aware damping has been applied, each
+proposed update is clipped to lie within the corresponding hard
+cap. The clip is <em>direction-preserving</em>: a proposed shift of
+<span class="arithmatex">\((8\,\mathrm{px}, 0)\)</span> becomes <span class="arithmatex">\((5\,\mathrm{px}, 0)\)</span> rather than
+<span class="arithmatex">\((5\,\mathrm{px}, 5\,\mathrm{px})\)</span>, so the iteration moves in the
+direction the harmonic decomposition prescribes but no further than
+the cap permits per step.</p>
+<p>The centre cap is not a flat five pixels in both update modes. Under
+the default <code>'largest'</code> mode, which moves one coordinate per
+iteration, the scalar displacement is clipped at <code>clip_max_shift</code>
+directly. Under <code>geometry_update_mode='simultaneous'</code>, which moves
+both centre axes at once, the <em>vector</em> shift is rescaled to a length
+of at most <span class="arithmatex">\(\max(\mathtt{clip\_max\_shift},\ 0.05\,a)\)</span> — a
+radius-scaled floor. The reason is that a fixed five-pixel cap is a
+severe constraint on an isophote at <span class="arithmatex">\(a = 300\,\mathrm{px}\)</span>, where it
+amounts to <span class="arithmatex">\(1.7\%\)</span> of the semi-major axis and can effectively freeze
+the outer geometry; scaling the floor with radius keeps the cap
+meaningful as a <em>runaway</em> guard at all radii instead of becoming a
+de facto geometry lock in the outskirts. The two modes therefore
+apply the same field with different semantics, which is worth
+knowing before comparing their outputs.</p>
+<p>The defaults are conservative — wide enough that the cap is
+inactive in normal fits, but tight enough to bound the worst-case
+single-iteration excursion. The mechanism's purpose is not to
+constrain the converged geometry (which is determined by the
+iteration as a whole, not by any single step) but to prevent
+catastrophic single-iteration excursions in pathological inputs:
+a defect band crossing the trial ellipse can produce an enormous
+spurious harmonic amplitude, which without clipping would be
+converted by the small-gradient denominator into an enormous
+geometry update, which would then cause the next iteration to
+sample a completely different region of the image and produce
+further pathological behaviour. The clip caps stop the cascade at
+its first step.</p>
+<p>Each field accepts <code>None</code> to disable that particular cap. The
+classical algorithm corresponds to all three set to <code>None</code>; the
+default ISOSTER values are the conservative caps described above.
+The <code>'simultaneous'</code> value of <code>geometry_update_mode</code> pairs naturally
+with somewhat smaller caps because all four parameters are updated
+each iteration; the <code>'largest'</code> default mode only updates one
+parameter per iteration and so the default caps are well-suited.</p>
+<h2 id="1446-background-noise-convergence-floor">§1.4.4.6 Background-noise convergence floor</h2>
+<p>The convergence criterion of §1.1, <span class="arithmatex">\(|a_\max| &lt; c \cdot S(a) \cdot
+\sigma_\mathrm{eff}\)</span> (with <span class="arithmatex">\(S(a)\)</span> the convergence-scale factor of
+§1.1), uses the effective standard deviation
+<span class="arithmatex">\(\sigma_\mathrm{eff} = \max(\sigma_\mathrm{res}, \sigma_\mathrm{bg} / \sqrt{N})\)</span>
+where <span class="arithmatex">\(\sigma_\mathrm{res}\)</span> is the harmonic-fit residual RMS and
+<span class="arithmatex">\(\sigma_\mathrm{bg}\)</span> is the user-supplied background noise level.
+The background floor is delivered through the <code>sigma_bg</code> config
+field (default <code>None</code>, i.e. disabled, so <span class="arithmatex">\(\sigma_\mathrm{eff} =
+\sigma_\mathrm{res}\)</span>).</p>
+<p>When <code>sigma_bg</code> is supplied, ISOSTER uses
+<span class="arithmatex">\(\sigma_\mathrm{bg} / \sqrt{N}\)</span> as a lower bound on
+<span class="arithmatex">\(\sigma_\mathrm{eff}\)</span>, with <span class="arithmatex">\(N\)</span> the number of surviving sample
+points along the isophote after masking and sigma clipping. The
+The motivation for the floor is that <span class="arithmatex">\(\sigma_\mathrm{bg}/\sqrt{N}\)</span>
+is the scale on which the mean intensity of a ring of <span class="arithmatex">\(N\)</span> samples
+can be determined at all, so a convergence threshold that shrinks
+far below it is asking the fit to resolve structure the data cannot
+carry. Left unfloored, <span class="arithmatex">\(\sigma_\mathrm{res}\)</span> can fall arbitrarily
+low — a five-parameter model fitted to a noisy ring will sometimes
+absorb a chance realisation closely — and the iteration then chases
+noise-induced asymmetries indefinitely.</p>
+<p>It is worth being careful about how strong a statement this is. The
+floor is an <em>operational heuristic</em>, not a proof that a smaller
+residual is physically impossible. Nothing forbids a particular
+ring's post-fit residual from landing below the background noise
+scale: <span class="arithmatex">\(\sigma_\mathrm{res}\)</span> is an estimate from a finite sample and
+fluctuates, and the five fitted parameters remove real degrees of
+freedom from it. What the floor asserts is only that ISOSTER should
+not <em>act</em> on such a value by tightening its convergence demand,
+because doing so trades a real risk (overfitting noise) against no
+real gain. Read as a statement about the algorithm's behaviour it is
+sound; read as a statement about the data it would be wrong.</p>
+<p>When a variance map is supplied (§1.4.2), the WLS intensity error
+already encodes the per-pixel photon noise directly, and the
+<code>sigma_bg</code> field is typically left at its
+default. The <code>sigma_bg</code> parameter is most useful in the
+no-variance-map OLS workflow on imaging where the sky noise is
+well-characterized externally (typical of surveys with documented
+sky-brightness models). The value to use is the sky noise of the
+image being fitted, in the image's own intensity units, and it should
+be measured — from blank-sky regions of the frame, or from the
+survey's own noise model — rather than taken from a table. We do not
+quote a per-survey default, because the correct value depends on
+coadd depth, the units the caller's image is in, and the sky
+subtraction already applied.</p>
+<h2 id="1447-composition-and-defaults">§1.4.4.7 Composition and defaults</h2>
+<p>Each of the six primitives is independently configurable. Most
+defaults reproduce the classical algorithm, with two deliberate
+exceptions noted above: the first-isophote retry is enabled with a
+budget of three attempts, and gradient-SNR damping and step
+clipping are always on (their floors are loose enough to be
+inactive in normal fits). For most science use cases on small
+samples — a single
+target galaxy, a small panel of nearby objects — the defaults are
+the right choice and none of the primitives needs to be touched.</p>
+<p>For survey pipelines, a reasonable starting point enables the
+primitives whose cost is bounded and whose failure mode is benign.
+This is a suggested configuration, not a named preset: ISOSTER
+ships no <code>survey</code> profile, and the values below are a starting point
+to be tuned against a pilot sample rather than defaults validated
+across surveys. In particular <code>lsb_sma_threshold</code> is
+galaxy-and-survey dependent and the value shown is illustrative
+only.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">IsosterConfig</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">sma0</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">maxsma</span><span class="o">=</span><span class="mf">200.0</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="c1"># Operations-grade robustness</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">max_retry_first_isophote</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">permissive_geometry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">integrator</span><span class="o">=</span><span class="s2">&quot;adaptive&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">lsb_sma_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>   <span class="c1"># illustrative; tune per survey</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
+</code></pre></div>
+<p>The two primitives that are <em>always on</em> — gradient-SNR-aware
+damping and per-iteration step clipping — do not appear in the
+preset because their conservative defaults are already appropriate;
+they would only need to be tightened on a pipeline where step
+clipping is biting genuine large-step iterations (rare).</p>
+<p>The composability story for the robustness primitives is identical
+to that of every other ISOSTER feature: each primitive operates on
+a different layer of the fit (anchor retry at the image level,
+permissive geometry at the inter-isophote propagation level,
+adaptive integration at the per-isophote output, gradient-SNR
+damping at the per-iteration update, step clipping at the
+per-iteration cap, <span class="arithmatex">\(\sigma_\mathrm{bg}\)</span> at the convergence test),
+and none of them shares mutable state with any other. Enabling all
+of them simultaneously is the suggested survey-pipeline starting
+point above; selectively enabling a subset (e.g. only
+<code>max_retry_first_isophote</code> on a small panel where the user happens
+to be running into anchor failures) is also fully supported.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>
