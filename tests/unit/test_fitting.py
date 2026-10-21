@@ -1779,3 +1779,25 @@ class TestStopCodes:
         assert failed, "the outer rings should fail at this noise level"
         assert all(iso[k] == 0.0 for iso in failed for k in keys)
         assert any(iso["a4"] != 0.0 for iso in measured)
+
+    def test_converged_rings_with_unmeasured_gradient_carry_no_harmonics(self):
+        """A converged ring keeps harmonics only if its relative gradient error is within maxgerr.
+
+        Permissive geometry lets outer rings converge with no measurable gradient; before
+        1.2.0 they kept a_n, b_n divided by that gradient.
+        """
+        from isoster import fit_image
+
+        image = self._make_sersic(re=10.0, eps=0.5, pa=0.6, ie=100.0, n=1.0)
+        image = image + np.random.default_rng(0).normal(0.0, 3.0, image.shape)
+        cfg = IsosterConfig(
+            x0=100.0, y0=100.0, eps=0.5, pa=0.6, sma0=10.0, maxsma=98.0, permissive_geometry=True, debug=True,
+        )
+        isophotes = fit_image(image, None, cfg)["isophotes"]
+
+        keys = [f"{c}{n}{e}" for n in (3, 4) for c in "ab" for e in ("", "_err")]
+        converged = [iso for iso in isophotes if iso["sma"] > 0 and iso["stop_code"] in (0, 2)]
+        unmeasured = [iso for iso in converged if not iso["grad_r_error"] <= cfg.maxgerr]
+        assert unmeasured, "permissive outer rings should converge without a measured gradient"
+        assert all(iso[k] == 0.0 for iso in unmeasured for k in keys)
+        assert any(iso["a4"] != 0.0 for iso in converged if iso["grad_r_error"] <= cfg.maxgerr)

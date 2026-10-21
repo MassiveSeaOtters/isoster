@@ -20,6 +20,7 @@ def build_isoster_model(
     use_harmonics=True,
     harmonic_orders=None,
     use_eccentric_anomaly=None,
+    harmonic_min_snr=2.0,
 ):
     """
     Reconstruct a 2D galaxy image model from fitted isophotes.
@@ -69,6 +70,13 @@ def build_isoster_model(
         in the isophote results by ``fit_isophote()``. Set explicitly to
         override auto-detection. When True, uses ψ = arctan2(y_rot/(1-eps),
         x_rot) instead of φ = arctan2(y_rot, x_rot) for harmonic evaluation.
+    harmonic_min_snr : float, optional
+        Draw harmonic order n of a ring only where its amplitude signal-to-noise,
+        √(aₙ² + bₙ²) / √((σ_aₙ² + σ_bₙ²) / 2), is at least this value (default 2).
+        Below it the harmonic is noise, and drawing it adds that noise to the model.
+        0 draws every harmonic. An order whose errors
+        ``a{n}_err``, ``b{n}_err`` are missing from any ring is drawn uncut, with a
+        warning. The isophote list is not changed.
 
     Returns
     -------
@@ -85,7 +93,8 @@ def build_isoster_model(
       deviation (the isophote bulges outward) shrinks the corrected
       radius, so the pixel samples the higher intensity of the
       bulging isophote.
-    - Harmonics of a ring whose summed amplitude Σₙ √(aₙ² + bₙ²) is >= 1 are
+    - Harmonics below ``harmonic_min_snr`` are withheld first; then harmonics
+      of a ring whose summed amplitude Σₙ √(aₙ² + bₙ²) is >= 1 are
       ignored with a warning: they could drive the corrected radius to zero.
     - The function uses local geometry interpolation at each radius to
       handle varying ellipticity and position angle profiles.
@@ -96,6 +105,8 @@ def build_isoster_model(
     >>> model = build_isoster_model(image.shape, results['isophotes'])
     >>> residual = image - model
     """
+    if not harmonic_min_snr >= 0:
+        raise ValueError(f"harmonic_min_snr must be >= 0, got {harmonic_min_snr}")
     if harmonic_orders is None:
         # Auto-detect available harmonic orders from isophote keys
         detected_orders = set()
@@ -297,6 +308,25 @@ def build_isoster_model(
                     an_values = frame_sign * np.where(np.isfinite(an_values), an_values, 0.0)
                     bn_values = frame_sign * np.where(np.isfinite(bn_values), bn_values, 0.0)
                     harm_coeffs[n] = (an_values, bn_values)
+
+            if harmonic_min_snr > 0:
+                uncut = []
+                for n, (an_values, bn_values) in harm_coeffs.items():
+                    if not all(f"a{n}_err" in iso and f"b{n}_err" in iso for iso in sorted_isos):
+                        uncut.append(n)
+                        continue
+                    a_err = np.array([iso[f"a{n}_err"] for iso in sorted_isos], dtype=float)
+                    b_err = np.array([iso[f"b{n}_err"] for iso in sorted_isos], dtype=float)
+                    with np.errstate(divide="ignore", invalid="ignore"):
+                        snr = np.hypot(an_values, bn_values) / np.sqrt(0.5 * (a_err**2 + b_err**2))
+                    significant = snr >= harmonic_min_snr  # NaN (0/0, non-finite error) is withheld
+                    harm_coeffs[n] = (np.where(significant, an_values, 0.0), np.where(significant, bn_values, 0.0))
+                if uncut:
+                    warnings.warn(
+                        f"build_isoster_model: harmonic errors missing for order(s) {uncut}; "
+                        "drawn without the harmonic_min_snr cut",
+                        stacklevel=2,
+                    )
 
             # A ring whose summed amplitude sum_n hypot(a_n, b_n) reaches 1 can set
             # dr/r >= 1 at some angle, i.e. a corrected radius <= 0 that would draw

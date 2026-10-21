@@ -317,6 +317,7 @@ model = build_isoster_model(
 
 - `harmonic_orders` (default `None`): When `None`, auto-detects which harmonic orders are present by scanning isophote dicts for `a{n}` keys (n >= 3). Pass an explicit list like `[3, 4]` to restrict to specific orders.
 - `use_eccentric_anomaly` (default `None`): When `None`, auto-detects from the `use_eccentric_anomaly` flag stored in isophote dicts by `fit_isophote()`. When `True`, evaluates harmonics in eccentric anomaly (psi) space; when `False`, uses position angle (phi) space. Must match the angle space used during fitting for correct reconstruction.
+- `harmonic_min_snr` (default `2.0`): draws harmonic order n of a ring only where its amplitude signal-to-noise √(aₙ² + bₙ²) / √((σ_aₙ² + σ_bₙ²) / 2) reaches this value; weaker harmonics are noise and would add it to the model. `0` draws every harmonic. The isophote list is not changed.
 
 ## Serialization Helpers
 

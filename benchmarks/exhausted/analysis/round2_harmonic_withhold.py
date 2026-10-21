@@ -105,7 +105,8 @@ def measure_galaxy(sample: str, name: str, arms: tuple[str, ...], inner_cut_pix:
                         with warnings.catch_warnings():
                             warnings.simplefilter("ignore", UserWarning)
                             models[rule, interp] = build_isoster_model(
-                                truth.shape, dicts, fill=np.nan, use_harmonics=True, interp_kind=interp
+                                truth.shape, dicts, fill=np.nan, use_harmonics=True, interp_kind=interp,
+                                harmonic_min_snr=0,  # the rules above are the only cuts
                             )
             except (ValueError, TypeError, KeyError):  # same exclusions as round2_small_sample.render
                 continue

@@ -1186,10 +1186,11 @@ def _attach_full_photometry(isophote_result, image, mask):
 def _zero_harmonics(geometry, harmonic_orders):
     """Store zero a_n, b_n and errors: the value of a ring with no measured harmonics.
 
-    Every path reports harmonics only for stop codes 0 and 2. In-loop ISOFIT
-    writes them on each improving iteration, so a ring that then fails must
-    have them cleared here: they were normalized by a gradient the fit could
-    not measure, and the renderer would draw them.
+    Every path reports harmonics only for stop codes 0 and 2 with a relative
+    gradient error within ``maxgerr``; otherwise they were normalized by a
+    gradient the fit could not measure, and the renderer would draw them.
+    In-loop ISOFIT writes them on each improving iteration, so they are cleared
+    at the end of ``fit_isophote``.
     """
     for n in harmonic_orders:
         for key in (f"a{n}", f"b{n}", f"a{n}_err", f"b{n}_err"):
@@ -1372,6 +1373,7 @@ def fit_isophote(
     best_angles = None
     best_intens = None
     best_gradient = None
+    best_gradient_relative_error = None
     best_variances = None
 
     # Geometry convergence tracking
@@ -1750,6 +1752,7 @@ def fit_isophote(
             best_angles = angles.copy()
             best_intens = intens.copy()
             best_gradient = gradient
+            best_gradient_relative_error = gradient_relative_error
             best_variances = variances.copy() if variances is not None else None
             # ISOFIT in_loop: extract and store higher-order harmonics from the joint fit
             if use_isofit_in_loop and gradient != 0:
@@ -2066,7 +2069,12 @@ def fit_isophote(
         if full_photometry:
             _attach_full_photometry(best_geometry, image, mask_bool)
 
-    if best_isofit_harmonics_stored and stop_code not in (0, 2):
+    # Harmonics are kept only on converged rings (stop 0, 2) whose gradient passes the
+    # fitter's own test. Permissive geometry, the one tolerated exceedance and inward
+    # rings let a ring converge without it, and its a_n, b_n are then divided by a
+    # gradient the fit did not measure.
+    gradient_measured = best_gradient_relative_error is not None and best_gradient_relative_error <= maxgerr
+    if (compute_deviations_flag or simultaneous_harmonics) and (stop_code not in (0, 2) or not gradient_measured):
         _zero_harmonics(best_geometry, harmonic_orders)
     best_geometry["stop_code"], best_geometry["niter"] = stop_code, niter
     return best_geometry

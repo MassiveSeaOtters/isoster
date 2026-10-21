@@ -128,3 +128,32 @@ Outputs: `outputs/benchmark_exhausted/harmonic_withhold_2026_10_21/` and
 `..._combined_2026_10_21/` (isoster; `summary.md`, `withhold_metrics.csv.gz`);
 `/Volumes/galaxy/isophote/sga2020/output/campaign/bm1r2_phase4/harmonic_withhold*_2026_10_21/`
 and `sga_isoster/output/qa/bm1r2_phase4/harmonic_withhold.md`.
+
+## Adopted in isoster 1.2.0
+
+Both rules are the default from 1.2.0 (decided 2026-10-21):
+
+- **Fitter** (`fit_isophote`): a ring keeps a_n, b_n and their errors only if its stop code
+  is 0 or 2 and the relative gradient error of its stored iteration (the value `debug=True`
+  reports as `grad_r_error`) is within `maxgerr`; otherwise it stores zeros. The harmonics
+  are still fitted; only what is stored changes, and no other column does. No separate
+  switch: the threshold is `maxgerr`. Zeroed rings are recognizable by `a_n_err = 0`.
+  Template forced photometry keeps its own rule (harmonics only where the gradient is
+  measured) and the multi-band fitter is unchanged.
+- **Renderer** (`build_isoster_model(..., harmonic_min_snr=2.0)`): order n of a ring is
+  drawn only where its amplitude S/N reaches the threshold; 0 draws all. Orders without
+  stored errors are drawn uncut with a warning.
+
+Checks:
+
+- 144 mock refits (24 random Huang2013 and S4G inputs, six arms) with 1.2.0 reproduce the
+  stored profile exactly, and their harmonics equal the stored ones under `grad0.5`.
+- 144 SGA-2020 refits (24 galaxies, six arms) with 1.2.0: the residual of the default
+  render equals the experiment's `grad0.5+snr2` render exactly (difference 0.0 in every
+  zone), and refits reproduce the stored intensities.
+- Inside the 2 px inner cut that both experiments excluded (the gradient error is often
+  undefined on the innermost rings of a cuspy profile): among the 180 mock models (60 random
+  galaxies per sample, all scenarios, six arms) whose render changes under the gradient rule, the truth RMS within 2 px and 4 px
+  is unchanged (median ratio 1.000; none better or worse by more than 2 %).
+- Cost, on one S4G mock (513 x 513, 66 rings): the gradient rule takes 0.007 ms against a
+  0.115 s fit; the render takes 0.059 s with the S/N cut and 0.063 s without (timing noise).

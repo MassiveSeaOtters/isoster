@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "isoster"
-version = "1.1.2"
+version = "1.2.0"
 description = "ISOphote on STERoid - Accelerated isophote fitting"
 readme = "README.md"
 license = "BSD-3-Clause"
